@@ -1,0 +1,97 @@
+name: Sky Historical 5m Export
+
+on:
+  workflow_dispatch:
+    inputs:
+      from_date:
+        description: "Start date"
+        required: true
+        default: "2023-05-23"
+      to_date:
+        description: "End date"
+        required: true
+        default: "2026-10-22"
+      twse_n:
+        description: "TWSE deterministic sample size"
+        required: true
+        default: "50"
+      tpex_n:
+        description: "TPEx deterministic sample size"
+        required: true
+        default: "50"
+
+permissions:
+  contents: read
+
+jobs:
+  export-history:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependency
+        run: pip install requests
+
+      - name: Unit tests
+        run: python tests/test_history_export.py
+
+      - name: Build deterministic official-universe sample
+        run: |
+          python research/build_universe_sample.py \
+            --twse-n "${{ inputs.twse_n }}" \
+            --tpex-n "${{ inputs.tpex_n }}" \
+            --out research_data/universe_manifest.json
+
+      - name: Download Fugle historical 5m data
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+        run: |
+          python research/download_expanded.py \
+            --manifest research_data/universe_manifest.json \
+            --from-date "${{ inputs.from_date }}" \
+            --to-date "${{ inputs.to_date }}" \
+            --out research_data/history
+
+      - name: Validate export
+        run: |
+          python research/validate_history_export.py \
+            --history-dir research_data/history \
+            --manifest research_data/universe_manifest.json \
+            --download-summary research_data/download_summary.json \
+            --out research_data/export_validation.json
+
+      - name: Create archive
+        run: |
+          tar -czf sky-history-5m-${{ github.run_id }}.tar.gz research_data/
+
+      - name: Publish summary
+        if: always()
+        run: |
+          if [ -f research_data/export_validation.json ]; then
+            echo "## Historical 5m Export" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo '```json' >> "$GITHUB_STEP_SUMMARY"
+            cat research_data/export_validation.json >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload historical data artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-history-5m-${{ github.run_id }}
+          path: |
+            sky-history-5m-${{ github.run_id }}.tar.gz
+            research_data/universe_manifest.json
+            research_data/download_summary.json
+            research_data/export_validation.json
+          if-no-files-found: error
+          retention-days: 14
