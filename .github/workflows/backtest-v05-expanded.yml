@@ -1,0 +1,85 @@
+name: Sky v0.5 Expanded Backtest
+
+on:
+  workflow_dispatch:
+    inputs:
+      from_date:
+        description: "Start date"
+        required: true
+        default: "2023-05-23"
+      to_date:
+        description: "End date"
+        required: true
+        default: "2026-10-22"
+      twse_n:
+        description: "Deterministic TWSE sample size"
+        required: true
+        default: "50"
+      tpex_n:
+        description: "Deterministic TPEx sample size"
+        required: true
+        default: "50"
+
+permissions:
+  contents: read
+
+jobs:
+  expanded-backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependency
+        run: pip install requests
+
+      - name: Unit tests
+        run: python tests/test_v05_expanded.py
+
+      - name: Build deterministic official-universe sample
+        run: |
+          python research/build_universe_sample.py \
+            --twse-n "${{ inputs.twse_n }}" \
+            --tpex-n "${{ inputs.tpex_n }}" \
+            --out research_data/universe_manifest.json
+
+      - name: Download Fugle historical 5m data
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+        run: |
+          python research/download_expanded.py \
+            --manifest research_data/universe_manifest.json \
+            --from-date "${{ inputs.from_date }}" \
+            --to-date "${{ inputs.to_date }}" \
+            --out research_data/history
+
+      - name: Run expanded backtest
+        run: |
+          python research/backtest_expanded.py \
+            --data-dir research_data/history \
+            --out research_output_expanded
+
+      - name: Publish summary
+        if: always()
+        run: |
+          if [ -f research_output_expanded/expanded_summary.md ]; then
+            cat research_output_expanded/expanded_summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload expanded research artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-v05-expanded-${{ github.run_id }}
+          path: |
+            research_output_expanded/
+            research_data/universe_manifest.json
+            research_data/download_summary.json
+          if-no-files-found: warn
+          retention-days: 14
