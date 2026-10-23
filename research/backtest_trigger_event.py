@@ -94,6 +94,8 @@ def detect_p3_rebreak(bars, i, pc):
 DETECTORS=[detect_vwap_reclaim, detect_platform_breakout, detect_p3_rebreak]
 
 def validate_trade(sig):
+    if sig is None:
+        return None
     entry,stop=sig["entry"],sig["stop"]
     if entry is None or stop is None or stop >= entry: return None
     risk_pct=(entry-stop)/entry*100
