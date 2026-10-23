@@ -1,0 +1,84 @@
+name: Sky v0.5 Pilot Backtest
+
+on:
+  workflow_dispatch:
+    inputs:
+      from_date:
+        description: "Pilot start date"
+        required: true
+        default: "2026-09-21"
+      to_date:
+        description: "Pilot end date (must be < 1 year from start)"
+        required: true
+        default: "2026-10-22"
+      symbols:
+        description: "Comma-separated pilot symbols"
+        required: true
+        default: "4526,8240,5202,5426,2236,4720,2069,1101,2880,2030,2468,2465,6148,6221,6697,7704,3325,4188"
+      horizon_bars:
+        description: "Future 5m bars; 12=60 minutes"
+        required: true
+        default: "12"
+      round_trip_cost_pct:
+        description: "Pilot round-trip cost assumption in percent"
+        required: true
+        default: "0.45"
+
+permissions:
+  contents: read
+
+jobs:
+  pilot-backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependency
+        run: pip install requests
+
+      - name: Unit tests
+        run: python tests/test_v05_pilot.py
+
+      - name: Download Fugle historical 5m data
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+        run: |
+          python research/download_intraday.py \
+            --symbols "${{ inputs.symbols }}" \
+            --from-date "${{ inputs.from_date }}" \
+            --to-date "${{ inputs.to_date }}" \
+            --out research_data
+
+      - name: Run pilot backtest
+        run: |
+          python research/backtest_v05.py \
+            --data-dir research_data \
+            --out research_output \
+            --horizon-bars "${{ inputs.horizon_bars }}" \
+            --round-trip-cost-pct "${{ inputs.round_trip_cost_pct }}"
+
+      - name: Publish summary
+        if: always()
+        run: |
+          if [ -f research_output/pilot_summary.md ]; then
+            cat research_output/pilot_summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload research artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-v05-pilot-${{ github.run_id }}
+          path: |
+            research_output/
+            research_data/_download_summary.json
+          if-no-files-found: warn
+          retention-days: 14
