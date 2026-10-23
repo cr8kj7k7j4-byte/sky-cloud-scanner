@@ -21,6 +21,7 @@ def main():
         bar(dt+timedelta(minutes=15),10.12,10.35,10.08,10.30,180,10.04),
     ]
     for b in bars: b["_dt"]=datetime.fromisoformat(b["date"])
+    assert validate_trade(None) is None
     s=detect_vwap_reclaim(bars,2,9.8)
     assert s and s["setup"]=="VWAP_RECLAIM"
     v=validate_trade(s); assert v is not None
@@ -39,6 +40,6 @@ def main():
     rows=[{"net_r":1.0,"mfe_r":1.5,"mae_r":-.3},{"net_r":-1.0,"mfe_r":.2,"mae_r":-1.0}]
     m=metrics(rows); assert m["n"]==2 and m["pf"]==1.0
     assert metrics([])["n"]==0
-    print("PASS 6/6 trigger-event unit tests")
+    print("PASS 7/7 trigger-event unit tests")
 
 if __name__=="__main__": main()
