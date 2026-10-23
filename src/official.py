@@ -7,7 +7,7 @@ operational fallback, NOT a TPEx-official intraday source. STRICT_OFFICIAL_MODE
 therefore never certifies a complete full-market scan from MIS-OTC alone.
 """
 import re, time
-from .http import get_json, session
+from .http_utils import get_json, session
 
 TWSE_UNIVERSE_URL="https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL"
 TPEX_UNIVERSE_URL="https://www.tpex.org.tw/openapi/v1/tpex_mainboard_quotes"
