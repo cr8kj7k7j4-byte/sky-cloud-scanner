@@ -11,6 +11,8 @@ from bs4 import BeautifulSoup
 from .adr_context import fetch_taiwan_adr_context
 from .bis_policy import fetch_recent_bis_policy_events
 from .gold_context import fetch_gold_context
+from .industry_news import fetch_industry_news
+from .news_evidence import build_news_evidence_ledger
 
 FRED_DGS10_CSV = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS10"
 FRED_SP500_CSV = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=SP500"
@@ -264,6 +266,32 @@ def build_global_context(now=None, lookback_days=7):
         "reason": gold_context.get("reason"),
     }
 
+    try:
+        industry_news = fetch_industry_news(timespan="24H", maxrecords=100)
+        news_articles = industry_news.get("articles") or []
+        news_ledger = build_news_evidence_ledger(news_articles, run_time=now.isoformat())
+        health["INDUSTRY_NEWS"] = {
+            "ok": industry_news.get("status") == "CONNECTED",
+            "provider": industry_news.get("provider"),
+            "accepted": industry_news.get("accepted_count"),
+            "rejected": industry_news.get("rejected_count"),
+        }
+    except Exception as exc:
+        industry_news = {
+            "status": "ERROR",
+            "provider": "GDELT_DISCOVERY",
+            "articles": [],
+            "error": f"{type(exc).__name__}: {exc}",
+            "trade_signal": False,
+        }
+        news_ledger = build_news_evidence_ledger([], run_time=now.isoformat())
+        health["INDUSTRY_NEWS"] = {
+            "ok": False,
+            "provider": "GDELT_DISCOVERY",
+            "error": industry_news["error"],
+        }
+        errors.append({"source": "INDUSTRY_NEWS", "error": industry_news["error"]})
+
     vix = next((x for x in indicators if x["key"] == "VIX"), None)
     us10y = next((x for x in indicators if x["key"] == "US10Y"), None)
     sp500 = next((x for x in indicators if x["key"] == "SP500"), None)
@@ -289,6 +317,8 @@ def build_global_context(now=None, lookback_days=7):
         "ntdusd": ntdusd,
         "adr_context": adr_context,
         "gold_context": gold_context,
+        "industry_news": industry_news,
+        "industry_news_evidence": news_ledger,
         "bis_policy_events": bis_events,
         "trade_signal": False,
         "coverage": {
@@ -300,12 +330,12 @@ def build_global_context(now=None, lookback_days=7):
             "fx_usdtwd": bool(ntdusd),
             "commodity_wti": bool(wti),
             "commodity_gold": gold_context.get("status") == "CONNECTED",
-            "industry_news": False,
+            "industry_news": health.get("INDUSTRY_NEWS", {}).get("ok", False),
             "bis_policy": health.get("BIS_POLICY", {}).get("ok", False),
         },
         "warnings": [
             "全球背景層涵蓋 VIX、US10Y、S&P500、Nasdaq Composite、NTD/USD、WTI、FOMC 與 BIS 政策；"
-            "台灣ADR需 ALPHAVANTAGE_API_KEY；黃金需 GOLDAPI_TOKEN；產業新聞尚未接通。"
+            "台灣ADR需 ALPHAVANTAGE_API_KEY；黃金需 GOLDAPI_TOKEN；產業新聞採 GDELT Discovery＋白名單 Evidence Gate。"
         ],
         "errors": errors,
     }
