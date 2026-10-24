@@ -1,0 +1,70 @@
+name: Sky Catalyst Event OOS
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/backtest-catalyst-event-oos.yml'
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4
+
+      - name: Download historical 5m artifact
+        uses: dawidd6/action-download-artifact@v11
+        with:
+          run_id: 39963770301
+          name_is_regexp: true
+          name: sky-history-5m-.*
+          path: _hist
+          search_artifacts: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare history dataset
+        id: data
+        run: |
+          mkdir -p _hist_unpacked
+          HIST_TAR=$(find _hist -name 'sky-history-5m-*.tar.gz' | head -1)
+          test -n "$HIST_TAR"
+          tar -xzf "$HIST_TAR" -C _hist_unpacked
+          HIST_DIR=$(find _hist_unpacked -type d -path '*/research_data/history' | head -1)
+          MANIFEST=$(find _hist_unpacked -name universe_manifest.json | head -1)
+          test -n "$HIST_DIR"
+          test -n "$MANIFEST"
+          echo "history_dir=$HIST_DIR" >> "$GITHUB_OUTPUT"
+          echo "manifest=$MANIFEST" >> "$GITHUB_OUTPUT"
+
+      - name: Run standalone catalyst OOS
+        run: |
+          python research/backtest_catalyst_event_oos.py             --manifest "${{ steps.data.outputs.manifest }}"             --history-dir "${{ steps.data.outputs.history_dir }}"             --start "2023-05-23"             --end "2026-10-22"             --out research_output_catalyst_oos
+
+      - name: Publish summary
+        if: always()
+        run: |
+          if [ -f research_output_catalyst_oos/catalyst_oos_summary.md ]; then
+            cat research_output_catalyst_oos/catalyst_oos_summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-catalyst-oos-${{ github.run_id }}
+          path: research_output_catalyst_oos
+          if-no-files-found: warn
+          retention-days: 14
