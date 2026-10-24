@@ -1,0 +1,64 @@
+name: Sky Stage 6B Catalyst Backtest
+
+on:
+  workflow_dispatch:
+    inputs:
+      start_date:
+        description: "OOS start date"
+        required: true
+        default: "2025-01-01"
+      end_date:
+        description: "OOS end date"
+        required: true
+        default: "2026-10-22"
+
+permissions:
+  contents: read
+
+jobs:
+  stage6b:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4
+
+      - name: Build deterministic official-universe sample
+        run: |
+          python research/build_universe_sample.py             --twse-n 50             --tpex-n 50             --out research_data/universe_manifest.json
+
+      - name: Download Fugle historical 5m data
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+        run: |
+          python research/download_expanded.py             --manifest research_data/universe_manifest.json             --from-date "${{ inputs.start_date }}"             --to-date "${{ inputs.end_date }}"             --out research_data/history
+
+      - name: Run Stage 6B catalyst event backtest
+        run: |
+          python research/stage6b_catalyst_backtest.py             --manifest research_data/universe_manifest.json             --data-dir research_data/history             --start "${{ inputs.start_date }}"             --end "${{ inputs.end_date }}"             --out research_output_stage6b
+
+      - name: Publish summary
+        if: always()
+        run: |
+          if [ -f research_output_stage6b/stage6b_report.json ]; then
+            cat research_output_stage6b/stage6b_report.json >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload research artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-stage6b-${{ github.run_id }}
+          path: |
+            research_output_stage6b/
+            research_data/universe_manifest.json
+          if-no-files-found: warn
+          retention-days: 14
