@@ -171,12 +171,15 @@ def make_thresholds(train):
     return {f:quantile([r.get(f) for r in train],0.70) for f in feats}
 
 def flags(r,thr):
+    def geq(feature):
+        v=r.get(feature); t=thr.get(feature)
+        return v is not None and t is not None and v>=t
     return {
-        "FOREIGN_1D_Q70": r.get("foreign_flow_turnover_1d") is not None and r["foreign_flow_turnover_1d"]>=thr["foreign_flow_turnover_1d"],
-        "TRUST_1D_Q70": r.get("trust_flow_turnover_1d") is not None and r["trust_flow_turnover_1d"]>=thr["trust_flow_turnover_1d"],
-        "TOTAL_1D_Q70": r.get("total_flow_turnover_1d") is not None and r["total_flow_turnover_1d"]>=thr["total_flow_turnover_1d"],
-        "TOTAL_3D_Q70": r.get("total_flow_turnover_3d") is not None and r["total_flow_turnover_3d"]>=thr["total_flow_turnover_3d"],
-        "TOTAL_5D_Q70": r.get("total_flow_turnover_5d") is not None and r["total_flow_turnover_5d"]>=thr["total_flow_turnover_5d"],
+        "FOREIGN_1D_Q70": geq("foreign_flow_turnover_1d"),
+        "TRUST_1D_Q70": geq("trust_flow_turnover_1d"),
+        "TOTAL_1D_Q70": geq("total_flow_turnover_1d"),
+        "TOTAL_3D_Q70": geq("total_flow_turnover_3d"),
+        "TOTAL_5D_Q70": geq("total_flow_turnover_5d"),
         "PERSIST_TOTAL_4OF5": r.get("flow_days_5",0)>=4 and r.get("positive_total_days_5",0)>=4,
         "CONCORD_FT_POS": bool(r.get("concord_ft_pos")),
         "CONCORD_ALL3_POS": bool(r.get("concord_all3_pos")),
