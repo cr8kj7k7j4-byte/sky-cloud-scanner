@@ -1,0 +1,36 @@
+name: P0-A P0-S Core Tests
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches:
+      - feature/p0s-oos-and-scan-schedule
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          pip install -r requirements.txt
+          pip install pytest
+      - name: Compile
+        run: python -m compileall -q src research tests
+      - name: Test
+        run: |
+          pytest -q \
+            tests/test_monitor_engine.py \
+            tests/test_state_store.py \
+            tests/test_strategy_builder.py \
+            tests/test_risk_engine.py \
+            tests/test_p0s_oos.py
