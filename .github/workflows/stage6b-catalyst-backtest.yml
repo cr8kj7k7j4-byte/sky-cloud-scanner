@@ -1,6 +1,11 @@
 name: Sky Stage 6B Catalyst Backtest
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "research/stage6b_catalyst_backtest.py"
+      - ".github/workflows/stage6b-catalyst-backtest.yml"
   workflow_dispatch:
     inputs:
       start_date:
