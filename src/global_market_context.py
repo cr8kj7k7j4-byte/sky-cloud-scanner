@@ -8,6 +8,9 @@ from datetime import datetime, timedelta
 import requests
 from bs4 import BeautifulSoup
 
+from .adr_context import fetch_taiwan_adr_context
+from .bis_policy import fetch_recent_bis_policy_events
+
 FRED_DGS10_CSV = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS10"
 FRED_SP500_CSV = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=SP500"
 FRED_NASDAQ_CSV = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=NASDAQCOM"
@@ -234,6 +237,24 @@ def build_global_context(now=None, lookback_days=7):
         health["FED_FOMC"] = {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
         errors.append({"source": "FED_FOMC", "error": health["FED_FOMC"]["error"]})
 
+    try:
+        bis_events = fetch_recent_bis_policy_events(now=now, lookback_days=max(lookback_days, 14))
+        macro_events.extend(bis_events)
+        health["BIS_POLICY"] = {"ok": True, "events": len(bis_events)}
+    except Exception as exc:
+        bis_events = []
+        health["BIS_POLICY"] = {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+        errors.append({"source": "BIS_POLICY", "error": health["BIS_POLICY"]["error"]})
+
+    adr_context = fetch_taiwan_adr_context()
+    health["TAIWAN_ADR"] = {
+        "ok": adr_context.get("status") == "CONNECTED",
+        "status": adr_context.get("status"),
+        "provider": adr_context.get("provider"),
+        "reason": adr_context.get("reason"),
+        "quotes": len(adr_context.get("quotes") or []),
+    }
+
     vix = next((x for x in indicators if x["key"] == "VIX"), None)
     us10y = next((x for x in indicators if x["key"] == "US10Y"), None)
     sp500 = next((x for x in indicators if x["key"] == "SP500"), None)
@@ -257,21 +278,24 @@ def build_global_context(now=None, lookback_days=7):
         "nasdaq": nasdaq,
         "wti": wti,
         "ntdusd": ntdusd,
+        "adr_context": adr_context,
+        "bis_policy_events": bis_events,
         "trade_signal": False,
         "coverage": {
             "vix": bool(vix),
             "us10y": bool(us10y),
             "fomc": health.get("FED_FOMC", {}).get("ok", False),
             "us_equity_index": bool(sp500 and nasdaq),
-            "taiwan_adr": False,
+            "taiwan_adr": adr_context.get("status") == "CONNECTED",
             "fx_usdtwd": bool(ntdusd),
             "commodity_wti": bool(wti),
             "commodity_gold": False,
             "industry_news": False,
+            "bis_policy": health.get("BIS_POLICY", {}).get("ok", False),
         },
         "warnings": [
-            "全球背景層目前涵蓋 VIX、US10Y、S&P500、Nasdaq Composite、NTD/USD、WTI 與 FOMC；"
-            "台灣ADR、黃金與產業新聞尚未接通，一律視為 NOT_CONNECTED。"
+            "全球背景層涵蓋 VIX、US10Y、S&P500、Nasdaq Composite、NTD/USD、WTI、FOMC 與 BIS 政策；"
+            "台灣ADR需 ALPHAVANTAGE_API_KEY 才啟用，黃金與產業新聞尚未接通。"
         ],
         "errors": errors,
     }
