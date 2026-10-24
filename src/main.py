@@ -204,7 +204,7 @@ def run():
                     market_return_pct=None,
                 ).to_dict()
                 regime = detect_regime(
-                    index_change_pct=0.0,
+                    index_change_pct=None,
                     breadth_pct=None,
                     volatility_pct=features.get("volatility_5"),
                 )
