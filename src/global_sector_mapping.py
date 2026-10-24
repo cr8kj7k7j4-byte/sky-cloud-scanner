@@ -3,17 +3,17 @@ from __future__ import annotations
 SECTOR_RULES = {
     "SEMICONDUCTOR": {
         "label": "半導體",
-        "positive": ("nasdaq_up", "sp500_up", "vix_low", "ntd_weak", "tsm_adr_up", "umc_adr_up"),
+        "positive": ("nasdaq_up", "sp500_up", "vix_low", "ntd_weak", "tsm_adr_up", "umc_adr_up", "semiconductor_news"),
         "negative": ("nasdaq_down", "vix_high", "us10y_high", "ntd_strong", "tsm_adr_down", "umc_adr_down", "bis_policy_risk"),
     },
     "AI_SERVER": {
         "label": "AI／伺服器",
-        "positive": ("nasdaq_up", "sp500_up", "vix_low", "ntd_weak", "tsm_adr_up"),
+        "positive": ("nasdaq_up", "sp500_up", "vix_low", "ntd_weak", "tsm_adr_up", "ai_news"),
         "negative": ("nasdaq_down", "vix_high", "us10y_high", "tsm_adr_down", "bis_policy_risk"),
     },
     "DISPLAY": {
         "label": "面板",
-        "positive": ("sp500_up", "ntd_weak", "wti_low"),
+        "positive": ("sp500_up", "ntd_weak", "wti_low", "display_news"),
         "negative": ("sp500_down", "vix_high", "wti_high"),
     },
     "FINANCIAL": {
@@ -37,6 +37,7 @@ def _flags(ctx):
     ntdusd = _num((ctx.get("ntdusd") or {}).get("value"))
     adr_quotes = ((ctx.get("adr_context") or {}).get("quotes") or [])
     bis_events = ctx.get("bis_policy_events") or []
+    news_articles = ((ctx.get("industry_news") or {}).get("articles") or [])
 
     # Current-value context only. Directional daily moves are not inferred
     # unless a verified previous observation is available.
@@ -65,6 +66,17 @@ def _flags(ctx):
 
     if bis_events:
         flags.add("bis_policy_risk")
+
+    news_sectors = set()
+    for a in news_articles:
+        for s in a.get("affected_sectors") or []:
+            news_sectors.add(str(s))
+    if "SEMICONDUCTOR" in news_sectors:
+        flags.add("semiconductor_news")
+    if "AI_SERVER" in news_sectors:
+        flags.add("ai_news")
+    if "DISPLAY" in news_sectors:
+        flags.add("display_news")
 
     # Index levels alone do not imply up/down. Leave directional flags absent
     # until change data is separately verified.
