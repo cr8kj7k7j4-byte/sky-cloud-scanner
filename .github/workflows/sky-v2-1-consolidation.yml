@@ -30,4 +30,5 @@ jobs:
       - name: Run consolidated unit tests
         run: |
           pytest -q             tests/test_risk_engine.py             tests/test_knowledge_engine.py             tests/test_agent_orchestrator.py             tests/test_feature_model_arena.py             tests/test_sky100_core.py             tests/test_monitor_engine.py             tests/test_state_store.py             tests/test_strategy_builder.py             tests/test_sky_v2_p1_p3.py             tests/test_sky80_outcome_validation.py             tests/test_sky90_ranking.py \
-            tests/test_sector_rs_replay.py
+            tests/test_sector_rs_replay.py \
+            tests/test_vwap_entry_replay.py
