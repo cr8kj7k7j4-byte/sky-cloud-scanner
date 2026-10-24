@@ -65,3 +65,9 @@ EXEC_FILL_PROBABILITY = _f_optional("EXEC_FILL_PROBABILITY")
 EXEC_FINANCING_INTEREST_PER_SHARE = _f_optional("EXEC_FINANCING_INTEREST_PER_SHARE")
 EXEC_MIN_RR = float(os.getenv("EXEC_MIN_RR", "1.5"))
 EXEC_ENFORCE_GATE = _b("EXEC_ENFORCE_GATE", "0")
+
+
+# P0-LAB / Paper Trading
+PAPER_TRADING_MODE = os.getenv("PAPER_TRADING_MODE", "shadow").strip().lower()
+P0S_OOS_VERDICT = os.getenv("P0S_OOS_VERDICT", "RESEARCH_ONLY").strip().upper()
+PAPER_GCS_BUCKET = os.getenv("PAPER_GCS_BUCKET", "").strip()
