@@ -105,7 +105,7 @@ def _build_chain(last=10.21, daily_pnl=0.0, execution_policy=None):
 
 
 def test_happy_path_reaches_shadow_but_not_live_execution():
-    market, c = _build_chain(execution_policy=_execution_policy(True))
+    market, c = _build_chain(last=10.25, execution_policy=_execution_policy(True))
 
     assert market["market_bias"] in {"BULLISH", "NEUTRAL", "BEARISH"}
     assert c["strategy_plan"]["production_eligible"] is False
