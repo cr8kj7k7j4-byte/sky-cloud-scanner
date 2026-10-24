@@ -145,6 +145,9 @@ def main():
             "features":FEATURES,"horizons":HORIZONS,"costs":COSTS,
             "event_count":len(events),"split_counts":{k:len(v) for k,v in splits.items()},
             "results":{},"stable_pairs":[],"promotion_candidates":[],
+            "pre_pit_candidates":[],
+            "point_in_time_verified":False,
+            "promotion_blocked_reason":"Company filing timestamp not verified; statutory deadline proxy only.",
             "production_eligible":False,
             "limitations":["Current-universe survivorship bias from 100-stock price sample.","Knowledge-date uses conservative statutory deadline proxy, not company filing timestamp.","2026 has been observed in broader research and is not globally untouched OOS."]}
 
@@ -169,7 +172,7 @@ def main():
                     rr["quantiles"][ck]={sp:quantile_pick(arr,f,target,sign,c) for sp,arr in splits.items()}
                 q=rr["quantiles"]["0.45"]
                 if all(q[s].get("n",0)>=20 and (q[s].get("expectancy_pct") or -999)>0 and (q[s].get("pf") or 0)>1.05 for s in ("train","valid","test")):
-                    report["promotion_candidates"].append(key)
+                    report["pre_pit_candidates"].append(key)
             report["results"][key]=rr
 
     (out/"revenue_oos_report.json").write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8")
@@ -177,8 +180,10 @@ def main():
            f"- Events: {report['event_count']}",
            f"- Split counts: {report['split_counts']}",
            f"- Stable pairs: {report['stable_pairs']}",
-           f"- Promotion candidates @0.45%: {report['promotion_candidates']}"]
-    for key in report["promotion_candidates"]+[
+           f"- Pre-PIT candidates @0.45%: {report['pre_pit_candidates']}",
+           f"- Point-in-time verified: {report['point_in_time_verified']}",
+           f"- Promotion candidates: {report['promotion_candidates']}"]
+    for key in report["pre_pit_candidates"]+[
         f"{x['feature']}_{x['horizon']}d" for x in report["stable_pairs"]
         if f"{x['feature']}_{x['horizon']}d" not in report["promotion_candidates"]][:15]:
         rr=report["results"][key]
