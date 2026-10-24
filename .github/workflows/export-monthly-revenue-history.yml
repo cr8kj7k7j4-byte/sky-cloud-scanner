@@ -66,3 +66,5 @@ jobs:
           path: revenue_shard_${{ matrix.year }}_${{ matrix.market }}
           if-no-files-found: warn
           retention-days: 14
+
+# rerun-after-parser-fix
