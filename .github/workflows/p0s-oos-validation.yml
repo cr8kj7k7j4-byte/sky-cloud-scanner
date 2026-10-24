@@ -1,6 +1,12 @@
 name: P0-S 5m OOS Validation
 
 on:
+  push:
+    branches: [ main ]
+    paths:
+      - "src/strategy_builder.py"
+      - "research/backtest_p0s_breakout_oos.py"
+      - ".github/workflows/p0s-oos-validation.yml"
   workflow_dispatch:
     inputs:
       from_date:
@@ -49,8 +55,8 @@ jobs:
       - name: Build deterministic universe sample
         run: |
           python research/build_universe_sample.py \
-            --twse-n "${{ inputs.twse_n }}" \
-            --tpex-n "${{ inputs.tpex_n }}" \
+            --twse-n "${{ inputs.twse_n || '50' }}" \
+            --tpex-n "${{ inputs.tpex_n || '50' }}" \
             --out research_data/universe_manifest.json
       - name: Download historical 5m data
         env:
@@ -58,8 +64,8 @@ jobs:
         run: |
           python research/download_expanded.py \
             --manifest research_data/universe_manifest.json \
-            --from-date "${{ inputs.from_date }}" \
-            --to-date "${{ inputs.to_date }}" \
+            --from-date "${{ inputs.from_date || '2023-05-23' }}" \
+            --to-date "${{ inputs.to_date || '2026-10-24' }}" \
             --out research_data/history
       - name: Validate historical export
         run: |
@@ -72,8 +78,8 @@ jobs:
         run: |
           python research/backtest_p0s_breakout_oos.py \
             --data-dir research_data/history \
-            --cutoff "${{ inputs.cutoff }}" \
-            --cost-pct "${{ inputs.cost_pct }}" \
+            --cutoff "${{ inputs.cutoff || '2026-01-01' }}" \
+            --cost-pct "${{ inputs.cost_pct || '0.45' }}" \
             --out research_output_p0s_oos
       - name: Publish summary
         if: always()
