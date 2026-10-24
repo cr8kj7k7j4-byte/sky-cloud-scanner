@@ -22,10 +22,10 @@ Research namespaces:
 
 | Candidate | Status | Priority | Current evidence |
 |---|---|---:|---|
-| Revenue MoM 5D | RESEARCH | 1 | Passed initial Train/Valid/Test + 0.45% candidate gate; requires robustness, portfolio, walk-forward, PIT filing-time and paper/shadow validation. |
-| Revenue YoY 5D | RESEARCH | 2 | Passed initial candidate gate; weaker Train edge than MoM 5D. |
-| Revenue YoY Acceleration 5D | RESEARCH | 3 | Passed initial candidate gate; 2026 edge modest. |
-| Revenue YoY 20D | RESEARCH | 4 | Passed initial candidate gate; requires concentration and annual/regime robustness checks. |
+| Revenue MoM 5D | ROBUSTNESS_PASS | 1 | Passed 0.45% primary, 0.65% stress and concentration gates. Next: point-in-time filing timestamp, portfolio, walk-forward, leakage and paper/shadow validation. |
+| Revenue YoY 5D | HOLD_CONCENTRATION_FAIL | 4 | Primary/stress return gates passed, but top-5-symbol concentration exceeded threshold across splits. Do not promote. |
+| Revenue YoY Acceleration 5D | ROBUSTNESS_PASS | 2 | Passed 0.45% primary, 0.65% stress and concentration gates. 2026 edge remains modest; next gates required. |
+| Revenue YoY 20D | HOLD_CONCENTRATION_FAIL | 5 | Return gates passed, but concentration gate failed; do not promote despite high average returns. |
 | Stage 7A Broader Market Alpha | RESEARCH | 5 | Pre-registered broader-market alpha study; no production impact until all gates pass. |
 
 ## Evidence-only features
