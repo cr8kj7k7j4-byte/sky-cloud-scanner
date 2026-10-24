@@ -11,6 +11,7 @@ from .config import (
     LOCKDOWN_DRAWDOWN_PCT, LOT_SIZE, DAILY_PNL, OPEN_RISK,
     CONCURRENT_POSITIONS, CORRELATED_OPEN_RISK, ACCOUNT_DRAWDOWN_PCT,
     CONSECUTIVE_LOSSES,
+    MONITOR_STATE_BACKEND, REDIS_URL, MONITOR_STATE_REDIS_KEY,
 )
 from .official import load_official_universe, fetch_mis_quotes
 from .fugle import get_ticker, get_quote, get_candles
@@ -22,7 +23,9 @@ from .regime_engine import detect_regime
 from .ml_layer import baseline_model_predictions, ensemble
 from .explainability import explain
 from .validation import evaluate_validation_gate
-from .monitor_engine import evaluate_monitor_state, load_state, save_state
+from .monitor_engine import evaluate_monitor_state
+from .state_store import MonitorStateStore, StateStoreError
+from .strategy_builder import build_breakout_plan, apply_plan
 
 TZ = ZoneInfo("Asia/Taipei")
 OUT = Path("output")
@@ -68,7 +71,13 @@ def _portfolio_context():
 def run():
     now = datetime.now(TZ)
     OUT.mkdir(exist_ok=True)
-    previous_monitor_state = load_state(MONITOR_STATE_FILE)
+    state_store = MonitorStateStore(
+        MONITOR_STATE_BACKEND,
+        file_path=MONITOR_STATE_FILE,
+        redis_url=REDIS_URL,
+        redis_key=MONITOR_STATE_REDIS_KEY,
+    )
+    previous_monitor_state = state_store.load()
 
     policy = _risk_policy()
     portfolio_context = _portfolio_context()
@@ -89,7 +98,9 @@ def run():
         "deep_unverified": [],
         "monitor_engine": {
             "enabled": True,
-            "state_file": str(MONITOR_STATE_FILE),
+            "backend": state_store.backend,
+            "persistent": state_store.persistent,
+            "health": state_store.health(),
             "previous_count": len(previous_monitor_state),
             "decisions": [],
             "transitions": [],
@@ -228,6 +239,9 @@ def run():
                 item["features"] = features
                 item["ml"] = ml
 
+                strategy_plan = build_breakout_plan(item, ks)
+                item = apply_plan(item, strategy_plan)
+
                 risk = evaluate_candidate(item, portfolio_context, policy)
                 risk["status_zh"] = RISK_STATUS_ZH.get(risk["status"], risk["status"])
                 risk["state_zh"] = RISK_STATE_ZH.get(risk["state"], risk["state"])
@@ -261,7 +275,7 @@ def run():
         st["deep_unverified"] = unverified[:20]
         st["monitor_engine"]["decisions"] = [d.to_dict() for d in monitor_decisions]
         st["monitor_engine"]["transitions"] = [d.to_dict() for d in monitor_decisions if d.changed]
-        save_state(MONITOR_STATE_FILE, monitor_decisions)
+        state_store.save(monitor_decisions)
 
         lines = [
             f"Sky Cloud Scanner v0.4｜{now:%Y-%m-%d %H:%M}",
@@ -284,6 +298,9 @@ def run():
         )
 
         lines += [
+            "",
+            "【P0-A 狀態儲存】",
+            f"Backend：{state_store.backend}｜Persistent：{state_store.persistent}",
             "",
             "【P0-R 風控總覽】",
             f"帳戶狀態：{RISK_STATE_ZH.get(portfolio_state, portfolio_state)}",
@@ -318,6 +335,13 @@ def run():
                 f'量{x.get("volume",0):,}｜{flags}｜上限:{x.get("classification_cap")}'
             )
             lines.append(f"   {risk_line}")
+            plan = x.get("strategy_plan")
+            if plan:
+                lines.append(
+                    f'   P0-S：{plan.get("setup")}｜Trigger {plan.get("trigger")}｜'
+                    f'最高接受 {plan.get("max_entry")}｜Stop {plan.get("stop")}｜'
+                    f'Target {plan.get("target")}｜RR {plan.get("rr")}｜研究用'
+                )
             ml = x.get("ml", {})
             if ml:
                 consensus_zh = {
