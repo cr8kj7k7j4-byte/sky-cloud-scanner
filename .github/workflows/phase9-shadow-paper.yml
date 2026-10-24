@@ -1,0 +1,30 @@
+name: Sky 100 Phase 9 Shadow Paper
+
+on:
+  push:
+    branches:
+      - feat/sky-100-phase9-shadow-paper
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile
+        run: python -m compileall -q src research tests
+      - name: Phase 9 tests
+        run: python tests/test_shadow_trading.py
+      - name: Trade logger tests
+        run: python tests/test_sky100_core.py
+      - name: Risk engine tests
+        run: python tests/test_risk_engine.py
