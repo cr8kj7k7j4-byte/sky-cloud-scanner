@@ -1,0 +1,72 @@
+name: Sky Institutional History Export
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests
+      - name: Unit tests
+        run: python tests/test_institutional_export.py
+
+      - name: Download Official Enrichment Artifact
+        uses: dawidd6/action-download-artifact@v11
+        with:
+          workflow: export-official-enrichment.yml
+          workflow_conclusion: success
+          name_is_regexp: true
+          name: sky-official-enrichment-.*
+          path: _enrichment
+          search_artifacts: true
+          if_no_artifact_found: fail
+
+      - name: Locate TAIEX file
+        id: locate
+        shell: bash
+        run: |
+          TAIEX=$(find _enrichment -name taiex_daily.csv | head -1)
+          test -n "$TAIEX"
+          echo "taiex=$TAIEX" >> "$GITHUB_OUTPUT"
+
+      - name: Export institutional history
+        run: |
+          python research/export_institutional_history.py \
+            --manifest research/sky_100_manifest.json \
+            --taiex "${{ steps.locate.outputs.taiex }}" \
+            --out-dir research_data/institutional \
+            --start 2023-05-23 \
+            --end 2026-10-22 \
+            --sleep 0.35
+
+      - name: Archive
+        if: always()
+        run: tar -czf sky-institutional-history-${{ github.run_id }}.tar.gz research_data/institutional || true
+
+      - name: Publish validation
+        if: always()
+        run: |
+          if [ -f research_data/institutional/validation.json ]; then
+            echo '```json' >> "$GITHUB_STEP_SUMMARY"
+            cat research_data/institutional/validation.json >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-institutional-history-${{ github.run_id }}
+          path: |
+            sky-institutional-history-${{ github.run_id }}.tar.gz
+            research_data/institutional/
+          retention-days: 14
