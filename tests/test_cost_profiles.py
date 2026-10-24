@@ -17,6 +17,9 @@ def test_margin_profile_keeps_interest_separate():
     assert p.sell_tax_rate == 0.003
     assert p.observed_financing_interest_twd == 13.0
     assert p.financing_interest_mode == "PER_TRADE_OR_HOLDING_PERIOD_INPUT_REQUIRED"
+    policy = p.to_execution_policy()
+    assert policy.require_financing_interest is True
+    assert policy.financing_interest_per_share is None
 
 
 def test_profile_to_execution_policy_does_not_invent_market_friction():
