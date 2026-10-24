@@ -11,6 +11,7 @@ on:
       - "src/main.py"
       - "tests/test_sky70_foundation.py"
       - "tests/test_sky80_outcome_validation.py"
+      - "tests/test_sky90_ranking.py"
   workflow_dispatch:
 
 jobs:
@@ -24,4 +25,4 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install -r requirements.txt pytest
-      - run: pytest -q tests/test_sky70_foundation.py tests/test_sky80_outcome_validation.py tests/test_risk_engine.py tests/test_ml_foundation.py
+      - run: pytest -q tests/test_sky70_foundation.py tests/test_sky80_outcome_validation.py tests/test_sky90_ranking.py tests/test_risk_engine.py tests/test_ml_foundation.py
