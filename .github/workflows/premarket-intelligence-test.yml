@@ -15,6 +15,7 @@ on:
       - "src/gold_context.py"
       - "src/industry_news.py"
       - "src/news_evidence.py"
+      - "src/event_scoring.py"
       - ".github/workflows/premarket-intelligence.yml"
       - ".github/workflows/premarket-intelligence-test.yml"
   workflow_dispatch:
@@ -45,6 +46,7 @@ jobs:
           from src.premarket_ranking import rank_premarket_candidates
           from src.global_sector_mapping import map_global_context_to_sectors
           from src.news_evidence import build_news_evidence_ledger
+          from src.event_scoring import score_event
 
           assert classify_event("本公司公告114年12月營收") == "REVENUE"
           assert classify_event("董事會決議股利分派") == "CORPORATE_ACTION"
@@ -101,5 +103,17 @@ jobs:
           }])
           assert ledger["record_count"] == 1
           assert ledger["records"][0]["trade_signal"] is False
+
+          scores = score_event({
+              "event_type": "REVENUE",
+              "event_role": "CATALYST_EVIDENCE",
+              "source": "MOPS",
+              "announce_date": "2026-10-24",
+              "announce_time": "080000",
+          }, now=datetime(2026, 10, 24, 8, 20))
+          for k in ("event_score","catalyst_score","source_confidence_score","freshness_score","event_composite_score"):
+              assert 0 <= scores[k] <= 100
+          assert scores["research_only"] is True
+          assert scores["trade_signal"] is False
           print("P0-EVT smoke tests passed")
           PY
