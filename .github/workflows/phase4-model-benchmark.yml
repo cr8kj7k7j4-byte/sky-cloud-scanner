@@ -1,0 +1,32 @@
+name: Sky 100 Phase 4 Model Benchmark
+
+on:
+  push:
+    branches:
+      - feat/sky-100-phase4-model-benchmark
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install ML dependencies
+        run: pip install -r requirements-ml.txt
+      - name: Compile
+        run: python -m compileall -q src research tests
+      - name: Benchmark Arena unit tests
+        run: python tests/test_model_benchmark_arena.py
+      - name: Existing ML foundation tests
+        run: python tests/test_ml_foundation.py
+      - name: Feature Store / Arena tests
+        run: python tests/test_feature_model_arena.py
