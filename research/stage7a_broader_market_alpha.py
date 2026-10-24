@@ -185,16 +185,32 @@ def main():
         bysym[str(obj["symbol"])]=group_days(obj)
     all_dates=sorted({d for days in bysym.values() for d in days})
     groups={k:[] for k in ["A1","A2","A3","A4","A5"]}
+    diag={k:0 for k in [
+        "symbol_days","feature_ready","breadth55","rs_pos","peer80","abv15",
+        "gap_ok","liq20m","a1_feature_pass","platform_exists","a1_with_platform"
+    ]}
     for ad in all_dates:
         market=market_snapshot(bysym,ad,"09:30")
         if not market: continue
         for sym,days in bysym.items():
             bars=days.get(ad)
             if not bars: continue
+            diag["symbol_days"]+=1
             ft=features_for(bysym,sym,ad,market)
             if not ft: continue
+            diag["feature_ready"]+=1
+            if ft["breadth_0930"]>=55: diag["breadth55"]+=1
+            if ft["rs_0930"]>0: diag["rs_pos"]+=1
+            if ft["peer_pct_0930"]>=80: diag["peer80"]+=1
+            if ft["abnormal_volume_30m"]>=1.5: diag["abv15"]+=1
+            if -1<=ft["gap_pct"]<=3: diag["gap_ok"]+=1
+            if ft["turnover_10d_median"]>=20_000_000: diag["liq20m"]+=1
+            a1feat=(ft["breadth_0930"]>=55 and ft["rs_0930"]>0 and ft["peer_pct_0930"]>=80 and ft["abnormal_volume_30m"]>=1.5 and -1<=ft["gap_pct"]<=3 and ft["turnover_10d_median"]>=20_000_000)
+            if a1feat: diag["a1_feature_pass"]+=1
             cands=platform_candidates(bars)
+            if cands: diag["platform_exists"]+=1
             if not cands: continue
+            if a1feat: diag["a1_with_platform"]+=1
             for name in groups:
                 chosen=None
                 for i,sig in cands:
@@ -204,7 +220,7 @@ def main():
                         chosen={"hypothesis":name,"symbol":sym,"date":str(ad),**ft,**sig,**sim}
                         break
                 if chosen: groups[name].append(chosen)
-    report={"scope":"Stage7A pre-registered broader market alpha","promotion_decision":"RESEARCH_ONLY","hypotheses":{}}
+    report={"scope":"Stage7A pre-registered broader market alpha","promotion_decision":"RESEARCH_ONLY","diagnostic_funnel":diag,"hypotheses":{}}
     allrows=[]
     for name,rows in groups.items():
         ok,a,y25,y26=stable(rows)
