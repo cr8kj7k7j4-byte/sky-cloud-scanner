@@ -107,10 +107,10 @@ def fetch_tpex(session,d):
 def main():
     ap=argparse.ArgumentParser()
     ap.add_argument("--manifest",required=True); ap.add_argument("--taiex",required=True); ap.add_argument("--out-dir",required=True)
-    ap.add_argument("--start",default="2023-05-23"); ap.add_argument("--end",default="2026-10-22"); ap.add_argument("--sleep",type=float,default=.35)
+    ap.add_argument("--start",default="2023-05-23"); ap.add_argument("--end",default="2026-10-22"); ap.add_argument("--sleep",type=float,default=.20)\n    ap.add_argument("--shard-index",type=int,default=0); ap.add_argument("--shard-count",type=int,default=1)
     args=ap.parse_args()
 
-    universe=read_manifest(args.manifest); dates=read_trade_dates(args.taiex,args.start,args.end)
+    universe=read_manifest(args.manifest); all_dates=read_trade_dates(args.taiex,args.start,args.end)\n    if not (0 <= args.shard_index < args.shard_count): raise SystemExit("invalid shard")\n    dates=all_dates[args.shard_index::args.shard_count]
     outdir=Path(args.out_dir); outdir.mkdir(parents=True,exist_ok=True)
     sess=requests.Session(); all_rows=[]; failures=[]; coverage=[]
     for i,d in enumerate(dates,1):
@@ -120,7 +120,7 @@ def main():
                 all_rows.extend(keep); coverage.append({"date":d,"exchange":ex,"market_rows":len(rows),"sample_rows":len(keep)})
             except Exception as e:
                 failures.append({"date":d,"exchange":ex,"error":f"{type(e).__name__}: {e}"})
-        if i%50==0: print(f"{i}/{len(dates)} dates rows={len(all_rows)} failures={len(failures)}")
+        if i%25==0: print(f"shard={args.shard_index}/{args.shard_count} {i}/{len(dates)} dates rows={len(all_rows)} failures={len(failures)}", flush=True)
         time.sleep(args.sleep)
 
     all_rows.sort(key=lambda r:(r["date"],r["exchange"],r["symbol"]))
@@ -131,7 +131,7 @@ def main():
         w=csv.DictWriter(f,fieldnames=["date","exchange","market_rows","sample_rows"]); w.writeheader(); w.writerows(coverage)
 
     report={
-      "requested_trade_dates":len(dates),
+      "requested_trade_dates":len(dates),\n      "total_trade_dates":len(all_dates),\n      "shard_index":args.shard_index,\n      "shard_count":args.shard_count,
       "covered_trade_dates":len({r["date"] for r in all_rows}),
       "unique_sample_symbols":len({(r["symbol"],r["exchange"]) for r in all_rows}),
       "rows":len(all_rows),
