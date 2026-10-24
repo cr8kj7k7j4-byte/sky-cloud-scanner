@@ -22,6 +22,10 @@ from .regime_engine import detect_regime
 from .ml_layer import baseline_model_predictions, ensemble
 from .explainability import explain
 from .validation import evaluate_validation_gate
+from .evidence_ledger import build_evidence_ledger
+from .market_intelligence import summarize_market
+from .relative_strength import apply_relative_strength
+from .event_risk import assess_event_risk
 
 TZ = ZoneInfo("Asia/Taipei")
 OUT = Path("output")
@@ -80,6 +84,8 @@ def run():
         "strict_official_mode": STRICT_OFFICIAL_MODE,
         "warnings": [],
         "source_health": {},
+        "market_intelligence": {},
+        "event_risk": {},
         "top100": [],
         "deep": [],
         "deep_rejected": [],
@@ -150,6 +156,9 @@ def run():
 
         working_rows = rows if ALLOW_MIS_OTC_FALLBACK else twse_rows
 
+        st["market_intelligence"] = summarize_market(working_rows)
+        st["event_risk"] = assess_event_risk([])
+
         # Do not silently replace an incomplete official chain with a
         # plan-restricted Fugle Snapshot endpoint.
         if len(working_rows) < 300:
@@ -157,6 +166,8 @@ def run():
                 "盤中有效報價不足 300 檔；本次不以 Fugle Snapshot 補洞，"
                 "避免把方案權限或資料缺口誤判為完整市場。"
             )
+
+        working_rows = apply_relative_strength(working_rows)
 
         passed = []
         for r in working_rows:
@@ -216,6 +227,9 @@ def run():
                 ml["validation"] = evaluate_validation_gate()
                 item["features"] = features
                 item["ml"] = ml
+                item["market_intelligence"] = st["market_intelligence"]
+                item["event_risk"] = st["event_risk"]
+                item["evidence_ledger"] = build_evidence_ledger(item, now.isoformat())
 
                 risk = evaluate_candidate(item, portfolio_context, policy)
                 risk["status_zh"] = RISK_STATUS_ZH.get(risk["status"], risk["status"])
@@ -262,6 +276,10 @@ def run():
         )
 
         lines += [
+            "",
+            "【P0-M 市場情報】",
+            f"市場偏向：{st['market_intelligence'].get('market_bias', 'UNKNOWN')}｜上漲家數比：{st['market_intelligence'].get('breadth_pct')}%",
+            f"事件風險：{st['event_risk'].get('level', 'UNKNOWN')}｜動作：{st['event_risk'].get('action', 'VERIFY_BEFORE_TRADE')}",
             "",
             "【P0-R 風控總覽】",
             f"帳戶狀態：{RISK_STATE_ZH.get(portfolio_state, portfolio_state)}",
@@ -331,7 +349,8 @@ def run():
 
         lines += [
             "",
-            "注意：rank_score 僅用於候選排序，不是勝率、SSS 或 EES。",
+            "注意：rank_score 與 relative_strength_score 僅用於候選排序／橫向比較，不是勝率、SSS 或 EES。",
+            "Evidence Ledger 規則：可觀察事實與 Sky 衍生推論分開記錄；缺乏事件資料時 Event Risk 一律為 UNKNOWN，不得視為無風險。",
             "P0-R 規則：任何 AI／策略訊號都不得繞過風控；缺少停損、目標價或帳戶資金時，風控一律標示「資料不足」，不得視為可進場。",
             "P0-ML 規則：目前僅為研究用 baseline；未通過 Walk-forward／OOS／成本壓力／資料洩漏檢查／Paper Trading 前，不得提升為正式交易依據。",
             (
