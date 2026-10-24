@@ -27,8 +27,9 @@ jobs:
         env:
           REDIS_URL: ${{ secrets.REDIS_URL }}
           PREMARKET_REDIS_KEY: ${{ vars.PREMARKET_REDIS_KEY || 'sky:p0evt:latest' }}
-          PREMARKET_EVENT_MAX_SYMBOLS: ${{ vars.PREMARKET_EVENT_MAX_SYMBOLS || '300' }}
+          PREMARKET_EVENT_MAX_SYMBOLS: ${{ vars.PREMARKET_EVENT_MAX_SYMBOLS || '2000' }}
           PREMARKET_LOOKBACK_DAYS: ${{ vars.PREMARKET_LOOKBACK_DAYS || '3' }}
+          PREMARKET_EVENT_WORKERS: ${{ vars.PREMARKET_EVENT_WORKERS || '8' }}
         run: python -m src.premarket_pipeline
 
       - name: Upload premarket artifact
