@@ -1,0 +1,77 @@
+name: Sky Institutional Merge Only
+
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download Run 4 shard artifacts
+        uses: dawidd6/action-download-artifact@v11
+        with:
+          run_id: 40083293284
+          name_is_regexp: true
+          name: institutional-shard-.*
+          path: _shards
+          search_artifacts: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Merge and validate
+        run: |
+          python - <<'PY'
+          import csv, json
+          from pathlib import Path
+          root=Path("_shards")
+          out=Path("research_data/institutional"); out.mkdir(parents=True,exist_ok=True)
+
+          rows=[]; coverage=[]; reports=[]
+          for p in sorted(root.rglob("institutional_flows.csv")):
+              with p.open(encoding="utf-8-sig") as f: rows += list(csv.DictReader(f))
+          for p in sorted(root.rglob("daily_coverage.csv")):
+              with p.open(encoding="utf-8-sig") as f: coverage += list(csv.DictReader(f))
+          for p in sorted(root.rglob("validation.json")):
+              reports.append(json.loads(p.read_text(encoding="utf-8")))
+
+          rows.sort(key=lambda r:(r["date"],r["exchange"],r["symbol"]))
+          fields=["date","symbol","name","exchange","foreign_net","trust_net","dealer_net","total_inst_net","source"]
+          with (out/"institutional_flows.csv").open("w",newline="",encoding="utf-8-sig") as f:
+              w=csv.DictWriter(f,fieldnames=fields); w.writeheader(); w.writerows(rows)
+          with (out/"daily_coverage.csv").open("w",newline="",encoding="utf-8-sig") as f:
+              fields2=["date","exchange","market_rows","sample_rows"]
+              w=csv.DictWriter(f,fieldnames=fields2); w.writeheader(); w.writerows(coverage)
+
+          failures=[x for r in reports for x in (r.get("failures") or [])]
+          report={
+              "shards":len(reports),
+              "requested_trade_dates":sum(r.get("requested_trade_dates",0) for r in reports),
+              "covered_trade_dates":len({r["date"] for r in rows}),
+              "unique_sample_symbols":len({(r["symbol"],r["exchange"]) for r in rows}),
+              "rows":len(rows),
+              "sources":sorted({r["source"] for r in rows}),
+              "failure_count":len(failures),
+              "failures":failures,
+              "first_date":rows[0]["date"] if rows else None,
+              "last_date":rows[-1]["date"] if rows else None,
+          }
+          report["validation_pass"]=(report["shards"]==4 and report["requested_trade_dates"]>=800 and
+                                     report["covered_trade_dates"]>=780 and report["unique_sample_symbols"]>=90 and
+                                     report["rows"]>=30000 and report["failure_count"]<=20)
+          (out/"validation.json").write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8")
+          print(json.dumps(report,ensure_ascii=False,indent=2))
+          if not report["validation_pass"]: raise SystemExit("Merged institutional validation failed")
+          PY
+      - name: Archive
+        run: tar -czf sky-institutional-history-${{ github.run_id }}.tar.gz research_data/institutional
+      - name: Upload merged institutional artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-institutional-history-${{ github.run_id }}
+          path: |
+            research_data/institutional
+            sky-institutional-history-${{ github.run_id }}.tar.gz
+          retention-days: 14
