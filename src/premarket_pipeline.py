@@ -32,15 +32,16 @@ def run():
 
     universe, ust = load_official_universe()
     symbols = [str(x["symbol"]) for x in universe if x.get("symbol")]
-    max_symbols = int(os.getenv("PREMARKET_EVENT_MAX_SYMBOLS", "300"))
+    max_symbols = int(os.getenv("PREMARKET_EVENT_MAX_SYMBOLS", "2000"))
     lookback_days = int(os.getenv("PREMARKET_LOOKBACK_DAYS", "3"))
     scan_symbols = symbols[:max_symbols]
 
-    events, errors = scan_recent_events(
+    events, errors, source_health = scan_recent_events(
         scan_symbols,
         lookback_days=lookback_days,
         now=now,
         max_symbols=max_symbols,
+        workers=int(os.getenv("PREMARKET_EVENT_WORKERS", "8")),
     )
 
     counts = Counter(e["event_type"] for e in events)
@@ -58,6 +59,7 @@ def run():
         "events_found": len(events),
         "errors_count": len(errors),
         "event_type_counts": dict(counts),
+        "source_health": source_health,
         "events": events,
         "errors": errors[:100],
         "warnings": [],
@@ -80,8 +82,14 @@ def run():
     lines = [
         f"Sky 盤前情報掃描｜{now:%Y-%m-%d %H:%M}",
         f"官方母池：{len(symbols)}｜已掃描：{len(scan_symbols)}｜覆蓋率：{payload['coverage_pct']}%",
-        f"MOPS事件：{len(events)}｜錯誤：{len(errors)}",
+        f"事件總數：{len(events)}｜錯誤：{len(errors)}",
         f"持久化：{persist.get('backend')}｜{'成功' if persist.get('ok') else '未完成'}",
+        "",
+        "【來源健康度】",
+    ]
+    for k, v in source_health.items():
+        lines.append(f"{k}｜ok={v.get('ok')}｜events={v.get('events')}｜errors={v.get('errors')}")
+    lines += [
         "",
         "【事件分類】",
     ]
