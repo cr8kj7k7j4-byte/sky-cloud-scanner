@@ -1,0 +1,112 @@
+{
+  "version": "Sky V2.1 Consolidation Final",
+  "policy": "one canonical owner per namespace",
+  "modules": {
+    "P0-DATA": [
+      "official.py",
+      "fugle.py",
+      "diagnose_sources.py"
+    ],
+    "P0-K": [
+      "knowledge_engine.py",
+      "evidence_ledger.py(adapter)",
+      "news_evidence.py(adapter)",
+      "research_sources.py",
+      "industry_news.py"
+    ],
+    "P0-M": [
+      "market_intelligence.py",
+      "regime_engine.py",
+      "relative_strength.py",
+      "global_market_context.py",
+      "global_sector_mapping.py",
+      "adr_context.py",
+      "gold_context.py"
+    ],
+    "P0-EVT": [
+      "event_intelligence.py",
+      "event_scoring.py",
+      "event_risk.py",
+      "bis_policy.py"
+    ],
+    "P0-F": [
+      "feature_engine.py",
+      "feature_store.py"
+    ],
+    "P0-AG": [
+      "agent_orchestrator.py",
+      "main.py",
+      "premarket_pipeline.py"
+    ],
+    "P0-S": [
+      "strategy_builder.py"
+    ],
+    "P0-C": [
+      "sky_rules.py (to consolidate)"
+    ],
+    "P0-O": [
+      "ranking_engine.py",
+      "premarket_ranking.py"
+    ],
+    "P0-R": [
+      "risk_engine.py"
+    ],
+    "P0-X": [
+      "execution_engine.py",
+      "cost_profiles.py",
+      "execution_calibration_ledger.py"
+    ],
+    "P0-A": [
+      "monitor_engine.py",
+      "notifier.py",
+      "state_store.py",
+      "premarket_state.py"
+    ],
+    "PMS": [
+      "MISSING_CANONICAL_MODULE"
+    ],
+    "P0-L": [
+      "trade_logger.py (canonical)",
+      "trade_log.py (legacy adapter)",
+      "outcome_engine.py (outcome calculator)"
+    ],
+    "P0-ML": [
+      "ml_layer.py (rename baseline)",
+      "model_training.py",
+      "model_arena.py",
+      "training_dataset.py"
+    ],
+    "P0-D": [
+      "validation.py",
+      "walk_forward.py",
+      "walk_forward_eval.py"
+    ],
+    "P0-G": [
+      "model_registry.py",
+      "readiness.py"
+    ],
+    "P0-LAB": [
+      "sector_rs_replay.py (move)",
+      "vwap_entry_replay.py (move)"
+    ]
+  },
+  "immediate_priorities": [
+    "P0-K consolidation",
+    "P0-C canonical decision contract",
+    "PMS canonical position manager",
+    "PR 23-29 extraction and closure; PR29 superseded by PR38",
+    "single production ranking entry"
+  ],
+  "paused": [
+    "new phases beyond consolidation",
+    "LSTM/RL",
+    "parallel evidence/explainability/validation/registry modules",
+    "Champion declaration before paper trading evidence"
+  ],
+  "completed_baseline": [
+    "P0-X runtime import fix merged via PR41",
+    "P0-L canonical trade_logger schema merged via PR41",
+    "OOS-gated Shadow/Paper ledger merged via PR38",
+    "P0-S OOS workflow automation merged via PR34/PR35"
+  ]
+}
