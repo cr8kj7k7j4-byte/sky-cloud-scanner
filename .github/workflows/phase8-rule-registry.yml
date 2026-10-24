@@ -1,0 +1,28 @@
+name: Sky 100 Phase 8 Rule Registry
+
+on:
+  push:
+    branches:
+      - feat/sky-100-phase8-rule-registry
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile
+        run: python -m compileall -q src research tests
+      - name: Phase 8 registry tests
+        run: python tests/test_rule_registry.py
+      - name: P0-R tests
+        run: python tests/test_risk_engine.py
