@@ -1,9 +1,9 @@
 from __future__ import annotations
 import json, requests
 from bs4 import BeautifulSoup
-URL="https://mops.twse.com.tw/mops/web/t05st01"
+URL="https://mopsov.twse.com.tw/mops/web/t05st01"
 params={"step":"1","firstin":"true","year":"115","co_id":"2330"}
-headers={"User-Agent":"Mozilla/5.0 SkyResearch/1.0","Referer":"https://mops.twse.com.tw/mops/web/t05st01"}
+headers={"User-Agent":"Mozilla/5.0 SkyResearch/1.0","Referer":"https://mopsov.twse.com.tw/mops/web/t05st01"}
 r=requests.get(URL,params=params,headers=headers,timeout=45)
 open("mops_2330_115.html","w",encoding="utf-8").write(r.text)
 s=BeautifulSoup(r.text,"html.parser")
