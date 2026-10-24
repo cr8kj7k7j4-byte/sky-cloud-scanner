@@ -56,7 +56,7 @@ jobs:
           END_DATE="${{ inputs.end_date }}"
           [ -z "$START_DATE" ] && START_DATE="2025-01-01"
           [ -z "$END_DATE" ] && END_DATE="2026-10-22"
-          python research/stage6b_catalyst_backtest.py             --manifest research_data/universe_manifest.json             --data-dir research_data/history             --start "$START_DATE"             --end "$END_DATE"             --out research_output_stage6b
+          PYTHONPATH=. python -m research.stage6b_catalyst_backtest             --manifest research_data/universe_manifest.json             --data-dir research_data/history             --start "$START_DATE"             --end "$END_DATE"             --out research_output_stage6b
 
       - name: Publish summary
         if: always()
