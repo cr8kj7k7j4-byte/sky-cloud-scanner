@@ -1,0 +1,39 @@
+name: Sky Production E2E Acceptance
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/data_contract.py"
+      - "src/market_intelligence.py"
+      - "src/feature_engine.py"
+      - "src/strategy_builder.py"
+      - "src/ranking_engine.py"
+      - "src/risk_engine.py"
+      - "src/execution_engine.py"
+      - "src/monitor_engine.py"
+      - "src/paper_trading.py"
+      - "src/outcome_engine.py"
+      - "src/trade_logger.py"
+      - "tests/test_production_e2e_acceptance.py"
+      - ".github/workflows/test-production-e2e.yml"
+  pull_request:
+    paths:
+      - "src/**"
+      - "tests/test_production_e2e_acceptance.py"
+  workflow_dispatch:
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install test dependencies
+        run: pip install pytest
+      - name: Run Production E2E acceptance suite
+        env:
+          PYTHONPATH: .
+        run: python -m pytest -q tests/test_production_e2e_acceptance.py
