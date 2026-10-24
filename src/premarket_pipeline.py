@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 from .event_intelligence import scan_recent_events
 from .official import load_official_universe
 from .premarket_ranking import rank_premarket_candidates
+from .global_market_context import build_global_context
 
 TZ = ZoneInfo("Asia/Taipei")
 OUT = Path("output/premarket")
@@ -46,6 +47,10 @@ def run():
         workers=int(os.getenv("PREMARKET_EVENT_WORKERS", "8")),
     )
 
+    global_context = build_global_context(now=now, lookback_days=lookback_days)
+    if global_context.get("macro_events"):
+        events = list(events) + list(global_context["macro_events"])
+
     counts = Counter(e["event_type"] for e in events)
     ranked_candidates = rank_premarket_candidates(
         events,
@@ -68,6 +73,7 @@ def run():
         "errors_count": len(errors),
         "event_type_counts": dict(counts),
         "source_health": source_health,
+        "global_context": global_context,
         "ranked_candidates": ranked_candidates,
         "events": events,
         "errors": errors[:100],
@@ -98,6 +104,22 @@ def run():
     ]
     for k, v in source_health.items():
         lines.append(f"{k}｜ok={v.get('ok')}｜events={v.get('events')}｜errors={v.get('errors')}")
+    lines += [
+        "",
+        "【國際隔夜背景】",
+    ]
+    vix = global_context.get("vix")
+    us10y = global_context.get("us10y")
+    lines.append(
+        f"VIX：{vix.get('value') if vix else 'UNKNOWN'}｜"
+        f"US10Y：{us10y.get('value') if us10y else 'UNKNOWN'}%｜"
+        f"全球風險狀態：{global_context.get('risk_state', 'UNKNOWN')}"
+    )
+    coverage = global_context.get("coverage") or {}
+    missing = [k for k, ok in coverage.items() if not ok]
+    if missing:
+        lines.append("尚未接通：" + "、".join(missing))
+
     lines += [
         "",
         "【事件分類】",
