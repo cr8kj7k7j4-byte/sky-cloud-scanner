@@ -65,6 +65,27 @@ SOURCE_REGISTRY = {
         authority_rank=70,
         supports=("global_market", "macro", "geopolitical", "industry"),
     ),
+    "federal_reserve": ResearchSource(
+        key="federal_reserve",
+        name="Federal Reserve",
+        source_type="official",
+        authority_rank=100,
+        supports=("monetary_policy", "macro", "rates"),
+    ),
+    "fred": ResearchSource(
+        key="fred",
+        name="FRED / Federal Reserve Bank of St. Louis",
+        source_type="official_data",
+        authority_rank=95,
+        supports=("rates", "macro", "market_context"),
+    ),
+    "cboe": ResearchSource(
+        key="cboe",
+        name="Cboe Global Markets",
+        source_type="exchange",
+        authority_rank=95,
+        supports=("volatility", "market_context"),
+    ),
 }
 
 
