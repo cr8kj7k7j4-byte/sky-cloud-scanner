@@ -1,0 +1,508 @@
+{
+  "method": "deterministic SHA256 sample from current official TWSE/TPEx universe",
+  "survivorship_bias_warning": "Uses current listing universe to look backward; delisted names are absent.",
+  "twse_n": 50,
+  "tpex_n": 50,
+  "sample": [
+    {
+      "symbol": "3532",
+      "exchange": "TWSE",
+      "name": "台勝科"
+    },
+    {
+      "symbol": "7769",
+      "exchange": "TWSE",
+      "name": "鴻勁"
+    },
+    {
+      "symbol": "1414",
+      "exchange": "TWSE",
+      "name": "東和"
+    },
+    {
+      "symbol": "6467",
+      "exchange": "TWSE",
+      "name": "泰合"
+    },
+    {
+      "symbol": "3605",
+      "exchange": "TWSE",
+      "name": "宏致"
+    },
+    {
+      "symbol": "3321",
+      "exchange": "TWSE",
+      "name": "同泰"
+    },
+    {
+      "symbol": "6271",
+      "exchange": "TWSE",
+      "name": "同欣電"
+    },
+    {
+      "symbol": "2539",
+      "exchange": "TWSE",
+      "name": "櫻花建"
+    },
+    {
+      "symbol": "3021",
+      "exchange": "TWSE",
+      "name": "鴻名"
+    },
+    {
+      "symbol": "1733",
+      "exchange": "TWSE",
+      "name": "五鼎"
+    },
+    {
+      "symbol": "1234",
+      "exchange": "TWSE",
+      "name": "黑松"
+    },
+    {
+      "symbol": "2345",
+      "exchange": "TWSE",
+      "name": "智邦"
+    },
+    {
+      "symbol": "2353",
+      "exchange": "TWSE",
+      "name": "宏碁"
+    },
+    {
+      "symbol": "6919",
+      "exchange": "TWSE",
+      "name": "康霈*"
+    },
+    {
+      "symbol": "3029",
+      "exchange": "TWSE",
+      "name": "零壹"
+    },
+    {
+      "symbol": "4552",
+      "exchange": "TWSE",
+      "name": "力達-KY"
+    },
+    {
+      "symbol": "6914",
+      "exchange": "TWSE",
+      "name": "阜爾運通"
+    },
+    {
+      "symbol": "6128",
+      "exchange": "TWSE",
+      "name": "上福"
+    },
+    {
+      "symbol": "9941",
+      "exchange": "TWSE",
+      "name": "裕融"
+    },
+    {
+      "symbol": "6426",
+      "exchange": "TWSE",
+      "name": "統新"
+    },
+    {
+      "symbol": "1605",
+      "exchange": "TWSE",
+      "name": "華新"
+    },
+    {
+      "symbol": "8271",
+      "exchange": "TWSE",
+      "name": "宇瞻"
+    },
+    {
+      "symbol": "6934",
+      "exchange": "TWSE",
+      "name": "心誠鎂"
+    },
+    {
+      "symbol": "2534",
+      "exchange": "TWSE",
+      "name": "宏盛"
+    },
+    {
+      "symbol": "9905",
+      "exchange": "TWSE",
+      "name": "大華"
+    },
+    {
+      "symbol": "2547",
+      "exchange": "TWSE",
+      "name": "日勝生"
+    },
+    {
+      "symbol": "3494",
+      "exchange": "TWSE",
+      "name": "誠研"
+    },
+    {
+      "symbol": "2208",
+      "exchange": "TWSE",
+      "name": "台船"
+    },
+    {
+      "symbol": "4566",
+      "exchange": "TWSE",
+      "name": "時碩工業"
+    },
+    {
+      "symbol": "3717",
+      "exchange": "TWSE",
+      "name": "聯嘉投控"
+    },
+    {
+      "symbol": "1464",
+      "exchange": "TWSE",
+      "name": "得力"
+    },
+    {
+      "symbol": "3447",
+      "exchange": "TWSE",
+      "name": "展達"
+    },
+    {
+      "symbol": "1467",
+      "exchange": "TWSE",
+      "name": "南緯"
+    },
+    {
+      "symbol": "2406",
+      "exchange": "TWSE",
+      "name": "國碩"
+    },
+    {
+      "symbol": "2496",
+      "exchange": "TWSE",
+      "name": "卓越"
+    },
+    {
+      "symbol": "8996",
+      "exchange": "TWSE",
+      "name": "高力"
+    },
+    {
+      "symbol": "2375",
+      "exchange": "TWSE",
+      "name": "凱美"
+    },
+    {
+      "symbol": "7818",
+      "exchange": "TWSE",
+      "name": "溢泰實業"
+    },
+    {
+      "symbol": "6902",
+      "exchange": "TWSE",
+      "name": "GOGOLOOK"
+    },
+    {
+      "symbol": "1423",
+      "exchange": "TWSE",
+      "name": "利華"
+    },
+    {
+      "symbol": "4540",
+      "exchange": "TWSE",
+      "name": "全球傳動"
+    },
+    {
+      "symbol": "3557",
+      "exchange": "TWSE",
+      "name": "嘉威"
+    },
+    {
+      "symbol": "6005",
+      "exchange": "TWSE",
+      "name": "群益證"
+    },
+    {
+      "symbol": "6669",
+      "exchange": "TWSE",
+      "name": "緯穎"
+    },
+    {
+      "symbol": "2449",
+      "exchange": "TWSE",
+      "name": "京元電子"
+    },
+    {
+      "symbol": "4583",
+      "exchange": "TWSE",
+      "name": "台灣精銳"
+    },
+    {
+      "symbol": "1616",
+      "exchange": "TWSE",
+      "name": "億泰"
+    },
+    {
+      "symbol": "1210",
+      "exchange": "TWSE",
+      "name": "大成"
+    },
+    {
+      "symbol": "2408",
+      "exchange": "TWSE",
+      "name": "南亞科"
+    },
+    {
+      "symbol": "1321",
+      "exchange": "TWSE",
+      "name": "大洋"
+    },
+    {
+      "symbol": "3490",
+      "exchange": "TPEx",
+      "name": "單井"
+    },
+    {
+      "symbol": "3594",
+      "exchange": "TPEx",
+      "name": "磐儀"
+    },
+    {
+      "symbol": "6151",
+      "exchange": "TPEx",
+      "name": "晉倫"
+    },
+    {
+      "symbol": "3512",
+      "exchange": "TPEx",
+      "name": "皇龍"
+    },
+    {
+      "symbol": "6872",
+      "exchange": "TPEx",
+      "name": "浩宇生醫"
+    },
+    {
+      "symbol": "8358",
+      "exchange": "TPEx",
+      "name": "金居"
+    },
+    {
+      "symbol": "3388",
+      "exchange": "TPEx",
+      "name": "崇越電"
+    },
+    {
+      "symbol": "6922",
+      "exchange": "TPEx",
+      "name": "宸曜"
+    },
+    {
+      "symbol": "8923",
+      "exchange": "TPEx",
+      "name": "時報"
+    },
+    {
+      "symbol": "7715",
+      "exchange": "TPEx",
+      "name": "裕山"
+    },
+    {
+      "symbol": "3322",
+      "exchange": "TPEx",
+      "name": "建舜電"
+    },
+    {
+      "symbol": "3624",
+      "exchange": "TPEx",
+      "name": "光頡"
+    },
+    {
+      "symbol": "4729",
+      "exchange": "TPEx",
+      "name": "熒茂"
+    },
+    {
+      "symbol": "8027",
+      "exchange": "TPEx",
+      "name": "鈦昇"
+    },
+    {
+      "symbol": "5381",
+      "exchange": "TPEx",
+      "name": "光譜"
+    },
+    {
+      "symbol": "2948",
+      "exchange": "TPEx",
+      "name": "寶陞"
+    },
+    {
+      "symbol": "8066",
+      "exchange": "TPEx",
+      "name": "來思達"
+    },
+    {
+      "symbol": "3162",
+      "exchange": "TPEx",
+      "name": "精確"
+    },
+    {
+      "symbol": "6895",
+      "exchange": "TPEx",
+      "name": "宏碩系統"
+    },
+    {
+      "symbol": "5014",
+      "exchange": "TPEx",
+      "name": "建錩"
+    },
+    {
+      "symbol": "6198",
+      "exchange": "TPEx",
+      "name": "瑞築"
+    },
+    {
+      "symbol": "6499",
+      "exchange": "TPEx",
+      "name": "益安"
+    },
+    {
+      "symbol": "7770",
+      "exchange": "TPEx",
+      "name": "君曜"
+    },
+    {
+      "symbol": "6203",
+      "exchange": "TPEx",
+      "name": "海韻電"
+    },
+    {
+      "symbol": "6186",
+      "exchange": "TPEx",
+      "name": "新潤"
+    },
+    {
+      "symbol": "7792",
+      "exchange": "TPEx",
+      "name": "安葆"
+    },
+    {
+      "symbol": "5878",
+      "exchange": "TPEx",
+      "name": "台名"
+    },
+    {
+      "symbol": "8435",
+      "exchange": "TPEx",
+      "name": "鉅邁"
+    },
+    {
+      "symbol": "3363",
+      "exchange": "TPEx",
+      "name": "上詮"
+    },
+    {
+      "symbol": "2066",
+      "exchange": "TPEx",
+      "name": "世德"
+    },
+    {
+      "symbol": "2070",
+      "exchange": "TPEx",
+      "name": "精湛"
+    },
+    {
+      "symbol": "6020",
+      "exchange": "TPEx",
+      "name": "大展證"
+    },
+    {
+      "symbol": "6104",
+      "exchange": "TPEx",
+      "name": "創惟"
+    },
+    {
+      "symbol": "8043",
+      "exchange": "TPEx",
+      "name": "蜜望實"
+    },
+    {
+      "symbol": "6556",
+      "exchange": "TPEx",
+      "name": "勝品"
+    },
+    {
+      "symbol": "6486",
+      "exchange": "TPEx",
+      "name": "互動"
+    },
+    {
+      "symbol": "3444",
+      "exchange": "TPEx",
+      "name": "利機"
+    },
+    {
+      "symbol": "5209",
+      "exchange": "TPEx",
+      "name": "新鼎"
+    },
+    {
+      "symbol": "3632",
+      "exchange": "TPEx",
+      "name": "研勤"
+    },
+    {
+      "symbol": "6195",
+      "exchange": "TPEx",
+      "name": "詩肯"
+    },
+    {
+      "symbol": "5432",
+      "exchange": "TPEx",
+      "name": "新門"
+    },
+    {
+      "symbol": "3611",
+      "exchange": "TPEx",
+      "name": "鼎翰"
+    },
+    {
+      "symbol": "6569",
+      "exchange": "TPEx",
+      "name": "醫揚"
+    },
+    {
+      "symbol": "6570",
+      "exchange": "TPEx",
+      "name": "維田"
+    },
+    {
+      "symbol": "4120",
+      "exchange": "TPEx",
+      "name": "友華"
+    },
+    {
+      "symbol": "3646",
+      "exchange": "TPEx",
+      "name": "艾恩特"
+    },
+    {
+      "symbol": "6788",
+      "exchange": "TPEx",
+      "name": "華景電"
+    },
+    {
+      "symbol": "4183",
+      "exchange": "TPEx",
+      "name": "福永生技"
+    },
+    {
+      "symbol": "3158",
+      "exchange": "TPEx",
+      "name": "嘉實"
+    },
+    {
+      "symbol": "6561",
+      "exchange": "TPEx",
+      "name": "是方"
+    }
+  ]
+}
