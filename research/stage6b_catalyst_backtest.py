@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, time as dtime
 from pathlib import Path
 import requests
 from bs4 import BeautifulSoup
+from src.event_scoring import score_event
 
 MOPS_HISTORY="https://mopsov.twse.com.tw/mops/web/t05st01"
 UA={"User-Agent":"Mozilla/5.0 SkyResearch/1.0","Referer":"https://mopsov.twse.com.tw/mops/web/t05st01"}
@@ -224,11 +225,26 @@ def main():
     for r in rows:
         s=r["subject"]
         r["category"]=next((k for k,ws in cats.items() if any(w in s for w in ws)),"OTHER")
+        r["event_type"]=r["category"]
+        r["source"]="MOPS"
+        r["event_role"]="CATALYST_EVIDENCE"
+        scored=score_event(r, now=datetime.fromisoformat(r["action_date"]))
+        r.update(scored)
 
     summary={"scope":"Stage6B true MOPS material-information event selection + platform execution",
              "period":[args.start,args.end],"events_found":len(events),"trade_rows":len(rows),
              "all":metrics(rows),"gap_ge_1":metrics([r for r in rows if r["gap_pct"] is not None and r["gap_pct"]>=1]),
              "by_category":{c:metrics([r for r in rows if r["category"]==c]) for c in sorted({r["category"] for r in rows})},
+             "by_event_score_bucket":{
+                 "80_100":metrics([r for r in rows if r.get("event_score",0)>=80]),
+                 "60_79":metrics([r for r in rows if 60<=r.get("event_score",0)<80]),
+                 "lt_60":metrics([r for r in rows if r.get("event_score",0)<60]),
+             },
+             "by_catalyst_score_bucket":{
+                 "80_100":metrics([r for r in rows if r.get("catalyst_score",0)>=80]),
+                 "60_79":metrics([r for r in rows if 60<=r.get("catalyst_score",0)<80]),
+                 "lt_60":metrics([r for r in rows if r.get("catalyst_score",0)<60]),
+             },
              "errors":errors[:50],
              "limitations":["MOPS historical page parsing can change; parsed rows are filtered to the fixed 100-symbol sample.",
                             "Material information is a catalyst-event selector, not a sentiment score.",
