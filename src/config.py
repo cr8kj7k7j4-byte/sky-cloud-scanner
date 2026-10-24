@@ -69,5 +69,8 @@ EXEC_ENFORCE_GATE = _b("EXEC_ENFORCE_GATE", "0")
 
 # P0-LAB / Paper Trading
 PAPER_TRADING_MODE = os.getenv("PAPER_TRADING_MODE", "shadow").strip().lower()
-P0S_OOS_VERDICT = os.getenv("P0S_OOS_VERDICT", "RESEARCH_ONLY").strip().upper()
+P0S_OOS_VERDICT = os.getenv("P0S_OOS_VERDICT", "REJECTED_OOS").strip().upper()
 PAPER_GCS_BUCKET = os.getenv("PAPER_GCS_BUCKET", "").strip()
+
+# Rejected P0-S 5m breakout is disabled in live scanner by default.
+P0S_5M_BREAKOUT_ENABLED = _b("P0S_5M_BREAKOUT_ENABLED", "0")
