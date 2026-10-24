@@ -6,7 +6,7 @@ from pathlib import Path
 import requests
 from bs4 import BeautifulSoup
 
-MOPS_DAILY="https://mops.twse.com.tw/mops/web/ajax_t05st02"
+MOPS_HISTORY="https://mops.twse.com.tw/mops/web/t05st01"
 UA={"User-Agent":"Mozilla/5.0 SkyResearch/1.0","Referer":"https://mops.twse.com.tw/mops/web/t05st02"}
 
 def roc_y(d): return d.year-1911
@@ -18,44 +18,82 @@ def med(xs):
     if not xs:return None
     return xs[n//2] if n%2 else (xs[n//2-1]+xs[n//2])/2
 
-def fetch_day(sess,d,retries=3):
-    params={"encodeURIComponent":"1","step":"1","step00":"0","firstin":"1","off":"1",
-            "TYPEK":"all","year":str(roc_y(d)),"month":f"{d.month:02d}","day":f"{d.day:02d}"}
+def fetch_company_year(sess, symbol, roc_year, retries=4):
+    params={"co_id":symbol,"firstin":"1","step":"1","year":str(roc_year),
+            "TYPEK":"all","encodeURIComponent":"1"}
     err=None
     for k in range(retries):
         try:
-            r=sess.get(MOPS_DAILY,params=params,headers=UA,timeout=40)
+            r=sess.get(MOPS_HISTORY,params=params,headers=UA,timeout=45)
             r.raise_for_status()
             return r.text
         except Exception as e:
-            err=e; time.sleep(2*(k+1))
-    raise RuntimeError(f"{d}: {err}")
+            err=e; time.sleep(3*(k+1))
+    raise RuntimeError(f"{symbol}/{roc_year}: {err}")
 
-def parse_events(html,keep):
-    if "查無" in html: return []
+def normalize_mops_date(s):
+    s=(s or "").strip().replace("年","/").replace("月","/").replace("日","")
+    m=re.search(r"(\d{3,4})[/-](\d{1,2})[/-](\d{1,2})",s)
+    if not m:return None
+    y,mo,da=map(int,m.groups())
+    if y<1911:y+=1911
+    try:return datetime(y,mo,da).date()
+    except:return None
+
+def parse_company_year(html, symbol):
+    if "查無資料" in html or "查無" in html:
+        return []
     s=BeautifulSoup(html,"html.parser"); out=[]
-    tables=s.find_all("table")
-    for tb in tables:
-        for tr in tb.find_all("tr"):
-            vals=[i.get("value") for i in tr.find_all("input") if i.get("value") is not None]
-            vals=[str(v).strip() for v in vals]
-            if len(vals)<5: continue
-            code=next((v for v in vals if re.fullmatch(r"\d{4}",v or "")),None)
-            if code not in keep: continue
-            # Legacy MOPS layout commonly: name, code, announce_date, time, subject, number, rule, actual_date, content
-            idx=vals.index(code)
-            name=vals[idx-1] if idx>0 else ""
-            announce=vals[idx+1] if len(vals)>idx+1 else ""
-            tm=vals[idx+2] if len(vals)>idx+2 else ""
-            subject=vals[idx+3] if len(vals)>idx+3 else ""
-            seq=vals[idx+4] if len(vals)>idx+4 else ""
-            out.append({"symbol":code,"name":name,"announce_date":announce,"announce_time":tm,
-                        "subject":subject,"seq":seq})
-    # dedupe
+    # First try visible result tables. Historical MOPS pages commonly include
+    # columns such as 發言日期/時間、主旨、序號.
+    for tb in s.find_all("table"):
+        rows=tb.find_all("tr")
+        if not rows: continue
+        headers=[x.get_text(" ",strip=True) for x in rows[0].find_all(["th","td"])]
+        header_txt="|".join(headers)
+        if not any(k in header_txt for k in ["主旨","重大訊息","發言日期","發言時間"]):
+            continue
+        for tr in rows[1:]:
+            cells=[x.get_text(" ",strip=True) for x in tr.find_all(["td","th"])]
+            if len(cells)<3: continue
+            joined=" | ".join(cells)
+            dm=re.search(r"(\d{3,4}[/-]\d{1,2}[/-]\d{1,2})",joined)
+            tm=re.search(r"(?<!\d)([01]?\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?",joined)
+            d=normalize_mops_date(dm.group(1)) if dm else None
+            if not d: continue
+            # Subject: choose the longest non-date/time text cell.
+            texts=[x for x in cells if x and not re.fullmatch(r"[\d:/-]+",x)]
+            subject=max(texts,key=len) if texts else joined
+            out.append({"symbol":symbol,"name":"","announce_date":str(d),
+                        "announce_time":tm.group(0).replace(":","") if tm else "",
+                        "subject":subject,"seq":""})
+    # Fallback: hidden input values used by detail links.
+    if not out:
+        for tr in s.find_all("tr"):
+            vals=[str(i.get("value")).strip() for i in tr.find_all("input") if i.get("value") is not None]
+            if not vals: continue
+            joined=" | ".join(vals)
+            if symbol not in vals and symbol not in joined: continue
+            dm=re.search(r"(\d{7,8})",joined)
+            tm=re.search(r"(?<!\d)(\d{6})(?!\d)",joined)
+            d=None
+            if dm:
+                ds=dm.group(1)
+                try:
+                    if len(ds)==8: d=datetime.strptime(ds,"%Y%m%d").date()
+                    elif len(ds)==7: d=datetime(int(ds[:3])+1911,int(ds[3:5]),int(ds[5:7])).date()
+                except: d=None
+            if not d: continue
+            candidates=[v for v in vals if len(v)>=8 and not v.isdigit()]
+            subject=max(candidates,key=len) if candidates else ""
+            out.append({"symbol":symbol,"name":"","announce_date":str(d),
+                        "announce_time":tm.group(1) if tm else "",
+                        "subject":subject,"seq":""})
     seen=set(); ans=[]
     for x in out:
-        key=(x["symbol"],x["announce_date"],x["announce_time"],x["subject"],x["seq"])
-        if key not in seen: seen.add(key); ans.append(x)
+        key=(x["symbol"],x["announce_date"],x["announce_time"],x["subject"])
+        if key not in seen:
+            seen.add(key); ans.append(x)
     return ans
 
 def group_days(obj):
@@ -137,15 +175,21 @@ def main():
         o=json.loads(p.read_text(encoding="utf-8"))
         if str(o["symbol"]) in keep: bysym[str(o["symbol"])]=group_days(o)
 
-    sess=requests.Session(); d=datetime.fromisoformat(args.start).date(); end=datetime.fromisoformat(args.end).date()
+    sess=requests.Session()
+    start_d=datetime.fromisoformat(args.start).date(); end_d=datetime.fromisoformat(args.end).date()
     events=[]; errors=[]
-    while d<=end:
-        if d.weekday()<5:
+    years=range(start_d.year,end_d.year+1)
+    for symbol in sorted(keep):
+        for yy in years:
             try:
-                events += [{**e,"query_date":str(d)} for e in parse_events(fetch_day(sess,d),keep)]
-            except Exception as e: errors.append({"date":str(d),"error":str(e)})
-            time.sleep(.35)
-        d += timedelta(days=1)
+                es=parse_company_year(fetch_company_year(sess,symbol,yy-1911),symbol)
+                for e in es:
+                    ed=datetime.fromisoformat(e["announce_date"]).date()
+                    if start_d<=ed<=end_d:
+                        events.append({**e,"query_date":str(ed)})
+            except Exception as e:
+                errors.append({"symbol":symbol,"year":yy,"error":str(e)})
+            time.sleep(.5)
 
     rows=[]
     for e in events:
