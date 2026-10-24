@@ -10,7 +10,8 @@ from .config import (
     MAX_CONCURRENT_POSITIONS, CAUTION_LOSS_STREAK, DEFENSIVE_LOSS_STREAK,
     LOCKDOWN_DRAWDOWN_PCT, LOT_SIZE, DAILY_PNL, OPEN_RISK,
     CONCURRENT_POSITIONS, CORRELATED_OPEN_RISK, ACCOUNT_DRAWDOWN_PCT,
-    CONSECUTIVE_LOSSES,
+    CONSECUTIVE_LOSSES, MONITOR_STATE_BACKEND, REDIS_URL,
+    MONITOR_STATE_REDIS_KEY,
 )
 from .official import load_official_universe, fetch_mis_quotes
 from .fugle import get_ticker, get_quote, get_candles
@@ -22,12 +23,23 @@ from .regime_engine import detect_regime
 from .ml_layer import baseline_model_predictions, ensemble
 from .explainability import explain
 from .validation import evaluate_validation_gate
-from .knowledge_engine import market_evidence_from_candidate, build_evidence_ledger
+from .knowledge_engine import (
+    market_evidence_from_candidate,
+    build_evidence_ledger as build_knowledge_evidence_ledger,
+)
 from .agent_orchestrator import orchestrate
 from .research_sources import source_health_template
+from .market_intelligence import summarize_market
+from .relative_strength import apply_relative_strength
+from .event_risk import assess_event_risk
+from .evidence_ledger import build_evidence_ledger as build_structured_evidence_ledger
+from .strategy_builder import build_breakout_plan, apply_plan
+from .monitor_engine import evaluate_monitor_state
+from .state_store import MonitorStateStore
 
 TZ = ZoneInfo("Asia/Taipei")
 OUT = Path("output")
+MONITOR_STATE_FILE = OUT / "monitor_state.json"
 
 RISK_STATUS_ZH = {
     "ALLOW": "允許進場",
@@ -70,6 +82,14 @@ def run():
     now = datetime.now(TZ)
     OUT.mkdir(exist_ok=True)
 
+    state_store = MonitorStateStore(
+        MONITOR_STATE_BACKEND,
+        file_path=MONITOR_STATE_FILE,
+        redis_url=REDIS_URL,
+        redis_key=MONITOR_STATE_REDIS_KEY,
+    )
+    previous_monitor_state = state_store.load()
+
     policy = _risk_policy()
     portfolio_context = _portfolio_context()
     portfolio_state = drawdown_state(
@@ -83,6 +103,17 @@ def run():
         "strict_official_mode": STRICT_OFFICIAL_MODE,
         "warnings": [],
         "source_health": {},
+        "market_intelligence": {},
+        "event_risk": {},
+        "monitor_engine": {
+            "enabled": True,
+            "backend": state_store.backend,
+            "persistent": state_store.persistent,
+            "health": state_store.health(),
+            "previous_count": len(previous_monitor_state),
+            "decisions": [],
+            "transitions": [],
+        },
         "top100": [],
         "deep": [],
         "deep_rejected": [],
@@ -154,6 +185,8 @@ def run():
             )
 
         working_rows = rows if ALLOW_MIS_OTC_FALLBACK else twse_rows
+        st["market_intelligence"] = summarize_market(working_rows)
+        st["event_risk"] = assess_event_risk([])
 
         # Do not silently replace an incomplete official chain with a
         # plan-restricted Fugle Snapshot endpoint.
@@ -162,6 +195,8 @@ def run():
                 "盤中有效報價不足 300 檔；本次不以 Fugle Snapshot 補洞，"
                 "避免把方案權限或資料缺口誤判為完整市場。"
             )
+
+        working_rows = apply_relative_strength(working_rows)
 
         passed = []
         for r in working_rows:
@@ -181,6 +216,7 @@ def run():
         deep = []
         rejected = []
         unverified = []
+        monitor_decisions = []
         probe_limit = min(len(top), max(DEEP_DIVE_N * 4, DEEP_DIVE_N))
 
         for row in top[:probe_limit]:
@@ -221,14 +257,31 @@ def run():
                 ml["validation"] = evaluate_validation_gate()
                 item["features"] = features
                 item["ml"] = ml
+                item["market_intelligence"] = st["market_intelligence"]
+                item["event_risk"] = st["event_risk"]
+                item["structured_evidence_ledger"] = build_structured_evidence_ledger(
+                    item, now.isoformat()
+                )
+
+                strategy_plan = build_breakout_plan(item, ks)
+                item = apply_plan(item, strategy_plan)
 
                 risk = evaluate_candidate(item, portfolio_context, policy)
                 risk["status_zh"] = RISK_STATUS_ZH.get(risk["status"], risk["status"])
                 risk["state_zh"] = RISK_STATE_ZH.get(risk["state"], risk["state"])
                 item["risk"] = risk
 
+                monitor = evaluate_monitor_state(
+                    item,
+                    previous_state=previous_monitor_state.get(
+                        str(item.get("symbol") or "")
+                    ),
+                )
+                item["monitor"] = monitor.to_dict()
+                monitor_decisions.append(monitor)
+
                 evidence_items = market_evidence_from_candidate(item, now.isoformat())
-                evidence_ledger = build_evidence_ledger(
+                evidence_ledger = build_knowledge_evidence_ledger(
                     evidence_items,
                     max_age_hours=1.0,
                     now=now,
@@ -254,6 +307,13 @@ def run():
         st["deep"] = deep
         st["deep_rejected"] = rejected[:20]
         st["deep_unverified"] = unverified[:20]
+        st["monitor_engine"]["decisions"] = [
+            d.to_dict() for d in monitor_decisions
+        ]
+        st["monitor_engine"]["transitions"] = [
+            d.to_dict() for d in monitor_decisions if d.changed
+        ]
+        state_store.save(monitor_decisions)
 
         lines = [
             f"Sky Cloud Scanner v0.4｜{now:%Y-%m-%d %H:%M}",
@@ -276,6 +336,22 @@ def run():
         )
 
         lines += [
+            "",
+            "【P0-M 市場情報 / P0-EVT 事件風險】",
+            (
+                f"市場偏向：{st['market_intelligence'].get('market_bias', 'UNKNOWN')}｜"
+                f"上漲家數比：{st['market_intelligence'].get('breadth_pct')}%"
+            ),
+            (
+                f"事件風險：{st['event_risk'].get('level', 'UNKNOWN')}｜"
+                f"動作：{st['event_risk'].get('action', 'VERIFY_BEFORE_TRADE')}"
+            ),
+            "",
+            "【P0-A 監控狀態】",
+            (
+                f"Backend：{state_store.backend}｜"
+                f"Persistent：{state_store.persistent}"
+            ),
             "",
             "【P0-R 風控總覽】",
             f"帳戶狀態：{RISK_STATE_ZH.get(portfolio_state, portfolio_state)}",
@@ -310,6 +386,22 @@ def run():
                 f'量{x.get("volume",0):,}｜{flags}｜上限:{x.get("classification_cap")}'
             )
             lines.append(f"   {risk_line}")
+            plan = x.get("strategy_plan")
+            if plan:
+                lines.append(
+                    f'   P0-S：{plan.get("setup")}｜'
+                    f'Trigger {plan.get("trigger")}｜'
+                    f'最高接受 {plan.get("max_entry")}｜'
+                    f'Stop {plan.get("stop")}｜'
+                    f'Target {plan.get("target")}｜'
+                    f'RR {plan.get("rr")}｜研究用'
+                )
+            monitor = x.get("monitor") or {}
+            if monitor:
+                lines.append(
+                    f'   P0-A：{monitor.get("state_zh", monitor.get("state"))}｜'
+                    f'動作：{monitor.get("action")}｜{monitor.get("reason")}'
+                )
             ml = x.get("ml", {})
             if ml:
                 consensus_zh = {
@@ -328,12 +420,27 @@ def run():
             ledger = x.get("evidence_ledger", {})
             if orchestration:
                 lines.append(
-                    f"   P0-K/P0-A：證據{ledger.get('evidence_count', 0)}筆｜"
+                    f"   P0-K/P0-AG：證據{ledger.get('evidence_count', 0)}筆｜"
                     f"衝突:{'是' if ledger.get('conflict') else '否'}｜"
                     f"代理決策狀態:{orchestration.get('decision_status', '未判定')}"
                 )
             if reasons != "無":
                 lines.append(f"   原因：{reasons}")
+
+        transitions = st["monitor_engine"]["transitions"]
+        lines += ["", "【P0-A 盤中警戒】"]
+        if not monitor_decisions:
+            lines.append("本次沒有可監控的深查候選。")
+        elif not transitions:
+            lines.append("本次無狀態變化；延續前次監控狀態。")
+        else:
+            for d in transitions[:10]:
+                prev = d.get("previous_state") or "首次"
+                lines.append(
+                    f'{d["symbol"]}｜{prev} → '
+                    f'{d.get("state_zh", d["state"])}｜'
+                    f'動作：{d["action"]}｜{d["reason"]}'
+                )
 
         if rejected:
             lines += ["", "【已確認淘汰，不占有效深查名額】"]
@@ -353,10 +460,10 @@ def run():
 
         lines += [
             "",
-            "注意：rank_score 僅用於候選排序，不是勝率、SSS 或 EES。",
+            "注意：rank_score 與 relative_strength_score 僅用於候選排序／橫向比較，不是勝率、SSS 或 EES。",
             "P0-R 規則：任何 AI／策略訊號都不得繞過風控；缺少停損、目標價或帳戶資金時，風控一律標示「資料不足」，不得視為可進場。",
             "P0-K 規則：任何重要結論必須可追溯；過期、衝突或無來源資訊不得升級為主要交易依據。",
-            "P0-A 規則：任何單一 Agent 均不得直接產生可執行交易；必須再通過 P0-C 與 P0-R。",
+            "P0-AG 規則：任何單一 Agent 均不得直接產生可執行交易；必須再通過 P0-C 與 P0-R。",
             "P0-ML 規則：目前僅為研究用 baseline；未通過 Walk-forward／OOS／成本壓力／資料洩漏檢查／Paper Trading 前，不得提升為正式交易依據。",
             (
                 "A+ 必須再通過 Market Gate→Sector/RS→MTF→SSS→Phase→"

@@ -1,0 +1,32 @@
+name: Sky V2.1 Consolidation Tests
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches:
+      - integration/sky-v2.1-consolidation
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+      - name: Compile
+        run: python -m compileall -q src tests
+      - name: Run consolidated unit tests
+        run: |
+          pytest -q             tests/test_risk_engine.py             tests/test_knowledge_engine.py             tests/test_agent_orchestrator.py             tests/test_feature_model_arena.py             tests/test_sky100_core.py             tests/test_monitor_engine.py             tests/test_state_store.py             tests/test_strategy_builder.py             tests/test_sky_v2_p1_p3.py             tests/test_sky80_outcome_validation.py             tests/test_sky90_ranking.py
