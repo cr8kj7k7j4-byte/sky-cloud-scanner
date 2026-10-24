@@ -27,6 +27,7 @@ jobs:
         env:
           REDIS_URL: ${{ secrets.REDIS_URL }}
           ALPHAVANTAGE_API_KEY: ${{ secrets.ALPHAVANTAGE_API_KEY }}
+          GOLDAPI_TOKEN: ${{ secrets.GOLDAPI_TOKEN }}
           PREMARKET_REDIS_KEY: ${{ vars.PREMARKET_REDIS_KEY || 'sky:p0evt:latest' }}
           PREMARKET_EVENT_MAX_SYMBOLS: ${{ vars.PREMARKET_EVENT_MAX_SYMBOLS || '2000' }}
           PREMARKET_LOOKBACK_DAYS: ${{ vars.PREMARKET_LOOKBACK_DAYS || '3' }}
