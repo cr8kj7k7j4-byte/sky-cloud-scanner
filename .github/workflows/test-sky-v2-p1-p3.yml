@@ -1,0 +1,23 @@
+name: Test Sky V2 P1-P3
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "src/evidence_ledger.py"
+      - "src/market_intelligence.py"
+      - "src/relative_strength.py"
+      - "src/event_risk.py"
+      - "src/main.py"
+      - "tests/test_sky_v2_p1_p3.py"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install --upgrade pip pytest
+      - run: pytest -q tests/test_sky_v2_p1_p3.py
