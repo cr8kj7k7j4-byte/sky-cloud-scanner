@@ -1,0 +1,28 @@
+name: MOPS 2330 Diagnostic
+on:
+  push:
+    branches: [main]
+    paths:
+      - "research/diagnose_mops_2330.py"
+      - ".github/workflows/diagnose-mops-2330.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests beautifulsoup4
+      - run: python research/diagnose_mops_2330.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mops-2330-diagnostic-${{ github.run_id }}
+          path: |
+            mops_2330_115.html
+            mops_2330_115_diag.json
+          retention-days: 7
