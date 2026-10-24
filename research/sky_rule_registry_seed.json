@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0.0",
+  "namespace": "P0-G",
+  "purpose": "Seed registry for Sky production rule governance. Values are placeholders for governance wiring, not claims that historical validation is complete.",
+  "rules": {
+    "market_gate": {
+      "owner_module": "P0-M/P0-C",
+      "status": "BASELINE_PENDING_FORMAL_PROMOTION"
+    },
+    "sector_rs_gate": {
+      "owner_module": "P0-M/P0-O",
+      "status": "BASELINE_PENDING_FORMAL_PROMOTION"
+    },
+    "anti_chase_gate": {
+      "owner_module": "P0-C",
+      "status": "BASELINE_PENDING_FORMAL_PROMOTION"
+    },
+    "phase_gate": {
+      "owner_module": "P0-C",
+      "status": "BASELINE_PENDING_FORMAL_PROMOTION"
+    },
+    "setup_gate": {
+      "owner_module": "P0-S/P0-C",
+      "status": "BASELINE_PENDING_FORMAL_PROMOTION"
+    },
+    "trigger_gate": {
+      "owner_module": "P0-S/P0-C",
+      "status": "BASELINE_PENDING_FORMAL_PROMOTION"
+    },
+    "rr_gate": {
+      "owner_module": "P0-R/P0-X",
+      "status": "BASELINE_PENDING_FORMAL_PROMOTION"
+    }
+  }
+}
