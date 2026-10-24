@@ -176,7 +176,7 @@ def evaluate_trade(
             reasons.append("剩餘風險預算不足以建立最小交易單位")
 
     allowed = not reasons
-    return {
+    result = {
         "status": "ALLOW" if allowed else "BLOCK",
         "portfolio_allowed": allowed,
         "state": state,
@@ -188,6 +188,7 @@ def evaluate_trade(
         "risk_budget": round(base_risk_budget, 2),
         "remaining_daily_risk_budget": round(remaining_daily, 2),
         "remaining_portfolio_heat": round(remaining_heat, 2),
+        # Backward compatibility only: historical net_rr was actually gross RR.
         "net_rr": round(gross_rr, 3) if gross_rr is not None else None,
         "gross_rr": round(gross_rr, 3) if gross_rr is not None else None,
         "fee_tax_adjusted_rr": None,
