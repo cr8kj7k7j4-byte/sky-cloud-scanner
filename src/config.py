@@ -37,3 +37,6 @@ CONSECUTIVE_LOSSES = int(os.getenv("CONSECUTIVE_LOSSES", "0"))
 MONITOR_STATE_BACKEND = os.getenv("MONITOR_STATE_BACKEND", "file").strip().lower()
 REDIS_URL = os.getenv("REDIS_URL", "").strip()
 MONITOR_STATE_REDIS_KEY = os.getenv("MONITOR_STATE_REDIS_KEY", "sky:p0a:monitor_state").strip()
+
+# P0-EVT Premarket Event Intelligence
+PREMARKET_REDIS_KEY = os.getenv("PREMARKET_REDIS_KEY", "sky:p0evt:latest").strip()
