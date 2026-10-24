@@ -3,7 +3,7 @@ name: Sky 100 Core Tests
 on:
   push:
     branches:
-      - feat/sky-100-platform-core
+      - feat/sky-100-feature-model-arena
   pull_request:
     branches:
       - main
@@ -28,3 +28,5 @@ jobs:
         run: python tests/test_ml_foundation.py
       - name: Run Sky 100 core tests
         run: python tests/test_sky100_core.py
+      - name: Run Feature Store and Model Arena tests
+        run: python tests/test_feature_model_arena.py
