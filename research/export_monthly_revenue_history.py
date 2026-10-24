@@ -24,17 +24,18 @@ def fetch_month(year,month,market,foreign,timeout=12):
     out=[]
     for t in tables:
         if isinstance(t.columns,pd.MultiIndex):
-            t.columns=["".join(str(x) for x in c if str(x)!="nan").strip() for c in t.columns]
+            t.columns=["".join(str(x) for x in col if str(x)!="nan").strip() for col in t.columns]
         else:
-            t.columns=[str(c).strip() for c in t.columns]
+            t.columns=[str(col).strip() for col in t.columns]
         cols=list(t.columns)
-        code_col=next((c for c in cols if "公司代號" in c),None)
-        rev_col=next((c for c in cols if "當月營收" in c and "累計" not in c),None)
-        prev_col=next((c for c in cols if "上月營收" in c),None)
-        ly_col=next((c for c in cols if "去年當月營收" in c),None)
-        mom_col=next((c for c in cols if "上月比較" in c and "增減" in c),None)
-        yoy_col=next((c for c in cols if "去年同月" in c and "增減" in c),None)
-        cum_yoy_col=next((c for c in cols if "前期比較" in c and "增減" in c),None)
+        norm={col:re.sub(r"\s+","",str(col)) for col in cols}
+        code_col=next((col for col in cols if "公司代號" in norm[col]),None)
+        rev_col=next((col for col in cols if "當月營收" in norm[col] and "累計" not in norm[col]),None)
+        prev_col=next((col for col in cols if "上月營收" in norm[col]),None)
+        ly_col=next((col for col in cols if "去年當月營收" in norm[col]),None)
+        mom_col=next((col for col in cols if "上月比較" in norm[col] and "增減" in norm[col]),None)
+        yoy_col=next((col for col in cols if "去年同月" in norm[col] and "增減" in norm[col]),None)
+        cum_yoy_col=next((col for col in cols if "前期比較" in norm[col] and "增減" in norm[col]),None)
         if not code_col or not rev_col: continue
         for _,r in t.iterrows():
             code=re.sub(r"\.0$","",str(r.get(code_col,"")).strip())
@@ -72,6 +73,8 @@ def main():
                 fail.append({"year":args.year,"month":m,"market":args.market,"foreign":foreign,"error":repr(e)})
                 print(f"FAIL {args.year}-{m:02d} {args.market} foreign={foreign}: {e!r}",flush=True)
             time.sleep(0.15)
+    if len(rows)==0:
+        raise RuntimeError(f"No monthly revenue rows parsed for {args.year} {args.market}; parser/data validation failed.")
     df=pd.DataFrame(rows)
     df.to_csv(out/"monthly_revenue.csv",index=False,encoding="utf-8-sig")
     (out/"failures.json").write_text(json.dumps(fail,ensure_ascii=False,indent=2),encoding="utf-8")
