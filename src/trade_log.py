@@ -103,3 +103,11 @@ def append_jsonl(record, path="output/trade_decisions.jsonl"):
     with target.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n")
     return str(target)
+
+
+def attach_outcome(record, outcome):
+    """Return a new serializable record with the outcome payload attached."""
+    payload = record.to_dict() if hasattr(record, "to_dict") else dict(record)
+    outcome_payload = outcome.to_dict() if hasattr(outcome, "to_dict") else dict(outcome or {})
+    payload["outcome"] = outcome_payload
+    return payload
