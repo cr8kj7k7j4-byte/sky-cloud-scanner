@@ -9,6 +9,7 @@ on:
       - "src/premarket_ranking.py"
       - "src/premarket_state.py"
       - "src/global_market_context.py"
+      - "src/global_sector_mapping.py"
       - ".github/workflows/premarket-intelligence.yml"
       - ".github/workflows/premarket-intelligence-test.yml"
   workflow_dispatch:
@@ -37,6 +38,7 @@ jobs:
           from datetime import datetime
           from src.event_intelligence import classify_event
           from src.premarket_ranking import rank_premarket_candidates
+          from src.global_sector_mapping import map_global_context_to_sectors
 
           assert classify_event("本公司公告114年12月營收") == "REVENUE"
           assert classify_event("董事會決議股利分派") == "CORPORATE_ACTION"
@@ -72,5 +74,14 @@ jobs:
           assert ranked[0]["symbol"] == "2330"
           assert any(x["classification"] == "RISK_REVIEW" for x in ranked)
           assert all(x["trade_signal"] is False for x in ranked)
+
+          sector = map_global_context_to_sectors({
+              "vix": {"value": 16},
+              "us10y": {"value": 4.7},
+              "wti": {"value": 62},
+              "ntdusd": {"value": 32.8},
+          })
+          assert len(sector) >= 4
+          assert all(x["trade_signal"] is False for x in sector)
           print("P0-EVT smoke tests passed")
           PY
