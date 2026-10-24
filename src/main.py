@@ -23,6 +23,7 @@ from .sky_rules import first_gate, score_for_ranking, enrich
 from .notifier import send_telegram
 from .risk_engine import RiskPolicy, evaluate_candidate, drawdown_state
 from .execution_engine import ExecutionCostPolicy
+from .cost_profiles import get_observed_cost_profile
 from .feature_engine import build_features
 from .regime_engine import detect_regime
 from .ml_layer import baseline_model_predictions, ensemble
@@ -74,18 +75,38 @@ def _risk_policy():
     )
 
 def _execution_policy():
-    return ExecutionCostPolicy(
-        buy_commission_rate=EXEC_BUY_COMMISSION_RATE,
-        sell_commission_rate=EXEC_SELL_COMMISSION_RATE,
-        sell_tax_rate=EXEC_SELL_TAX_RATE,
+    profile = get_observed_cost_profile(EXEC_COST_PROFILE)
+
+    profile_buy = profile.buy_commission_rate if profile else None
+    profile_sell = profile.sell_commission_rate if profile else None
+    profile_tax = profile.sell_tax_rate if profile else None
+
+    policy = ExecutionCostPolicy(
+        buy_commission_rate=(
+            EXEC_BUY_COMMISSION_RATE
+            if EXEC_BUY_COMMISSION_RATE is not None else profile_buy
+        ),
+        sell_commission_rate=(
+            EXEC_SELL_COMMISSION_RATE
+            if EXEC_SELL_COMMISSION_RATE is not None else profile_sell
+        ),
+        sell_tax_rate=(
+            EXEC_SELL_TAX_RATE
+            if EXEC_SELL_TAX_RATE is not None else profile_tax
+        ),
         entry_slippage_bps=EXEC_ENTRY_SLIPPAGE_BPS,
         exit_slippage_bps=EXEC_EXIT_SLIPPAGE_BPS,
         spread_bps=EXEC_SPREAD_BPS,
         liquidity_penalty_bps=EXEC_LIQUIDITY_PENALTY_BPS,
         fill_probability=EXEC_FILL_PROBABILITY,
+        financing_interest_per_share=EXEC_FINANCING_INTEREST_PER_SHARE,
+        require_financing_interest=(
+            profile is not None and profile.transaction_mode == "MARGIN_FINANCING"
+        ),
         min_execution_rr=EXEC_MIN_RR,
         enforce_gate=EXEC_ENFORCE_GATE,
     )
+    return policy
 
 
 def _portfolio_context():
@@ -150,12 +171,18 @@ def run():
         "agent_orchestration": {"enabled": True, "single_agent_can_trade": False},
         "execution_engine": {
             "enabled": True,
+            "profile_id": EXEC_COST_PROFILE,
+            "profile": (
+                get_observed_cost_profile(EXEC_COST_PROFILE).to_dict()
+                if get_observed_cost_profile(EXEC_COST_PROFILE)
+                else None
+            ),
             "gate_enforced": EXEC_ENFORCE_GATE,
             "min_execution_rr": EXEC_MIN_RR,
             "cost_inputs_complete": all(v is not None for v in (
-                EXEC_BUY_COMMISSION_RATE,
-                EXEC_SELL_COMMISSION_RATE,
-                EXEC_SELL_TAX_RATE,
+                _execution_policy().buy_commission_rate,
+                _execution_policy().sell_commission_rate,
+                _execution_policy().sell_tax_rate,
                 EXEC_ENTRY_SLIPPAGE_BPS,
                 EXEC_EXIT_SLIPPAGE_BPS,
                 EXEC_SPREAD_BPS,
@@ -408,8 +435,9 @@ def run():
             "",
             "【P0-X 執行成本 / P0-R 風控】",
             (
+                f"成本Profile：{EXEC_COST_PROFILE}｜"
                 f"執行成本模型："
-                f"{'完整' if st['execution_engine']['cost_inputs_complete'] else '資料不足'}｜"
+                f"{'完整' if st['execution_engine']['cost_inputs_complete'] else 'Fee/Tax可用，Execution資料不足'}｜"
                 f"Execution RR Gate：{'啟用' if EXEC_ENFORCE_GATE else '停用'}｜"
                 f"最低 Execution RR：{EXEC_MIN_RR:.2f}"
             ),

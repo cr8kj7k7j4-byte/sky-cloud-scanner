@@ -42,7 +42,14 @@ MONITOR_STATE_REDIS_KEY = os.getenv("MONITOR_STATE_REDIS_KEY", "sky:p0a:monitor_
 PREMARKET_REDIS_KEY = os.getenv("PREMARKET_REDIS_KEY", "sky:p0evt:latest").strip()
 
 
-# P0-X Execution Cost Model (empty => unknown, never assumed zero)
+# P0-X Execution Cost Model
+# Default to the user's empirically observed cash-daytrade profile.
+# Change to USER_MARGIN_FINANCING_20261021 for margin trades.
+EXEC_COST_PROFILE = os.getenv(
+    "EXEC_COST_PROFILE", "USER_CASH_DAYTRADE_20261022"
+).strip()
+
+# Explicit env values override the selected profile. Empty => unknown.
 def _f_optional(name):
     raw = os.getenv(name, "").strip()
     return None if raw == "" else float(raw)
@@ -55,5 +62,6 @@ EXEC_EXIT_SLIPPAGE_BPS = _f_optional("EXEC_EXIT_SLIPPAGE_BPS")
 EXEC_SPREAD_BPS = _f_optional("EXEC_SPREAD_BPS")
 EXEC_LIQUIDITY_PENALTY_BPS = _f_optional("EXEC_LIQUIDITY_PENALTY_BPS")
 EXEC_FILL_PROBABILITY = _f_optional("EXEC_FILL_PROBABILITY")
+EXEC_FINANCING_INTEREST_PER_SHARE = _f_optional("EXEC_FINANCING_INTEREST_PER_SHARE")
 EXEC_MIN_RR = float(os.getenv("EXEC_MIN_RR", "1.5"))
 EXEC_ENFORCE_GATE = _b("EXEC_ENFORCE_GATE", "0")
