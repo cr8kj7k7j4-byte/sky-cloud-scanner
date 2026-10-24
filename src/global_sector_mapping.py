@@ -3,13 +3,13 @@ from __future__ import annotations
 SECTOR_RULES = {
     "SEMICONDUCTOR": {
         "label": "半導體",
-        "positive": ("nasdaq_up", "sp500_up", "vix_low", "ntd_weak"),
-        "negative": ("nasdaq_down", "vix_high", "us10y_high", "ntd_strong"),
+        "positive": ("nasdaq_up", "sp500_up", "vix_low", "ntd_weak", "tsm_adr_up", "umc_adr_up"),
+        "negative": ("nasdaq_down", "vix_high", "us10y_high", "ntd_strong", "tsm_adr_down", "umc_adr_down", "bis_policy_risk"),
     },
     "AI_SERVER": {
         "label": "AI／伺服器",
-        "positive": ("nasdaq_up", "sp500_up", "vix_low", "ntd_weak"),
-        "negative": ("nasdaq_down", "vix_high", "us10y_high"),
+        "positive": ("nasdaq_up", "sp500_up", "vix_low", "ntd_weak", "tsm_adr_up"),
+        "negative": ("nasdaq_down", "vix_high", "us10y_high", "tsm_adr_down", "bis_policy_risk"),
     },
     "DISPLAY": {
         "label": "面板",
@@ -35,6 +35,8 @@ def _flags(ctx):
     us10y = _num((ctx.get("us10y") or {}).get("value"))
     wti = _num((ctx.get("wti") or {}).get("value"))
     ntdusd = _num((ctx.get("ntdusd") or {}).get("value"))
+    adr_quotes = ((ctx.get("adr_context") or {}).get("quotes") or [])
+    bis_events = ctx.get("bis_policy_events") or []
 
     # Current-value context only. Directional daily moves are not inferred
     # unless a verified previous observation is available.
@@ -50,6 +52,19 @@ def _flags(ctx):
     if ntdusd is not None:
         if ntdusd >= 32.5: flags.add("ntd_weak")
         if ntdusd <= 30.5: flags.add("ntd_strong")
+
+    for q in adr_quotes:
+        sym = str(q.get("adr_symbol") or "").upper()
+        chg = _num(q.get("change_pct"))
+        if chg is None:
+            continue
+        if sym == "TSM":
+            flags.add("tsm_adr_up" if chg > 0 else "tsm_adr_down" if chg < 0 else "tsm_adr_flat")
+        if sym == "UMC":
+            flags.add("umc_adr_up" if chg > 0 else "umc_adr_down" if chg < 0 else "umc_adr_flat")
+
+    if bis_events:
+        flags.add("bis_policy_risk")
 
     # Index levels alone do not imply up/down. Leave directional flags absent
     # until change data is separately verified.
