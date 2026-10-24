@@ -44,11 +44,19 @@ jobs:
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
         run: |
-          python research/download_expanded.py             --manifest research_data/universe_manifest.json             --from-date "${{ inputs.start_date }}"             --to-date "${{ inputs.end_date }}"             --out research_data/history
+          START_DATE="${{ inputs.start_date }}"
+          END_DATE="${{ inputs.end_date }}"
+          [ -z "$START_DATE" ] && START_DATE="2025-01-01"
+          [ -z "$END_DATE" ] && END_DATE="2026-10-22"
+          python research/download_expanded.py             --manifest research_data/universe_manifest.json             --from-date "$START_DATE"             --to-date "$END_DATE"             --out research_data/history
 
       - name: Run Stage 6B catalyst event backtest
         run: |
-          python research/stage6b_catalyst_backtest.py             --manifest research_data/universe_manifest.json             --data-dir research_data/history             --start "${{ inputs.start_date }}"             --end "${{ inputs.end_date }}"             --out research_output_stage6b
+          START_DATE="${{ inputs.start_date }}"
+          END_DATE="${{ inputs.end_date }}"
+          [ -z "$START_DATE" ] && START_DATE="2025-01-01"
+          [ -z "$END_DATE" ] && END_DATE="2026-10-22"
+          python research/stage6b_catalyst_backtest.py             --manifest research_data/universe_manifest.json             --data-dir research_data/history             --start "$START_DATE"             --end "$END_DATE"             --out research_output_stage6b
 
       - name: Publish summary
         if: always()
