@@ -31,6 +31,7 @@ class ObservedCostProfile:
         spread_bps=None,
         liquidity_penalty_bps=None,
         fill_probability=None,
+        financing_interest_per_share=None,
         min_execution_rr=1.5,
         enforce_gate=False,
     ) -> ExecutionCostPolicy:
@@ -43,6 +44,8 @@ class ObservedCostProfile:
             spread_bps=spread_bps,
             liquidity_penalty_bps=liquidity_penalty_bps,
             fill_probability=fill_probability,
+            financing_interest_per_share=financing_interest_per_share,
+            require_financing_interest=(self.transaction_mode == "MARGIN_FINANCING"),
             min_execution_rr=min_execution_rr,
             enforce_gate=enforce_gate,
         )
