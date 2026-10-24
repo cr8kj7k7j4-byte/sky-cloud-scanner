@@ -17,6 +17,11 @@ from .fugle import get_ticker, get_quote, get_candles
 from .sky_rules import first_gate, score_for_ranking, enrich
 from .notifier import send_telegram
 from .risk_engine import RiskPolicy, evaluate_candidate, drawdown_state
+from .feature_engine import build_features
+from .regime_engine import detect_regime
+from .ml_layer import baseline_model_predictions, ensemble
+from .explainability import explain
+from .validation import evaluate_validation_gate
 
 TZ = ZoneInfo("Asia/Taipei")
 OUT = Path("output")
@@ -79,6 +84,11 @@ def run():
         "deep": [],
         "deep_rejected": [],
         "deep_unverified": [],
+        "ml_foundation": {
+            "enabled": True,
+            "mode": "RESEARCH_ONLY",
+            "production_eligible": False,
+        },
         "risk_engine": {
             "enabled": True,
             "policy": policy.to_dict(),
@@ -170,11 +180,12 @@ def run():
 
         for row in top[:probe_limit]:
             try:
+                ks = get_candles(row["symbol"], "5")
                 item = enrich(
                     row,
                     get_ticker(row["symbol"]),
                     get_quote(row["symbol"]),
-                    get_candles(row["symbol"], "5"),
+                    ks,
                 )
                 item["classification_cap"] = (
                     "A"
@@ -186,6 +197,25 @@ def run():
                 if x_flags:
                     rejected.append(item)
                     continue
+
+                features = build_features(
+                    item,
+                    ks.get("data", []) if isinstance(ks, dict) else [],
+                    market_return_pct=None,
+                ).to_dict()
+                regime = detect_regime(
+                    index_change_pct=None,
+                    breadth_pct=None,
+                    volatility_pct=features.get("volatility_5"),
+                )
+                preds = baseline_model_predictions(features, horizon_days=5)
+                ml = ensemble(preds, regime.label)
+                ml["models"] = [p.to_dict() for p in preds]
+                ml["regime"] = regime.to_dict()
+                ml["explainability"] = explain(features, ml)
+                ml["validation"] = evaluate_validation_gate()
+                item["features"] = features
+                item["ml"] = ml
 
                 risk = evaluate_candidate(item, portfolio_context, policy)
                 risk["status_zh"] = RISK_STATUS_ZH.get(risk["status"], risk["status"])
@@ -266,6 +296,20 @@ def run():
                 f'量{x.get("volume",0):,}｜{flags}｜上限:{x.get("classification_cap")}'
             )
             lines.append(f"   {risk_line}")
+            ml = x.get("ml", {})
+            if ml:
+                consensus_zh = {
+                    "BULLISH": "偏多",
+                    "BEARISH": "偏空",
+                    "NEUTRAL": "中性",
+                }.get(ml.get("consensus"), ml.get("consensus", "未判定"))
+                lines.append(
+                    f"   ML研究層：{consensus_zh}｜"
+                    f"5日預期報酬：{ml.get('expected_return_pct')}%｜"
+                    f"信心：{float(ml.get('confidence') or 0)*100:.1f}%｜"
+                    f"市場狀態：{ml.get('regime', {}).get('label', '未判定')}｜"
+                    f"資格：研究用"
+                )
             if reasons != "無":
                 lines.append(f"   原因：{reasons}")
 
@@ -289,6 +333,7 @@ def run():
             "",
             "注意：rank_score 僅用於候選排序，不是勝率、SSS 或 EES。",
             "P0-R 規則：任何 AI／策略訊號都不得繞過風控；缺少停損、目標價或帳戶資金時，風控一律標示「資料不足」，不得視為可進場。",
+            "P0-ML 規則：目前僅為研究用 baseline；未通過 Walk-forward／OOS／成本壓力／資料洩漏檢查／Paper Trading 前，不得提升為正式交易依據。",
             (
                 "A+ 必須再通過 Market Gate→Sector/RS→MTF→SSS→Phase→"
                 "Anti-Chase→Breakout Quality→Setup+Trigger→"
