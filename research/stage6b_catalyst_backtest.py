@@ -228,7 +228,8 @@ def main():
         r["event_type"]=r["category"]
         r["source"]="MOPS"
         r["event_role"]="CATALYST_EVIDENCE"
-        scored=score_event(r, now=datetime.fromisoformat(r["action_date"]))
+        score_now=datetime.fromisoformat(f'{r["action_date"]}T{r["trigger_time"]}:00')
+        scored=score_event(r, now=score_now)
         r.update(scored)
 
     summary={"scope":"Stage6B true MOPS material-information event selection + platform execution",
