@@ -11,6 +11,7 @@ from .event_intelligence import scan_recent_events
 from .official import load_official_universe
 from .premarket_ranking import rank_premarket_candidates
 from .global_market_context import build_global_context
+from .global_sector_mapping import map_global_context_to_sectors
 
 TZ = ZoneInfo("Asia/Taipei")
 OUT = Path("output/premarket")
@@ -51,6 +52,8 @@ def run():
     if global_context.get("macro_events"):
         events = list(events) + list(global_context["macro_events"])
 
+    sector_context = map_global_context_to_sectors(global_context)
+
     counts = Counter(e["event_type"] for e in events)
     ranked_candidates = rank_premarket_candidates(
         events,
@@ -74,6 +77,7 @@ def run():
         "event_type_counts": dict(counts),
         "source_health": source_health,
         "global_context": global_context,
+        "sector_context": sector_context,
         "ranked_candidates": ranked_candidates,
         "events": events,
         "errors": errors[:100],
@@ -119,6 +123,13 @@ def run():
     missing = [k for k, ok in coverage.items() if not ok]
     if missing:
         lines.append("尚未接通：" + "、".join(missing))
+
+    lines += ["", "【全球背景→台股族群映射】"]
+    for s in sector_context:
+        lines.append(
+            f"{s['sector']}｜背景分數 {s['context_score']}｜{s['bias']}｜"
+            f"+{','.join(s['positive_factors']) or '-'}｜-{','.join(s['negative_factors']) or '-'}"
+        )
 
     lines += [
         "",
