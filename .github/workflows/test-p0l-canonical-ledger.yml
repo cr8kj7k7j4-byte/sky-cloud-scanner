@@ -1,0 +1,30 @@
+name: P0-L Canonical Trade Ledger Tests
+
+on:
+  push:
+    branches:
+      - refactor/p0l-canonical-trade-ledger
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile
+        run: python -m compileall -q src tests
+      - name: Canonical P0-L tests
+        run: PYTHONPATH=. python tests/test_p0l_canonical_ledger.py
+      - name: Existing Sky 100 core tests
+        run: PYTHONPATH=. python tests/test_sky100_core.py
+      - name: P0-R tests
+        run: PYTHONPATH=. python tests/test_risk_engine.py
