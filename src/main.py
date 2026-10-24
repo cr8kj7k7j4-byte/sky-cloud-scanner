@@ -22,9 +22,11 @@ from .regime_engine import detect_regime
 from .ml_layer import baseline_model_predictions, ensemble
 from .explainability import explain
 from .validation import evaluate_validation_gate
+from .monitor_engine import evaluate_monitor_state, load_state, save_state
 
 TZ = ZoneInfo("Asia/Taipei")
 OUT = Path("output")
+MONITOR_STATE_FILE = OUT / "monitor_state.json"
 
 RISK_STATUS_ZH = {
     "ALLOW": "允許進場",
@@ -66,6 +68,7 @@ def _portfolio_context():
 def run():
     now = datetime.now(TZ)
     OUT.mkdir(exist_ok=True)
+    previous_monitor_state = load_state(MONITOR_STATE_FILE)
 
     policy = _risk_policy()
     portfolio_context = _portfolio_context()
@@ -84,6 +87,13 @@ def run():
         "deep": [],
         "deep_rejected": [],
         "deep_unverified": [],
+        "monitor_engine": {
+            "enabled": True,
+            "state_file": str(MONITOR_STATE_FILE),
+            "previous_count": len(previous_monitor_state),
+            "decisions": [],
+            "transitions": [],
+        },
         "ml_foundation": {
             "enabled": True,
             "mode": "RESEARCH_ONLY",
@@ -176,6 +186,7 @@ def run():
         deep = []
         rejected = []
         unverified = []
+        monitor_decisions = []
         probe_limit = min(len(top), max(DEEP_DIVE_N * 4, DEEP_DIVE_N))
 
         for row in top[:probe_limit]:
@@ -221,6 +232,14 @@ def run():
                 risk["status_zh"] = RISK_STATUS_ZH.get(risk["status"], risk["status"])
                 risk["state_zh"] = RISK_STATE_ZH.get(risk["state"], risk["state"])
                 item["risk"] = risk
+
+                monitor = evaluate_monitor_state(
+                    item,
+                    previous_state=previous_monitor_state.get(str(item.get("symbol") or "")),
+                )
+                item["monitor"] = monitor.to_dict()
+                monitor_decisions.append(monitor)
+
                 deep.append(item)
                 if len(deep) >= DEEP_DIVE_N:
                     break
@@ -240,6 +259,9 @@ def run():
         st["deep"] = deep
         st["deep_rejected"] = rejected[:20]
         st["deep_unverified"] = unverified[:20]
+        st["monitor_engine"]["decisions"] = [d.to_dict() for d in monitor_decisions]
+        st["monitor_engine"]["transitions"] = [d.to_dict() for d in monitor_decisions if d.changed]
+        save_state(MONITOR_STATE_FILE, monitor_decisions)
 
         lines = [
             f"Sky Cloud Scanner v0.4｜{now:%Y-%m-%d %H:%M}",
@@ -312,6 +334,20 @@ def run():
                 )
             if reasons != "無":
                 lines.append(f"   原因：{reasons}")
+
+        transitions = st["monitor_engine"]["transitions"]
+        lines += ["", "【P0-A 盤中警戒】"]
+        if not monitor_decisions:
+            lines.append("本次沒有可監控的深查候選。")
+        elif not transitions:
+            lines.append("本次無狀態變化；延續前次監控狀態。")
+        else:
+            for d in transitions[:10]:
+                prev = d.get("previous_state") or "首次"
+                lines.append(
+                    f'{d["symbol"]}｜{prev} → {d.get("state_zh", d["state"])}｜'
+                    f'動作：{d["action"]}｜{d["reason"]}'
+                )
 
         if rejected:
             lines += ["", "【已確認淘汰，不占有效深查名額】"]
