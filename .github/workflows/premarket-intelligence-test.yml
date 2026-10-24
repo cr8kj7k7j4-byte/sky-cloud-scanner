@@ -12,6 +12,7 @@ on:
       - "src/global_sector_mapping.py"
       - "src/adr_context.py"
       - "src/bis_policy.py"
+      - "src/gold_context.py"
       - ".github/workflows/premarket-intelligence.yml"
       - ".github/workflows/premarket-intelligence-test.yml"
   workflow_dispatch:
