@@ -1,5 +1,6 @@
 from src.outcome_engine import evaluate_long_outcome
 from src.walk_forward import generate_walk_forward_folds, validate_no_overlap, chronological_split
+from src.trade_log import build_trade_decision_record, attach_outcome
 
 
 def test_outcome_calculates_mfe_mae_and_r():
@@ -36,3 +37,18 @@ def test_chronological_split_preserves_order():
     assert [x["observed_at"] for x in s["train"]] == ["2026-01-01","2026-01-02","2026-01-03"]
     assert [x["observed_at"] for x in s["validate"]] == ["2026-01-04"]
     assert [x["observed_at"] for x in s["test"]] == ["2026-01-05"]
+
+
+def test_outcome_attaches_to_decision_ledger():
+    rec=build_trade_decision_record(
+        item={"symbol":"2409","name":"友達","risk":{"status":"BLOCK"}},
+        run_id="run-1",
+    )
+    out=evaluate_long_outcome(
+        entry=100,stop=98,target=104,
+        bars=[{"high":102,"low":99,"close":101}],
+        exit_price=101,
+    )
+    payload=attach_outcome(rec,out)
+    assert payload["outcome"]["status"]=="COMPLETE"
+    assert payload["outcome"]["r_multiple"]==0.5
