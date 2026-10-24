@@ -1,0 +1,30 @@
+name: Sky 100 Phase 5 Feature Ablation
+
+on:
+  push:
+    branches:
+      - feat/sky-100-phase5-ablation-lab
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install ML dependencies
+        run: pip install -r requirements-ml.txt
+      - name: Compile
+        run: python -m compileall -q src research tests
+      - name: Phase 5 unit tests
+        run: python tests/test_feature_ablation_lab.py
+      - name: Existing ML foundation tests
+        run: python tests/test_ml_foundation.py
