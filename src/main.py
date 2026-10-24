@@ -11,7 +11,7 @@ from .config import (
     LOCKDOWN_DRAWDOWN_PCT, LOT_SIZE, DAILY_PNL, OPEN_RISK,
     CONCURRENT_POSITIONS, CORRELATED_OPEN_RISK, ACCOUNT_DRAWDOWN_PCT,
     CONSECUTIVE_LOSSES, MONITOR_STATE_BACKEND, REDIS_URL,
-    MONITOR_STATE_REDIS_KEY,
+    MONITOR_STATE_REDIS_KEY, PREMARKET_REDIS_KEY,
 )
 from .official import load_official_universe, fetch_mis_quotes
 from .fugle import get_ticker, get_quote, get_candles
@@ -36,6 +36,7 @@ from .evidence_ledger import build_evidence_ledger as build_structured_evidence_
 from .strategy_builder import build_breakout_plan, apply_plan
 from .monitor_engine import evaluate_monitor_state
 from .state_store import MonitorStateStore
+from .premarket_state import load_premarket_event_snapshot
 
 TZ = ZoneInfo("Asia/Taipei")
 OUT = Path("output")
@@ -105,6 +106,7 @@ def run():
         "source_health": {},
         "market_intelligence": {},
         "event_risk": {},
+        "premarket_event_snapshot": {},
         "monitor_engine": {
             "enabled": True,
             "backend": state_store.backend,
@@ -186,7 +188,23 @@ def run():
 
         working_rows = rows if ALLOW_MIS_OTC_FALLBACK else twse_rows
         st["market_intelligence"] = summarize_market(working_rows)
-        st["event_risk"] = assess_event_risk([])
+
+        premarket_state = load_premarket_event_snapshot(
+            redis_url=REDIS_URL,
+            redis_key=PREMARKET_REDIS_KEY,
+        )
+        snapshot = premarket_state.get("snapshot") or {}
+        snapshot_events = snapshot.get("events") or []
+        st["premarket_event_snapshot"] = {
+            "ok": premarket_state.get("ok", False),
+            "source": premarket_state.get("source"),
+            "reason": premarket_state.get("reason"),
+            "generated_at": snapshot.get("generated_at"),
+            "events_found": snapshot.get("events_found"),
+            "coverage_pct": snapshot.get("coverage_pct"),
+            "full_market_event_scan": snapshot.get("full_market_event_scan"),
+        }
+        st["event_risk"] = assess_event_risk(snapshot_events)
 
         # Do not silently replace an incomplete official chain with a
         # plan-restricted Fugle Snapshot endpoint.
