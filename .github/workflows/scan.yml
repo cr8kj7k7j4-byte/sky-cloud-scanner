@@ -1,4 +1,4 @@
-name: Sky Cloud Scanner v0.3
+name: Sky Cloud Scanner v0.5 + P0-R
 
 on:
   workflow_dispatch:
@@ -45,6 +45,23 @@ jobs:
           MIN_TRADE_VALUE: "10000000"
           STRICT_OFFICIAL_MODE: "1"
           ALLOW_MIS_OTC_FALLBACK: "1"
+          ACCOUNT_EQUITY: ${{ vars.ACCOUNT_EQUITY || '0' }}
+          RISK_PER_TRADE_PCT: ${{ vars.RISK_PER_TRADE_PCT || '0.005' }}
+          DAILY_LOSS_LIMIT_PCT: ${{ vars.DAILY_LOSS_LIMIT_PCT || '0.015' }}
+          MAX_PORTFOLIO_HEAT_PCT: ${{ vars.MAX_PORTFOLIO_HEAT_PCT || '0.03' }}
+          MAX_POSITION_PCT: ${{ vars.MAX_POSITION_PCT || '0.20' }}
+          CORRELATION_LIMIT_PCT: ${{ vars.CORRELATION_LIMIT_PCT || '0.02' }}
+          MAX_CONCURRENT_POSITIONS: ${{ vars.MAX_CONCURRENT_POSITIONS || '3' }}
+          CAUTION_LOSS_STREAK: ${{ vars.CAUTION_LOSS_STREAK || '3' }}
+          DEFENSIVE_LOSS_STREAK: ${{ vars.DEFENSIVE_LOSS_STREAK || '5' }}
+          LOCKDOWN_DRAWDOWN_PCT: ${{ vars.LOCKDOWN_DRAWDOWN_PCT || '0.06' }}
+          LOT_SIZE: ${{ vars.LOT_SIZE || '1000' }}
+          DAILY_PNL: ${{ vars.DAILY_PNL || '0' }}
+          OPEN_RISK: ${{ vars.OPEN_RISK || '0' }}
+          CONCURRENT_POSITIONS: ${{ vars.CONCURRENT_POSITIONS || '0' }}
+          CORRELATED_OPEN_RISK: ${{ vars.CORRELATED_OPEN_RISK || '0' }}
+          ACCOUNT_DRAWDOWN_PCT: ${{ vars.ACCOUNT_DRAWDOWN_PCT || '0' }}
+          CONSECUTIVE_LOSSES: ${{ vars.CONSECUTIVE_LOSSES || '0' }}
         run: python -m src.main
       - name: Upload scan report
         if: always()

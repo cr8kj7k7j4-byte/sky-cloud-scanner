@@ -3,18 +3,70 @@ from zoneinfo import ZoneInfo
 from pathlib import Path
 import json
 
-from .config import TOP_N, DEEP_DIVE_N, STRICT_OFFICIAL_MODE, ALLOW_MIS_OTC_FALLBACK
+from .config import (
+    TOP_N, DEEP_DIVE_N, STRICT_OFFICIAL_MODE, ALLOW_MIS_OTC_FALLBACK,
+    ACCOUNT_EQUITY, RISK_PER_TRADE_PCT, DAILY_LOSS_LIMIT_PCT,
+    MAX_PORTFOLIO_HEAT_PCT, MAX_POSITION_PCT, CORRELATION_LIMIT_PCT,
+    MAX_CONCURRENT_POSITIONS, CAUTION_LOSS_STREAK, DEFENSIVE_LOSS_STREAK,
+    LOCKDOWN_DRAWDOWN_PCT, LOT_SIZE, DAILY_PNL, OPEN_RISK,
+    CONCURRENT_POSITIONS, CORRELATED_OPEN_RISK, ACCOUNT_DRAWDOWN_PCT,
+    CONSECUTIVE_LOSSES,
+)
 from .official import load_official_universe, fetch_mis_quotes
 from .fugle import get_ticker, get_quote, get_candles
 from .sky_rules import first_gate, score_for_ranking, enrich
 from .notifier import send_telegram
+from .risk_engine import RiskPolicy, evaluate_candidate, drawdown_state
 
 TZ = ZoneInfo("Asia/Taipei")
 OUT = Path("output")
 
+RISK_STATUS_ZH = {
+    "ALLOW": "允許進場",
+    "BLOCK": "禁止進場",
+    "RISK_INPUT_REQUIRED": "風控資料不足",
+}
+RISK_STATE_ZH = {
+    "NORMAL": "正常",
+    "CAUTION": "警戒",
+    "DEFENSIVE": "防守",
+    "LOCKDOWN": "鎖定",
+}
+
+def _risk_policy():
+    return RiskPolicy(
+        risk_per_trade_pct=RISK_PER_TRADE_PCT,
+        daily_loss_limit_pct=DAILY_LOSS_LIMIT_PCT,
+        max_portfolio_heat_pct=MAX_PORTFOLIO_HEAT_PCT,
+        max_position_pct=MAX_POSITION_PCT,
+        correlation_limit_pct=CORRELATION_LIMIT_PCT,
+        max_concurrent_positions=MAX_CONCURRENT_POSITIONS,
+        caution_loss_streak=CAUTION_LOSS_STREAK,
+        defensive_loss_streak=DEFENSIVE_LOSS_STREAK,
+        lockdown_drawdown_pct=LOCKDOWN_DRAWDOWN_PCT,
+        lot_size=LOT_SIZE,
+    )
+
+def _portfolio_context():
+    return {
+        "account_equity": ACCOUNT_EQUITY,
+        "daily_pnl": DAILY_PNL,
+        "open_risk": OPEN_RISK,
+        "concurrent_positions": CONCURRENT_POSITIONS,
+        "correlated_open_risk": CORRELATED_OPEN_RISK,
+        "drawdown_pct": ACCOUNT_DRAWDOWN_PCT,
+        "consecutive_losses": CONSECUTIVE_LOSSES,
+    }
+
 def run():
     now = datetime.now(TZ)
     OUT.mkdir(exist_ok=True)
+
+    policy = _risk_policy()
+    portfolio_context = _portfolio_context()
+    portfolio_state = drawdown_state(
+        ACCOUNT_DRAWDOWN_PCT, CONSECUTIVE_LOSSES, policy
+    )
 
     st = {
         "run_time": now.isoformat(),
@@ -27,6 +79,13 @@ def run():
         "deep": [],
         "deep_rejected": [],
         "deep_unverified": [],
+        "risk_engine": {
+            "enabled": True,
+            "policy": policy.to_dict(),
+            "portfolio_context": portfolio_context,
+            "state": portfolio_state,
+            "state_zh": RISK_STATE_ZH.get(portfolio_state, portfolio_state),
+        },
     }
 
     try:
@@ -128,6 +187,10 @@ def run():
                     rejected.append(item)
                     continue
 
+                risk = evaluate_candidate(item, portfolio_context, policy)
+                risk["status_zh"] = RISK_STATUS_ZH.get(risk["status"], risk["status"])
+                risk["state_zh"] = RISK_STATE_ZH.get(risk["state"], risk["state"])
+                item["risk"] = risk
                 deep.append(item)
                 if len(deep) >= DEEP_DIVE_N:
                     break
@@ -168,17 +231,43 @@ def run():
             "上櫃 MIS 僅為操作備援，非 TPEx 官方完整盤中資料鏈。"
         )
 
-        lines += ["", "【可繼續深查候選】"]
+        lines += [
+            "",
+            "【P0-R 風控總覽】",
+            f"帳戶狀態：{RISK_STATE_ZH.get(portfolio_state, portfolio_state)}",
+            (
+                f"帳戶資金：{ACCOUNT_EQUITY:,.0f}｜"
+                f"單筆風險上限：{RISK_PER_TRADE_PCT*100:.2f}%｜"
+                f"單日最大虧損：{DAILY_LOSS_LIMIT_PCT*100:.2f}%｜"
+                f"最大持倉風險：{MAX_PORTFOLIO_HEAT_PCT*100:.2f}%"
+            ),
+            "",
+            "【可繼續深查候選】",
+        ]
         if not deep:
             lines.append("目前沒有完成且通過基礎否決條件的深查候選；不產生交易建議。")
 
         for i, x in enumerate(deep[:10], 1):
             flags = "、".join(x.get("flags", [])) or "待確認"
+            risk = x.get("risk", {})
+            risk_status = risk.get("status_zh", "未檢查")
+            risk_state = risk.get("state_zh", "未檢查")
+            reasons = "、".join(risk.get("reasons", [])) or "無"
+            required = "、".join(risk.get("required_inputs", []))
+            risk_line = (
+                f"風控：{risk_status}｜帳戶狀態：{risk_state}｜"
+                f"建議部位：{risk.get('recommended_shares', 0):,}股"
+            )
+            if required:
+                risk_line += f"｜缺少：{required}"
             lines.append(
                 f'{i}. {x["symbol"]} {x.get("name","")} '
                 f'{x["last"]:.2f} ({x["change_pct"]:+.2f}%) '
                 f'量{x.get("volume",0):,}｜{flags}｜上限:{x.get("classification_cap")}'
             )
+            lines.append(f"   {risk_line}")
+            if reasons != "無":
+                lines.append(f"   原因：{reasons}")
 
         if rejected:
             lines += ["", "【已確認淘汰，不占有效深查名額】"]
@@ -199,6 +288,7 @@ def run():
         lines += [
             "",
             "注意：rank_score 僅用於候選排序，不是勝率、SSS 或 EES。",
+            "P0-R 規則：任何 AI／策略訊號都不得繞過風控；缺少停損、目標價或帳戶資金時，風控一律標示「資料不足」，不得視為可進場。",
             (
                 "A+ 必須再通過 Market Gate→Sector/RS→MTF→SSS→Phase→"
                 "Anti-Chase→Breakout Quality→Setup+Trigger→"

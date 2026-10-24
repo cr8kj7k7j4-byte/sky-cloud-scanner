@@ -1,0 +1,26 @@
+name: P0-R Risk Engine Tests
+
+on:
+  push:
+    branches:
+      - feat/p0-r-risk-engine
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile Python sources
+        run: python -m compileall -q src tests
+      - name: Run P0-R unit tests
+        run: python tests/test_risk_engine.py
