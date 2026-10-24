@@ -172,8 +172,8 @@ def main():
     ap=argparse.ArgumentParser()
     ap.add_argument("--history-dir",required=True)
     ap.add_argument("--out",default="research_output_revenue")
-    ap.add_argument("--start","2022-12")
-    ap.add_argument("--end","2026-09")
+    ap.add_argument("--start", default="2022-12")
+    ap.add_argument("--end", default="2026-09")
     args=ap.parse_args()
     out=Path(args.out);out.mkdir(parents=True,exist_ok=True)
 
