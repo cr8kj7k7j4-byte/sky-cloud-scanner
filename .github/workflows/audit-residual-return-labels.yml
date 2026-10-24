@@ -1,0 +1,78 @@
+name: Sky Residual Return Label Audit
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/audit-residual-return-labels.yml'
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download historical 5m artifact
+        uses: dawidd6/action-download-artifact@v11
+        with:
+          run_id: 39963770301
+          name_is_regexp: true
+          name: sky-history-5m-.*
+          path: _hist
+          search_artifacts: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download official enrichment artifact
+        uses: dawidd6/action-download-artifact@v11
+        with:
+          run_id: 40060301681
+          name_is_regexp: true
+          name: sky-official-enrichment-.*
+          path: _enrich
+          search_artifacts: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare datasets
+        id: data
+        run: |
+          mkdir -p _hist_unpacked _enrich_unpacked
+
+          HIST_TAR=$(find _hist -name 'sky-history-5m-*.tar.gz' | head -1)
+          test -n "$HIST_TAR"
+          tar -xzf "$HIST_TAR" -C _hist_unpacked
+          HIST_DIR=$(find _hist_unpacked -type d -path '*/research_data/history' | head -1)
+          test -n "$HIST_DIR"
+
+          ENRICH_TAR=$(find _enrich -name 'sky-official-enrichment-*.tar.gz' | head -1)
+          test -n "$ENRICH_TAR"
+          tar -xzf "$ENRICH_TAR" -C _enrich_unpacked
+          INDUSTRY_MAP=$(find _enrich_unpacked -name 'industry_map.json' | head -1)
+          test -n "$INDUSTRY_MAP"
+
+          echo "history_dir=$HIST_DIR" >> "$GITHUB_OUTPUT"
+          echo "industry_map=$INDUSTRY_MAP" >> "$GITHUB_OUTPUT"
+
+      - name: Run residual return label audit
+        run: |
+          python research/audit_residual_return_labels.py             --history-dir "${{ steps.data.outputs.history_dir }}"             --industry-map "${{ steps.data.outputs.industry_map }}"             --out research_output_residual_label
+
+      - name: Publish summary
+        if: always()
+        run: |
+          if [ -f research_output_residual_label/residual_label_summary.md ]; then
+            cat research_output_residual_label/residual_label_summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-residual-label-${{ github.run_id }}
+          path: research_output_residual_label
+          if-no-files-found: warn
+          retention-days: 14
