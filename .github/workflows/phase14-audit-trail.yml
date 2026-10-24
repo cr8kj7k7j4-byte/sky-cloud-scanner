@@ -1,0 +1,28 @@
+name: Sky 100 Phase 14 Audit Trail
+
+on:
+  push:
+    branches:
+      - feat/sky-100-phase14-audit-trail
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile
+        run: python -m compileall -q src research tests
+      - name: Phase 14 tests
+        run: PYTHONPATH=. python tests/test_audit_trail.py
+      - name: P0-R tests
+        run: PYTHONPATH=. python tests/test_risk_engine.py
