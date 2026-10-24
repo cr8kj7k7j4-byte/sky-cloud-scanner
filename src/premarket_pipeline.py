@@ -12,6 +12,7 @@ from .official import load_official_universe
 from .premarket_ranking import rank_premarket_candidates
 from .global_market_context import build_global_context
 from .global_sector_mapping import map_global_context_to_sectors
+from .event_scoring import attach_event_scores
 
 TZ = ZoneInfo("Asia/Taipei")
 OUT = Path("output/premarket")
@@ -53,6 +54,7 @@ def run():
         events = list(events) + list(global_context["macro_events"])
 
     sector_context = map_global_context_to_sectors(global_context)
+    events = attach_event_scores(events, now=now)
 
     counts = Counter(e["event_type"] for e in events)
     ranked_candidates = rank_premarket_candidates(
@@ -166,8 +168,9 @@ def run():
         for r in ranked_candidates[:20]:
             lines.append(
                 f"{r['ranking_position']}. {r['symbol']} {r.get('name','')}｜"
-                f"分數 {r['premarket_score']}｜Catalyst {r['catalyst_score']}｜"
-                f"Risk -{r['risk_penalty']}｜{r['classification']}"
+                f"總分 {r['premarket_score']}｜Event {r['event_score']}｜"
+                f"Catalyst {r['catalyst_score']}｜Source {r['source_confidence_score']}｜"
+                f"Fresh {r['freshness_score']}｜Risk -{r['risk_penalty']}｜{r['classification']}"
             )
     else:
         lines.append("目前沒有事件型候選；不強迫產生名單。")
