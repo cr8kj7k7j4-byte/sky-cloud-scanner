@@ -2,6 +2,9 @@ name: Sky Monthly Revenue Merge Validation
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/merge-monthly-revenue-history.yml'
 
 permissions:
   actions: read
