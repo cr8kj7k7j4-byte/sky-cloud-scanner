@@ -99,6 +99,10 @@ def _execution_policy():
         spread_bps=EXEC_SPREAD_BPS,
         liquidity_penalty_bps=EXEC_LIQUIDITY_PENALTY_BPS,
         fill_probability=EXEC_FILL_PROBABILITY,
+        financing_interest_per_share=EXEC_FINANCING_INTEREST_PER_SHARE,
+        require_financing_interest=(
+            profile is not None and profile.transaction_mode == "MARGIN_FINANCING"
+        ),
         min_execution_rr=EXEC_MIN_RR,
         enforce_gate=EXEC_ENFORCE_GATE,
     )
