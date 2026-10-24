@@ -6,17 +6,22 @@ on:
       - "src/data_engine.py"
       - "src/feature_contract.py"
       - "src/trade_log.py"
+      - "src/outcome_engine.py"
+      - "src/walk_forward.py"
       - "src/main.py"
       - "tests/test_sky70_foundation.py"
+      - "tests/test_sky80_outcome_validation.py"
   workflow_dispatch:
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: .
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
       - run: pip install -r requirements.txt pytest
-      - run: pytest -q tests/test_sky70_foundation.py tests/test_risk_engine.py tests/test_ml_foundation.py
+      - run: pytest -q tests/test_sky70_foundation.py tests/test_sky80_outcome_validation.py tests/test_risk_engine.py tests/test_ml_foundation.py
