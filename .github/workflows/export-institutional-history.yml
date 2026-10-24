@@ -1,5 +1,5 @@
 name: Sky Institutional History Export
-# trigger-version: 3
+# trigger-version: 4
 
 on:
   workflow_dispatch:
