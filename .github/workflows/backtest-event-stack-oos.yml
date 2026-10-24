@@ -1,0 +1,88 @@
+name: Sky Event Evidence Stack OOS
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/backtest-event-stack-oos.yml'
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download historical 5m artifact
+        uses: dawidd6/action-download-artifact@v11
+        with:
+          run_id: 39963770301
+          name_is_regexp: true
+          name: sky-history-5m-.*
+          path: _hist
+          search_artifacts: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download catalyst event artifact
+        uses: dawidd6/action-download-artifact@v11
+        with:
+          run_id: 40085850076
+          name_is_regexp: true
+          name: sky-catalyst-oos-.*
+          path: _evt
+          search_artifacts: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download official enrichment artifact
+        uses: dawidd6/action-download-artifact@v11
+        with:
+          run_id: 40060301681
+          name_is_regexp: true
+          name: sky-official-enrichment-.*
+          path: _enrich
+          search_artifacts: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare datasets
+        id: data
+        run: |
+          mkdir -p _hist_unpacked
+          HIST_TAR=$(find _hist -name 'sky-history-5m-*.tar.gz' | head -1)
+          test -n "$HIST_TAR"
+          tar -xzf "$HIST_TAR" -C _hist_unpacked
+          HIST_DIR=$(find _hist_unpacked -type d -path '*/research_data/history' | head -1)
+          EVENT_CSV=$(find _evt -name catalyst_event_rows.csv | head -1)
+          INDUSTRY_JSON=$(find _enrich -name industry_map.json | head -1)
+          TAIEX_CSV=$(find _enrich -name taiex_daily.csv | head -1)
+          test -n "$HIST_DIR"
+          test -n "$EVENT_CSV"
+          test -n "$INDUSTRY_JSON"
+          test -n "$TAIEX_CSV"
+          echo "history_dir=$HIST_DIR" >> "$GITHUB_OUTPUT"
+          echo "event_csv=$EVENT_CSV" >> "$GITHUB_OUTPUT"
+          echo "industry_json=$INDUSTRY_JSON" >> "$GITHUB_OUTPUT"
+          echo "taiex_csv=$TAIEX_CSV" >> "$GITHUB_OUTPUT"
+
+      - name: Run event evidence stack OOS
+        run: |
+          python research/backtest_event_stack_oos.py             --history-dir "${{ steps.data.outputs.history_dir }}"             --event-csv "${{ steps.data.outputs.event_csv }}"             --industry-json "${{ steps.data.outputs.industry_json }}"             --taiex-csv "${{ steps.data.outputs.taiex_csv }}"             --out research_output_event_stack_oos
+
+      - name: Publish summary
+        if: always()
+        run: |
+          if [ -f research_output_event_stack_oos/event_stack_oos_summary.md ]; then
+            cat research_output_event_stack_oos/event_stack_oos_summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-event-stack-oos-${{ github.run_id }}
+          path: research_output_event_stack_oos
+          if-no-files-found: warn
+          retention-days: 14
