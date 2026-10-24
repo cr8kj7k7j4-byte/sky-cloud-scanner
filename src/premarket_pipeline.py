@@ -1,0 +1,110 @@
+from __future__ import annotations
+
+import json
+import os
+from collections import Counter
+from datetime import datetime
+from pathlib import Path
+from zoneinfo import ZoneInfo
+
+from .event_intelligence import scan_recent_events
+from .official import load_official_universe
+
+TZ = ZoneInfo("Asia/Taipei")
+OUT = Path("output/premarket")
+
+def _persist_redis(payload: dict):
+    url = os.getenv("REDIS_URL", "").strip()
+    key = os.getenv("PREMARKET_REDIS_KEY", "sky:p0evt:latest").strip()
+    if not url:
+        return {"backend": "none", "persistent": False, "ok": False, "reason": "REDIS_URL_NOT_SET"}
+    try:
+        import redis
+        client = redis.Redis.from_url(url, decode_responses=True, socket_connect_timeout=5, socket_timeout=10)
+        client.set(key, json.dumps(payload, ensure_ascii=False))
+        return {"backend": "redis", "persistent": True, "ok": True, "key": key}
+    except Exception as exc:
+        return {"backend": "redis", "persistent": True, "ok": False, "error": f"{type(exc).__name__}: {exc}"}
+
+def run():
+    now = datetime.now(TZ)
+    OUT.mkdir(parents=True, exist_ok=True)
+
+    universe, ust = load_official_universe()
+    symbols = [str(x["symbol"]) for x in universe if x.get("symbol")]
+    max_symbols = int(os.getenv("PREMARKET_EVENT_MAX_SYMBOLS", "300"))
+    lookback_days = int(os.getenv("PREMARKET_LOOKBACK_DAYS", "3"))
+    scan_symbols = symbols[:max_symbols]
+
+    events, errors = scan_recent_events(
+        scan_symbols,
+        lookback_days=lookback_days,
+        now=now,
+        max_symbols=max_symbols,
+    )
+
+    counts = Counter(e["event_type"] for e in events)
+    payload = {
+        "generated_at": now.isoformat(),
+        "module": "P0-EVT",
+        "mode": "PREMARKET_EVENT_SCAN",
+        "source": "MOPS",
+        "lookback_days": lookback_days,
+        "universe_count": len(symbols),
+        "scanned_symbol_count": len(scan_symbols),
+        "coverage_pct": round((len(scan_symbols) / len(symbols) * 100), 2) if symbols else 0,
+        "full_market_event_scan": bool(symbols and len(scan_symbols) >= len(symbols)),
+        "official_universe_health": ust,
+        "events_found": len(events),
+        "errors_count": len(errors),
+        "event_type_counts": dict(counts),
+        "events": events,
+        "errors": errors[:100],
+        "warnings": [],
+    }
+
+    if not payload["full_market_event_scan"]:
+        payload["warnings"].append(
+            "本次 P0-EVT 為部分官方母池掃描，不得宣稱全市場事件掃描；"
+            "未掃描標的視為 UNKNOWN，不得視為無事件。"
+        )
+
+    persist = _persist_redis(payload)
+    payload["persistence"] = persist
+
+    (OUT / "latest_event_snapshot.json").write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+    lines = [
+        f"Sky 盤前情報掃描｜{now:%Y-%m-%d %H:%M}",
+        f"官方母池：{len(symbols)}｜已掃描：{len(scan_symbols)}｜覆蓋率：{payload['coverage_pct']}%",
+        f"MOPS事件：{len(events)}｜錯誤：{len(errors)}",
+        f"持久化：{persist.get('backend')}｜{'成功' if persist.get('ok') else '未完成'}",
+        "",
+        "【事件分類】",
+    ]
+    if counts:
+        for k, v in counts.most_common():
+            lines.append(f"{k}: {v}")
+    else:
+        lines.append("目前未取得事件；不代表市場無重大事件。")
+
+    lines += ["", "【最新事件】"]
+    for e in events[:30]:
+        lines.append(
+            f"{e['announce_date']} {e['announce_time']}｜{e['symbol']} {e.get('name','')}｜"
+            f"{e['event_type']}｜{e['subject']}"
+        )
+    if not events:
+        lines.append("無可列示事件。")
+
+    if payload["warnings"]:
+        lines += ["", "【限制】", *payload["warnings"]]
+
+    (OUT / "latest_premarket.txt").write_text("\n".join(lines), encoding="utf-8")
+    print("\n".join(lines))
+
+if __name__ == "__main__":
+    run()
