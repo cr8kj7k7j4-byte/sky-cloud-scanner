@@ -6,8 +6,8 @@ from pathlib import Path
 import requests
 from bs4 import BeautifulSoup
 
-MOPS_HISTORY="https://mops.twse.com.tw/mops/web/t05st01"
-UA={"User-Agent":"Mozilla/5.0 SkyResearch/1.0","Referer":"https://mops.twse.com.tw/mops/web/t05st02"}
+MOPS_HISTORY="https://mopsov.twse.com.tw/mops/web/t05st01"
+UA={"User-Agent":"Mozilla/5.0 SkyResearch/1.0","Referer":"https://mopsov.twse.com.tw/mops/web/t05st01"}
 
 def roc_y(d): return d.year-1911
 def f(x,k):
@@ -19,8 +19,7 @@ def med(xs):
     return xs[n//2] if n%2 else (xs[n//2-1]+xs[n//2])/2
 
 def fetch_company_year(sess, symbol, roc_year, retries=4):
-    params={"co_id":symbol,"firstin":"1","step":"1","year":str(roc_year),
-            "TYPEK":"all","encodeURIComponent":"1"}
+    params={"step":"1","firstin":"true","year":str(roc_year),"co_id":symbol}
     err=None
     for k in range(retries):
         try:
