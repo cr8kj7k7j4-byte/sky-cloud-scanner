@@ -41,7 +41,6 @@ Research namespaces:
 | Candidate family | Status | Reason |
 |---|---|---|
 | P0-S 5m Breakout Candidate | REJECTED_OOS | Full 100-symbol validation passed; OOS n=9,111, PF=0.2033, Expectancy=-0.8018R at 0.45% round-trip cost. Do not promote to Paper Trading or live signal. |
-
 | Weak-Regime Mean-Reversion 15D | REJECTED | Signal-level edge failed to survive ranking/capacity/broad-basket portfolio implementation. |
 | Fixed-time intraday ranking | REJECTED | OOS and post-cost evidence insufficient. |
 | Event-driven intraday ranking / catalyst stack | REJECTED | OOS and post-cost evidence insufficient. |
