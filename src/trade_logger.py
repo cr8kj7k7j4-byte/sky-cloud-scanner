@@ -1,7 +1,38 @@
 from dataclasses import dataclass, asdict
 from pathlib import Path
 from datetime import datetime
+from hashlib import sha256
+from zoneinfo import ZoneInfo
 import json
+
+
+TZ = ZoneInfo("Asia/Taipei")
+TRADE_LEDGER_SCHEMA_VERSION = "2.0.0"
+
+
+@dataclass(frozen=True)
+class TradeDecisionRecord:
+    record_id: str
+    schema_version: str
+    observed_at: str
+    run_id: str
+    symbol: str
+    name: str
+    exchange: str | None
+    mode: str
+    decision: str
+    classification_cap: str | None
+    market: dict
+    data_quality: dict
+    features: dict
+    ml: dict
+    risk: dict
+    plan: dict
+    execution: dict
+    outcome: dict
+
+    def to_dict(self):
+        return asdict(self)
 
 
 @dataclass(frozen=True)
@@ -22,6 +53,10 @@ class TradeRecord:
     setup: str | None = None
     phase: str | None = None
     model_version: str | None = None
+    decision_record_id: str | None = None
+    strategy_version: str | None = None
+    feature_schema_version: str | None = None
+    rule_config_version: str | None = None
 
     def to_dict(self):
         return asdict(self)
@@ -29,6 +64,65 @@ class TradeRecord:
 
 def _parse_iso(value):
     return datetime.fromisoformat(value)
+
+
+def build_trade_decision_record(*, item, run_id, observed_at=None, mode="SCANNER"):
+    item = item or {}
+    observed_at = observed_at or datetime.now(TZ)
+    if observed_at.tzinfo is None:
+        observed_at = observed_at.replace(tzinfo=TZ)
+    else:
+        observed_at = observed_at.astimezone(TZ)
+
+    symbol = str(item.get("symbol") or "")
+    risk = dict(item.get("risk") or {})
+    decision = risk.get("status") or "OBSERVE"
+    raw_id = f"{run_id}|{symbol}|{mode}|{observed_at.isoformat()}"
+    record_id = sha256(raw_id.encode("utf-8")).hexdigest()[:24]
+
+    plan = {
+        "entry": item.get("entry"),
+        "stop": item.get("stop"),
+        "target": item.get("target"),
+        "highest_acceptable_price": item.get("highest_acceptable_price"),
+        "add_price": item.get("add_price"),
+        "net_rr": risk.get("net_rr"),
+    }
+    market = {
+        "last": item.get("last"),
+        "previous_close": item.get("previous_close"),
+        "change_pct": item.get("change_pct"),
+        "volume": item.get("volume"),
+        "trade_value": item.get("trade_value"),
+        "high": item.get("high"),
+        "low": item.get("low"),
+        "open": item.get("open"),
+        "bid": item.get("bid"),
+        "ask": item.get("ask"),
+        "quote_time": item.get("quote_time"),
+        "quote_source": item.get("quote_source"),
+    }
+
+    return TradeDecisionRecord(
+        record_id=record_id,
+        schema_version=TRADE_LEDGER_SCHEMA_VERSION,
+        observed_at=observed_at.isoformat(),
+        run_id=str(run_id),
+        symbol=symbol,
+        name=str(item.get("name") or ""),
+        exchange=item.get("exchange"),
+        mode=mode,
+        decision=str(decision),
+        classification_cap=item.get("classification_cap"),
+        market=market,
+        data_quality=dict(item.get("data_quality") or {}),
+        features=dict(item.get("feature_envelope") or item.get("features") or {}),
+        ml=dict(item.get("ml") or {}),
+        risk=risk,
+        plan=plan,
+        execution=dict(item.get("execution") or {}),
+        outcome=dict(item.get("outcome") or {}),
+    )
 
 
 def evaluate_trade_record(record):
@@ -52,6 +146,8 @@ def evaluate_trade_record(record):
 
     mfe = None
     mae = None
+    mfe_r = None
+    mae_r = None
     if r.max_price_during_trade is not None and r.min_price_during_trade is not None:
         if r.side.upper() == "LONG":
             mfe = (r.max_price_during_trade - r.entry_price) * r.quantity
@@ -59,12 +155,16 @@ def evaluate_trade_record(record):
         else:
             mfe = (r.entry_price - r.min_price_during_trade) * r.quantity
             mae = (r.max_price_during_trade - r.entry_price) * r.quantity
+        if initial_risk > 0:
+            mfe_r = mfe / initial_risk
+            mae_r = mae / initial_risk
 
     duration_minutes = (
         _parse_iso(r.exit_time) - _parse_iso(r.entry_time)
     ).total_seconds() / 60.0
 
     return {
+        "schema_version": TRADE_LEDGER_SCHEMA_VERSION,
         **r.to_dict(),
         "gross_pnl": round(gross, 2),
         "total_cost": round(total_cost, 2),
@@ -73,14 +173,46 @@ def evaluate_trade_record(record):
         "r_multiple": round(r_multiple, 4) if r_multiple is not None else None,
         "mfe_amount": round(mfe, 2) if mfe is not None else None,
         "mae_amount": round(mae, 2) if mae is not None else None,
+        "mfe_r": round(mfe_r, 4) if mfe_r is not None else None,
+        "mae_r": round(mae_r, 4) if mae_r is not None else None,
         "holding_minutes": round(duration_minutes, 2),
     }
 
 
+def append_jsonl(record, path="output/trade_decisions.jsonl"):
+    payload = record.to_dict() if hasattr(record, "to_dict") else dict(record)
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with target.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n")
+    return str(target)
+
+
 def append_trade(path, record):
     evaluated = evaluate_trade_record(record)
-    p = Path(path)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    with p.open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(evaluated, ensure_ascii=False) + "\n")
+    append_jsonl(evaluated, path=path)
     return evaluated
+
+
+def attach_outcome(record, outcome):
+    payload = record.to_dict() if hasattr(record, "to_dict") else dict(record)
+    outcome_payload = outcome.to_dict() if hasattr(outcome, "to_dict") else dict(outcome or {})
+    payload["schema_version"] = TRADE_LEDGER_SCHEMA_VERSION
+    payload["outcome"] = outcome_payload
+    return payload
+
+
+def build_canonical_ledger_entry(decision_record, trade_result=None):
+    decision = (
+        decision_record.to_dict()
+        if hasattr(decision_record, "to_dict")
+        else dict(decision_record or {})
+    )
+    trade = dict(trade_result or {})
+    return {
+        "schema_version": TRADE_LEDGER_SCHEMA_VERSION,
+        "record_id": decision.get("record_id"),
+        "decision": decision,
+        "trade": trade,
+        "outcome": trade.get("outcome") or decision.get("outcome") or {},
+    }
