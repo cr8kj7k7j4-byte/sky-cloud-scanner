@@ -8,6 +8,7 @@ on:
       - "src/premarket_pipeline.py"
       - "src/premarket_ranking.py"
       - "src/premarket_state.py"
+      - "src/global_market_context.py"
       - ".github/workflows/premarket-intelligence.yml"
       - ".github/workflows/premarket-intelligence-test.yml"
   workflow_dispatch:
