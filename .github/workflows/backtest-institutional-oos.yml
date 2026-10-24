@@ -1,0 +1,72 @@
+name: Sky Institutional OOS Backtest
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/backtest-institutional-oos.yml'
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download historical 5m artifact
+        uses: dawidd6/action-download-artifact@v11
+        with:
+          run_id: 39963770301
+          name_is_regexp: true
+          name: sky-history-5m-.*
+          path: _hist
+          search_artifacts: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download institutional artifact
+        uses: dawidd6/action-download-artifact@v11
+        with:
+          run_id: 40084207468
+          name_is_regexp: true
+          name: sky-institutional-history-.*
+          path: _inst
+          search_artifacts: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare datasets
+        run: |
+          mkdir -p _hist_unpacked
+          HIST_TAR=$(find _hist -name 'sky-history-5m-*.tar.gz' | head -1)
+          test -n "$HIST_TAR"
+          tar -xzf "$HIST_TAR" -C _hist_unpacked
+          HIST_DIR=$(find _hist_unpacked -type d -path '*/research_data/history' | head -1)
+          INST_CSV=$(find _inst -name institutional_flows.csv | head -1)
+          test -n "$HIST_DIR"
+          test -n "$INST_CSV"
+          echo "history_dir=$HIST_DIR" >> "$GITHUB_OUTPUT"
+          echo "inst_csv=$INST_CSV" >> "$GITHUB_OUTPUT"
+        id: data
+
+      - name: Run lag-1 institutional OOS
+        run: |
+          python research/backtest_institutional_oos.py             --history-dir "${{ steps.data.outputs.history_dir }}"             --institutional-csv "${{ steps.data.outputs.inst_csv }}"             --out-dir research_output_institutional_oos
+
+      - name: Publish summary
+        if: always()
+        run: |
+          if [ -f research_output_institutional_oos/institutional_oos_summary.md ]; then
+            cat research_output_institutional_oos/institutional_oos_summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload OOS results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-institutional-oos-${{ github.run_id }}
+          path: research_output_institutional_oos
+          if-no-files-found: error
+          retention-days: 14
