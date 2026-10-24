@@ -74,6 +74,8 @@ def _event_datetime(event):
 
 def score_event(event, now=None):
     now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
     et = str(event.get("event_type") or "OTHER").upper()
     event_score = EVENT_IMPORTANCE.get(et, EVENT_IMPORTANCE["OTHER"])
     catalyst_score = CATALYST_BASE.get(et, CATALYST_BASE["OTHER"])
@@ -94,8 +96,10 @@ def score_event(event, now=None):
         freshness_score = 35.0
         age_hours = None
     else:
-        if event_dt.tzinfo is None and now.tzinfo is not None:
+        if event_dt.tzinfo is None:
             event_dt = event_dt.replace(tzinfo=now.tzinfo)
+        else:
+            event_dt = event_dt.astimezone(now.tzinfo)
         age_hours = max(0.0, (now - event_dt).total_seconds() / 3600.0)
         freshness_score = _clamp(100.0 * exp(-age_hours / 36.0))
 
