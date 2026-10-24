@@ -1,0 +1,59 @@
+name: Sky Weak-Regime Swing Portfolio
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/backtest-weak-regime-portfolio.yml'
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download historical 5m artifact
+        uses: dawidd6/action-download-artifact@v11
+        with:
+          run_id: 39963770301
+          name_is_regexp: true
+          name: sky-history-5m-.*
+          path: _hist
+          search_artifacts: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare history dataset
+        id: data
+        run: |
+          mkdir -p _hist_unpacked
+          HIST_TAR=$(find _hist -name 'sky-history-5m-*.tar.gz' | head -1)
+          test -n "$HIST_TAR"
+          tar -xzf "$HIST_TAR" -C _hist_unpacked
+          HIST_DIR=$(find _hist_unpacked -type d -path '*/research_data/history' | head -1)
+          test -n "$HIST_DIR"
+          echo "history_dir=$HIST_DIR" >> "$GITHUB_OUTPUT"
+
+      - name: Run weak-regime swing portfolio backtest
+        run: |
+          python research/backtest_weak_regime_portfolio.py             --history-dir "${{ steps.data.outputs.history_dir }}"             --out research_output_swing_portfolio
+
+      - name: Publish summary
+        if: always()
+        run: |
+          if [ -f research_output_swing_portfolio/portfolio_summary.md ]; then
+            cat research_output_swing_portfolio/portfolio_summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-weak-regime-portfolio-${{ github.run_id }}
+          path: research_output_swing_portfolio
+          if-no-files-found: warn
+          retention-days: 14
