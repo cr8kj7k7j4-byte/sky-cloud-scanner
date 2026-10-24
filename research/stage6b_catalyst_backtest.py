@@ -239,12 +239,12 @@ def main():
     (out/"stage6b_report.json").write_text(json.dumps(summary,ensure_ascii=False,indent=2),encoding="utf-8")
     if rows:
         fields=sorted({k for r in rows for k in r})
-        with (out/"stage6b_trades.csv").open("w",newline="",encoding="utf-8-sig") as f:
-            w=csv.DictWriter(f,fieldnames=fields); w.writeheader(); w.writerows(rows)
+        with (out/"stage6b_trades.csv").open("w",newline="",encoding="utf-8-sig") as fh:
+            w=csv.DictWriter(fh,fieldnames=fields); w.writeheader(); w.writerows(rows)
     if events:
         fields=sorted({k for r in events for k in r})
-        with (out/"mops_events.csv").open("w",newline="",encoding="utf-8-sig") as f:
-            w=csv.DictWriter(f,fieldnames=fields); w.writeheader(); w.writerows(events)
+        with (out/"mops_events.csv").open("w",newline="",encoding="utf-8-sig") as fh:
+            w=csv.DictWriter(fh,fieldnames=fields); w.writeheader(); w.writerows(events)
     print(json.dumps(summary,ensure_ascii=False,indent=2))
 
 if __name__=="__main__":
