@@ -180,23 +180,6 @@ def run():
 
         for row in top[:probe_limit]:
             try:
-                item = enrich(
-                    row,
-                    get_ticker(row["symbol"]),
-                    get_quote(row["symbol"]),
-                    get_candles(row["symbol"], "5"),
-                )
-                item["classification_cap"] = (
-                    "A"
-                    if not st["full_market_scan"]
-                    else "A+ eligible only after all gates"
-                )
-
-                x_flags = [f for f in item.get("flags", []) if str(f).startswith("X:")]
-                if x_flags:
-                    rejected.append(item)
-                    continue
-
                 ks = get_candles(row["symbol"], "5")
                 item = enrich(
                     row,
