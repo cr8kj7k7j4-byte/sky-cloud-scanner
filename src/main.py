@@ -12,12 +12,17 @@ from .config import (
     CONCURRENT_POSITIONS, CORRELATED_OPEN_RISK, ACCOUNT_DRAWDOWN_PCT,
     CONSECUTIVE_LOSSES, MONITOR_STATE_BACKEND, REDIS_URL,
     MONITOR_STATE_REDIS_KEY, PREMARKET_REDIS_KEY,
+    EXEC_BUY_COMMISSION_RATE, EXEC_SELL_COMMISSION_RATE, EXEC_SELL_TAX_RATE,
+    EXEC_ENTRY_SLIPPAGE_BPS, EXEC_EXIT_SLIPPAGE_BPS, EXEC_SPREAD_BPS,
+    EXEC_LIQUIDITY_PENALTY_BPS, EXEC_FILL_PROBABILITY, EXEC_MIN_RR,
+    EXEC_ENFORCE_GATE,
 )
 from .official import load_official_universe, fetch_mis_quotes
 from .fugle import get_ticker, get_quote, get_candles
 from .sky_rules import first_gate, score_for_ranking, enrich
 from .notifier import send_telegram
 from .risk_engine import RiskPolicy, evaluate_candidate, drawdown_state
+from .execution_engine import ExecutionCostPolicy
 from .feature_engine import build_features
 from .regime_engine import detect_regime
 from .ml_layer import baseline_model_predictions, ensemble
@@ -68,6 +73,21 @@ def _risk_policy():
         lot_size=LOT_SIZE,
     )
 
+def _execution_policy():
+    return ExecutionCostPolicy(
+        buy_commission_rate=EXEC_BUY_COMMISSION_RATE,
+        sell_commission_rate=EXEC_SELL_COMMISSION_RATE,
+        sell_tax_rate=EXEC_SELL_TAX_RATE,
+        entry_slippage_bps=EXEC_ENTRY_SLIPPAGE_BPS,
+        exit_slippage_bps=EXEC_EXIT_SLIPPAGE_BPS,
+        spread_bps=EXEC_SPREAD_BPS,
+        liquidity_penalty_bps=EXEC_LIQUIDITY_PENALTY_BPS,
+        fill_probability=EXEC_FILL_PROBABILITY,
+        min_execution_rr=EXEC_MIN_RR,
+        enforce_gate=EXEC_ENFORCE_GATE,
+    )
+
+
 def _portfolio_context():
     return {
         "account_equity": ACCOUNT_EQUITY,
@@ -77,6 +97,7 @@ def _portfolio_context():
         "correlated_open_risk": CORRELATED_OPEN_RISK,
         "drawdown_pct": ACCOUNT_DRAWDOWN_PCT,
         "consecutive_losses": CONSECUTIVE_LOSSES,
+        "execution_policy": _execution_policy(),
     }
 
 def run():
@@ -127,6 +148,20 @@ def run():
         },
         "knowledge_engine": {"enabled": True, "mode": "EVIDENCE_FIRST", "research_sources": source_health_template()},
         "agent_orchestration": {"enabled": True, "single_agent_can_trade": False},
+        "execution_engine": {
+            "enabled": True,
+            "gate_enforced": EXEC_ENFORCE_GATE,
+            "min_execution_rr": EXEC_MIN_RR,
+            "cost_inputs_complete": all(v is not None for v in (
+                EXEC_BUY_COMMISSION_RATE,
+                EXEC_SELL_COMMISSION_RATE,
+                EXEC_SELL_TAX_RATE,
+                EXEC_ENTRY_SLIPPAGE_BPS,
+                EXEC_EXIT_SLIPPAGE_BPS,
+                EXEC_SPREAD_BPS,
+                EXEC_LIQUIDITY_PENALTY_BPS,
+            )),
+        },
         "risk_engine": {
             "enabled": True,
             "policy": policy.to_dict(),
@@ -369,6 +404,14 @@ def run():
             (
                 f"Backend：{state_store.backend}｜"
                 f"Persistent：{state_store.persistent}"
+            ),
+            "",
+            "【P0-X 執行成本 / P0-R 風控】",
+            (
+                f"執行成本模型："
+                f"{'完整' if st['execution_engine']['cost_inputs_complete'] else '資料不足'}｜"
+                f"Execution RR Gate：{'啟用' if EXEC_ENFORCE_GATE else '停用'}｜"
+                f"最低 Execution RR：{EXEC_MIN_RR:.2f}"
             ),
             "",
             "【P0-R 風控總覽】",
