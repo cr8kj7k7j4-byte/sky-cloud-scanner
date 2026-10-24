@@ -1,0 +1,152 @@
+name: Sky P0-ML Pilot Training
+
+on:
+  workflow_dispatch:
+    inputs:
+      from_date:
+        description: "Training start date"
+        required: true
+        default: "2026-01-02"
+      to_date:
+        description: "Training end date (must be < 1 year from start)"
+        required: true
+        default: "2026-10-22"
+      symbols:
+        description: "Comma-separated pilot symbols"
+        required: true
+        default: "4526,8240,5202,5426,2236,4720,2069,1101,2880,2030,2468,2465,6148,6221,6697,7704,3325,4188"
+      horizon_bars:
+        description: "Forward 5m bars; 12=60 minutes"
+        required: true
+        default: "12"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/ml-pilot-train.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  train-ml-pilot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    env:
+      FROM_DATE: ${{ github.event_name == 'workflow_dispatch' && inputs.from_date || '2026-01-02' }}
+      TO_DATE: ${{ github.event_name == 'workflow_dispatch' && inputs.to_date || '2026-10-22' }}
+      SYMBOLS: ${{ github.event_name == 'workflow_dispatch' && inputs.symbols || '4526,8240,5202,5426,2236,4720,2069,1101,2880,2030,2468,2465,6148,6221,6697,7704,3325,4188' }}
+      HORIZON_BARS: ${{ github.event_name == 'workflow_dispatch' && inputs.horizon_bars || '12' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install ML research dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-ml.txt
+
+      - name: Compile research sources
+        run: python -m compileall -q src research tests
+
+      - name: ML foundation tests
+        run: python tests/test_ml_foundation.py
+
+      - name: Download pilot historical 5m data
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+        run: |
+          python research/download_intraday.py \
+            --symbols "$SYMBOLS" \
+            --from-date "$FROM_DATE" \
+            --to-date "$TO_DATE" \
+            --out research_data
+
+      - name: Build leakage-safe ML dataset
+        run: |
+          python -m research.build_ml_dataset \
+            --data-dir research_data \
+            --out research_output/ml_dataset.csv \
+            --horizon-bars "$HORIZON_BARS"
+
+      - name: Run dataset leakage audit
+        run: |
+          python -m research.audit_ml_dataset \
+            --dataset research_output/ml_dataset.csv \
+            --out research_output/leakage_audit.json
+
+      - name: Train Random Forest and XGBoost
+        run: |
+          python -m research.train_ml_models \
+            --dataset research_output/ml_dataset.csv \
+            --out research_output/models
+
+      - name: Walk-forward validation
+        run: |
+          python -m research.walk_forward_ml \
+            --dataset research_output/ml_dataset.csv \
+            --out research_output/walk_forward.json \
+            --train-days 60 \
+            --test-days 10
+
+      - name: Transaction-cost stress test
+        run: |
+          python -m research.cost_stress_ml \
+            --dataset research_output/ml_dataset.csv \
+            --model research_output/models/xgboost.joblib \
+            --out research_output/cost_stress.json \
+            --threshold-pct 0.5 \
+            --costs "0.30,0.45,0.60,0.80"
+
+      - name: TreeSHAP explainability
+        run: |
+          python -m research.shap_explain \
+            --dataset research_output/ml_dataset.csv \
+            --model research_output/models/xgboost.joblib \
+            --out research_output/shap_summary.json \
+            --sample 500
+
+      - name: Build Promotion Gate report
+        run: |
+          python -m research.ml_validation_gate \
+            --walk-forward research_output/walk_forward.json \
+            --cost-stress research_output/cost_stress.json \
+            --leakage-audit research_output/leakage_audit.json \
+            --out research_output/ml_validation_gate.json
+
+      - name: Publish research summary
+        if: always()
+        run: |
+          echo "## Sky P0-ML Pilot Training" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Period: $FROM_DATE ~ $TO_DATE" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Horizon bars: $HORIZON_BARS" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f research_output/models/metadata.json ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "### Model metrics" >> "$GITHUB_STEP_SUMMARY"
+            cat research_output/models/metadata.json >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -f research_output/ml_validation_gate.json ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "### Promotion Gate" >> "$GITHUB_STEP_SUMMARY"
+            cat research_output/ml_validation_gate.json >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload ML research artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-p0ml-pilot-${{ github.run_id }}
+          path: |
+            research_output/
+            research_data/_download_summary.json
+          if-no-files-found: warn
+          retention-days: 14
