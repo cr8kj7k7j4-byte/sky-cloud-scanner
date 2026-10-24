@@ -1,0 +1,75 @@
+name: P0-EVT Premarket Tests
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "src/event_intelligence.py"
+      - "src/premarket_pipeline.py"
+      - "src/premarket_ranking.py"
+      - "src/premarket_state.py"
+      - ".github/workflows/premarket-intelligence.yml"
+      - ".github/workflows/premarket-intelligence-test.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install beautifulsoup4
+      - name: Compile
+        run: python -m compileall -q src
+      - name: Smoke test P0-EVT and P0-O
+        run: |
+          python - <<'PY'
+          from datetime import datetime
+          from src.event_intelligence import classify_event
+          from src.premarket_ranking import rank_premarket_candidates
+
+          assert classify_event("本公司公告114年12月營收") == "REVENUE"
+          assert classify_event("董事會決議股利分派") == "CORPORATE_ACTION"
+
+          events = [
+              {
+                  "symbol": "2330",
+                  "name": "台積電",
+                  "announce_date": "2026-10-24",
+                  "announce_time": "080000",
+                  "subject": "測試營收事件",
+                  "event_type": "REVENUE",
+                  "event_role": "CATALYST_EVIDENCE",
+              },
+              {
+                  "symbol": "2409",
+                  "name": "友達",
+                  "announce_date": "2026-10-24",
+                  "announce_time": "",
+                  "subject": "測試處置事件",
+                  "event_type": "DISPOSITION",
+                  "event_role": "RISK_EVENT",
+              },
+          ]
+          ranked = rank_premarket_candidates(
+              events,
+              universe_by_symbol={
+                  "2330": {"name": "台積電", "exchange": "TWSE"},
+                  "2409": {"name": "友達", "exchange": "TWSE"},
+              },
+              now=datetime(2026, 10, 24, 8, 20),
+          )
+          assert ranked[0]["symbol"] == "2330"
+          assert any(x["classification"] == "RISK_REVIEW" for x in ranked)
+          assert all(x["trade_signal"] is False for x in ranked)
+          print("P0-EVT smoke tests passed")
+          PY
