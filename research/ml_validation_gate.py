@@ -14,11 +14,13 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--walk-forward", default="research_output/walk_forward.json")
     ap.add_argument("--cost-stress", default="research_output/cost_stress.json")
+    ap.add_argument("--leakage-audit", default="research_output/leakage_audit.json")
     ap.add_argument("--out", default="research_output/ml_validation_gate.json")
     args = ap.parse_args()
 
     wf = _load(args.walk_forward)
     cost = _load(args.cost_stress)
+    leakage = _load(args.leakage_audit)
 
     wf_pass = False
     if wf:
@@ -31,14 +33,14 @@ def main():
         "walk_forward_passed": wf_pass,
         "oos_passed": False,
         "cost_stress_passed": cost_pass,
-        "leakage_check_passed": True,
+        "leakage_check_passed": bool(leakage and leakage.get("passed")),
         "paper_trade_passed": False,
     }
     report["production_eligible"] = all(report.values())
     report["status"] = "PRODUCTION_ELIGIBLE" if report["production_eligible"] else "RESEARCH_ONLY"
     report["note"] = (
-        "Leakage check here only certifies the dataset construction contract. "
-        "True independent OOS and paper trading remain required."
+        "Leakage audit certifies only the dataset contract and obvious leakage checks. "
+        "Independent OOS, code review, purging/embargo design and paper trading remain required."
     )
 
     out = Path(args.out)
