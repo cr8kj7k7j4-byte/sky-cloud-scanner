@@ -20,6 +20,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Install runtime dependencies
+        run: pip install -r requirements.txt
       - name: Compile
         run: python -m compileall -q src tests
       - name: Canonical P0-L tests
