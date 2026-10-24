@@ -1,0 +1,28 @@
+name: Sky 100 Phase 10 Champion Challenger
+
+on:
+  push:
+    branches:
+      - feat/sky-100-phase10-champion-challenger
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile
+        run: python -m compileall -q src research tests
+      - name: Phase 10 tests
+        run: PYTHONPATH=. python tests/test_champion_challenger.py
+      - name: Risk engine tests
+        run: PYTHONPATH=. python tests/test_risk_engine.py
