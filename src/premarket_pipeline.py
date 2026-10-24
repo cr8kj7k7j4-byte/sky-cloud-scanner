@@ -121,15 +121,28 @@ def run():
     )
     adr = global_context.get("adr_context") or {}
     gold = global_context.get("gold_context") or {}
+    news = global_context.get("industry_news") or {}
     lines.append(
         f"ADR：{adr.get('status', 'NOT_CONNECTED')}｜"
         f"黃金：{gold.get('status', 'NOT_CONNECTED')}｜"
-        f"BIS政策事件：{len(global_context.get('bis_policy_events') or [])}"
+        f"BIS政策事件：{len(global_context.get('bis_policy_events') or [])}｜"
+        f"產業新聞：{news.get('accepted_count', 0)} accepted / {news.get('rejected_count', 0)} rejected"
     )
     coverage = global_context.get("coverage") or {}
     missing = [k for k, ok in coverage.items() if not ok]
     if missing:
         lines.append("尚未接通：" + "、".join(missing))
+
+    lines += ["", "【產業新聞證據｜P0-K】"]
+    evidence = global_context.get("industry_news_evidence") or {}
+    if evidence.get("record_count"):
+        for rec in (evidence.get("records") or [])[:10]:
+            lines.append(
+                f"{rec.get('source_tier')}｜{rec.get('source')}｜"
+                f"{rec.get('published_at')}｜{rec.get('statement')}"
+            )
+    else:
+        lines.append("目前沒有通過白名單與時間戳檢查的產業新聞證據。")
 
     lines += ["", "【全球背景→台股族群映射】"]
     for s in sector_context:
