@@ -97,19 +97,24 @@ def load_inst(path):
 
 def build_rows(history,inst):
     rows=[]
+    diag={"history_keys":len(history),"inst_keys":len(inst),"exact_key_overlap":len(set(history)&set(inst)),"symbol_overlap":len({k[0] for k in history}&{k[0] for k in inst}),"candidate_days":0,"has_prev_inst":0,"pass_turnover":0,"pass_price":0}
     for key,daily in history.items():
         sym,ex=key
         ids=inst.get(key,{})
         dates=sorted(daily)
         for i,d in enumerate(dates):
             if i<1: continue
+            diag["candidate_days"]+=1
             cur=daily[d]
             pdate=dates[i-1]
             prev=daily[pdate]
             flow1=ids.get(pdate)
             if not flow1: continue
+            diag["has_prev_inst"]+=1
             if prev["turnover"] < MIN_PREV_TURNOVER: continue
+            diag["pass_turnover"]+=1
             if cur["open"]>100: continue
+            diag["pass_price"]+=1
             def ratio(field, lookback):
                 numer=0.0; denom=0.0; count=0
                 for j in range(i-1,max(-1,i-1-lookback),-1):
@@ -152,7 +157,7 @@ def build_rows(history,inst):
             for h in HORIZONS:
                 if h in cur: row[h]=cur[h]
             rows.append(row)
-    return rows
+    return rows,diag
 
 def split(rows):
     out={"train":[],"valid":[],"test":[]}
@@ -209,7 +214,7 @@ def main():
 
     history=load_history(args.history_dir)
     inst=load_inst(args.institutional_csv)
-    rows=build_rows(history,inst)
+    rows,diag=build_rows(history,inst)
     splits=split(rows)
     thr=make_thresholds(splits["train"])
     signals=["FOREIGN_1D_Q70","TRUST_1D_Q70","TOTAL_1D_Q70","TOTAL_3D_Q70","TOTAL_5D_Q70",
@@ -262,6 +267,7 @@ def main():
         "history_symbols":len(history),
         "institutional_symbols":len(inst),
         "eligible_rows":len(rows),
+        "join_diagnostics":diag,
         "split_counts":{k:len(v) for k,v in splits.items()},
         "filters":{"entry_price_max":100,"min_previous_day_turnover":MIN_PREV_TURNOVER},
         "training_thresholds_q70":thr,
@@ -290,6 +296,7 @@ def main():
     lines=[
         "# Sky Institutional Lag-1 OOS",
         f"- Eligible rows: {len(rows)}",
+        f"- Join diagnostics: {diag}",
         f"- Split counts: {report['split_counts']}",
         f"- Selected (training only @0.20%): {selected}",
         f"- Promotion pass: **{promo}**",
