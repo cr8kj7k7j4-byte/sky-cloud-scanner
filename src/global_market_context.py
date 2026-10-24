@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 
 from .adr_context import fetch_taiwan_adr_context
 from .bis_policy import fetch_recent_bis_policy_events
+from .gold_context import fetch_gold_context
 
 FRED_DGS10_CSV = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS10"
 FRED_SP500_CSV = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=SP500"
@@ -255,6 +256,14 @@ def build_global_context(now=None, lookback_days=7):
         "quotes": len(adr_context.get("quotes") or []),
     }
 
+    gold_context = fetch_gold_context()
+    health["GOLD"] = {
+        "ok": gold_context.get("status") == "CONNECTED",
+        "status": gold_context.get("status"),
+        "provider": gold_context.get("provider"),
+        "reason": gold_context.get("reason"),
+    }
+
     vix = next((x for x in indicators if x["key"] == "VIX"), None)
     us10y = next((x for x in indicators if x["key"] == "US10Y"), None)
     sp500 = next((x for x in indicators if x["key"] == "SP500"), None)
@@ -279,6 +288,7 @@ def build_global_context(now=None, lookback_days=7):
         "wti": wti,
         "ntdusd": ntdusd,
         "adr_context": adr_context,
+        "gold_context": gold_context,
         "bis_policy_events": bis_events,
         "trade_signal": False,
         "coverage": {
@@ -289,13 +299,13 @@ def build_global_context(now=None, lookback_days=7):
             "taiwan_adr": adr_context.get("status") == "CONNECTED",
             "fx_usdtwd": bool(ntdusd),
             "commodity_wti": bool(wti),
-            "commodity_gold": False,
+            "commodity_gold": gold_context.get("status") == "CONNECTED",
             "industry_news": False,
             "bis_policy": health.get("BIS_POLICY", {}).get("ok", False),
         },
         "warnings": [
             "全球背景層涵蓋 VIX、US10Y、S&P500、Nasdaq Composite、NTD/USD、WTI、FOMC 與 BIS 政策；"
-            "台灣ADR需 ALPHAVANTAGE_API_KEY 才啟用，黃金與產業新聞尚未接通。"
+            "台灣ADR需 ALPHAVANTAGE_API_KEY；黃金需 GOLDAPI_TOKEN；產業新聞尚未接通。"
         ],
         "errors": errors,
     }
