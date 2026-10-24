@@ -1,0 +1,61 @@
+name: Sky Official Enrichment Export
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export-enrichment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependency
+        run: pip install requests
+
+      - name: Unit tests
+        run: python tests/test_official_enrichment.py
+
+      - name: Export official industry and TAIEX history
+        run: |
+          python research/export_official_enrichment.py \
+            --manifest research/sky_100_manifest.json \
+            --out-dir research_data/enrichment \
+            --start 2023-05-23 \
+            --end 2026-10-22 \
+            --sleep-sec 1.2
+
+      - name: Create archive
+        run: |
+          tar -czf sky-official-enrichment-${{ github.run_id }}.tar.gz research_data/enrichment research/sky_100_manifest.json
+
+      - name: Publish validation
+        if: always()
+        run: |
+          if [ -f research_data/enrichment/export_validation.json ]; then
+            echo "## Official Enrichment Export" >> "$GITHUB_STEP_SUMMARY"
+            echo '```json' >> "$GITHUB_STEP_SUMMARY"
+            cat research_data/enrichment/export_validation.json >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-official-enrichment-${{ github.run_id }}
+          path: |
+            sky-official-enrichment-${{ github.run_id }}.tar.gz
+            research_data/enrichment/
+            research/sky_100_manifest.json
+          if-no-files-found: error
+          retention-days: 14
