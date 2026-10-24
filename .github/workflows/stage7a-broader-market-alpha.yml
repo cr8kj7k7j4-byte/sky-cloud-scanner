@@ -34,6 +34,9 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install dependencies
+        run: pip install requests
+
       - name: Build deterministic official-universe sample
         run: |
           python research/build_universe_sample.py             --twse-n 50             --tpex-n 50             --out research_data/universe_manifest.json
