@@ -1,0 +1,82 @@
+name: Sky Revenue Frozen Threshold Portfolio
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/validate-revenue-frozen-threshold-portfolio.yml'
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install pandas
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas
+
+      - name: Download historical 5m artifact
+        uses: dawidd6/action-download-artifact@v11
+        with:
+          run_id: 39963770301
+          name_is_regexp: true
+          name: sky-history-5m-.*
+          path: _hist
+          search_artifacts: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download governed revenue dataset
+        uses: dawidd6/action-download-artifact@v11
+        with:
+          run_id: 40142595336
+          name_is_regexp: true
+          name: sky-monthly-revenue-merged-.*
+          path: _revenue
+          search_artifacts: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare datasets
+        id: data
+        run: |
+          mkdir -p _hist_unpacked
+          HIST_TAR=$(find _hist -name 'sky-history-5m-*.tar.gz' | head -1)
+          test -n "$HIST_TAR"
+          tar -xzf "$HIST_TAR" -C _hist_unpacked
+          HIST_DIR=$(find _hist_unpacked -type d -path '*/research_data/history' | head -1)
+          test -n "$HIST_DIR"
+          REV_CSV=$(find _revenue -name 'monthly_revenue_merged.csv' | head -1)
+          test -n "$REV_CSV"
+          echo "history_dir=$HIST_DIR" >> "$GITHUB_OUTPUT"
+          echo "revenue_csv=$REV_CSV" >> "$GITHUB_OUTPUT"
+
+      - name: Run frozen threshold portfolio validation
+        run: |
+          python research/validate_revenue_frozen_threshold_portfolio.py             --history-dir "${{ steps.data.outputs.history_dir }}"             --revenue-csv "${{ steps.data.outputs.revenue_csv }}"             --out research_output_revenue_frozen
+
+      - name: Publish summary
+        if: always()
+        run: |
+          if [ -f research_output_revenue_frozen/revenue_frozen_portfolio_summary.md ]; then
+            cat research_output_revenue_frozen/revenue_frozen_portfolio_summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-revenue-frozen-${{ github.run_id }}
+          path: research_output_revenue_frozen
+          if-no-files-found: warn
+          retention-days: 14
