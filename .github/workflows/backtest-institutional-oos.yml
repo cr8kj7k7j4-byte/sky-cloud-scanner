@@ -1,4 +1,5 @@
 name: Sky Institutional OOS Backtest
+# trigger-version: 2
 
 on:
   workflow_dispatch:
