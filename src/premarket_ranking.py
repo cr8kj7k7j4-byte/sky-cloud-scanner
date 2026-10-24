@@ -4,6 +4,8 @@ from collections import defaultdict
 from datetime import datetime
 from math import exp
 
+from .event_scoring import attach_event_scores
+
 CATALYST_WEIGHTS = {
     "EARNINGS": 24,
     "REVENUE": 20,
@@ -29,8 +31,9 @@ def _recency_weight(event, now):
 def rank_premarket_candidates(events, universe_by_symbol=None, now=None, limit=50):
     now = now or datetime.now()
     universe_by_symbol = universe_by_symbol or {}
+    scored_events = attach_event_scores(events or [], now=now)
     grouped = defaultdict(list)
-    for event in events or []:
+    for event in scored_events:
         symbol = str(event.get("symbol") or "").strip()
         if symbol:
             grouped[symbol].append(event)
@@ -38,6 +41,9 @@ def rank_premarket_candidates(events, universe_by_symbol=None, now=None, limit=5
     ranked = []
     for symbol, rows in grouped.items():
         catalyst_score = 0.0
+        event_score_total = 0.0
+        source_conf_total = 0.0
+        freshness_total = 0.0
         risk_penalty = 0.0
         catalyst_types = set()
         risk_types = set()
@@ -45,25 +51,35 @@ def rank_premarket_candidates(events, universe_by_symbol=None, now=None, limit=5
         for e in rows:
             et = str(e.get("event_type") or "OTHER").upper()
             w = _recency_weight(e, now)
+            event_score_total += float(e.get("event_score") or 0) * w
+            source_conf_total += float(e.get("source_confidence_score") or 0) * w
+            freshness_total += float(e.get("freshness_score") or 0) * w
             if et in RISK_PENALTIES:
                 risk_penalty += RISK_PENALTIES[et] * w
                 risk_types.add(et)
             else:
-                catalyst_score += CATALYST_WEIGHTS.get(et, CATALYST_WEIGHTS["OTHER"]) * w
+                catalyst_score += float(e.get("catalyst_score") or 0) * w / 4.0
                 catalyst_types.add(et)
             key = (str(e.get("announce_date") or ""), str(e.get("announce_time") or ""))
             if latest is None or key > latest[0]:
                 latest = (key, e)
 
-        raw = catalyst_score - risk_penalty
-        score = max(0.0, min(100.0, 50.0 + raw))
+        n = max(1, len(rows))
+        event_score_avg = event_score_total / n
+        source_conf_avg = source_conf_total / n
+        freshness_avg = freshness_total / n
+        raw = 0.35 * event_score_avg + 0.30 * catalyst_score + 0.20 * source_conf_avg + 0.15 * freshness_avg - risk_penalty
+        score = max(0.0, min(100.0, raw))
         meta = universe_by_symbol.get(symbol) or {}
         ranked.append({
             "symbol": symbol,
             "name": meta.get("name") or (latest[1].get("name") if latest else ""),
             "exchange": meta.get("exchange"),
             "premarket_score": round(score, 2),
+            "event_score": round(event_score_avg, 2),
             "catalyst_score": round(catalyst_score, 2),
+            "source_confidence_score": round(source_conf_avg, 2),
+            "freshness_score": round(freshness_avg, 2),
             "risk_penalty": round(risk_penalty, 2),
             "catalyst_types": sorted(catalyst_types),
             "risk_types": sorted(risk_types),
