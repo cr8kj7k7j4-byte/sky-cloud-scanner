@@ -33,4 +33,5 @@ jobs:
             tests/test_sector_rs_replay.py \
             tests/test_vwap_entry_replay.py \
             tests/test_execution_engine.py \
-            tests/test_cost_profiles.py
+            tests/test_cost_profiles.py \
+            tests/test_execution_calibration_ledger.py
