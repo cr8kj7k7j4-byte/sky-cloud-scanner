@@ -59,3 +59,8 @@ Ledger 分成三層：
 - outcome_engine.py 不再持有獨立 ledger。
 - 新增欄位只能先加到 canonical schema，再由 adapter 暴露。
 - 回測、Paper Trading、Shadow、實盤複盤必須使用同一 P0-L schema。
+
+
+## Current-main integration note
+
+此收斂版本由最新 main 重建，不從落後的舊 PR branch 直接合併；策略與風控行為維持不變。
