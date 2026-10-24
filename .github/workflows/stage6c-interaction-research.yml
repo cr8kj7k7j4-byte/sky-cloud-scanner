@@ -1,0 +1,82 @@
+name: Sky Stage 6C Interaction Research
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "research/stage6c_interaction_backtest.py"
+      - ".github/workflows/stage6c-interaction-research.yml"
+  workflow_dispatch:
+    inputs:
+      start_date:
+        description: "Research start date"
+        required: true
+        default: "2025-01-01"
+      end_date:
+        description: "Research end date"
+        required: true
+        default: "2026-10-22"
+
+permissions:
+  contents: read
+
+jobs:
+  stage6c:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4
+
+      - name: Build deterministic official-universe sample
+        run: |
+          python research/build_universe_sample.py             --twse-n 50             --tpex-n 50             --out research_data/universe_manifest.json
+
+      - name: Download Fugle historical 5m data
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+        run: |
+          START_DATE="${{ inputs.start_date }}"
+          END_DATE="${{ inputs.end_date }}"
+          [ -z "$START_DATE" ] && START_DATE="2025-01-01"
+          [ -z "$END_DATE" ] && END_DATE="2026-10-22"
+          python research/download_expanded.py             --manifest research_data/universe_manifest.json             --from-date "$START_DATE"             --to-date "$END_DATE"             --out research_data/history
+
+      - name: Build Stage 6B event trades
+        run: |
+          START_DATE="${{ inputs.start_date }}"
+          END_DATE="${{ inputs.end_date }}"
+          [ -z "$START_DATE" ] && START_DATE="2025-01-01"
+          [ -z "$END_DATE" ] && END_DATE="2026-10-22"
+          PYTHONPATH=. python -m research.stage6b_catalyst_backtest             --manifest research_data/universe_manifest.json             --data-dir research_data/history             --start "$START_DATE"             --end "$END_DATE"             --out research_output_stage6b
+
+      - name: Run Stage 6C interaction research
+        run: |
+          PYTHONPATH=. python -m research.stage6c_interaction_backtest             --trades research_output_stage6b/stage6b_trades.csv             --data-dir research_data/history             --out research_output_stage6c
+
+      - name: Publish summary
+        if: always()
+        run: |
+          if [ -f research_output_stage6c/stage6c_report.json ]; then
+            cat research_output_stage6c/stage6c_report.json >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload research artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-stage6c-${{ github.run_id }}
+          path: |
+            research_output_stage6b/
+            research_output_stage6c/
+            research_data/universe_manifest.json
+          if-no-files-found: warn
+          retention-days: 14
