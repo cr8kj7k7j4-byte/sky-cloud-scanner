@@ -119,6 +119,11 @@ def run():
         f"US10Y：{us10y.get('value') if us10y else 'UNKNOWN'}%｜"
         f"全球風險狀態：{global_context.get('risk_state', 'UNKNOWN')}"
     )
+    adr = global_context.get("adr_context") or {}
+    lines.append(
+        f"ADR：{adr.get('status', 'NOT_CONNECTED')}｜"
+        f"BIS政策事件：{len(global_context.get('bis_policy_events') or [])}"
+    )
     coverage = global_context.get("coverage") or {}
     missing = [k for k, ok in coverage.items() if not ok]
     if missing:
