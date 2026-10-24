@@ -85,3 +85,36 @@ def test_gate_can_block_after_complete_cost_model():
 def test_invalid_long_geometry_is_rejected():
     with pytest.raises(ValueError):
         evaluate_execution_rr(entry=50, stop=51, target=53)
+
+
+def test_margin_execution_requires_interest():
+    p = ExecutionCostPolicy(
+        buy_commission_rate=0.000333,
+        sell_commission_rate=0.000333,
+        sell_tax_rate=0.003,
+        entry_slippage_bps=0,
+        exit_slippage_bps=0,
+        spread_bps=0,
+        liquidity_penalty_bps=0,
+        require_financing_interest=True,
+    )
+    out = evaluate_execution_rr(entry=37.05, stop=35.9, target=39.35, policy=p)
+    assert out["status"] == "EXECUTION_INPUT_REQUIRED"
+    assert "financing_interest_per_share" in out["missing_inputs"]
+
+
+def test_margin_execution_accepts_explicit_interest():
+    p = ExecutionCostPolicy(
+        buy_commission_rate=0.000333,
+        sell_commission_rate=0.000333,
+        sell_tax_rate=0.003,
+        entry_slippage_bps=0,
+        exit_slippage_bps=0,
+        spread_bps=0,
+        liquidity_penalty_bps=0,
+        financing_interest_per_share=0.013,
+        require_financing_interest=True,
+    )
+    out = evaluate_execution_rr(entry=37.05, stop=35.9, target=39.35, policy=p)
+    assert out["status"] == "COMPLETE"
+    assert out["components"]["financing_interest_per_share"] == 0.013
