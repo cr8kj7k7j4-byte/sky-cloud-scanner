@@ -15,7 +15,7 @@ def test_cash_daytrade_profile_matches_observed_statement():
 def test_margin_profile_keeps_interest_separate():
     p = USER_MARGIN_FINANCING_20261021
     assert p.sell_tax_rate == 0.003
-    assert p.observed_financing_interest_twd == 13.0
+    assert p.observed_financing_interest_twd is None
     assert p.financing_interest_mode == "PER_TRADE_OR_HOLDING_PERIOD_INPUT_REQUIRED"
     policy = p.to_execution_policy()
     assert policy.require_financing_interest is True

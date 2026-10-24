@@ -222,3 +222,6 @@ __marimo__/
 # Sky ML research artifacts
 research_output/
 *.joblib
+
+# Sky private execution calibration data (never commit brokerage records)
+output/private/

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from typing import Optional
 
 from .execution_engine import ExecutionCostPolicy
@@ -51,10 +51,8 @@ class ObservedCostProfile:
         )
 
 
-# Empirical center from the user's brokerage statements.
-# Fee legs observed: 12 / 36,050 ; 12 / 35,900 ; 12 / 37,050 ; 12 / 35,900.
-# Because statement fees are rounded to integer TWD, 0.000333 is used as a
-# stable central calibration rather than overfitting to each rounded leg.
+# Anonymous empirical center derived from user-supplied brokerage statements.
+# Rounded statement fees mean this is a calibration center, not a contractual rate.
 _USER_COMMISSION_RATE = 0.000333
 
 
@@ -67,11 +65,7 @@ USER_CASH_DAYTRADE_20261022 = ObservedCostProfile(
     sell_tax_rate=0.0015,
     observed_samples=1,
     evidence_date="2026-10-22",
-    evidence_note=(
-        "2409 友達 1,000股：買36.05、賣35.90；"
-        "買進手續費12元、賣出手續費12元、交易稅53元；"
-        "純價差-150元，實現損益-227元。"
-    ),
+    evidence_note="匿名化實證校準；公開程式庫僅保留彙總費率。",
 )
 
 
@@ -84,13 +78,9 @@ USER_MARGIN_FINANCING_20261021 = ObservedCostProfile(
     sell_tax_rate=0.0030,
     observed_samples=1,
     evidence_date="2026-10-21",
-    evidence_note=(
-        "2409 友達 1,000股：買37.05、賣35.90；"
-        "買進手續費12元、賣出手續費12元、交易稅107元、利息13元；"
-        "純價差-1,150元，實現損益-1,294元。"
-    ),
+    evidence_note="匿名化實證校準；融資利息需逐筆或依持有期輸入。",
     financing_interest_mode="PER_TRADE_OR_HOLDING_PERIOD_INPUT_REQUIRED",
-    observed_financing_interest_twd=13.0,
+    observed_financing_interest_twd=None,
 )
 
 
