@@ -30,6 +30,7 @@ jobs:
           PREMARKET_EVENT_MAX_SYMBOLS: ${{ vars.PREMARKET_EVENT_MAX_SYMBOLS || '2000' }}
           PREMARKET_LOOKBACK_DAYS: ${{ vars.PREMARKET_LOOKBACK_DAYS || '3' }}
           PREMARKET_EVENT_WORKERS: ${{ vars.PREMARKET_EVENT_WORKERS || '8' }}
+          PREMARKET_RANK_LIMIT: ${{ vars.PREMARKET_RANK_LIMIT || '50' }}
         run: python -m src.premarket_pipeline
 
       - name: Upload premarket artifact
