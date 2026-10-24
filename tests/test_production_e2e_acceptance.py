@@ -41,7 +41,7 @@ def _execution_policy(enforce=True):
     )
 
 
-def _base_candidate(last=10.21):
+def _base_candidate(last=10.25):
     return {
         "symbol": "TEST",
         "name": "Sky E2E Fixture",
@@ -61,7 +61,7 @@ def _base_candidate(last=10.21):
     }
 
 
-def _build_chain(last=10.21, daily_pnl=0.0, execution_policy=None):
+def _build_chain(last=10.25, daily_pnl=0.0, execution_policy=None):
     market = summarize_market([
         {"symbol": "A", "name": "A", "change_pct": 1.2, "trade_value": 50_000_000},
         {"symbol": "B", "name": "B", "change_pct": 0.8, "trade_value": 40_000_000},
