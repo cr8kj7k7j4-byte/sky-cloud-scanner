@@ -3,15 +3,15 @@ name: Sky Cloud Scanner v0.5 + P0-R
 on:
   workflow_dispatch:
   schedule:
-    - cron: "10 9 * * 1-5"
+    - cron: "5 9 * * 1-5"
       timezone: "Asia/Taipei"
-    - cron: "10 10 * * 1-5"
+    - cron: "15 9 * * 1-5"
       timezone: "Asia/Taipei"
-    - cron: "10 11 * * 1-5"
+    - cron: "30 9 * * 1-5"
       timezone: "Asia/Taipei"
-    - cron: "10 12 * * 1-5"
+    - cron: "50 9 * * 1-5"
       timezone: "Asia/Taipei"
-    - cron: "0 13 * * 1-5"
+    - cron: "15 10 * * 1-5"
       timezone: "Asia/Taipei"
 
 permissions:
@@ -62,6 +62,9 @@ jobs:
           CORRELATED_OPEN_RISK: ${{ vars.CORRELATED_OPEN_RISK || '0' }}
           ACCOUNT_DRAWDOWN_PCT: ${{ vars.ACCOUNT_DRAWDOWN_PCT || '0' }}
           CONSECUTIVE_LOSSES: ${{ vars.CONSECUTIVE_LOSSES || '0' }}
+          MONITOR_STATE_BACKEND: ${{ vars.MONITOR_STATE_BACKEND || 'file' }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+          MONITOR_STATE_REDIS_KEY: ${{ vars.MONITOR_STATE_REDIS_KEY || 'sky:p0a:monitor_state' }}
         run: python -m src.main
       - name: Upload scan report
         if: always()
