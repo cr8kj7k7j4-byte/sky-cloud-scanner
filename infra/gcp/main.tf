@@ -14,6 +14,7 @@ provider "google" {
 }
 
 locals {
+  paper_bucket_name = var.paper_bucket_name != "" ? var.paper_bucket_name : "${var.project_id}-sky-paper-ledger"
   required_apis = toset([
     "artifactregistry.googleapis.com",
     "cloudbuild.googleapis.com",
@@ -21,6 +22,7 @@ locals {
     "cloudscheduler.googleapis.com",
     "redis.googleapis.com",
     "secretmanager.googleapis.com",
+    "storage.googleapis.com",
     "compute.googleapis.com",
   ])
   scan_schedules = {
@@ -70,6 +72,24 @@ resource "google_redis_instance" "sky" {
   depends_on         = [google_project_service.apis]
 }
 
+resource "google_storage_bucket" "paper_ledger" {
+  name                        = local.paper_bucket_name
+  location                    = var.region
+  uniform_bucket_level_access = true
+  force_destroy               = false
+
+  lifecycle_rule {
+    condition {
+      age = var.paper_retention_days
+    }
+    action {
+      type = "Delete"
+    }
+  }
+
+  depends_on = [google_project_service.apis]
+}
+
 resource "google_service_account" "runtime" {
   account_id   = var.runtime_service_account
   display_name = "Sky Cloud Run Job Runtime"
@@ -84,6 +104,12 @@ resource "google_project_iam_member" "runtime_secret_access" {
   project = var.project_id
   role    = "roles/secretmanager.secretAccessor"
   member  = "serviceAccount:${google_service_account.runtime.email}"
+}
+
+resource "google_storage_bucket_iam_member" "runtime_paper_writer" {
+  bucket = google_storage_bucket.paper_ledger.name
+  role   = "roles/storage.objectCreator"
+  member = "serviceAccount:${google_service_account.runtime.email}"
 }
 
 resource "google_project_iam_member" "scheduler_run_invoker" {
@@ -120,6 +146,18 @@ resource "google_cloud_run_v2_job" "sky" {
         env {
           name  = "MONITOR_STATE_REDIS_KEY"
           value = "sky:p0a:monitor_state"
+        }
+        env {
+          name  = "PAPER_TRADING_MODE"
+          value = "shadow"
+        }
+        env {
+          name  = "P0S_OOS_VERDICT"
+          value = "RESEARCH_ONLY"
+        }
+        env {
+          name  = "PAPER_GCS_BUCKET"
+          value = google_storage_bucket.paper_ledger.name
         }
         env {
           name  = "STRICT_OFFICIAL_MODE"
@@ -165,6 +203,7 @@ resource "google_cloud_run_v2_job" "sky" {
   depends_on = [
     google_project_service.apis,
     google_project_iam_member.runtime_secret_access,
+    google_storage_bucket_iam_member.runtime_paper_writer,
   ]
 }
 
