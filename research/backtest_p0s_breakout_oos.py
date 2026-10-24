@@ -51,11 +51,11 @@ def _plan(prior, target_r=DEFAULT_TARGET_R, max_entry_r=DEFAULT_MAX_ENTRY_R):
         return None
     unit = trigger - stop
     return {
-        "trigger": trigger,
-        "stop": stop,
-        "target": trigger + target_r * unit,
-        "max_entry": trigger + max_entry_r * unit,
-        "plan_risk": unit,
+        "trigger": round(trigger, 4),
+        "stop": round(stop, 4),
+        "target": round(trigger + target_r * unit, 4),
+        "max_entry": round(trigger + max_entry_r * unit, 4),
+        "plan_risk": round(unit, 4),
     }
 
 
