@@ -1,0 +1,72 @@
+name: Sky Stage 7A Broader Market Alpha
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "research/stage7a_broader_market_alpha.py"
+      - "research/STAGE7A_PREREGISTRATION.md"
+      - ".github/workflows/stage7a-broader-market-alpha.yml"
+  workflow_dispatch:
+    inputs:
+      start_date:
+        description: "Research start date"
+        required: true
+        default: "2025-01-01"
+      end_date:
+        description: "Research end date"
+        required: true
+        default: "2026-10-22"
+
+permissions:
+  contents: read
+
+jobs:
+  stage7a:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build deterministic official-universe sample
+        run: |
+          python research/build_universe_sample.py             --twse-n 50             --tpex-n 50             --out research_data/universe_manifest.json
+
+      - name: Download Fugle historical 5m data
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+        run: |
+          START_DATE="${{ inputs.start_date }}"
+          END_DATE="${{ inputs.end_date }}"
+          [ -z "$START_DATE" ] && START_DATE="2025-01-01"
+          [ -z "$END_DATE" ] && END_DATE="2026-10-22"
+          python research/download_expanded.py             --manifest research_data/universe_manifest.json             --from-date "$START_DATE"             --to-date "$END_DATE"             --out research_data/history
+
+      - name: Run pre-registered Stage 7A
+        run: |
+          PYTHONPATH=. python -m research.stage7a_broader_market_alpha             --data-dir research_data/history             --out research_output_stage7a
+
+      - name: Publish summary
+        if: always()
+        run: |
+          if [ -f research_output_stage7a/stage7a_report.json ]; then
+            cat research_output_stage7a/stage7a_report.json >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload research artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-stage7a-${{ github.run_id }}
+          path: |
+            research_output_stage7a/
+            research_data/universe_manifest.json
+            research/STAGE7A_PREREGISTRATION.md
+          if-no-files-found: warn
+          retention-days: 14
