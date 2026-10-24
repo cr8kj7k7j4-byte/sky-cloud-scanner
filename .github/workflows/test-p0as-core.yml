@@ -33,4 +33,5 @@ jobs:
             tests/test_state_store.py \
             tests/test_strategy_builder.py \
             tests/test_risk_engine.py \
-            tests/test_p0s_oos.py
+            tests/test_p0s_oos.py \
+            tests/test_paper_trading.py

@@ -14,3 +14,7 @@ output "redis_host" {
 output "scheduler_jobs" {
   value = { for k, v in google_cloud_scheduler_job.scan : k => v.name }
 }
+
+output "paper_ledger_bucket" {
+  value = google_storage_bucket.paper_ledger.name
+}

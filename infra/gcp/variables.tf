@@ -76,3 +76,15 @@ variable "fugle_secret_id" {
   type        = string
   default     = "FUGLE_API_KEY"
 }
+
+variable "paper_bucket_name" {
+  description = "Optional globally unique GCS bucket name for Paper Trading ledger"
+  type        = string
+  default     = ""
+}
+
+variable "paper_retention_days" {
+  description = "Delete Paper Trading run objects after this many days"
+  type        = number
+  default     = 90
+}
