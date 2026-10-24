@@ -40,3 +40,20 @@ MONITOR_STATE_REDIS_KEY = os.getenv("MONITOR_STATE_REDIS_KEY", "sky:p0a:monitor_
 
 # P0-EVT Premarket Event Intelligence
 PREMARKET_REDIS_KEY = os.getenv("PREMARKET_REDIS_KEY", "sky:p0evt:latest").strip()
+
+
+# P0-X Execution Cost Model (empty => unknown, never assumed zero)
+def _f_optional(name):
+    raw = os.getenv(name, "").strip()
+    return None if raw == "" else float(raw)
+
+EXEC_BUY_COMMISSION_RATE = _f_optional("EXEC_BUY_COMMISSION_RATE")
+EXEC_SELL_COMMISSION_RATE = _f_optional("EXEC_SELL_COMMISSION_RATE")
+EXEC_SELL_TAX_RATE = _f_optional("EXEC_SELL_TAX_RATE")
+EXEC_ENTRY_SLIPPAGE_BPS = _f_optional("EXEC_ENTRY_SLIPPAGE_BPS")
+EXEC_EXIT_SLIPPAGE_BPS = _f_optional("EXEC_EXIT_SLIPPAGE_BPS")
+EXEC_SPREAD_BPS = _f_optional("EXEC_SPREAD_BPS")
+EXEC_LIQUIDITY_PENALTY_BPS = _f_optional("EXEC_LIQUIDITY_PENALTY_BPS")
+EXEC_FILL_PROBABILITY = _f_optional("EXEC_FILL_PROBABILITY")
+EXEC_MIN_RR = float(os.getenv("EXEC_MIN_RR", "1.5"))
+EXEC_ENFORCE_GATE = _b("EXEC_ENFORCE_GATE", "0")
