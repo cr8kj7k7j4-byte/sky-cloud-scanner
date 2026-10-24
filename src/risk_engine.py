@@ -1,6 +1,8 @@
 from dataclasses import dataclass, asdict
 import math
 
+from .execution_engine import ExecutionCostPolicy, evaluate_execution_rr, execution_gate
+
 
 @dataclass(frozen=True)
 class RiskPolicy:
@@ -84,6 +86,7 @@ def evaluate_trade(
     consecutive_losses=0,
     grade=None,
     policy=None,
+    execution_policy=None,
 ):
     policy = policy or RiskPolicy()
     reasons = []
@@ -111,6 +114,10 @@ def evaluate_trade(
             "remaining_daily_risk_budget": 0.0,
             "remaining_portfolio_heat": 0.0,
             "net_rr": None,
+            "gross_rr": None,
+            "fee_tax_adjusted_rr": None,
+            "execution_adjusted_rr": None,
+            "execution_status": "EXECUTION_INPUT_REQUIRED",
         }
 
     entry = float(entry)
@@ -121,7 +128,7 @@ def evaluate_trade(
 
     unit_risk = abs(entry - stop)
     reward = target - entry
-    net_rr = reward / unit_risk if unit_risk > 0 else None
+    gross_rr = reward / unit_risk if unit_risk > 0 else None
     if unit_risk <= 0:
         reasons.append("Entry 與 Stop 不可相同")
     if reward <= 0:
@@ -181,8 +188,32 @@ def evaluate_trade(
         "risk_budget": round(base_risk_budget, 2),
         "remaining_daily_risk_budget": round(remaining_daily, 2),
         "remaining_portfolio_heat": round(remaining_heat, 2),
-        "net_rr": round(net_rr, 3) if net_rr is not None else None,
+        "net_rr": round(gross_rr, 3) if gross_rr is not None else None,
+        "gross_rr": round(gross_rr, 3) if gross_rr is not None else None,
+        "fee_tax_adjusted_rr": None,
+        "execution_adjusted_rr": None,
+        "execution_status": "EXECUTION_INPUT_REQUIRED",
     }
+
+    if unit_risk > 0 and reward > 0 and execution_policy is not None:
+        ex = evaluate_execution_rr(
+            entry=entry,
+            stop=stop,
+            target=target,
+            policy=execution_policy,
+        )
+        result["fee_tax_adjusted_rr"] = ex.get("fee_tax_adjusted_rr")
+        result["execution_adjusted_rr"] = ex.get("execution_adjusted_rr")
+        result["execution_status"] = ex.get("status")
+        result["execution"] = ex
+        exec_allowed, exec_reason = execution_gate(ex)
+        result["execution_gate_reason"] = exec_reason
+        if not exec_allowed:
+            result["status"] = "BLOCK"
+            result["portfolio_allowed"] = False
+            result["recommended_shares"] = 0
+            result["reasons"] = list(result["reasons"]) + [exec_reason]
+    return result
 
 
 def evaluate_candidate(candidate, portfolio_context, policy=None):
@@ -202,4 +233,5 @@ def evaluate_candidate(candidate, portfolio_context, policy=None):
         consecutive_losses=portfolio_context.get("consecutive_losses", 0),
         grade=candidate.get("grade"),
         policy=policy,
+        execution_policy=portfolio_context.get("execution_policy"),
     )
