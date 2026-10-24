@@ -74,3 +74,33 @@ def _selection_score(metrics):
 
 def registry_snapshot(path):
     return _load(path)
+
+
+# Legacy research compatibility API. Canonical governance remains P0-G.
+def baseline_model_card():
+    return ModelRecord(
+        name="sky-ranking-transparent-baseline",
+        version="0.1",
+        status="RESEARCH_ONLY",
+        production_eligible=False,
+        metrics={},
+        validation={"status": "RESEARCH_ONLY"},
+        notes="未訓練模型；僅用於 ranking contract 與歷史研究重現。",
+    )
+
+
+def can_promote(model_card, *, min_trades=200, min_oos_pf=1.10,
+                min_oos_expectancy_r=0.05, max_drawdown_r=None):
+    card = model_card.to_dict() if hasattr(model_card, "to_dict") else dict(model_card or {})
+    metrics = dict(card.get("metrics") or {})
+    reasons = []
+    if int(metrics.get("oos_trades") or 0) < min_trades:
+        reasons.append("OOS樣本數不足")
+    if float(metrics.get("oos_pf") or 0.0) < min_oos_pf:
+        reasons.append("OOS PF 未達門檻")
+    if float(metrics.get("oos_expectancy_r") or 0.0) < min_oos_expectancy_r:
+        reasons.append("OOS Expectancy 未達門檻")
+    if max_drawdown_r is not None and metrics.get("oos_max_drawdown_r") is not None:
+        if abs(float(metrics["oos_max_drawdown_r"])) > abs(float(max_drawdown_r)):
+            reasons.append("OOS 最大回撤超過門檻")
+    return {"allowed": not reasons, "reasons": reasons, "schema_version": "compat-1.0"}
