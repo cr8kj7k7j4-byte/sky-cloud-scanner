@@ -11,8 +11,8 @@ from research.backtest_p0s_breakout_oos import scan_file, metrics
 def test_p0s_oos_synthetic(tmp_path):
     bars = []
     base = [
-        ("09:00", 10.0, 10.10, 9.90, 10.00),
-        ("09:05", 10.0, 10.15, 9.95, 10.05),
+        ("09:00", 10.0, 10.10, 10.00, 10.00),
+        ("09:05", 10.0, 10.15, 10.00, 10.05),
         ("09:10", 10.05, 10.20, 10.00, 10.10),
         ("09:15", 10.10, 10.18, 10.00, 10.12),
         ("09:20", 10.15, 10.35, 10.10, 10.30),
@@ -29,8 +29,8 @@ def test_p0s_oos_synthetic(tmp_path):
     rows = scan_file(p, cost_pct=0.0)
     assert len(rows) == 1
     assert rows[0]["entry"] == 10.2
-    assert rows[0]["max_entry"] == 10.275
-    assert rows[0]["target"] == 10.8
+    assert rows[0]["max_entry"] == 10.25
+    assert rows[0]["target"] == 10.6
     assert rows[0]["net_r"] > 0
     m = metrics(rows)
     assert m["n"] == 1
