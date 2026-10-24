@@ -25,6 +25,6 @@ jobs:
       - name: Phase 9 tests
         run: python tests/test_shadow_trading.py
       - name: Trade logger tests
-        run: python tests/test_sky100_core.py
+        run: PYTHONPATH=. python tests/test_sky100_core.py
       - name: Risk engine tests
         run: python tests/test_risk_engine.py
