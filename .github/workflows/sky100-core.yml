@@ -1,0 +1,30 @@
+name: Sky 100 Core Tests
+
+on:
+  push:
+    branches:
+      - feat/sky-100-platform-core
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile Python sources
+        run: python -m compileall -q src tests
+      - name: Run existing P0-R tests
+        run: python tests/test_risk_engine.py
+      - name: Run ML foundation tests
+        run: python tests/test_ml_foundation.py
+      - name: Run Sky 100 core tests
+        run: python tests/test_sky100_core.py
