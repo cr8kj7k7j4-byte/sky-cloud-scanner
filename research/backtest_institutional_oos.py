@@ -62,7 +62,7 @@ def load_history(history_dir):
                 v=fnum(b.get("volume")); px=fnum(b.get("average"))
                 if px is None: px=fnum(b.get("close"))
                 if v is not None and px is not None:
-                    turnover += v*px
+                    turnover += v*1000.0*px
             outcomes={}
             for name,idx in HORIZONS.items():
                 if len(bars)>idx:
