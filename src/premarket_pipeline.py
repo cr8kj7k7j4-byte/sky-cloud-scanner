@@ -120,8 +120,10 @@ def run():
         f"全球風險狀態：{global_context.get('risk_state', 'UNKNOWN')}"
     )
     adr = global_context.get("adr_context") or {}
+    gold = global_context.get("gold_context") or {}
     lines.append(
         f"ADR：{adr.get('status', 'NOT_CONNECTED')}｜"
+        f"黃金：{gold.get('status', 'NOT_CONNECTED')}｜"
         f"BIS政策事件：{len(global_context.get('bis_policy_events') or [])}"
     )
     coverage = global_context.get("coverage") or {}
