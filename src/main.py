@@ -24,6 +24,7 @@ from .explainability import explain
 from .validation import evaluate_validation_gate
 from .knowledge_engine import market_evidence_from_candidate, build_evidence_ledger
 from .agent_orchestrator import orchestrate
+from .research_sources import source_health_template
 
 TZ = ZoneInfo("Asia/Taipei")
 OUT = Path("output")
@@ -91,7 +92,7 @@ def run():
             "mode": "RESEARCH_ONLY",
             "production_eligible": False,
         },
-        "knowledge_engine": {"enabled": True, "mode": "EVIDENCE_FIRST"},
+        "knowledge_engine": {"enabled": True, "mode": "EVIDENCE_FIRST", "research_sources": source_health_template()},
         "agent_orchestration": {"enabled": True, "single_agent_can_trade": False},
         "risk_engine": {
             "enabled": True,
