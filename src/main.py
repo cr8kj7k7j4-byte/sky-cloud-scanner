@@ -22,6 +22,8 @@ from .regime_engine import detect_regime
 from .ml_layer import baseline_model_predictions, ensemble
 from .explainability import explain
 from .validation import evaluate_validation_gate
+from .knowledge_engine import market_evidence_from_candidate, build_evidence_ledger
+from .agent_orchestrator import orchestrate
 
 TZ = ZoneInfo("Asia/Taipei")
 OUT = Path("output")
@@ -89,6 +91,8 @@ def run():
             "mode": "RESEARCH_ONLY",
             "production_eligible": False,
         },
+        "knowledge_engine": {"enabled": True, "mode": "EVIDENCE_FIRST"},
+        "agent_orchestration": {"enabled": True, "single_agent_can_trade": False},
         "risk_engine": {
             "enabled": True,
             "policy": policy.to_dict(),
@@ -221,6 +225,15 @@ def run():
                 risk["status_zh"] = RISK_STATUS_ZH.get(risk["status"], risk["status"])
                 risk["state_zh"] = RISK_STATE_ZH.get(risk["state"], risk["state"])
                 item["risk"] = risk
+
+                evidence_items = market_evidence_from_candidate(item, now.isoformat())
+                evidence_ledger = build_evidence_ledger(
+                    evidence_items,
+                    max_age_hours=1.0,
+                    now=now,
+                )
+                item["evidence_ledger"] = evidence_ledger
+                item["agent_orchestration"] = orchestrate(item, evidence_ledger)
                 deep.append(item)
                 if len(deep) >= DEEP_DIVE_N:
                     break
@@ -310,6 +323,14 @@ def run():
                     f"市場狀態：{ml.get('regime', {}).get('label', '未判定')}｜"
                     f"資格：研究用"
                 )
+            orchestration = x.get("agent_orchestration", {})
+            ledger = x.get("evidence_ledger", {})
+            if orchestration:
+                lines.append(
+                    f"   P0-K/P0-A：證據{ledger.get('evidence_count', 0)}筆｜"
+                    f"衝突:{'是' if ledger.get('conflict') else '否'}｜"
+                    f"代理決策狀態:{orchestration.get('decision_status', '未判定')}"
+                )
             if reasons != "無":
                 lines.append(f"   原因：{reasons}")
 
@@ -333,6 +354,8 @@ def run():
             "",
             "注意：rank_score 僅用於候選排序，不是勝率、SSS 或 EES。",
             "P0-R 規則：任何 AI／策略訊號都不得繞過風控；缺少停損、目標價或帳戶資金時，風控一律標示「資料不足」，不得視為可進場。",
+            "P0-K 規則：任何重要結論必須可追溯；過期、衝突或無來源資訊不得升級為主要交易依據。",
+            "P0-A 規則：任何單一 Agent 均不得直接產生可執行交易；必須再通過 P0-C 與 P0-R。",
             "P0-ML 規則：目前僅為研究用 baseline；未通過 Walk-forward／OOS／成本壓力／資料洩漏檢查／Paper Trading 前，不得提升為正式交易依據。",
             (
                 "A+ 必須再通過 Market Gate→Sector/RS→MTF→SSS→Phase→"
