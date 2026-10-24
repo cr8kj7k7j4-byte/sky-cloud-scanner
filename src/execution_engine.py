@@ -20,6 +20,8 @@ class ExecutionCostPolicy:
     spread_bps: Optional[float] = None
     liquidity_penalty_bps: Optional[float] = None
     fill_probability: Optional[float] = None
+    financing_interest_per_share: Optional[float] = None
+    require_financing_interest: bool = False
     min_execution_rr: float = 1.5
     enforce_gate: bool = False
 
@@ -39,11 +41,14 @@ _REQUIRED_EXECUTION_FIELDS = (
 
 
 def _missing(policy: ExecutionCostPolicy) -> list[str]:
-    return [
+    missing = [
         name
         for name in _REQUIRED_EXECUTION_FIELDS
         if getattr(policy, name) is None
     ]
+    if policy.require_financing_interest and policy.financing_interest_per_share is None:
+        missing.append("financing_interest_per_share")
+    return missing
 
 
 def _bps(value: float) -> float:
@@ -171,12 +176,15 @@ def evaluate_execution_rr(
     stop_sell_fee = effective_stop_exit * float(policy.sell_commission_rate)
     stop_tax = effective_stop_exit * float(policy.sell_tax_rate)
 
+    financing_interest = float(policy.financing_interest_per_share or 0.0)
+
     execution_reward = (
         effective_target_exit
         - effective_entry
         - buy_fee
         - target_sell_fee
         - target_tax
+        - financing_interest
     )
     execution_risk = (
         effective_entry
@@ -184,6 +192,7 @@ def evaluate_execution_rr(
         + buy_fee
         + stop_sell_fee
         + stop_tax
+        + financing_interest
     )
 
     execution_rr = (
@@ -225,6 +234,7 @@ def evaluate_execution_rr(
                 "exit_impact_bps": round(exit_impact_bps, 4),
                 "execution_reward_per_share": round(execution_reward, 6),
                 "execution_risk_per_share": round(execution_risk, 6),
+                "financing_interest_per_share": round(financing_interest, 6),
             },
         }
     )
