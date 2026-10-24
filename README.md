@@ -54,9 +54,14 @@ python -m research.shap_explain \
   --model research_output/models/xgboost.joblib \
   --out research_output/shap_summary.json
 
+python -m research.audit_ml_dataset \
+  --dataset research_output/ml_dataset.csv \
+  --out research_output/leakage_audit.json
+
 python -m research.ml_validation_gate \
   --walk-forward research_output/walk_forward.json \
   --cost-stress research_output/cost_stress.json \
+  --leakage-audit research_output/leakage_audit.json \
   --out research_output/ml_validation_gate.json
 ```
 
