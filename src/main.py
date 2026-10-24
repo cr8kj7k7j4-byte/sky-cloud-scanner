@@ -22,6 +22,9 @@ from .regime_engine import detect_regime
 from .ml_layer import baseline_model_predictions, ensemble
 from .explainability import explain
 from .validation import evaluate_validation_gate
+from .data_engine import DataQualityPolicy, validate_quote, validate_market_rows
+from .feature_contract import wrap_features
+from .trade_log import build_trade_decision_record, append_jsonl
 
 TZ = ZoneInfo("Asia/Taipei")
 OUT = Path("output")
@@ -66,6 +69,8 @@ def _portfolio_context():
 def run():
     now = datetime.now(TZ)
     OUT.mkdir(exist_ok=True)
+    run_id = now.strftime("%Y%m%dT%H%M%S%z")
+    data_quality_policy = DataQualityPolicy(max_quote_age_seconds=90)
 
     policy = _risk_policy()
     portfolio_context = _portfolio_context()
@@ -75,7 +80,8 @@ def run():
 
     st = {
         "run_time": now.isoformat(),
-        "version": "0.4",
+        "run_id": run_id,
+        "version": "0.5-sky70",
         "full_market_scan": False,
         "strict_official_mode": STRICT_OFFICIAL_MODE,
         "warnings": [],
@@ -107,8 +113,25 @@ def run():
         st["warnings"].extend(miswarn)
         st["mis_quote_count"] = len(rows)
 
-        twse_rows = [x for x in rows if x["exchange"] == "TWSE"]
-        otc_rows = [x for x in rows if x["exchange"] == "TPEx"]
+        # P0-A Data Quality Gate: stale or malformed market data cannot enter
+        # ranking/decision layers. The raw source remains counted for source health.
+        st["data_quality"] = validate_market_rows(
+            rows, now=now, policy=data_quality_policy
+        )
+        quality_rows = []
+        for row in rows:
+            dq = validate_quote(row, now=now, policy=data_quality_policy)
+            row["data_quality"] = dq
+            if dq["ok"]:
+                quality_rows.append(row)
+        st["data_quality"]["eligible_count"] = len(quality_rows)
+        if len(quality_rows) < len(rows):
+            st["warnings"].append(
+                f"P0-A 資料品質閘門阻擋 {len(rows)-len(quality_rows)} 檔，不進入候選排序。"
+            )
+
+        twse_rows = [x for x in quality_rows if x["exchange"] == "TWSE"]
+        otc_rows = [x for x in quality_rows if x["exchange"] == "TPEx"]
 
         official_universe_ok = ust["twse"] >= 500 and ust["tpex"] >= 400
         twse_intraday_ok = len(twse_rows) >= 400
@@ -148,7 +171,7 @@ def run():
                 official_universe_ok and len(rows) >= 700
             )
 
-        working_rows = rows if ALLOW_MIS_OTC_FALLBACK else twse_rows
+        working_rows = quality_rows if ALLOW_MIS_OTC_FALLBACK else twse_rows
 
         # Do not silently replace an incomplete official chain with a
         # plan-restricted Fugle Snapshot endpoint.
@@ -187,6 +210,7 @@ def run():
                     get_quote(row["symbol"]),
                     ks,
                 )
+                item["data_quality"] = dict(row.get("data_quality") or {})
                 item["classification_cap"] = (
                     "A"
                     if not st["full_market_scan"]
@@ -215,6 +239,9 @@ def run():
                 ml["explainability"] = explain(features, ml)
                 ml["validation"] = evaluate_validation_gate()
                 item["features"] = features
+                item["feature_envelope"] = wrap_features(
+                    item, features, observed_at=now
+                ).to_dict()
                 item["ml"] = ml
 
                 risk = evaluate_candidate(item, portfolio_context, policy)
@@ -241,8 +268,22 @@ def run():
         st["deep_rejected"] = rejected[:20]
         st["deep_unverified"] = unverified[:20]
 
+        # Versioned decision ledger: records what Sky knew at decision time.
+        # Execution/outcome stay empty until paper/live fills are attached later.
+        trade_log_path = OUT / "trade_decisions.jsonl"
+        for item in deep + rejected:
+            rec = build_trade_decision_record(
+                item=item, run_id=run_id, observed_at=now, mode="SCANNER"
+            )
+            append_jsonl(rec, trade_log_path)
+        st["trade_log"] = {
+            "schema_version": "1.0",
+            "path": str(trade_log_path),
+            "records_written": len(deep) + len(rejected),
+        }
+
         lines = [
-            f"Sky Cloud Scanner v0.4｜{now:%Y-%m-%d %H:%M}",
+            f"Sky Cloud Scanner v0.5 Sky70｜{now:%Y-%m-%d %H:%M}",
             (
                 f"官方母池 TWSE {ust['twse']}｜TPEx {ust['tpex']}｜"
                 f"MIS有效報價 {len(rows)}｜第一層通過 {len(passed)}"
@@ -332,6 +373,10 @@ def run():
         lines += [
             "",
             "注意：rank_score 僅用於候選排序，不是勝率、SSS 或 EES。",
+            (
+                f"P0-A：資料品質通過 {st.get('data_quality', {}).get('pass_count', 0)}/"
+                f"{st.get('data_quality', {}).get('total', 0)} 檔；過期或格式異常報價不進入排序。"
+            ),
             "P0-R 規則：任何 AI／策略訊號都不得繞過風控；缺少停損、目標價或帳戶資金時，風控一律標示「資料不足」，不得視為可進場。",
             "P0-ML 規則：目前僅為研究用 baseline；未通過 Walk-forward／OOS／成本壓力／資料洩漏檢查／Paper Trading 前，不得提升為正式交易依據。",
             (
