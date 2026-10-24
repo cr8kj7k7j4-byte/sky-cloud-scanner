@@ -7,7 +7,9 @@ import requests
 
 BASE = "https://api.fugle.tw/marketdata/v1.0/stock"
 UA = "SkyCloudScanner-ExpandedResearch/0.5"
-MIN_INTERVAL = 1.02
+MIN_INTERVAL = 1.25
+MAX_429_RETRIES = 5
+BACKOFF_SECONDS = (5, 10, 20, 40, 60)
 
 def headers():
     key = os.getenv("FUGLE_API_KEY", "").strip()
@@ -22,33 +24,60 @@ def chunks(start: date, end: date, max_days=330):
         yield cur, nxt
         cur = nxt + timedelta(days=1)
 
-def get_hist(symbol, start, end):
+def _request_chunk(symbol, a, b, *, request_get=requests.get, sleep_fn=time.sleep):
+    url = f"{BASE}/historical/candles/{symbol}"
+    params = {
+        "from": a.isoformat(),
+        "to": b.isoformat(),
+        "timeframe": "5",
+        "fields": "open,high,low,close,volume,average",
+        "sort": "asc",
+    }
+
+    for attempt in range(MAX_429_RETRIES + 1):
+        r = request_get(url, params=params, headers=headers(), timeout=30)
+
+        # A 404 for an older historical chunk can mean the symbol was not yet
+        # listed / no bars exist for that interval. It should not invalidate
+        # the entire symbol export; continue with later chunks.
+        if r.status_code == 404:
+            return []
+
+        if r.status_code == 403:
+            raise PermissionError(f"historical endpoint restricted for {symbol}")
+
+        if r.status_code == 429:
+            if attempt >= MAX_429_RETRIES:
+                r.raise_for_status()
+            retry_after = r.headers.get("Retry-After")
+            try:
+                wait = float(retry_after) if retry_after is not None else BACKOFF_SECONDS[attempt]
+            except (TypeError, ValueError):
+                wait = BACKOFF_SECONDS[attempt]
+            wait = max(wait, BACKOFF_SECONDS[attempt])
+            sleep_fn(wait)
+            continue
+
+        r.raise_for_status()
+        payload = r.json()
+        return payload.get("data", []) if isinstance(payload, dict) else []
+
+    return []
+
+
+def get_hist(symbol, start, end, *, request_get=requests.get, sleep_fn=time.sleep):
     all_data = []
     for a, b in chunks(start, end):
-        url = f"{BASE}/historical/candles/{symbol}"
-        params = {
-            "from": a.isoformat(),
-            "to": b.isoformat(),
-            "timeframe": "5",
-            "fields": "open,high,low,close,volume,average",
-            "sort": "asc",
-        }
         t0 = time.time()
-        r = requests.get(url, params=params, headers=headers(), timeout=30)
-        if r.status_code == 404:
-            data = []
-        else:
-            if r.status_code == 403:
-                raise PermissionError(f"historical endpoint restricted for {symbol}")
-            if r.status_code == 429:
-                time.sleep(12)
-                r = requests.get(url, params=params, headers=headers(), timeout=30)
-            r.raise_for_status()
-            data = r.json().get("data", [])
+        data = _request_chunk(
+            symbol, a, b,
+            request_get=request_get,
+            sleep_fn=sleep_fn,
+        )
         all_data.extend(data)
         elapsed = time.time() - t0
         if elapsed < MIN_INTERVAL:
-            time.sleep(MIN_INTERVAL - elapsed)
+            sleep_fn(MIN_INTERVAL - elapsed)
     return all_data
 
 def main():
