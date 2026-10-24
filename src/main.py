@@ -25,6 +25,8 @@ from .validation import evaluate_validation_gate
 from .data_engine import DataQualityPolicy, validate_quote, validate_market_rows
 from .feature_contract import wrap_features
 from .trade_log import build_trade_decision_record, append_jsonl
+from .ranking_engine import rank_candidates, summarize_ranking
+from .model_registry import baseline_model_card, can_promote
 
 TZ = ZoneInfo("Asia/Taipei")
 OUT = Path("output")
@@ -264,9 +266,14 @@ def run():
                 item["classification_cap"] = "A"
                 unverified.append(item)
 
-        st["deep"] = deep
+        ranked_deep = rank_candidates(deep)
+        st["deep"] = ranked_deep
         st["deep_rejected"] = rejected[:20]
         st["deep_unverified"] = unverified[:20]
+        st["ranking"] = summarize_ranking(ranked_deep)
+        st["ranking"]["model_card"] = baseline_model_card().to_dict()
+        st["ranking"]["promotion_gate"] = can_promote(baseline_model_card())
+        deep = ranked_deep
 
         # Versioned decision ledger: records what Sky knew at decision time.
         # Execution/outcome stay empty until paper/live fills are attached later.
@@ -337,6 +344,13 @@ def run():
                 f'量{x.get("volume",0):,}｜{flags}｜上限:{x.get("classification_cap")}'
             )
             lines.append(f"   {risk_line}")
+            ranking = x.get("ranking_model", {})
+            if ranking:
+                lines.append(
+                    f"   P0-O 機會排名：#{x.get('ranking_position')}｜"
+                    f"研究分數：{ranking.get('score')}｜"
+                    f"Expected R：{ranking.get('expected_r')}｜資格：研究用"
+                )
             ml = x.get("ml", {})
             if ml:
                 consensus_zh = {
