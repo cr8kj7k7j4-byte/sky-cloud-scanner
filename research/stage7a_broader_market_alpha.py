@@ -49,7 +49,7 @@ def day_turnover(bars):
     total=0.0
     for b in bars:
         c=f(b,"close"); v=f(b,"volume")
-        if c is not None and v is not None: total+=c*v
+        if c is not None and v is not None: total+=c*v*1000.0
     return total
 
 def first30_volume(bars):
