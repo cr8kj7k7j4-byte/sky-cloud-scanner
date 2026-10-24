@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 
 from .event_intelligence import scan_recent_events
 from .official import load_official_universe
+from .premarket_ranking import rank_premarket_candidates
 
 TZ = ZoneInfo("Asia/Taipei")
 OUT = Path("output/premarket")
@@ -32,6 +33,7 @@ def run():
 
     universe, ust = load_official_universe()
     symbols = [str(x["symbol"]) for x in universe if x.get("symbol")]
+    universe_by_symbol = {str(x["symbol"]): x for x in universe if x.get("symbol")}
     max_symbols = int(os.getenv("PREMARKET_EVENT_MAX_SYMBOLS", "2000"))
     lookback_days = int(os.getenv("PREMARKET_LOOKBACK_DAYS", "3"))
     scan_symbols = symbols[:max_symbols]
@@ -45,6 +47,12 @@ def run():
     )
 
     counts = Counter(e["event_type"] for e in events)
+    ranked_candidates = rank_premarket_candidates(
+        events,
+        universe_by_symbol=universe_by_symbol,
+        now=now,
+        limit=int(os.getenv("PREMARKET_RANK_LIMIT", "50")),
+    )
     payload = {
         "generated_at": now.isoformat(),
         "module": "P0-EVT",
@@ -60,6 +68,7 @@ def run():
         "errors_count": len(errors),
         "event_type_counts": dict(counts),
         "source_health": source_health,
+        "ranked_candidates": ranked_candidates,
         "events": events,
         "errors": errors[:100],
         "warnings": [],
@@ -98,6 +107,17 @@ def run():
             lines.append(f"{k}: {v}")
     else:
         lines.append("目前未取得事件；不代表市場無重大事件。")
+
+    lines += ["", "【盤前候選排序｜P0-O】"]
+    if ranked_candidates:
+        for r in ranked_candidates[:20]:
+            lines.append(
+                f"{r['ranking_position']}. {r['symbol']} {r.get('name','')}｜"
+                f"分數 {r['premarket_score']}｜Catalyst {r['catalyst_score']}｜"
+                f"Risk -{r['risk_penalty']}｜{r['classification']}"
+            )
+    else:
+        lines.append("目前沒有事件型候選；不強迫產生名單。")
 
     lines += ["", "【最新事件】"]
     for e in events[:30]:
