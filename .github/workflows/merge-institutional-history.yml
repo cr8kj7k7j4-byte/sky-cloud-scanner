@@ -2,6 +2,9 @@ name: Sky Institutional Merge Only
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/merge-institutional-history.yml'
 
 permissions:
   actions: read
