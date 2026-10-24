@@ -58,6 +58,13 @@ SOURCE_REGISTRY = {
         authority_rank=65,
         supports=("news", "industry", "policy"),
     ),
+    "international_market": ResearchSource(
+        key="international_market",
+        name="國際市場／全球事件來源",
+        source_type="external_market",
+        authority_rank=70,
+        supports=("global_market", "macro", "geopolitical", "industry"),
+    ),
 }
 
 
