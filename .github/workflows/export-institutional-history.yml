@@ -2,6 +2,11 @@ name: Sky Institutional History Export
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/export-institutional-history.yml"
 
 permissions:
   contents: read
