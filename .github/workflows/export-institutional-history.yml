@@ -96,7 +96,7 @@ jobs:
               fields2=["date","exchange","market_rows","sample_rows"]
               w=csv.DictWriter(f,fieldnames=fields2); w.writeheader(); w.writerows(coverage)
 
-          failures=sum((r.get("failures") or []) for r in reports,[])
+          failures=[x for r in reports for x in (r.get("failures") or [])]
           report={
               "shards":len(reports),
               "requested_trade_dates":sum(r.get("requested_trade_dates",0) for r in reports),
