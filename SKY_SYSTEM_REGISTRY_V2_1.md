@@ -22,9 +22,9 @@ Research namespaces:
 
 | Candidate | Status | Priority | Current evidence |
 |---|---|---:|---|
-| Revenue MoM 5D | ROBUSTNESS_PASS | 1 | Passed 0.45% primary, 0.65% stress and concentration gates. Next: point-in-time filing timestamp, portfolio, walk-forward, leakage and paper/shadow validation. |
+| Revenue MoM 5D | PRE_PIT_CANDIDATE | 1 | Robustness gates passed, but knowledge date still uses statutory-deadline proxy. Must verify company filing timestamp before promotion research continues. |
 | Revenue YoY 5D | HOLD_CONCENTRATION_FAIL | 4 | Primary/stress return gates passed, but top-5-symbol concentration exceeded threshold across splits. Do not promote. |
-| Revenue YoY Acceleration 5D | ROBUSTNESS_PASS | 2 | Passed 0.45% primary, 0.65% stress and concentration gates. 2026 edge remains modest; next gates required. |
+| Revenue YoY Acceleration 5D | PRE_PIT_CANDIDATE | 2 | Robustness gates passed, but actual filing timestamp is not yet aligned. Remains pre-promotion research only. |
 | Revenue YoY 20D | HOLD_CONCENTRATION_FAIL | 5 | Return gates passed, but concentration gate failed; do not promote despite high average returns. |
 | Stage 7A Broader Market Alpha | RESEARCH | 5 | Pre-registered broader-market alpha study; no production impact until all gates pass. |
 
@@ -40,6 +40,8 @@ Research namespaces:
 
 | Candidate family | Status | Reason |
 |---|---|---|
+| P0-S 5m Breakout Candidate | REJECTED_OOS | Full 100-symbol validation passed; OOS n=9,111, PF=0.2033, Expectancy=-0.8018R at 0.45% round-trip cost. Do not promote to Paper Trading or live signal. |
+
 | Weak-Regime Mean-Reversion 15D | REJECTED | Signal-level edge failed to survive ranking/capacity/broad-basket portfolio implementation. |
 | Fixed-time intraday ranking | REJECTED | OOS and post-cost evidence insufficient. |
 | Event-driven intraday ranking / catalyst stack | REJECTED | OOS and post-cost evidence insufficient. |
