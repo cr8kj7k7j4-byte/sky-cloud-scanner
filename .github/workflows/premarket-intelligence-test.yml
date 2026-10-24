@@ -13,6 +13,8 @@ on:
       - "src/adr_context.py"
       - "src/bis_policy.py"
       - "src/gold_context.py"
+      - "src/industry_news.py"
+      - "src/news_evidence.py"
       - ".github/workflows/premarket-intelligence.yml"
       - ".github/workflows/premarket-intelligence-test.yml"
   workflow_dispatch:
@@ -42,6 +44,7 @@ jobs:
           from src.event_intelligence import classify_event
           from src.premarket_ranking import rank_premarket_candidates
           from src.global_sector_mapping import map_global_context_to_sectors
+          from src.news_evidence import build_news_evidence_ledger
 
           assert classify_event("本公司公告114年12月營收") == "REVENUE"
           assert classify_event("董事會決議股利分派") == "CORPORATE_ACTION"
@@ -86,5 +89,17 @@ jobs:
           })
           assert len(sector) >= 4
           assert all(x["trade_signal"] is False for x in sector)
+
+          ledger = build_news_evidence_ledger([{
+              "subject": "NVIDIA announces new AI platform",
+              "source_url": "https://nvidia.com/example",
+              "source": "nvidia.com",
+              "published_at": "2026-10-24T00:00:00Z",
+              "source_tier": "OFFICIAL_COMPANY",
+              "authority_score": 95,
+              "affected_sectors": ["SEMICONDUCTOR", "AI_SERVER"],
+          }])
+          assert ledger["record_count"] == 1
+          assert ledger["records"][0]["trade_signal"] is False
           print("P0-EVT smoke tests passed")
           PY
