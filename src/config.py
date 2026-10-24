@@ -32,3 +32,11 @@ CONCURRENT_POSITIONS = int(os.getenv("CONCURRENT_POSITIONS", "0"))
 CORRELATED_OPEN_RISK = float(os.getenv("CORRELATED_OPEN_RISK", "0"))
 ACCOUNT_DRAWDOWN_PCT = float(os.getenv("ACCOUNT_DRAWDOWN_PCT", "0"))
 CONSECUTIVE_LOSSES = int(os.getenv("CONSECUTIVE_LOSSES", "0"))
+
+
+# P0-A Monitor State Store
+MONITOR_STATE_BACKEND = os.getenv("MONITOR_STATE_BACKEND", "file").strip().lower()
+REDIS_URL = os.getenv("REDIS_URL", "").strip()
+MONITOR_STATE_REDIS_KEY = os.getenv(
+    "MONITOR_STATE_REDIS_KEY", "sky:p0a:monitor_state"
+).strip()
