@@ -10,6 +10,8 @@ on:
       - "src/premarket_state.py"
       - "src/global_market_context.py"
       - "src/global_sector_mapping.py"
+      - "src/adr_context.py"
+      - "src/bis_policy.py"
       - ".github/workflows/premarket-intelligence.yml"
       - ".github/workflows/premarket-intelligence-test.yml"
   workflow_dispatch:
