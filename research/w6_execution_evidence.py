@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime
 from pathlib import Path
 import json
 from typing import Iterable
@@ -11,33 +10,26 @@ from research.w6_execution_baseline import (
 )
 
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.1"
 
 
 def _finite(value):
     if value is None:
         return None
     try:
-        x = float(value)
+        return float(value)
     except (TypeError, ValueError):
         return None
-    return x
 
 
 def decision_to_w6_evidence(decision: dict) -> dict:
-    """Create a fail-closed W6 evidence row from a canonical P0-L decision.
-
-    This does not infer fills. If execution evidence is absent, fill_status
-    remains UNKNOWN and fill_price remains None.
-    """
+    """Create a fail-closed W6 evidence row from a canonical P0-L decision."""
     row = dict(decision or {})
     market = dict(row.get("market") or {})
     execution = dict(row.get("execution") or {})
     plan = dict(row.get("plan") or {})
 
     observed_at = row.get("observed_at")
-    symbol = str(row.get("symbol") or "")
-
     reference_price = execution.get("reference_price")
     if reference_price is None:
         reference_price = plan.get("entry")
@@ -46,8 +38,6 @@ def decision_to_w6_evidence(decision: dict) -> dict:
 
     fill_status = str(execution.get("fill_status") or "UNKNOWN").upper()
     fill_price = _finite(execution.get("fill_price"))
-
-    # Never retain a fill price for explicit non-fill states.
     if fill_status in {"MISSED", "CANCELLED", "REJECTED"}:
         fill_price = None
 
@@ -57,21 +47,75 @@ def decision_to_w6_evidence(decision: dict) -> dict:
         "run_id": row.get("run_id"),
         "strategy_id": row.get("strategy_id"),
         "strategy_version": row.get("strategy_version"),
-        "symbol": symbol,
+        "symbol": str(row.get("symbol") or ""),
         "exchange": row.get("exchange"),
         "observation_timestamp": observed_at,
         "execution_type": execution.get("execution_type") or execution.get("type") or "UNKNOWN",
         "reference_price": _finite(reference_price),
         "bid": _finite(market.get("bid")),
         "ask": _finite(market.get("ask")),
-        "quote_timestamp": market.get("quote_time"),
-        "quote_source": market.get("quote_source"),
+        "bid_size": _finite(market.get("bid_size")),
+        "ask_size": _finite(market.get("ask_size")),
+        "quote_timestamp": market.get("l1_quote_time") or market.get("quote_time"),
+        "quote_serial": market.get("l1_quote_serial"),
+        "quote_source": market.get("l1_quote_source") or market.get("quote_source"),
         "fill_status": fill_status,
         "fill_price": fill_price,
         "fill_timestamp": execution.get("fill_timestamp"),
         "requested_price": _finite(execution.get("requested_price")),
         "max_chase_price": _finite(plan.get("highest_acceptable_price")),
         "risk_per_share": _risk_per_share(plan),
+        "future_price_1m": _finite(execution.get("future_price_1m")),
+        "future_price_3m": _finite(execution.get("future_price_3m")),
+        "future_price_5m": _finite(execution.get("future_price_5m")),
+        "research_only": True,
+    }
+
+
+def paper_snapshot_to_w6_evidence(snapshot: dict) -> dict:
+    """Map a Shadow/Paper snapshot to quote evidence without inventing fills."""
+    row = dict(snapshot or {})
+    market = dict(row.get("market") or {})
+    strategy = dict(row.get("strategy") or {})
+    execution = dict(row.get("execution") or {})
+
+    reference_price = execution.get("reference_price")
+    if reference_price is None:
+        reference_price = row.get("assumed_entry")
+    if reference_price is None:
+        reference_price = row.get("trigger_price")
+    if reference_price is None:
+        reference_price = market.get("last")
+
+    fill_status = str(execution.get("fill_status") or "UNKNOWN").upper()
+    fill_price = _finite(execution.get("fill_price"))
+    if fill_status in {"MISSED", "CANCELLED", "REJECTED"}:
+        fill_price = None
+
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "record_id": row.get("record_id"),
+        "run_id": row.get("run_id"),
+        "strategy_id": row.get("strategy_id"),
+        "strategy_version": row.get("strategy_version"),
+        "symbol": str(row.get("symbol") or ""),
+        "exchange": row.get("exchange"),
+        "observation_timestamp": row.get("observation_timestamp") or row.get("observed_at"),
+        "execution_type": execution.get("execution_type") or "QUOTE_ONLY",
+        "reference_price": _finite(reference_price),
+        "bid": _finite(market.get("bid")),
+        "ask": _finite(market.get("ask")),
+        "bid_size": _finite(market.get("bid_size")),
+        "ask_size": _finite(market.get("ask_size")),
+        "quote_timestamp": market.get("l1_quote_time") or market.get("quote_time"),
+        "quote_serial": market.get("l1_quote_serial"),
+        "quote_source": market.get("l1_quote_source") or market.get("quote_source"),
+        "fill_status": fill_status,
+        "fill_price": fill_price,
+        "fill_timestamp": execution.get("fill_timestamp"),
+        "requested_price": _finite(execution.get("requested_price")),
+        "max_chase_price": _finite(row.get("max_acceptable_price") or strategy.get("max_entry")),
+        "risk_per_share": _finite(row.get("risk_per_share")),
         "future_price_1m": _finite(execution.get("future_price_1m")),
         "future_price_3m": _finite(execution.get("future_price_3m")),
         "future_price_5m": _finite(execution.get("future_price_5m")),
@@ -184,10 +228,22 @@ def summarize_p1(rows: Iterable[dict]) -> dict:
             by_price.setdefault(pb, []).append(sample)
 
     fill = aggregate_fill_rates(samples)
+    spread_status = "BASELINE_READY" if len(spread_values) >= 20 else "INSUFFICIENT_DATA"
+    slippage_status = "BASELINE_READY" if len(slippage_values) >= 20 else "INSUFFICIENT_DATA"
+    overall_ready = (
+        spread_status == "BASELINE_READY"
+        and slippage_status == "BASELINE_READY"
+        and valid == len(items)
+    )
+
     return {
-        "status": "P1_BASELINE_READY" if len(items) >= 20 and valid == len(items) else "INSUFFICIENT_DATA",
+        "status": "P1_BASELINE_READY" if overall_ready else "INSUFFICIENT_DATA",
+        "spread_status": spread_status,
+        "slippage_status": slippage_status,
         "sample": len(items),
         "valid_sample": valid,
+        "fill_evaluable_sample": fill.get("sample"),
+        "fill_unknown_sample": fill.get("unknown_sample"),
         "fill_rate": fill.get("fill_rate"),
         "missed_trade_rate": fill.get("missed_trade_rate"),
         "spread_sample_count": len(spread_values),
@@ -202,8 +258,9 @@ def summarize_p1(rows: Iterable[dict]) -> dict:
         "time_bucket_fill": {k: aggregate_fill_rates(v) for k, v in sorted(by_time.items())},
         "price_bucket_fill": {k: aggregate_fill_rates(v) for k, v in sorted(by_price.items())},
         "note": (
-            "P1 summary is execution evidence only. It does not prove directional alpha "
-            "or authorize Production changes."
+            "Spread evidence and slippage evidence are gated separately. Quote-only "
+            "rows may establish a Spread baseline but can never establish Slippage, "
+            "Fill Rate or Adverse Selection without explicit fill evidence."
         ),
     }
 
