@@ -58,3 +58,15 @@ def test_transport_failure_is_never_healthy():
     out = assess_source_health("TPEX_DELIST", 0, transport_ok=False, error="boom")
     assert out["parse_status"] == "TRANSPORT_FAIL"
     assert out["healthy"] is False
+
+
+def test_basic_parser_can_filter_to_production_active_symbols():
+    rows=[
+        {"公司代號":"1111","公司名稱":"Active","上櫃日期":"100.01.01"},
+        {"公司代號":"1107","公司名稱":"建台水泥(管理股票)","上櫃日期":"96.10.20"},
+    ]
+    out=parse_basic_records(
+        rows,"TPEx","u","2026-10-25T00:00:00+08:00",
+        allowed_symbols={"1111"},
+    )
+    assert [x.symbol for x in out] == ["1111"]
