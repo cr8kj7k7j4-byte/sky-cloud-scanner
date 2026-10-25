@@ -20,18 +20,15 @@ Issue #81 engineering scope has been implemented without changing Production tra
    - research/audit_intraday_pit_replay.py
 7. Source readiness gate:
    - research/intraday_pit_replay_readiness.py
-8. CI:
+8. Existing 5m source coverage audit:
+   - research/INTRADAY_5M_SOURCE_COVERAGE_AUDIT_20261025.json
+9. CI:
    - .github/workflows/test-w3a-intraday-pit-replay.yml
 
-## Builder outputs
-- intraday_pit_replay.csv
-- intraday_pit_replay_manifest.json
-- intraday_pit_replay_gap_report.json
-
-## Formal audits now implemented
+## Formal audits implemented
 
 ### Coverage audit
-Thresholds:
+Required:
 - PIT Universe >= 95%
 - Market Context >= 95%
 - Sector Mapping >= 95%
@@ -56,36 +53,62 @@ Required:
 
 ### W2 readiness gate
 Requires all formal coverage thresholds, leakage PASS, timestamp causality PASS,
-explicit OOS rows, and the W2 fail-closed replay contract PASS.
+explicit OOS rows, and W2 fail-closed replay contract PASS.
 
-## Current actual readiness result
+## Existing 5m artifact audit
 
-The code path is complete, but the repository still lacks promotion-grade historical source artifacts for:
-- full historical candidate decision stream, not winners only;
-- effective-dated historical sector mapping;
-- complete market context at each decision timestamp;
-- Phase / Anti-Chase feature snapshots;
-- complete contemporaneous P0-O candidate pools and ranking context;
-- execution context / spread-slippage evidence where genuinely available;
-- canonical outcome join.
+Verified GitHub Actions evidence:
+- workflow run: 39963770301
+- artifact ID: 12506631305
+- artifact: sky-history-5m-39963770301
+- artifact digest: sha256:3e3c820987242db7119ddc104b777916fa5cf63908afeff8c440091a1da99cd1
+- period: 2023-05-23 to 2026-10-22
+- symbols: 100
+- total 5m bars: 2,704,785
+- successful downloads: 100 / 100
+- export validation: PASS
+- universe method: deterministic SHA256 sample from the current official TWSE/TPEx universe
+- artifact manifest warning: current-universe backward sampling has survivorship bias
 
-The 2023+ PIT Universe is already PASS and historical 5-minute export tooling exists.
-Those two facts are not sufficient to reconstruct the entire decision-time state required by Issue #81.
+Maximum possible symbol coverage versus governed PIT Universe:
+- 2023-12-31: 100 / 1,904 = 5.2521%
+- 2024-12-31: 100 / 1,960 = 5.1020%
+- 2025-12-31: 100 / 2,028 = 4.9310%
+- 2026-09-30: 100 / 2,069 = 4.8333%
+
+The required gate is >=95%. Therefore this artifact is valid for engineering/regression/diagnostic use only and is **not promotion-grade canonical replay evidence**.
+
+## Current real-data audit result
+
+The code path is complete, but the repository / authorized artifacts do not yet contain a promotion-grade canonical historical replay dataset.
 
 Therefore:
-- Coverage audit on the real canonical dataset: NOT_EVALUABLE
-- Leakage audit on the real canonical dataset: NOT_EVALUABLE
-- Timestamp causality audit on the real canonical dataset: NOT_EVALUABLE
+- 2023+ PIT Universe governance: PASS
+- Existing 100-symbol 5m export integrity: PASS
+- Whole-universe 5m source coverage: FAIL
+- Coverage audit on a real canonical replay dataset: NOT_EVALUABLE
+- Leakage audit on a real canonical replay dataset: NOT_EVALUABLE
+- Timestamp causality audit on a real canonical replay dataset: NOT_EVALUABLE
 - W2 readiness: DATA_BLOCKED
 - W2 efficacy / 10-rule contribution analysis: NOT AUTHORIZED
 
-## Highest-priority blocker
-NO_EFFECTIVE_DATED_HISTORICAL_SECTOR_MAPPING
+## External-data blockers
 
-Next blockers:
-1. NO_CANONICAL_HISTORICAL_DECISION_STREAM
-2. NO_CANONICAL_OUTCOME_JOIN_INPUT
-3. missing canonical market / feature / ranking / execution context inputs
+Highest priority:
+1. EXTERNAL_DATA_REQUIRED:EFFECTIVE_DATED_HISTORICAL_SECTOR_MEMBERSHIP
+
+Then:
+2. EXTERNAL_DATA_REQUIRED:SYNCHRONIZED_WHOLE_UNIVERSE_INTRADAY_HISTORY
+3. EXTERNAL_DATA_REQUIRED:HISTORICAL_DECISION_STREAM_OR_DETERMINISTIC_ALL_CANDIDATE_REPLAY
+4. EXTERNAL_DATA_REQUIRED:CANONICAL_OUTCOME_JOIN
+5. EXTERNAL_DATA_REQUIRED:EMPIRICAL_EXECUTION_EVIDENCE
+
+Additional missing canonical inputs:
+- market context snapshots
+- feature / Phase / Anti-Chase snapshots
+- complete ranking candidate-pool context
+
+No proxy may be substituted for promotion-grade evidence.
 
 ## Machine-executable flow
 
