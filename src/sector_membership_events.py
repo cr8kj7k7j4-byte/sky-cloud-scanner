@@ -10,7 +10,7 @@ from typing import Iterable, Mapping
 class SectorChangeEvent:
     symbol: str
     exchange: str
-    old_sector: str
+    old_sector: str | None
     new_sector: str
     effective_date: str
     source_url: str = ""
@@ -40,13 +40,19 @@ def parse_sector_change_text(
     """
     Parse official TWSE/TPEx announcement text of the form:
       股票代號：1595 ... 由「電子零組件業」調整為「半導體業」
-    Effective date may be supplied explicitly or extracted from text.
+
+    Only explicit old->new statements are returned. Group announcements that
+    identify only the new category must be represented as boundary events with
+    old_sector=None by a source-specific parser; old sectors are never guessed.
     """
     raw = text or ""
 
     if effective_date is None:
         # ROC dates like 115年6月1日 / 114年6月2日 / 112年7月3日
-        m = re.search(r"(?:實施日期[:：]?|自)s*(d{2,3})年(d{1,2})月(d{1,2})日", raw)
+        m = re.search(
+            r"(?:實施日期[:：]?|自)\s*(\d{2,3})年\s*(\d{1,2})月\s*(\d{1,2})日",
+            raw,
+        )
         if m:
             y, mo, d = map(int, m.groups())
             effective_date = f"{y + 1911:04d}-{mo:02d}-{d:02d}"
@@ -55,8 +61,8 @@ def parse_sector_change_text(
         raise ValueError("effective_date not found")
 
     pattern = re.compile(
-        r"(?:股票代號|證券代號)[:：]?s*(d{4}).{0,80}?"
-        r"由[「\"]([^」\"]+)[」\"]s*"
+        r"(?:股票代號|證券代號)[:：]?\s*(\d{4}).{0,100}?"
+        r"由[「\"]([^」\"]+)[」\"]\s*"
         r"(?:調整為|改為)[「\"]([^」\"]+)[」\"]",
         flags=re.S,
     )
@@ -84,14 +90,10 @@ def reconstruct_effective_sector_intervals(
     Reconstruct historical effective-dated sector membership backwards from
     current official sector snapshots plus official change events.
 
-    current_rows require:
-      symbol, exchange, sector, listed_from
-      optional name, source, source_as_of
-
-    change_events require:
-      symbol, exchange, old_sector, new_sector, effective_date
-
-    Fail closed when event chains do not reconcile with current state.
+    For a boundary event with old_sector=None, the post-change interval is
+    preserved but reconstruction stops before the effective date and emits
+    PRE_CHANGE_SECTOR_UNKNOWN. This is fail-closed and allows honest coverage
+    measurement instead of discarding verified post-change evidence.
     """
     events_by_key: dict[tuple[str, str], list[SectorChangeEvent]] = {}
     for raw in change_events:
@@ -125,6 +127,7 @@ def reconstruct_effective_sector_intervals(
         interval_end: date | None = None
         symbol_intervals = []
         valid = True
+        stopped_on_unknown = False
 
         for ev in chain:
             eff = _to_date(ev.effective_date)
@@ -149,28 +152,43 @@ def reconstruct_effective_sector_intervals(
                 "effective_from": eff.isoformat(),
                 "effective_to": interval_end.isoformat() if interval_end else None,
                 "source": "official_sector_event_ledger",
-                "source_as_of": str(row.get("source_as_of") or ""),
+                "source_url": ev.source_url,
+                "source_as_of": ev.source_as_of or str(row.get("source_as_of") or ""),
             })
             interval_end = eff - timedelta(days=1)
+
+            if not ev.old_sector:
+                unresolved.append({
+                    "symbol": symbol,
+                    "exchange": exchange,
+                    "reason": "PRE_CHANGE_SECTOR_UNKNOWN",
+                    "unknown_from": start_date.isoformat(),
+                    "unknown_to": interval_end.isoformat(),
+                    "event": ev.to_dict(),
+                })
+                stopped_on_unknown = True
+                break
             sector = ev.old_sector
 
         if not valid:
             continue
 
-        symbol_intervals.append({
-            "symbol": symbol,
-            "exchange": exchange,
-            "name": str(row.get("name") or ""),
-            "sector": sector,
-            "effective_from": start_date.isoformat(),
-            "effective_to": interval_end.isoformat() if interval_end else None,
-            "source": "official_sector_event_ledger",
-            "source_as_of": str(row.get("source_as_of") or ""),
-        })
+        if not stopped_on_unknown:
+            symbol_intervals.append({
+                "symbol": symbol,
+                "exchange": exchange,
+                "name": str(row.get("name") or ""),
+                "sector": sector,
+                "effective_from": start_date.isoformat(),
+                "effective_to": interval_end.isoformat() if interval_end else None,
+                "source": "official_sector_event_ledger",
+                "source_url": str(row.get("source") or ""),
+                "source_as_of": str(row.get("source_as_of") or ""),
+            })
         intervals.extend(reversed(symbol_intervals))
 
     return {
-        "schema_version": "1.0.0",
+        "schema_version": "1.1.0",
         "intervals": intervals,
         "unresolved": unresolved,
         "production_eligible": len(unresolved) == 0,
