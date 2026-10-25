@@ -101,6 +101,9 @@ def inspect(root: str=".") -> dict:
 
     pit_status=_historical_universe_status(base)
     evidence=_json(base,"research/INTRADAY_PIT_SOURCE_EVIDENCE_20261025.json")
+    evidence_pit_status=str((evidence.get("historical_universe") or {}).get("status") or "").upper()
+    if evidence_pit_status and evidence_pit_status!="PASS":
+        pit_status=evidence_pit_status
     diagnostic_5m=_diagnostic_5m(base)
     sector=_sector_source_status(base)
     frozen=_frozen_alpha_status(base)
@@ -129,8 +132,8 @@ def inspect(root: str=".") -> dict:
     }
 
     blockers=[]
-    if pit_status!="PASS" and not inputs["pit_intervals"]["exists"]:
-        blockers.append("PIT_UNIVERSE_NOT_READY")
+    if pit_status!="PASS":
+        blockers.append("PIT_UNIVERSE_REVALIDATION_REQUIRED")
 
     if whole_status!="PASS":
         blockers.append(
