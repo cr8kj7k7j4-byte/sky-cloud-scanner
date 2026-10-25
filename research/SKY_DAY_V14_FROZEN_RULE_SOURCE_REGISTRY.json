@@ -1,5 +1,5 @@
 {
-  "schema_version": "SKY_DAY_V14_FROZEN_RULE_SOURCE_REGISTRY_V1_0",
+  "schema_version": "SKY_DAY_V14_FROZEN_RULE_SOURCE_REGISTRY_V1_1",
   "strategy_id": "Sky Day Trading v1.4 Dynamic Capital Rotation / P0-C MVP",
   "production_change": false,
   "allowed_provider_status": [
@@ -95,5 +95,42 @@
     "status": "INSUFFICIENT_HISTORICAL_SNAPSHOT",
     "evidence": "research/SCHEDULED_SCANNER_SNAPSHOT_AUDIT_20261025.json",
     "note": "Retained scheduled scanner artifacts are version 0.4, full_market_scan=false, Top100 + Deep shortlist only; they do not contain canonical 10-rule outputs or complete v1.4 decision context."
+  },
+  "git_history_evidence": [
+    {
+      "commit": "a3c399a88403252c87675f288834612a4a4d66cc",
+      "title": "feat: integrate P0-R risk engine with Chinese output",
+      "finding": "Historical scanner text enumerates the conceptual A+ chain Market Gate→Sector/RS→MTF→SSS→Phase→Anti-Chase→Breakout Quality→Setup+Trigger, but does not implement the canonical W2 10-rule booleans or frozen thresholds.",
+      "classification": "DESCRIPTIVE_NOT_EXECUTABLE_PROVIDER"
+    },
+    {
+      "commit": "adceee5f87b8efc58c9d911bab4750bf773072f9",
+      "title": "Decompose sky_rules into canonical P0-C/P0-F/P0-O owners",
+      "finding": "Executable first_gate was moved to P0-C. It is a basic eligibility/liquidity gate and is not the W2 market_gate or a replacement for the missing v1.4 Alpha gates.",
+      "classification": "EXECUTABLE_PRIMITIVE_NOT_CANONICAL_W2_GATE"
+    },
+    {
+      "commit": "c9bc5aa3f4fa26f9280dd8bbc0eaeddc24b19af9",
+      "title": "Governance: reject and archive naked P0-S 5m breakout",
+      "finding": "The available deterministic breakout strategy family is explicitly archived/rejected and cannot substitute for Production v1.4 setup/trigger logic.",
+      "classification": "ARCHIVED_NO_SUBSTITUTION"
+    },
+    {
+      "commit": "7a397d04dfa600be4f494fa655b0a51c039092af",
+      "title": "Research: Sky V2.1 Anti-Chase Proxy Ablation",
+      "finding": "Trigger-slip-only Anti-Chase proxy is explicitly rejected as a standalone hard gate and cannot be promoted into the frozen v1.4 anti_chase_gate.",
+      "classification": "REJECTED_PROXY"
+    },
+    {
+      "commit": "41fc829d2261e78a559d5fdb7e07446c1c875f8b",
+      "title": "W2: canonical intraday PIT replay + 10-rule validation framework (#79)",
+      "finding": "Defines the 10-rule replay contract but explicitly leaves Production v1.4 behavior unchanged; the contract is validation infrastructure, not the historical source implementation.",
+      "classification": "VALIDATION_CONTRACT_NOT_PROVIDER"
+    }
+  ],
+  "evidence_adapter": {
+    "path": "research/frozen_v14_evidence_replay_adapter.py",
+    "behavior": "Preserve PIT-safe observed fields; populate a canonical rule result only when provider status is formally allowed and the row carries an existing historical boolean. Otherwise force None and block W2 efficacy.",
+    "w2_rule_efficacy_allowed_when_unresolved": false
   }
 }
