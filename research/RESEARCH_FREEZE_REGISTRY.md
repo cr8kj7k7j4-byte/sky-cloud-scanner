@@ -9,7 +9,7 @@
 
 | Candidate family | Status | Re-open only if |
 |---|---|---|
-| P0-S 5m Breakout | ARCHIVED_NO_RETUNE | New structural setup family or new untouched data regime; not threshold tweaks |
+| P0-S 5m Breakout | ARCHIVED_NO_RETUNE | OOS n=9,111, PF 0.2033, Expectancy -0.8018R at 0.45% cost; re-open only via structural preregistration, not threshold tweaks |
 | Stage 6B Catalyst Score | ARCHIVED_NO_RETUNE | Event evidence used in a materially different horizon/label |
 | Stage 6C Event Interaction | ARCHIVED_NO_RETUNE | New pre-registered interaction architecture + untouched data |
 | Stage 6D Reaction-first Intraday | ARCHIVED_NO_RETUNE | Different horizon/target or structural execution architecture |
