@@ -509,3 +509,112 @@ def build_promotion_scorecard(
             "仍須由 P0-G 明確核准 Champion Configuration。"
         ),
     }
+
+
+
+def build_shadow_promotion_dashboard(
+    records,
+    *,
+    promotion_evidence=None,
+    artifact_type="RANKING",
+    min_samples=200,
+    min_trading_days=20,
+    min_regimes=2,
+    min_outcome_complete_ratio=0.95,
+    max_symbol_share=0.20,
+    min_expectancy_r=0.0,
+    min_profit_factor=1.0,
+    max_drawdown_r=None,
+):
+    """Build the canonical P0-G Shadow evidence/promotion dashboard."""
+    suff = evaluate_shadow_sample_sufficiency(
+        records,
+        min_samples=min_samples,
+        min_trading_days=min_trading_days,
+        min_regimes=min_regimes,
+        min_outcome_complete_ratio=min_outcome_complete_ratio,
+        max_symbol_share=max_symbol_share,
+    )
+    obs = dict(suff["observed"])
+    th = dict(suff["thresholds"])
+
+    gaps = {
+        "samples_remaining": max(0, th["min_samples"] - obs["samples"]),
+        "trading_days_remaining": max(
+            0, th["min_trading_days"] - obs["trading_days"]
+        ),
+        "regimes_remaining": max(
+            0, th["min_regimes"] - obs["regime_count"]
+        ),
+        "outcome_completeness_gap": round(
+            max(
+                0.0,
+                th["min_outcome_complete_ratio"]
+                - obs["outcome_complete_ratio"],
+            ),
+            6,
+        ),
+        "symbol_concentration_excess": round(
+            max(
+                0.0,
+                obs["top_symbol_share"] - th["max_symbol_share"],
+            ),
+            6,
+        ),
+    }
+
+    evidence = dict(promotion_evidence or {})
+    validation = dict(evidence.get("validation") or {})
+    validation["sample_sufficient"] = suff["sufficient"]
+    evidence["validation"] = validation
+    evidence["sample_sufficient"] = suff["sufficient"]
+
+    scorecard = build_promotion_scorecard(
+        evidence,
+        artifact_type=artifact_type,
+        min_expectancy_r=min_expectancy_r,
+        min_profit_factor=min_profit_factor,
+        max_drawdown_r=max_drawdown_r,
+    )
+
+    if scorecard["promotable_to_governance_review"]:
+        stage = "GOVERNANCE_REVIEW_READY"
+    elif suff["sufficient"]:
+        stage = "SAMPLE_READY"
+    else:
+        stage = "ACCUMULATING"
+
+    blockers = []
+    blockers.extend(
+        f"sample:{x}" for x in suff.get("failed_checks", [])
+    )
+    blockers.extend(
+        f"promotion:{x}"
+        for x in scorecard.get("failed_checks", [])
+        if x != "sample_sufficient"
+    )
+
+    return {
+        "schema_version": "1.0",
+        "stage": stage,
+        "artifact_type": str(artifact_type or "RANKING").upper(),
+        "sample_sufficiency": suff,
+        "sample_gaps": gaps,
+        "promotion_scorecard": scorecard,
+        "blocking_items": blockers,
+        "summary": {
+            "samples": obs["samples"],
+            "trading_days": obs["trading_days"],
+            "regime_count": obs["regime_count"],
+            "outcome_complete_ratio": obs["outcome_complete_ratio"],
+            "top_symbol_share": obs["top_symbol_share"],
+            "promotion_score": scorecard["score"],
+            "promotable_to_governance_review": scorecard[
+                "promotable_to_governance_review"
+            ],
+        },
+        "note": (
+            "Dashboard 用於證據累積與升版治理，不是交易勝率、"
+            "報酬預測或自動 Production Promotion。"
+        ),
+    }
