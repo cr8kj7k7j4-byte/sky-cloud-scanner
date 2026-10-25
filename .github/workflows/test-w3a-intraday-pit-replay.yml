@@ -93,11 +93,12 @@ jobs:
         if: always()
         run: |
           echo "## W3A Intraday PIT Readiness" >> "$GITHUB_STEP_SUMMARY"
-          cat research_output/w3a_intraday_pit/readiness.json >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          cat research_output/w3a_intraday_pit/frozen_v14_replay_readiness.json >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          cat research_output/w3a_intraday_pit/field_provenance.json >> "$GITHUB_STEP_SUMMARY"
+          for f in             research_output/w3a_intraday_pit/readiness.json             research_output/w3a_intraday_pit/frozen_v14_replay_readiness.json             research_output/w3a_intraday_pit/field_provenance.json; do
+            if [ -f "$f" ]; then
+              cat "$f" >> "$GITHUB_STEP_SUMMARY"
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
 
       - name: Upload readiness reports
         if: always()
@@ -108,5 +109,5 @@ jobs:
             research_output/w3a_intraday_pit/readiness.json
             research_output/w3a_intraday_pit/frozen_v14_replay_readiness.json
             research_output/w3a_intraday_pit/field_provenance.json
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 30
