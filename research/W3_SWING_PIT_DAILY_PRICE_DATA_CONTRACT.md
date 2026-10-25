@@ -51,9 +51,14 @@ For an event effective on date E:
 - stock split ratio = after_price / before_price
 - par-value change ratio = after_ref_close / before_close
 
-For a price bar on date D, adjusted OHLC equals raw OHLC multiplied by the product of event ratios where D < E.
+The canonical stored bar remains raw PIT OHLCV.
 
-The event-date bar itself is not backward-adjusted by its own event.
+W1 materializes an adjusted view through src/pit_adjusted_price.py at each evaluation as_of date A:
+- only events with bar_date < event_date <= A are applied;
+- events after A are ignored;
+- the event-date bar itself is not adjusted by its own event.
+
+This prevents a 2026 split/dividend from changing a 2023 contemporaneous absolute-price rule such as the < TWD 100 entry eligibility.
 
 Fail-closed rules:
 - missing/invalid reference prices are recorded as corporate-action data-quality issues;
@@ -69,16 +74,15 @@ Each daily bar preserves:
 - exchange
 - date
 - trading_date
-- open / high / low / close (adjusted)
-- raw_open / raw_high / raw_low / raw_close
+- open / high / low / close (raw PIT price)
+- adjustment_capability=PIT_ASOF_EVENT_LEDGER
 - volume
 - turnover when available
 - source
 - source_as_of
 - retrieved_at
-- adjusted=true
+- adjusted=false on stored raw bar
 - volume_adjusted=false
-- adjustment_factor
 - adjustment_method
 - listed_from / listed_to
 
@@ -87,7 +91,8 @@ File envelope retains:
 - symbol
 - source
 - retrieved_at
-- adjusted
+- adjusted=false
+- adjustment_capability=PIT_ASOF_EVENT_LEDGER
 - volume_adjusted
 - adjustment_method
 - corporate_action_events
@@ -120,7 +125,7 @@ Provider 402/429 errors fail fast; invalid entitlement/quota errors are not retr
 Mandatory:
 - pinned canonical PIT gate PASS;
 - interval validation PASS;
-- adjusted=true on all accepted bars;
+- every accepted symbol payload has PIT_ASOF_EVENT_LEDGER adjustment capability;
 - zero duplicate symbol/exchange/date rows;
 - zero unresolved continuity conflicts;
 - corporate-action conflicts quarantined and disclosed;
@@ -130,3 +135,19 @@ Mandatory:
 - research/validate_swing_pit_readiness.py returns READY_FOR_CANONICAL_SWING_REPLAY.
 
 Coverage PASS is data readiness, not profitability evidence.
+
+
+## 9. PIT causality of adjusted prices
+
+Latest-vintage adjusted prices are not used directly as historical decision prices.
+
+Reason: a later corporate action can retrospectively change earlier adjusted levels. Using that later-adjusted level in an earlier absolute-price rule or threshold would introduce look-ahead.
+
+Canonical use:
+1. stored OHLCV = raw contemporaneous daily market data;
+2. corporate_action_events = governed event ledger;
+3. src/pit_adjusted_price.py = as-of materializer;
+4. technical-history views may be adjusted only with events effective on/before the historical as_of date;
+5. current-day raw close remains the contemporaneous price for absolute price eligibility.
+
+No missing bar is created during adjustment.
