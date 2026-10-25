@@ -20,7 +20,8 @@ from .config import (
 )
 from .official import load_official_universe, fetch_mis_quotes
 from .fugle import get_ticker, get_quote, get_candles
-from .sky_rules import first_gate, score_for_ranking, enrich
+from .sky_rules import first_gate, enrich
+from .ranking_engine import rank_screening_candidates
 from .notifier import send_telegram
 from .risk_engine import RiskPolicy, evaluate_candidate, drawdown_state
 from .execution_engine import ExecutionCostPolicy
@@ -299,11 +300,9 @@ def run():
             ok, reasons = first_gate(r)
             r["gate_reasons"] = reasons
             if ok:
-                r["rank_score"] = score_for_ranking(r)
                 passed.append(r)
 
-        passed.sort(key=lambda x: x["rank_score"], reverse=True)
-        top = passed[:TOP_N]
+        top = rank_screening_candidates(passed)[:TOP_N]
         st["top100"] = top
 
         # Deep-dive enough rows to fill DEEP_DIVE_N verified, non-rejected
