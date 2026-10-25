@@ -135,6 +135,7 @@ jobs:
           compression-level: 6
 
   combine-and-audit:
+    if: always()
     needs: collect
     runs-on: ubuntu-latest
     timeout-minutes: 35
@@ -161,17 +162,19 @@ jobs:
           find canonical_history -type f -name 'shard_report_*.json' -exec cp {} canonical_history_flat/ \;
           echo "Daily JSON files: $(find canonical_history_flat/history -name '*_D.json' | wc -l)"
           echo "Shard reports: $(find canonical_history_flat -name 'shard_report_*.json' | wc -l)"
-          test "$(find canonical_history_flat -name 'shard_report_*.json' | wc -l)" -eq 40
           test "$(find canonical_history_flat/history -name '*_D.json' | wc -l)" -gt 0
       - name: Run coverage / missingness audit
+        continue-on-error: true
         env:
           PYTHONPATH: .
         run: >
           python research/audit_swing_pit_price_coverage.py
           --history-dir canonical_history_flat/history
           --pit-json canonical_pit/pit_intervals.json
+          --shard-report-dir canonical_history_flat
           --out canonical_audit
       - name: Run W1 canonical readiness validator
+        continue-on-error: true
         env:
           PYTHONPATH: .
         run: >
@@ -179,6 +182,17 @@ jobs:
           --history-dir canonical_history_flat/history
           --pit-json canonical_pit/pit_intervals.json
           --out w1_readiness
+      - name: Enforce final data-readiness gate
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          coverage=json.loads(Path("canonical_audit/coverage_report.json").read_text(encoding="utf-8"))
+          readiness=json.loads(Path("w1_readiness/swing_pit_readiness.json").read_text(encoding="utf-8"))
+          print({"coverage_status":coverage.get("status"),"w1_status":readiness.get("status")})
+          assert coverage.get("status") == "READY_FOR_W1_CANONICAL_REPLAY"
+          assert readiness.get("status") == "READY_FOR_CANONICAL_SWING_REPLAY"
+          PY
       - name: Build manifest
         run: |
           python - <<'PY'
