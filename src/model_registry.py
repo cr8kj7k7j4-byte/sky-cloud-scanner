@@ -582,7 +582,9 @@ def build_shadow_promotion_dashboard(
     elif suff["sufficient"]:
         stage = "SAMPLE_READY"
     else:
-        stage = "ACCUMULATING"
+        # W4 governance contract: insufficient forward evidence must never be
+        # presented as an implicitly progressing/passing state.
+        stage = "WAITING_FOR_FUTURE_SAMPLE"
 
     blockers = []
     blockers.extend(
@@ -595,7 +597,7 @@ def build_shadow_promotion_dashboard(
     )
 
     return {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "stage": stage,
         "artifact_type": str(artifact_type or "RANKING").upper(),
         "sample_sufficiency": suff,
