@@ -240,3 +240,76 @@ def evaluate_shadow_long_path(
         },
         "research_only": True,
     }
+
+
+
+def evaluate_ranking_outcome(*, reference_price, bars):
+    """Forward outcome for P0-O / ML ranking validation.
+
+    This measures what happened after a candidate was observed. It is not a
+    trade fill and must never be interpreted as realized P&L.
+    """
+    reference_price = _f(reference_price)
+    if reference_price is None or reference_price <= 0:
+        return {
+            "status": "INVALID_INPUT",
+            "outcome_type": "RANKING_SHADOW",
+            "research_only": True,
+        }
+
+    clean = []
+    for b in bars or []:
+        try:
+            high = float(b["high"])
+            low = float(b["low"])
+            close = float(b["close"])
+        except Exception:
+            continue
+        clean.append({"high": high, "low": low, "close": close})
+
+    if not clean:
+        return {
+            "status": "INSUFFICIENT_BARS",
+            "outcome_type": "RANKING_SHADOW",
+            "reference_price": round(reference_price, 4),
+            "research_only": True,
+        }
+
+    def _ret(index):
+        if len(clean) <= index:
+            return None
+        return (clean[index]["close"] / reference_price - 1.0) * 100.0
+
+    max_high = max(x["high"] for x in clean)
+    min_low = min(x["low"] for x in clean)
+    close_price = clean[-1]["close"]
+
+    return {
+        "status": "COMPLETE",
+        "outcome_type": "RANKING_SHADOW",
+        "reference_price": round(reference_price, 4),
+        "future_bars": len(clean),
+        "return_15m_pct": (
+            round(_ret(2), 6) if _ret(2) is not None else None
+        ),
+        "return_30m_pct": (
+            round(_ret(5), 6) if _ret(5) is not None else None
+        ),
+        "close_return_pct": round(
+            (close_price / reference_price - 1.0) * 100.0, 6
+        ),
+        "mfe_pct": round(
+            (max_high / reference_price - 1.0) * 100.0, 6
+        ),
+        "mae_pct": round(
+            (min_low / reference_price - 1.0) * 100.0, 6
+        ),
+        "max_price": round(max_high, 4),
+        "min_price": round(min_low, 4),
+        "close_price": round(close_price, 4),
+        "research_only": True,
+        "note": (
+            "Ranking forward outcome only; not a trade fill, realized P&L, "
+            "or win probability."
+        ),
+    }
