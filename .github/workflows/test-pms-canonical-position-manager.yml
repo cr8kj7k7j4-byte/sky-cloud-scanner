@@ -1,0 +1,26 @@
+name: PMS Canonical Position Manager Tests
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test/runtime dependencies
+        run: pip install -r requirements.txt pytest
+      - name: Compile
+        run: python -m compileall -q src tests
+      - name: PMS tests
+        run: PYTHONPATH=. pytest -q tests/test_position_manager.py tests/test_pms_monitor_integration.py tests/test_monitor_engine.py
+      - name: Production E2E
+        run: PYTHONPATH=. pytest -q tests/test_production_e2e_acceptance.py
