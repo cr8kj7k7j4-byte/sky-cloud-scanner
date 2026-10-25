@@ -168,7 +168,7 @@ def validate_replay_frame(
         reasons.append("MISSING_COST_OUTCOME_COLUMNS")
 
     timestamp_coverage, timestamp_violations = _timestamp_causality(df)
-    if timestamp_coverage < thresholds.mandatory:
+    if timestamp_coverage < 1.0 or timestamp_violations > 0:
         reasons.append("TIMESTAMP_CAUSALITY_FAIL")
 
     pit_coverage = (
