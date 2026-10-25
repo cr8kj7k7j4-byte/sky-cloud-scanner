@@ -1,0 +1,78 @@
+name: W1 Swing Canonical PIT Readiness
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'research/validate_swing_pit_readiness.py'
+      - 'research/SKY_SWING_CANONICAL_PIT_REPLAY_PREREGISTRATION.md'
+      - 'research/audit_historical_universe.py'
+      - '.github/workflows/w1-swing-pit-readiness.yml'
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4
+
+      - name: Build canonical PIT intervals from official sources
+        run: python research/audit_historical_universe.py --out output/historical_universe_audit
+
+      - name: Download legacy Swing history artifact
+        uses: dawidd6/action-download-artifact@v11
+        with:
+          run_id: 39963770301
+          name_is_regexp: true
+          name: sky-history-5m-.*
+          path: _hist
+          search_artifacts: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare legacy history dataset
+        id: data
+        run: |
+          mkdir -p _hist_unpacked
+          HIST_TAR=$(find _hist -name 'sky-history-5m-*.tar.gz' | head -1)
+          test -n "$HIST_TAR"
+          tar -xzf "$HIST_TAR" -C _hist_unpacked
+          HIST_DIR=$(find _hist_unpacked -type d -path '*/research_data/history' | head -1)
+          test -n "$HIST_DIR"
+          echo "history_dir=$HIST_DIR" >> "$GITHUB_OUTPUT"
+
+      - name: Evaluate PIT price-history readiness
+        run: |
+          python research/validate_swing_pit_readiness.py             --history-dir "${{ steps.data.outputs.history_dir }}"             --pit-json output/historical_universe_audit/pit_intervals.json             --out output/w1_swing_pit_readiness
+
+      - name: Publish summary
+        if: always()
+        run: |
+          if [ -f output/w1_swing_pit_readiness/swing_pit_readiness.md ]; then
+            cat output/w1_swing_pit_readiness/swing_pit_readiness.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: w1-swing-pit-readiness-${{ github.run_id }}
+          path: |
+            output/w1_swing_pit_readiness/
+            output/historical_universe_audit/pit_intervals.json
+            output/historical_universe_audit/audit.json
+          retention-days: 90
+          if-no-files-found: warn
