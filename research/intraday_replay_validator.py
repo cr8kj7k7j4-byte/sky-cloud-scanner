@@ -41,6 +41,8 @@ GOVERNANCE_COLUMNS = [
     "data_quality_status",
     "leakage_audit_status",
     "market_context_status",
+    "sector_mapping_status",
+    "execution_context_status",
     "replay_coverage_status",
 ]
 
@@ -123,20 +125,20 @@ def _timestamp_causality(df: pd.DataFrame) -> tuple[float, int]:
 
 def _bool_column_validity(df: pd.DataFrame, columns: Iterable[str]) -> dict:
     out = {}
+    accepted = {"true", "false", "1", "0"}
     for col in columns:
         if col not in df.columns:
             out[col] = {"present": False, "valid_share": 0.0}
             continue
         s = df[col]
-        normalized = s.map(
-            lambda x: x
-            if isinstance(x, bool)
-            else str(x).strip().lower() in {"true", "false", "1", "0"}
+        valid = s.map(
+            lambda x: (
+                isinstance(x, (bool, int))
+                and (not isinstance(x, int) or x in (0, 1))
+            )
+            or str(x).strip().lower() in accepted
         )
-        if normalized.dtype == bool:
-            valid_share = 1.0
-        else:
-            valid_share = float(normalized.notna().mean())
+        valid_share = float(valid.mean()) if len(valid) else 0.0
         out[col] = {"present": True, "valid_share": valid_share}
     return out
 
@@ -175,7 +177,10 @@ def validate_replay_frame(
         else 0.0
     )
     leakage_pass = _status_coverage(df, "leakage_audit_status", accepted=("PASS",))
+    data_quality_status = _status_coverage(df, "data_quality_status", accepted=("OK", "PASS"))
     market_status = _status_coverage(df, "market_context_status", accepted=("OK",))
+    sector_status = _status_coverage(df, "sector_mapping_status", accepted=("OK",))
+    execution_status = _status_coverage(df, "execution_context_status", accepted=("OK",))
     replay_status = _status_coverage(df, "replay_coverage_status", accepted=("OK",))
 
     group_coverage = {
@@ -185,10 +190,16 @@ def validate_replay_frame(
 
     if pit_coverage < thresholds.mandatory:
         reasons.append("PIT_UNIVERSE_COVERAGE_FAIL")
+    if data_quality_status < thresholds.mandatory:
+        reasons.append("DATA_QUALITY_COVERAGE_FAIL")
     if leakage_pass < 1.0:
         reasons.append("LEAKAGE_AUDIT_NOT_FULL_PASS")
     if market_status < thresholds.mandatory:
         reasons.append("MARKET_CONTEXT_COVERAGE_FAIL")
+    if require_sector and sector_status < thresholds.mandatory:
+        reasons.append("SECTOR_MAPPING_COVERAGE_FAIL")
+    if execution_status < thresholds.mandatory:
+        reasons.append("EXECUTION_CONTEXT_COVERAGE_FAIL")
     if replay_status < thresholds.mandatory:
         reasons.append("REPLAY_STATUS_COVERAGE_FAIL")
 
@@ -236,8 +247,11 @@ def validate_replay_frame(
         "timestamp_causality_coverage": round(timestamp_coverage, 6),
         "timestamp_causality_violations": timestamp_violations,
         "pit_universe_coverage": round(pit_coverage, 6),
+        "data_quality_ok_share": round(data_quality_status, 6),
         "leakage_pass_share": round(leakage_pass, 6),
         "market_context_ok_share": round(market_status, 6),
+        "sector_mapping_ok_share": round(sector_status, 6),
+        "execution_context_ok_share": round(execution_status, 6),
         "replay_coverage_ok_share": round(replay_status, 6),
         "context_coverage": {k: round(v, 6) for k, v in group_coverage.items()},
         "outcome_coverage": {k: round(v, 6) for k, v in outcome_coverage.items()},
