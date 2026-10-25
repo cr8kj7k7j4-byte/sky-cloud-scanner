@@ -20,9 +20,26 @@ def _historical_universe_status(base: Path) -> str:
     if not p.exists():
         return "UNKNOWN"
     text=p.read_text(encoding="utf-8",errors="ignore")
-    if "Historical Universe Gate: **PASS" in text:
-        return "PASS"
-    return "UNKNOWN"
+    return "PASS" if "Historical Universe Gate: **PASS" in text else "UNKNOWN"
+
+def _existing_5m_audit(base: Path) -> dict:
+    p=base/"research/INTRADAY_5M_SOURCE_COVERAGE_AUDIT_20261025.json"
+    if not p.exists():
+        return {"status":"UNKNOWN"}
+    try:
+        obj=json.loads(p.read_text(encoding="utf-8"))
+        return {
+            "status":obj.get("formal_gate",{}).get("status","UNKNOWN"),
+            "symbols":obj.get("source",{}).get("symbols"),
+            "bars":obj.get("source",{}).get("total_bars"),
+            "date_from":obj.get("source",{}).get("date_from"),
+            "date_to":obj.get("source",{}).get("date_to"),
+            "maximum_symbol_coverage_upper_bound":obj.get("maximum_symbol_coverage_upper_bound"),
+            "survivorship_bias_warning":obj.get("source",{}).get("survivorship_bias_warning"),
+            "workflow_run_id":obj.get("source",{}).get("workflow_run_id"),
+        }
+    except Exception:
+        return {"status":"UNKNOWN"}
 
 def inspect(root: str=".") -> dict:
     base=Path(root)
@@ -36,12 +53,17 @@ def inspect(root: str=".") -> dict:
         }
 
     pit_status=_historical_universe_status(base)
+    existing_5m=_existing_5m_audit(base)
     capabilities={
         "historical_universe_2023_plus":pit_status,
         "historical_5m_export_tooling":(
             (base/"research/download_intraday.py").exists()
             and (base/".github/workflows/export-history-5m.yml").exists()
         ),
+        "existing_5m_artifact_audit":existing_5m,
+        "sector_rs_replay_module":(base/"src/sector_rs_replay.py").exists(),
+        "vwap_entry_replay_module":(base/"src/vwap_entry_replay.py").exists(),
+        "execution_engine":(base/"src/execution_engine.py").exists(),
         "w2_fail_closed_validator":(base/"research/intraday_replay_validator.py").exists(),
         "canonical_builder":(base/"research/build_intraday_pit_replay.py").exists(),
         "coverage_leakage_timestamp_auditor":(base/"research/audit_intraday_pit_replay.py").exists(),
@@ -49,12 +71,16 @@ def inspect(root: str=".") -> dict:
 
     blockers=[]
     if not inputs["sector_context"]["exists"]:
-        blockers.append("NO_EFFECTIVE_DATED_HISTORICAL_SECTOR_MAPPING")
+        blockers.append("EXTERNAL_DATA_REQUIRED:EFFECTIVE_DATED_HISTORICAL_SECTOR_MEMBERSHIP")
+    if existing_5m.get("status")!="PASS":
+        blockers.append("EXTERNAL_DATA_REQUIRED:SYNCHRONIZED_WHOLE_UNIVERSE_INTRADAY_HISTORY")
     if not inputs["decision_stream"]["exists"]:
-        blockers.append("NO_CANONICAL_HISTORICAL_DECISION_STREAM")
+        blockers.append("EXTERNAL_DATA_REQUIRED:HISTORICAL_DECISION_STREAM_OR_DETERMINISTIC_ALL_CANDIDATE_REPLAY")
     if not inputs["outcomes"]["exists"]:
-        blockers.append("NO_CANONICAL_OUTCOME_JOIN_INPUT")
-    for key in ("market_context","feature_context","ranking_context","execution_context"):
+        blockers.append("EXTERNAL_DATA_REQUIRED:CANONICAL_OUTCOME_JOIN")
+    if not inputs["execution_context"]["exists"]:
+        blockers.append("EXTERNAL_DATA_REQUIRED:EMPIRICAL_EXECUTION_EVIDENCE")
+    for key in ("market_context","feature_context","ranking_context"):
         if not inputs[key]["exists"]:
             blockers.append(f"MISSING_CANONICAL_INPUT:{key}")
     if pit_status!="PASS" and not inputs["pit_intervals"]["exists"]:
@@ -89,8 +115,9 @@ def inspect(root: str=".") -> dict:
             "production_change":False,
             "w2_efficacy_allowed":not blockers,
             "fail_closed":True,
+            "proxy_substitution_allowed":False,
         },
-        "note":"Missing canonical replay data keeps row-level audits NOT_EVALUABLE and W2 DATA_BLOCKED. This is a data-availability result, not a strategy result.",
+        "note":"Missing promotion-grade external historical evidence keeps row-level audits NOT_EVALUABLE and W2 DATA_BLOCKED. Existing 100-symbol current-universe 5m history is diagnostic only and cannot satisfy whole-universe PIT coverage.",
     }
 
 def main():
