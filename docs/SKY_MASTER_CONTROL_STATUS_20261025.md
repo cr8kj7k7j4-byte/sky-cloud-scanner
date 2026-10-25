@@ -297,3 +297,27 @@ Canonical decision:
 `docs/W0_V14_HISTORICAL_REPLAY_GOVERNANCE_DECISION_20261026.md`
 
 Production baseline remains unchanged.
+
+## N. W3A Data Acquisition Path — 2026-10-26
+
+### Verified source options
+- Fugle historical minute candles support 1/3/5/10/15/30/60-minute bars from 2023-05-23 for listed/OTC symbols by code; API is authenticated and rate-limited by plan.
+- TWSE Data E-Shop provides official all-market historical intraday data. The 5-level order-book product is available from 1992-01-01 and is listed at NT$5,000/month for internal use; order-type data is NT$10,000/month and is not currently required.
+- TPEx Data E-Shop provides historical trade files from 2022-11-01; paid official acquisition remains a fallback path.
+
+### Cost-control decision
+- First use existing repository Fugle API capability to test whether symbol/date breadth can be expanded without new spend.
+- Do not purchase TWSE / TPEx data until zero-new-spend Fugle feasibility is exhausted.
+- Do not purchase Broker Flow data.
+- Any paid data acquisition requires explicit user approval before purchase.
+
+### New W3A artifacts
+- `docs/W3A_INTRADAY_PIT_DATA_ACQUISITION_PLAN_20261026.md`
+- `research/probe_fugle_pit_intraday_coverage.py`
+- `.github/workflows/w3a-fugle-pit-coverage-probe.yml`
+
+### Probe objective
+Use the existing `FUGLE_API_KEY` GitHub Actions secret to probe active TWSE/TPEx and historical-closed PIT members. Measure actual minute-data availability, plan restriction, rate limiting and historical-symbol retrievability before deciding whether official paid data is required.
+
+### Governance
+This probe is feasibility evidence only. It cannot authorize W2 validation, formal Pre-registration or Production changes. The >=95% PIT coverage gate remains unchanged.
