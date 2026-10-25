@@ -122,3 +122,13 @@ Any material gate failure blocks Promotion. No chat window, notebook, branch, or
 - W4 Shadow/Paper: **WAITING_FOR_SUFFICIENCY**; minimum gate remains >=200 evaluable samples, >=20 trading days, >=2 regimes, >=95% outcome completeness, <=20% single-symbol share, plus portfolio/cost/capacity, P0-R and P0-G review.
 - W5 Candidate Lab: no active VNext Alpha candidate is currently authorized.
 - Production baseline remains unchanged until all 18 Promotion Gates pass.
+
+## W2 intraday validation infrastructure — 2026-10-25
+
+- PR #79 research infrastructure is merged and accepted by W0/P0-G.
+- Accepted components: canonical Intraday PIT Replay Contract, fail-closed validator, 10-Rule ablation, walk-forward/regime stability, 0.45%/0.65% cost stress, W2 validation runner, CI tests.
+- Sky Day Trading v1.4 / P0-C MVP remains the Production baseline and its behavior is unchanged.
+- No Day Trading rule is newly promoted to Production Stable Rule.
+- W2 formal status: **HOLD**.
+- Main blocker: canonical Intraday PIT Historical Replay Dataset is not yet complete.
+- Highest-priority unblock owner: **W3｜Data & System Engineering**.
