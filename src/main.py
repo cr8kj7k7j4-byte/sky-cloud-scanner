@@ -2,6 +2,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from pathlib import Path
 import json
+import time
 
 from .config import (
     TOP_N, DEEP_DIVE_N, STRICT_OFFICIAL_MODE, ALLOW_MIS_OTC_FALLBACK,
@@ -46,6 +47,7 @@ from .strategy_builder import build_breakout_plan, apply_plan
 from .monitor_engine import evaluate_monitor_state
 from .state_store import MonitorStateStore
 from .premarket_state import load_premarket_event_snapshot
+from .structured_log import emit as structured_log
 from .paper_trading import (
     evaluate_paper_gate,
     build_paper_snapshot,
@@ -133,7 +135,16 @@ def _portfolio_context():
 def run():
     now = datetime.now(TZ)
     run_id = now.strftime("%Y%m%dT%H%M%S%z")
+    started_monotonic = time.monotonic()
     OUT.mkdir(exist_ok=True)
+    structured_log(
+        "scan_started",
+        module="W3B",
+        service="scanner",
+        request_id=run_id,
+        strategy_version="Sky-V2.1",
+        severity="INFO",
+    )
     paper_gate = evaluate_paper_gate(PAPER_TRADING_MODE, P0S_OOS_VERDICT)
 
     state_store = MonitorStateStore(
@@ -635,6 +646,16 @@ def run():
             encoding="utf-8",
         )
         send_telegram(msg)
+        structured_log(
+            "scan_completed",
+            module="W3B",
+            service="scanner",
+            request_id=run_id,
+            strategy_version="Sky-V2.1",
+            severity="INFO",
+            latency_ms=round((time.monotonic() - started_monotonic) * 1000, 2),
+            extra={"warning_count": len(st["warnings"])},
+        )
 
     except Exception as e:
         err = (
@@ -646,6 +667,16 @@ def run():
         (OUT / "latest.json").write_text(
             json.dumps(st, ensure_ascii=False, indent=2),
             encoding="utf-8",
+        )
+        structured_log(
+            "scan_failed",
+            module="W3B",
+            service="scanner",
+            request_id=run_id,
+            strategy_version="Sky-V2.1",
+            severity="ERROR",
+            error_type=type(e).__name__,
+            latency_ms=round((time.monotonic() - started_monotonic) * 1000, 2),
         )
         print(err)
         raise
