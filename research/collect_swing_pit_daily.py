@@ -51,8 +51,9 @@ def _to_int(v):
 
 def _get_dataset(dataset: str, symbol: str, start: str, end: str, token: str, retries: int = 3):
     params = {"dataset": dataset, "data_id": symbol, "start_date": start, "end_date": end}
+    headers = {"User-Agent": "Sky-W3-Swing-PIT/1.1"}
     if token:
-        params["token"] = token
+        headers["Authorization"] = f"Bearer {token}"
     last_error = None
     for attempt in range(1, retries + 1):
         try:
@@ -60,7 +61,7 @@ def _get_dataset(dataset: str, symbol: str, start: str, end: str, token: str, re
                 FINMIND_URL,
                 params=params,
                 timeout=45,
-                headers={"User-Agent": "Sky-W3-Swing-PIT/1.1"},
+                headers=headers,
             )
             if r.status_code in (402, 429):
                 raise ProviderQuotaError(f"{dataset}:RATE_OR_QUOTA_{r.status_code}:{r.text[:160]}")
