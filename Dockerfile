@@ -10,4 +10,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+RUN useradd --create-home --uid 10001 sky \
+    && chown -R sky:sky /app
+
+USER sky
+
 CMD ["python", "-m", "src.main"]
