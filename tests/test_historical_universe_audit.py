@@ -269,8 +269,8 @@ def test_extraneous_open_interval_blocks_gate():
         audit_dates=["2025-12-31"],
     )
     assert out["current_open_interval_alignment_ok"] is False
-    assert out["current_interval_coverage"]["TPEx"]["extraneous_open_symbol_count"] == 1
-    assert "9998" in out["current_interval_coverage"]["TPEx"]["extraneous_open_symbols"]
+    assert out["current_membership_alignment"]["TPEx"]["extraneous_open_symbol_count"] == 1
+    assert "9998" in out["current_membership_alignment"]["TPEx"]["extraneous_open_symbols"]
     assert out["historical_universe_gate_pass"] is False
 
 
@@ -327,8 +327,8 @@ def test_prewindow_cross_exchange_latest_list_wins_before_clipping():
         audit_dates=["2023-12-31"],
     )
     assert out["current_open_interval_alignment_ok"] is True
-    assert out["current_interval_coverage"]["TPEx"]["extraneous_open_symbol_count"] == 0
-    assert out["current_interval_coverage"]["TWSE"]["extraneous_open_symbol_count"] == 0
+    assert out["current_membership_alignment"]["TPEx"]["extraneous_open_symbol_count"] == 0
+    assert out["current_membership_alignment"]["TWSE"]["extraneous_open_symbol_count"] == 0
     pit_twse=out["historical_dates"]["2023-12-31"]["by_exchange"]["TWSE"]
     assert pit_twse["pit_n"] >= 1
     assert any(
@@ -340,3 +340,30 @@ def test_prewindow_cross_exchange_latest_list_wins_before_clipping():
             .build_windowed_intervals(p["events"])["annotations"]
         )
     )
+
+
+def test_suspended_listed_member_can_be_absent_from_quote_universe():
+    p=_payload()
+    p["events"].append({
+        "symbol":"7777","exchange":"TWSE","name":"Suspended",
+        "event_type":"LIST","event_date":"2020-01-01",
+        "source":"official_basic_data","source_url":"u",
+        "source_as_of":"2026-10-25","notes":"",
+    })
+    p["current_membership"]=[
+        {"symbol":"2222","exchange":"TWSE","name":"X"},
+        {"symbol":"3333","exchange":"TPEx","name":"Y"},
+        {"symbol":"7777","exchange":"TWSE","name":"Suspended"},
+    ]
+    current_quotes=[
+        {"symbol":"2222","exchange":"TWSE"},
+        {"symbol":"3333","exchange":"TPEx"},
+    ]
+    out=build_historical_universe_audit(
+        official_payload=p,
+        current_universe=current_quotes,
+        audit_dates=["2025-12-31"],
+    )
+    assert out["current_open_interval_alignment_ok"] is True
+    assert out["current_membership_alignment"]["TWSE"]["missing_open_symbol_count"] == 0
+    assert out["historical_universe_gate_pass"] is True
