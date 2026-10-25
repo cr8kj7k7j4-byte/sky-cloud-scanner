@@ -9,6 +9,8 @@ on:
       - "src/model_registry.py"
       - "src/paper_trading.py"
       - "src/shadow_evidence.py"
+      - "research/w4_scan_artifact_eligibility.py"
+      - "tests/test_w4_scan_artifact_eligibility.py"
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -45,6 +47,7 @@ jobs:
           tests/test_shadow_promotion_dashboard.py
           tests/test_evidence_promotion_gates.py
           tests/test_shadow_evidence.py
+          tests/test_w4_scan_artifact_eligibility.py
 
       - name: Download recent successful scan artifacts
         if: github.event_name != 'pull_request'
@@ -61,9 +64,6 @@ jobs:
             --jq '.[] | select(.createdAt >= "2026-10-24T23:28:08Z") | .databaseId' \
             > /tmp/scan_run_ids.txt
 
-          SCAN_RUNS="$(grep -cve '^$' /tmp/scan_run_ids.txt || true)"
-          echo "ELIGIBLE_SUCCESSFUL_SCAN_RUNS=$SCAN_RUNS" >> "$GITHUB_ENV"
-
           while read -r run_id; do
             [ -z "$run_id" ] && continue
             dest="shadow_history/$run_id"
@@ -74,6 +74,26 @@ jobs:
           done < /tmp/scan_run_ids.txt
 
           find shadow_history -type f -path '*/output/paper/*.json' | sort || true
+
+      - name: Audit eligible Shadow scan artifacts
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python research/w4_scan_artifact_eligibility.py \
+            --root shadow_history \
+            --ledger-start "2026-10-24T23:28:08Z" \
+            --out research_output/w4_scan_eligibility.json
+
+          ELIGIBLE_RUNS="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("research_output/w4_scan_eligibility.json")
+          x=json.loads(p.read_text(encoding="utf-8"))
+          print(int(x.get("eligible_run_count") or 0))
+          PY
+          )"
+          echo "ELIGIBLE_SUCCESSFUL_SCAN_RUNS=$ELIGIBLE_RUNS" >> "$GITHUB_ENV"
 
       - name: Download enriched Shadow outcome artifacts
         if: github.event_name != 'pull_request'
@@ -127,6 +147,7 @@ jobs:
           path: |
             research_output/shadow_promotion_dashboard.json
             research_output/shadow_promotion_dashboard.md
+            research_output/w4_scan_eligibility.json
           if-no-files-found: error
           retention-days: 30
 
