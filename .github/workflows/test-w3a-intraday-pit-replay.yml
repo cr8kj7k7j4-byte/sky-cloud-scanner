@@ -1,6 +1,9 @@
 name: test-w3a-intraday-pit-replay
 
 on:
+  push:
+    branches:
+      - 'w3a/intraday-pit-convergence'
   pull_request:
     paths:
       - "research/build_intraday_pit_replay.py"
