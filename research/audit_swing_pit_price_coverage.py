@@ -164,7 +164,7 @@ def main():
     symbol_day_coverage = (observed / expected * 100.0) if expected else 0.0
 
     report = {
-        "schema_version": "SWING_PIT_PRICE_COVERAGE_1.0",
+        "schema_version": "SWING_PIT_PRICE_COVERAGE_1.1",
         "status": "READY_FOR_W1_CANONICAL_REPLAY" if all_pass else "BLOCKED_PRICE_HISTORY_COVERAGE",
         "canonical_pit_intervals": len(intervals),
         "canonical_pit_unique_symbols": len({str(x.get("symbol")) for x in intervals if x.get("symbol")}),
@@ -182,7 +182,7 @@ def main():
         "governance": {
             "current_universe_substitution_forbidden": True,
             "forward_fill": False,
-            "corporate_action_policy": "Adjusted OHLC from FinMind TaiwanStockPriceAdj; PIT membership remains canonical official TWSE/TPEx intervals.",
+            "corporate_action_policy": "Raw FinMind TaiwanStockPrice OHLC is backward-adjusted by Sky using free reference datasets for dividend/right, capital reduction, stock split and par-value change. Same-date multi-dataset conflicts fail closed. PIT membership remains canonical official TWSE/TPEx intervals.",
             "market_transfer_policy": "Exchange is assigned per canonical interval on each trading date.",
             "missing_policy": "No forward fill. Missing eligible dates remain explicit audit gaps.",
         },
