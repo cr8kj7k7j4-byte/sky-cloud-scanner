@@ -103,6 +103,10 @@ def build_paper_snapshot(*, run_id: str, observed_at: str, item: dict, gate: Pap
         "sector": item.get("sector"),
         "ranking_position": item.get("ranking_position"),
         "rank_score": item.get("rank_score"),
+        "gainer_rank": item.get("gainer_rank"),
+        "top100_gainer_member": item.get("top100_gainer_member"),
+        "gainer_universe_size": item.get("gainer_universe_size"),
+        "gainer_rank_source": item.get("gainer_rank_source"),
         "phase": plan.get("phase") or item.get("phase"),
         "setup": plan.get("setup"),
         "trigger": plan.get("trigger"),
@@ -151,6 +155,10 @@ def build_paper_snapshot(*, run_id: str, observed_at: str, item: dict, gate: Pap
         "monitor": monitor,
         "decision": decision,
         "research_context": {
+            "gainer_rank": item.get("gainer_rank"),
+            "top100_gainer_member": item.get("top100_gainer_member"),
+            "gainer_universe_size": item.get("gainer_universe_size"),
+            "gainer_rank_source": item.get("gainer_rank_source"),
             "regime": (
                 ((item.get("ml") or {}).get("regime") or {}).get("label")
                 if isinstance((item.get("ml") or {}).get("regime"), dict)
