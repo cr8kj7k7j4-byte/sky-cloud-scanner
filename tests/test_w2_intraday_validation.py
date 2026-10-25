@@ -36,6 +36,7 @@ def make_frame(days: int = 60, rows_per_day: int = 2) -> pd.DataFrame:
                 "feature_schema_version": "test",
                 "rule_schema_version": "w2-10-rule-v1",
                 "cost_model_version": "test-cost-v1",
+                "research_split": "OOS",
                 "pit_universe_member": True,
                 "data_quality_status": "OK",
                 "leakage_audit_status": "PASS",
