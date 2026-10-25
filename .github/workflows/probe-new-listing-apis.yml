@@ -1,0 +1,30 @@
+name: New Listing API Probe
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'feature/historical-universe-audit'
+    paths:
+      - 'research/probe_new_listing_apis.py'
+      - '.github/workflows/probe-new-listing-apis.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install requests
+      - run: python research/probe_new_listing_apis.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: new-listing-api-probe-${{ github.run_id }}
+          path: output/new_listing_api_probe/
+          retention-days: 30
