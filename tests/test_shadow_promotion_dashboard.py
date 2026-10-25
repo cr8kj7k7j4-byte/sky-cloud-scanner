@@ -19,9 +19,9 @@ def _records(n=50, days=10, symbols=5, regimes=("BULL", "NEUTRAL")):
     return rows
 
 
-def test_dashboard_reports_accumulation_gaps():
+def test_dashboard_reports_future_sample_waiting_gaps():
     dashboard = build_shadow_promotion_dashboard(_records())
-    assert dashboard["stage"] == "ACCUMULATING"
+    assert dashboard["stage"] == "WAITING_FOR_FUTURE_SAMPLE"
     assert dashboard["sample_gaps"]["samples_remaining"] == 150
     assert dashboard["sample_gaps"]["trading_days_remaining"] == 10
     assert dashboard["summary"]["promotable_to_governance_review"] is False
