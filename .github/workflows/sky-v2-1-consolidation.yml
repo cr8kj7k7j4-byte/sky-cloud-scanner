@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - integration/sky-v2.1-consolidation
+      - 'governance/**'
   workflow_dispatch:
 
 permissions:
@@ -34,4 +35,6 @@ jobs:
             tests/test_vwap_entry_replay.py \
             tests/test_execution_engine.py \
             tests/test_cost_profiles.py \
-            tests/test_execution_calibration_ledger.py
+            tests/test_execution_calibration_ledger.py \
+            tests/test_governance_pit_gate.py \
+            tests/test_revenue_pit.py
