@@ -15,6 +15,8 @@ from src.point_in_time_universe import (
 
 MIN_CURRENT_INTERVAL_COVERAGE_PCT = 99.0
 REQUIRED_HISTORICAL_SOURCES = {"TWSE_DELIST", "TPEX_DELIST"}
+WINDOW_START = "2023-01-01"
+LISTING_HISTORY_START = {"TWSE": "2000-01-01", "TPEx": "2005-01-01"}
 
 DEFAULT_DATES = [
     "2023-12-31",
@@ -23,6 +25,126 @@ DEFAULT_DATES = [
     "2026-09-30",
 ]
 
+
+
+def build_windowed_intervals(events: list[dict], window_start: str = WINDOW_START) -> dict:
+    """Build membership intervals only for the governed research window."""
+    grouped=defaultdict(list)
+    for raw in events or []:
+        symbol=str(raw.get("symbol") or "")
+        exchange=str(raw.get("exchange") or "")
+        event_type=str(raw.get("event_type") or "")
+        event_date=str(raw.get("event_date") or "")
+        if symbol and exchange and event_type in {"LIST","DELIST"} and event_date:
+            grouped[(symbol,exchange)].append(raw)
+
+    intervals=[]
+    unresolved=[]
+    annotations=[]
+
+    for (symbol,exchange), arr in grouped.items():
+        arr=sorted(
+            arr,
+            key=lambda x: (
+                str(x.get("event_date")),
+                0 if x.get("event_type")=="DELIST" else 1,
+            ),
+        )
+        lists=[x for x in arr if x.get("event_type")=="LIST"]
+        history_start=LISTING_HISTORY_START.get(exchange)
+
+        listed=False
+        for e in arr:
+            d=str(e.get("event_date"))
+            if d >= window_start:
+                break
+            if e.get("event_type")=="LIST":
+                listed=True
+            elif e.get("event_type")=="DELIST":
+                listed=False
+
+        current_start=window_start if listed else None
+        future=[e for e in arr if str(e.get("event_date")) >= window_start]
+
+        if (
+            not listed
+            and not lists
+            and future
+            and future[0].get("event_type")=="DELIST"
+            and history_start
+            and history_start < window_start
+        ):
+            listed=True
+            current_start=window_start
+            annotations.append({
+                "symbol":symbol,
+                "exchange":exchange,
+                "type":"LEFT_CENSORED_AT_WINDOW_START",
+                "window_start":window_start,
+                "evidence_event":future[0],
+                "note":"Actual listing date predates available official listing-history coverage; membership is asserted only from the governed research-window start.",
+            })
+
+        for e in future:
+            d=str(e.get("event_date"))
+            typ=e.get("event_type")
+            if typ=="LIST":
+                if listed:
+                    annotations.append({
+                        "symbol":symbol,
+                        "exchange":exchange,
+                        "type":"LIST_WHILE_ALREADY_LISTED",
+                        "event":e,
+                        "note":"Continuous membership; additional LIST is treated as reclassification, board change, or near-duplicate source record.",
+                    })
+                    continue
+                listed=True
+                current_start=d
+            elif typ=="DELIST":
+                if not listed:
+                    unresolved.append({
+                        "symbol":symbol,
+                        "exchange":exchange,
+                        "reason":"WINDOW_DELIST_WITHOUT_MEMBERSHIP",
+                        "event":e,
+                    })
+                    continue
+                intervals.append({
+                    "symbol":symbol,
+                    "exchange":exchange,
+                    "name":str(e.get("name") or ""),
+                    "listed_from":current_start,
+                    "listed_to":d,
+                    "source":"official_event_ledger_windowed",
+                    "source_as_of":str(e.get("source_as_of") or ""),
+                    "notes":"windowed_membership",
+                })
+                listed=False
+                current_start=None
+
+        if listed and current_start:
+            name=""
+            for e in reversed(arr):
+                if e.get("name"):
+                    name=str(e.get("name"))
+                    break
+            intervals.append({
+                "symbol":symbol,
+                "exchange":exchange,
+                "name":name,
+                "listed_from":current_start,
+                "listed_to":None,
+                "source":"official_event_ledger_windowed",
+                "source_as_of":max(str(e.get("source_as_of") or "") for e in arr),
+                "notes":"windowed_membership",
+            })
+
+    return {
+        "intervals":sorted(intervals,key=lambda x:(x["exchange"],x["symbol"],x["listed_from"])),
+        "unresolved":unresolved,
+        "annotations":annotations,
+        "window_start":window_start,
+    }
 
 def build_historical_universe_audit(
     *,
