@@ -8,9 +8,9 @@
       "diagnose_sources.py"
     ],
     "P0-K": [
-      "knowledge_engine.py (canonical)",
-      "evidence_ledger.py (legacy adapter)",
-      "news_evidence.py (legacy adapter)",
+      "knowledge_engine.py",
+      "evidence_ledger.py(adapter)",
+      "news_evidence.py(adapter)",
       "research_sources.py",
       "industry_news.py"
     ],
@@ -42,12 +42,11 @@
       "strategy_builder.py"
     ],
     "P0-C": [
-      "decision_engine.py (canonical)",
-      "sky_rules.py (compatibility adapter only)"
+      "sky_rules.py (to consolidate)"
     ],
     "P0-O": [
-      "ranking_engine.py (canonical runtime + research ranking contracts)",
-      "premarket_ranking.py (premarket event-ranking context)"
+      "ranking_engine.py",
+      "premarket_ranking.py"
     ],
     "P0-R": [
       "risk_engine.py"
@@ -64,7 +63,7 @@
       "premarket_state.py"
     ],
     "PMS": [
-      "position_manager.py (canonical)"
+      "MISSING_CANONICAL_MODULE"
     ],
     "P0-L": [
       "trade_logger.py (canonical)",
@@ -92,11 +91,11 @@
     ]
   },
   "immediate_priorities": [
-    "accumulate real Shadow evidence for Ranking/ML promotion",
-    "evaluate Shadow Sample Sufficiency Gate",
-    "run OOS/Walk-forward/cost/leakage/survivorship/regime validation for surviving candidates",
-    "populate Ranking/Model Promotion Scorecards",
-    "complete PIT historical backfill/coverage audit and strict TPEx intraday source"
+    "P0-K consolidation",
+    "P0-C canonical decision contract",
+    "PMS canonical position manager",
+    "PR 23-29 extraction and closure; PR29 superseded by PR38",
+    "single production ranking entry"
   ],
   "paused": [
     "new phases beyond consolidation",
@@ -108,13 +107,6 @@
     "P0-X runtime import fix merged via PR41",
     "P0-L canonical trade_logger schema merged via PR41",
     "OOS-gated Shadow/Paper ledger merged via PR38",
-    "P0-S OOS workflow automation merged via PR34/PR35",
-    "P0-K canonical evidence merged via PR43",
-    "P0-C canonical decision contract merged via PR44",
-    "PMS canonical position manager merged via PR45",
-    "P0-O single runtime ranking entry merged via PR47",
-    "P0-D/P0-G validation and rule-governance consolidation merged via PR50",
-    "sky_rules decomposition merged via PR51",
-    "Evidence Promotion Gate and Shadow Sample Sufficiency merged via PR53"
+    "P0-S OOS workflow automation merged via PR34/PR35"
   ]
 }
