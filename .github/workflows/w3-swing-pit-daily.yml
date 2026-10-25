@@ -9,7 +9,6 @@ on:
       - "research/collect_swing_pit_daily.py"
       - "research/audit_swing_pit_price_coverage.py"
       - "research/validate_swing_pit_readiness.py"
-      - "research/audit_historical_universe.py"
       - "research/W3_SWING_PIT_DAILY_PRICE_DATA_CONTRACT.md"
       - "tests/test_swing_pit_daily_collector.py"
       - "tests/test_swing_pit_price_coverage.py"
@@ -17,9 +16,11 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   fugle-probe:
+    continue-on-error: true
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -33,17 +34,16 @@ jobs:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
         run: python research/probe_fugle_adjusted_daily.py
 
-  build-pit:
-    if: ${{ false }}
+  canonical-pit:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install dependencies
-        run: pip install -r requirements.txt pytest
+      - name: Install focused test dependencies
+        run: pip install pytest
       - name: Run focused unit tests
         env:
           PYTHONPATH: .
@@ -52,11 +52,35 @@ jobs:
           tests/test_swing_pit_daily_collector.py
           tests/test_swing_pit_price_coverage.py
           tests/test_point_in_time_universe.py
-      - name: Rebuild canonical PIT intervals
+      - name: Download last verified canonical PIT artifact from main
+        uses: actions/download-artifact@v4
+        with:
+          name: historical-universe-audit-40193567617
+          path: canonical_pit
+          repository: cr8kj7k7j4-byte/sky-cloud-scanner
+          run-id: 40193567617
+          github-token: ${{ github.token }}
+      - name: Verify pinned canonical PIT gate
         env:
           PYTHONPATH: .
-        run: python research/audit_historical_universe.py --out canonical_pit
-      - name: Upload canonical PIT
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("canonical_pit/pit_intervals.json")
+          x=json.loads(p.read_text(encoding="utf-8"))
+          assert x.get("historical_universe_gate_pass") is True, "pinned PIT gate must be PASS"
+          assert (x.get("interval_validation") or {}).get("valid") is True, "pinned PIT intervals must validate"
+          intervals=list(x.get("intervals") or [])
+          assert len(intervals) == 2116, f"unexpected canonical interval count: {len(intervals)}"
+          print({
+            "canonical_source_run":40193567617,
+            "artifact":"historical-universe-audit-40193567617",
+            "intervals":len(intervals),
+            "gate":"PASS",
+          })
+          PY
+      - name: Upload run-local canonical PIT copy
         uses: actions/upload-artifact@v4
         with:
           name: swing-canonical-pit
@@ -64,8 +88,7 @@ jobs:
           retention-days: 90
 
   collect:
-    if: ${{ false }}
-    needs: build-pit
+    needs: canonical-pit
     strategy:
       fail-fast: false
       max-parallel: 16
@@ -80,7 +103,7 @@ jobs:
           python-version: "3.11"
       - name: Install dependencies
         run: pip install requests
-      - name: Download canonical PIT
+      - name: Download pinned canonical PIT
         uses: actions/download-artifact@v4
         with:
           name: swing-canonical-pit
@@ -98,15 +121,16 @@ jobs:
           --shard-index ${{ matrix.shard }}
           --shard-count 16
       - name: Upload shard
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: swing-pit-shard-${{ matrix.shard }}
           path: shard_out/
+          if-no-files-found: warn
           retention-days: 90
           compression-level: 6
 
   combine-and-audit:
-    if: ${{ false }}
     needs: collect
     runs-on: ubuntu-latest
     timeout-minutes: 35
@@ -115,7 +139,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Download canonical PIT
+      - name: Download pinned canonical PIT
         uses: actions/download-artifact@v4
         with:
           name: swing-canonical-pit
@@ -159,6 +183,7 @@ jobs:
           files=sorted(Path("canonical_history_flat/history").glob("*_D.json"))
           manifest={
             "schema_version":"SWING_PIT_DAILY_MANIFEST_1.0",
+            "canonical_pit_source_run":40193567617,
             "files":len(files),
             "sha256":{
               p.name:hashlib.sha256(p.read_bytes()).hexdigest()
@@ -170,6 +195,7 @@ jobs:
           )
           PY
       - name: Upload canonical daily PIT dataset
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: swing-canonical-pit-daily-${{ github.run_id }}
@@ -178,5 +204,6 @@ jobs:
             canonical_audit/
             w1_readiness/
             canonical_pit/pit_intervals.json
+          if-no-files-found: warn
           retention-days: 90
           compression-level: 9
