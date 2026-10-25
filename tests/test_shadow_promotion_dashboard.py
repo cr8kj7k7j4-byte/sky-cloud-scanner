@@ -101,3 +101,38 @@ def test_runner_loads_multiple_paper_files():
         rows, files = load_shadow_records(root)
         assert len(rows) == 5
         assert len(files) == 2
+
+
+
+def test_loader_prefers_enriched_outcome_record():
+    with TemporaryDirectory() as td:
+        root = Path(td)
+        raw_dir = root / "scan" / "output" / "paper"
+        out_dir = root / "outcome" / "output" / "paper"
+        raw_dir.mkdir(parents=True)
+        out_dir.mkdir(parents=True)
+
+        base = {
+            "run_id": "r1",
+            "observed_at": "2026-10-27T09:35:00+08:00",
+            "symbol": "TEST",
+            "research_context": {"regime": "BULL"},
+            "outcome": {},
+        }
+        enriched = {
+            **base,
+            "outcome": {
+                "status": "COMPLETE",
+                "ranking": {"status": "COMPLETE"},
+            },
+        }
+        (raw_dir / "raw.json").write_text(
+            json.dumps({"records": [base]}), encoding="utf-8"
+        )
+        (out_dir / "2026-10-27-outcomes.json").write_text(
+            json.dumps({"records": [enriched]}), encoding="utf-8"
+        )
+
+        rows, _ = load_shadow_records(root)
+        assert len(rows) == 1
+        assert rows[0]["outcome"]["ranking"]["status"] == "COMPLETE"
