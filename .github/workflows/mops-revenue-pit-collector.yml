@@ -1,0 +1,71 @@
+name: MOPS Revenue PIT Collector
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Asia/Taipei 08:05-20:35 every 30 minutes on days 1-15,
+    # covering the monthly-revenue filing window with margin for holidays.
+    - cron: '5,35 0-12 1-15 * *'
+    # Outside the main filing window, keep one daily observation for
+    # corrections / late filings. 04:05 UTC = 12:05 Asia/Taipei.
+    - cron: '5 4 16-31 * *'
+  push:
+    branches:
+      - 'feature/mops-revenue-pit-collector'
+    paths:
+      - 'research/collect_mops_revenue_pit.py'
+      - 'tests/test_mops_revenue_pit_collector.py'
+      - '.github/workflows/mops-revenue-pit-collector.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mops-revenue-pit-collector
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'schedule' && 'main' || github.ref_name }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install test dependency
+        run: pip install pytest
+
+      - name: Validate collector
+        run: python -m pytest -q tests/test_mops_revenue_pit_collector.py tests/test_revenue_pit.py
+
+      - name: Collect official MOPS revenue publish timestamps
+        run: python research/collect_mops_revenue_pit.py
+
+      - name: Upload observation snapshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mops-revenue-pit-${{ github.run_id }}
+          path: output/mops_revenue_pit_snapshot.json
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Persist PIT ledger on main scheduled/manual runs
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'main')
+        run: |
+          if [ -z "$(git status --porcelain -- data/revenue_pit/mops_revenue_filing_times.jsonl)" ]; then
+            echo "No new MOPS revenue filing timestamps."
+            exit 0
+          fi
+          git config user.name "sky-pit-bot"
+          git config user.email "sky-pit-bot@users.noreply.github.com"
+          git add data/revenue_pit/mops_revenue_filing_times.jsonl
+          git commit -m "data: append MOPS revenue PIT timestamps"
+          git pull --rebase origin main
+          git push origin HEAD:main
