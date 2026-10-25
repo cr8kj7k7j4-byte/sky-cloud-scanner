@@ -1,0 +1,133 @@
+name: W3A Sharded PIT Intraday History Export
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      shard_count: ${{ steps.meta.outputs.shard_count }}
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4 pandas
+      - name: Build governed PIT universe
+        run: |
+          python research/audit_historical_universe.py --out output/historical_universe_audit
+      - name: Require PIT PASS and build manifest
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path("output/historical_universe_audit/audit.json").read_text(encoding="utf-8"))
+          if not x.get("historical_universe_gate_pass"):
+              raise SystemExit("PIT historical universe gate is not PASS")
+          PY
+          python research/build_pit_history_manifest.py             --pit-universe output/historical_universe_audit/pit_intervals.json             --from-date 2023-01-01             --to-date 2026-10-24             --out research_data/pit_history_manifest.json
+          python research/shard_pit_history_manifest.py             --manifest research_data/pit_history_manifest.json             --shard-count 8             --out-dir research_data/pit_history_shards
+      - id: meta
+        run: echo "shard_count=8" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: w3a-pit-history-plan
+          path: |
+            research_data/pit_history_manifest.json
+            research_data/pit_history_shards/
+            output/historical_universe_audit/pit_intervals.json
+            output/historical_universe_audit/audit.json
+          retention-days: 14
+
+  download:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        shard: [0,1,2,3,4,5,6,7]
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests pandas
+      - uses: actions/download-artifact@v4
+        with:
+          name: w3a-pit-history-plan
+          path: plan
+      - name: Download shard with conservative source pacing
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+        run: |
+          printf -v SHARD "%02d" "${{ matrix.shard }}"
+          python research/download_pit_history.py             --manifest "plan/research_data/pit_history_shards/manifest_shard_${SHARD}.json"             --out "research_data/pit_history"
+      - name: Package shard
+        run: |
+          mkdir -p shard_output
+          cp research_data/pit_history_shards/manifest_shard_*.json shard_output/ 2>/dev/null || true
+          cp research_data/pit_history_download_summary.json shard_output/
+          cp -r research_data/pit_history shard_output/history
+          tar -czf "pit-history-shard-${{ matrix.shard }}.tar.gz" shard_output
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pit-history-shard-${{ matrix.shard }}
+          path: pit-history-shard-${{ matrix.shard }}.tar.gz
+          retention-days: 14
+
+  merge:
+    needs: download
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pandas
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: pit-history-shard-*
+          path: shards
+      - uses: actions/download-artifact@v4
+        with:
+          name: w3a-pit-history-plan
+          path: plan
+      - name: Extract shards
+        run: |
+          mkdir -p extracted
+          for f in shards/*/*.tar.gz; do
+            d="extracted/$(basename "$f" .tar.gz)"
+            mkdir -p "$d"
+            tar -xzf "$f" -C "$d"
+          done
+      - name: Merge and checksum
+        run: |
+          ARGS=""
+          for d in extracted/*/shard_output; do
+            ARGS="$ARGS --shard-root $d"
+          done
+          python research/merge_pit_history_shards.py             $ARGS             --out-dir research_output/pit_history_merged
+      - name: Coverage audit
+        run: |
+          python research/audit_pit_intraday_history.py             --manifest plan/research_data/pit_history_manifest.json             --history-dir research_output/pit_history_merged/history             --download-summary research_output/pit_history_merged/pit_history_download_summary.json             --out research_output/pit_history_merged/coverage_audit.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: w3a-pit-history-merged
+          path: |
+            research_output/pit_history_merged/
+            plan/output/historical_universe_audit/audit.json
+            plan/research_data/pit_history_manifest.json
+          retention-days: 14
