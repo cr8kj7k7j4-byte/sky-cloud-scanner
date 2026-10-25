@@ -3,8 +3,14 @@ from datetime import datetime
 from pathlib import Path
 import json
 
+from .feature_registry import (
+    FEATURE_REGISTRY,
+    FEATURE_REGISTRY_VERSION,
+    validate_feature_names,
+)
 
-FEATURE_SCHEMA_VERSION = "1.0.0"
+
+FEATURE_SCHEMA_VERSION = "1.1.0"
 
 
 @dataclass(frozen=True)
@@ -35,10 +41,18 @@ def validate_feature_payload(features):
     features = dict(features or {})
     missing = sorted(REQUIRED_FEATURES - set(features.keys()))
     nulls = sorted(k for k in REQUIRED_FEATURES if features.get(k) is None)
+    names = validate_feature_names(features)
+    versions = {
+        name: FEATURE_REGISTRY[name].version
+        for name in sorted(set(features) & set(FEATURE_REGISTRY))
+    }
     return {
         "schema_version": FEATURE_SCHEMA_VERSION,
-        "valid_schema": len(missing) == 0,
+        "feature_registry_version": FEATURE_REGISTRY_VERSION,
+        "feature_versions": versions,
+        "valid_schema": len(missing) == 0 and names["all_names_registered"],
         "missing_fields": missing,
+        "unregistered_features": names["unregistered"],
         "null_required_fields": nulls,
         "completeness": round(
             (len(REQUIRED_FEATURES) - len(nulls) - len(missing))
