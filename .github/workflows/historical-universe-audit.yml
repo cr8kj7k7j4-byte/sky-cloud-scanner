@@ -1,0 +1,46 @@
+name: Historical Universe Survivorship Audit
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 14 * * *'
+  push:
+    branches:
+      - main
+      - 'governance/historical-universe-main-native*'
+    paths:
+      - 'research/audit_historical_universe.py'
+      - 'tests/test_historical_universe_audit.py'
+      - 'src/official_universe_events.py'
+      - 'src/point_in_time_universe.py'
+      - 'tests/test_official_universe_events.py'
+      - 'tests/test_point_in_time_universe.py'
+      - '.github/workflows/historical-universe-audit.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4 pytest
+      - name: Unit tests
+        run: python -m pytest -q tests/test_historical_universe_audit.py tests/test_official_universe_events.py tests/test_point_in_time_universe.py
+      - name: Run live official historical-universe audit
+        run: python research/audit_historical_universe.py --out output/historical_universe_audit
+      - name: Publish summary
+        run: cat output/historical_universe_audit/audit.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: historical-universe-audit-${{ github.run_id }}
+          path: output/historical_universe_audit/
+          retention-days: 90

@@ -39,4 +39,7 @@ jobs:
             tests/test_governance_pit_gate.py \
             tests/test_revenue_pit.py \
             tests/test_mops_revenue_pit_collector.py \
-            tests/test_revenue_pit_coverage.py
+            tests/test_revenue_pit_coverage.py \
+            tests/test_historical_universe_audit.py \
+            tests/test_official_universe_events.py \
+            tests/test_point_in_time_universe.py
