@@ -262,3 +262,250 @@ def promotion_readiness(*, walk_forward=False, oos=False, cost_stress=False,
         "failed_checks": failed,
         "note": "Promotion readiness is governance status, not forecast probability.",
     }
+
+
+
+def _deep_get(item, *paths, default=None):
+    """Return the first non-None value from dotted-path candidates."""
+    for path in paths:
+        cur = item
+        ok = True
+        for part in str(path).split("."):
+            if not isinstance(cur, dict) or part not in cur:
+                ok = False
+                break
+            cur = cur[part]
+        if ok and cur is not None:
+            return cur
+    return default
+
+
+def evaluate_shadow_sample_sufficiency(
+    records,
+    *,
+    min_samples=200,
+    min_trading_days=20,
+    min_regimes=2,
+    min_outcome_complete_ratio=0.95,
+    max_symbol_share=0.20,
+):
+    """Evidence-sufficiency gate for Shadow/Paper observations.
+
+    This is a governance gate, not a win-rate or profitability estimate.
+    Default thresholds are conservative candidate values and may be revised
+    only through documented research/governance changes.
+    """
+    rows = [dict(x) for x in (records or [])]
+    n = len(rows)
+
+    days = set()
+    regimes = set()
+    symbols = {}
+    outcome_complete = 0
+
+    for row in rows:
+        observed = str(row.get("observed_at") or "")
+        if len(observed) >= 10:
+            days.add(observed[:10])
+
+        regime = _deep_get(
+            row,
+            "research_context.regime",
+            "ml.regime.label",
+            "regime",
+        )
+        if regime not in (None, "", "UNKNOWN"):
+            regimes.add(str(regime))
+
+        symbol = str(row.get("symbol") or "")
+        if symbol:
+            symbols[symbol] = symbols.get(symbol, 0) + 1
+
+        outcome = row.get("outcome")
+        if isinstance(outcome, dict):
+            status = str(outcome.get("status") or "").upper()
+            if status in {"COMPLETE", "CLOSED", "FINAL"}:
+                outcome_complete += 1
+            elif (
+                outcome.get("r_multiple") is not None
+                or outcome.get("net_pnl") is not None
+            ):
+                outcome_complete += 1
+
+    outcome_complete_ratio = (
+        outcome_complete / n if n else 0.0
+    )
+    top_symbol_count = max(symbols.values()) if symbols else 0
+    top_symbol_share = top_symbol_count / n if n else 0.0
+
+    checks = {
+        "sample_count": n >= int(min_samples),
+        "trading_days": len(days) >= int(min_trading_days),
+        "regime_coverage": len(regimes) >= int(min_regimes),
+        "outcome_completeness": (
+            outcome_complete_ratio >= float(min_outcome_complete_ratio)
+        ),
+        "symbol_concentration": top_symbol_share <= float(max_symbol_share),
+    }
+    failed = [k for k, ok in checks.items() if not ok]
+
+    return {
+        "sufficient": not failed,
+        "checks": checks,
+        "failed_checks": failed,
+        "observed": {
+            "samples": n,
+            "trading_days": len(days),
+            "regimes": sorted(regimes),
+            "regime_count": len(regimes),
+            "outcome_complete": outcome_complete,
+            "outcome_complete_ratio": round(outcome_complete_ratio, 6),
+            "unique_symbols": len(symbols),
+            "top_symbol_share": round(top_symbol_share, 6),
+        },
+        "thresholds": {
+            "min_samples": int(min_samples),
+            "min_trading_days": int(min_trading_days),
+            "min_regimes": int(min_regimes),
+            "min_outcome_complete_ratio": float(min_outcome_complete_ratio),
+            "max_symbol_share": float(max_symbol_share),
+        },
+        "note": (
+            "Shadow Sample Sufficiency 只判斷證據量與代表性，"
+            "不代表勝率、獲利機率或策略有效性。"
+        ),
+    }
+
+
+PROMOTION_SCORECARD_WEIGHTS = {
+    "sample_sufficient": 12,
+    "walk_forward": 12,
+    "oos": 14,
+    "cost_stress": 10,
+    "leakage_check": 10,
+    "survivorship_review": 8,
+    "regime_stability": 10,
+    "paper_trade": 10,
+    "positive_expectancy": 7,
+    "profit_factor": 4,
+    "drawdown_control": 3,
+}
+
+
+def build_promotion_scorecard(
+    evidence,
+    *,
+    artifact_type="MODEL",
+    min_expectancy_r=0.0,
+    min_profit_factor=1.0,
+    max_drawdown_r=None,
+):
+    """Canonical Ranking/Model promotion evidence scorecard.
+
+    Score is evidence-readiness only. A score of 100 is NOT a win rate,
+    probability of profit, or automatic production authorization.
+    Every hard gate must pass before governance review can start.
+    """
+    e = dict(evidence or {})
+    metrics = dict(e.get("metrics") or {})
+    validation = dict(e.get("validation") or {})
+
+    expectancy = float(
+        metrics.get("oos_expectancy_r", metrics.get("expectancy_r", 0.0))
+        or 0.0
+    )
+    pf = float(
+        metrics.get("oos_pf", metrics.get("profit_factor", 0.0))
+        or 0.0
+    )
+    drawdown_raw = metrics.get(
+        "oos_max_drawdown_r", metrics.get("max_drawdown_r")
+    )
+    drawdown = (
+        abs(float(drawdown_raw)) if drawdown_raw is not None else None
+    )
+
+    checks = {
+        "sample_sufficient": bool(
+            validation.get("sample_sufficient", e.get("sample_sufficient", False))
+        ),
+        "walk_forward": bool(
+            validation.get("walk_forward_passed", validation.get("walk_forward", False))
+        ),
+        "oos": bool(
+            validation.get("oos_passed", validation.get("oos", False))
+        ),
+        "cost_stress": bool(
+            validation.get("cost_stress_passed", validation.get("cost_stress", False))
+        ),
+        "leakage_check": bool(
+            validation.get("leakage_check_passed", validation.get("leakage_check", False))
+        ),
+        "survivorship_review": bool(
+            validation.get("survivorship_reviewed", validation.get("survivorship_review", False))
+        ),
+        "regime_stability": bool(
+            validation.get("regime_stability_passed", validation.get("regime_stability", False))
+        ),
+        "paper_trade": bool(
+            validation.get("paper_trade_passed", validation.get("paper_trade", False))
+        ),
+        "positive_expectancy": expectancy > float(min_expectancy_r),
+        "profit_factor": pf > float(min_profit_factor),
+        "drawdown_control": (
+            True
+            if max_drawdown_r is None
+            else drawdown is not None
+            and drawdown <= abs(float(max_drawdown_r))
+        ),
+    }
+
+    earned = sum(
+        PROMOTION_SCORECARD_WEIGHTS[k]
+        for k, ok in checks.items()
+        if ok
+    )
+    total = sum(PROMOTION_SCORECARD_WEIGHTS.values())
+    score = round(100.0 * earned / total, 1) if total else 0.0
+    failed = [k for k, ok in checks.items() if not ok]
+
+    hard_gates = (
+        "sample_sufficient",
+        "walk_forward",
+        "oos",
+        "cost_stress",
+        "leakage_check",
+        "survivorship_review",
+        "regime_stability",
+        "paper_trade",
+        "positive_expectancy",
+        "profit_factor",
+        "drawdown_control",
+    )
+    promotable_to_review = all(checks[k] for k in hard_gates)
+
+    return {
+        "artifact_type": str(artifact_type or "MODEL").upper(),
+        "score": score,
+        "meaning": "升版證據成熟度，不代表勝率或獲利機率",
+        "checks": checks,
+        "failed_checks": failed,
+        "metrics_used": {
+            "expectancy_r": expectancy,
+            "profit_factor": pf,
+            "max_drawdown_r": drawdown,
+        },
+        "thresholds": {
+            "min_expectancy_r": float(min_expectancy_r),
+            "min_profit_factor": float(min_profit_factor),
+            "max_drawdown_r": (
+                None if max_drawdown_r is None else abs(float(max_drawdown_r))
+            ),
+        },
+        "promotable_to_governance_review": promotable_to_review,
+        "production_eligible": False,
+        "note": (
+            "Scorecard 全通過只代表可進治理審查；"
+            "仍須由 P0-G 明確核准 Champion Configuration。"
+        ),
+    }
