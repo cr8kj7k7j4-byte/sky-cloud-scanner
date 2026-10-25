@@ -3,9 +3,11 @@ from research.w6_execution_baseline import (
     classify_time_bucket,
     spread_bps,
     W6L1ExecutionSample,
+    aggregate_fill_rates,
 )
 from research.w6_execution_evidence import (
     decision_to_w6_evidence,
+    paper_snapshot_to_w6_evidence,
     summarize_p1,
 )
 from datetime import datetime
@@ -33,6 +35,22 @@ def test_spread_bps_is_reference_not_fill():
     assert out is not None and out > 0
 
 
+def test_unknown_fill_is_not_counted_as_zero_fill_rate():
+    sample = W6L1ExecutionSample(
+        symbol="2409",
+        observation_timestamp="2026-10-26T09:05:00+08:00",
+        execution_type="QUOTE_ONLY",
+        reference_price=50.0,
+        bid=49.95,
+        ask=50.05,
+        fill_status="UNKNOWN",
+    )
+    out = aggregate_fill_rates([sample])
+    assert out["sample"] == 0
+    assert out["unknown_sample"] == 1
+    assert out["fill_rate"] is None
+
+
 def test_non_fill_cannot_keep_fill_price():
     row = decision_to_w6_evidence({
         "record_id": "r1",
@@ -47,16 +65,23 @@ def test_non_fill_cannot_keep_fill_price():
     assert row["fill_price"] is None
 
 
-def test_unknown_fill_is_fail_closed_not_fabricated():
-    row = decision_to_w6_evidence({
-        "record_id": "r1",
+def test_paper_snapshot_maps_l1_without_inventing_fill():
+    row = paper_snapshot_to_w6_evidence({
         "run_id": "run1",
         "symbol": "2409",
-        "observed_at": "2026-10-26T09:05:00+08:00",
-        "market": {"last": 50.0, "bid": 49.95, "ask": 50.05},
-        "plan": {"entry": 50.0, "stop": 49.5},
-        "execution": {},
+        "observation_timestamp": "2026-10-26T09:05:00+08:00",
+        "assumed_entry": 50.0,
+        "risk_per_share": 0.5,
+        "market": {
+            "last": 50.0,
+            "bid": 49.95,
+            "ask": 50.05,
+            "l1_quote_time": 123456789,
+            "l1_quote_source": "FUGLE_INTRADAY_QUOTE",
+        },
     })
+    assert row["bid"] == 49.95
+    assert row["ask"] == 50.05
     assert row["fill_status"] == "UNKNOWN"
     assert row["fill_price"] is None
 
@@ -78,7 +103,27 @@ def test_adverse_selection_only_for_fill():
     assert m["adverse_selection_1m"] is True
 
 
-def test_p1_requires_observed_sample_sufficiency():
+def test_twenty_quote_only_rows_can_ready_spread_not_slippage():
+    rows = []
+    for i in range(20):
+        rows.append({
+            "symbol": str(2400 + i),
+            "observation_timestamp": "2026-10-26T09:05:00+08:00",
+            "execution_type": "QUOTE_ONLY",
+            "reference_price": 50.0,
+            "bid": 49.95,
+            "ask": 50.05,
+            "fill_status": "UNKNOWN",
+            "risk_per_share": 0.5,
+        })
+    out = summarize_p1(rows)
+    assert out["spread_status"] == "BASELINE_READY"
+    assert out["slippage_status"] == "INSUFFICIENT_DATA"
+    assert out["status"] == "INSUFFICIENT_DATA"
+    assert out["fill_rate"] is None
+
+
+def test_p1_requires_observed_slippage_sufficiency():
     rows = [{
         "symbol": "2409",
         "observation_timestamp": "2026-10-26T09:05:00+08:00",
