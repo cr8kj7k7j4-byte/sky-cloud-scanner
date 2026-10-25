@@ -102,7 +102,7 @@ Any material gate failure blocks Promotion. No chat window, notebook, branch, or
 
 ## W0 governance authority
 
-- W0｜Sky 總控與版本治理 is the only control workstream authorized to consolidate W1–W5 outcomes into formal Strategy Registry / Research Freeze / Champion-Challenger decisions.
+- W0｜Sky 總控與版本治理 is the only control workstream authorized to consolidate W1–W7 outcomes into formal Strategy Registry / Research Freeze / Champion-Challenger decisions.
 - GitHub remains the Single Source of Truth; a chat-only conclusion is not a formal version change.
 - W1/W2 may validate and report candidates but may not self-promote Production.
 - Major governance changes must be written back to GitHub.
@@ -131,4 +131,19 @@ Any material gate failure blocks Promotion. No chat window, notebook, branch, or
 - No Day Trading rule is newly promoted to Production Stable Rule.
 - W2 formal status: **HOLD**.
 - Main blocker: canonical Intraday PIT Historical Replay Dataset is not yet complete.
-- Highest-priority unblock owner: **W3｜Data & System Engineering**.
+- Highest-priority unblock owner: **W3A｜Sky Data & Feature Engineering**.
+
+## Workstream operating state — 2026-10-25
+
+- W0: Master Control / P0-G — ACTIVE.
+- W1: Swing Validation — HOLD.
+- W2: Intraday Validation — HOLD / DATA_BLOCKED pending canonical intraday PIT replay data.
+- W3A: Data & Feature Engineering — **P0 HIGHEST PRIORITY**, owner of Intraday PIT Historical Replay Dataset.
+- W3B: Cloud & Production Engineering — ACTIVE / P1, supporting reproducible W3A→W2 pipeline and Production hardening.
+- W4: Shadow/Paper/Live Evidence — WAITING_FOR_SUFFICIENCY / active accumulation.
+- W5: Candidate Strategy Lab — INTAKE ONLY.
+- W6: Execution & Market Microstructure Lab — ACTIVE / P2, execution evidence only.
+- W7: Global Trading Intelligence & Vendor Lab — ACTIVE / P4, low-intensity intelligence/vendor research.
+- Legacy W3: DEPRECATED FOR NEW WORK.
+
+Current critical path: **W3A → W2 → W4 → W0**.
