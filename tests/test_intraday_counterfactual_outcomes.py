@@ -63,3 +63,22 @@ def test_counterfactual_missing_future_data_blocks_coverage():
     assert pd.isna(out.loc[0,"gross_r_multiple"])
     assert pd.isna(out.loc[0,"false_breakout"])
     assert pd.isna(out.loc[0,"missed_entry"])
+
+
+def test_counterfactual_exact_boundary_includes_bar_starting_at_decision():
+    decisions=pd.DataFrame([{
+        "decision_id":"d1","symbol":"1111",
+        "decision_timestamp":"2026-01-05T09:05:00+08:00",
+    }])
+    execution=pd.DataFrame([{
+        "decision_id":"d1","planned_entry":10.0,
+        "planned_stop":9.5,"planned_target_1":11.0,
+    }])
+    history={"1111":pd.DataFrame([
+        {"timestamp":pd.Timestamp("2026-01-05T09:00:00+08:00"),"high":99.0,"low":1.0,"close":50.0},
+        {"timestamp":pd.Timestamp("2026-01-05T09:05:00+08:00"),"high":11.1,"low":9.8,"close":11.0},
+    ])}
+    out,report=build_outcomes(decisions,execution,history)
+    assert report["status"]=="PASS"
+    assert out.loc[0,"exit_reason"]=="TARGET"
+    assert int(out.loc[0,"holding_minutes"])==5
