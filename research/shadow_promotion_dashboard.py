@@ -10,7 +10,10 @@ from src.model_registry import build_shadow_promotion_dashboard
 def load_shadow_records(root):
     root = Path(root)
     records = []
-    files = sorted(root.glob("*.json"))
+    files = sorted(
+        path for path in root.rglob("*.json")
+        if "paper" in {part.lower() for part in path.parts}
+    )
     for path in files:
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
