@@ -68,6 +68,7 @@ def build_paper_snapshot(*, run_id: str, observed_at: str, item: dict, gate: Pap
     item = dict(item or {})
     risk = dict(item.get("risk") or {})
     monitor = dict(item.get("monitor") or {})
+    decision = dict(item.get("decision") or {})
     plan = dict(item.get("strategy_plan") or {})
 
     return {
@@ -96,6 +97,7 @@ def build_paper_snapshot(*, run_id: str, observed_at: str, item: dict, gate: Pap
         },
         "risk": risk,
         "monitor": monitor,
+        "decision": decision,
         "classification_cap": item.get("classification_cap"),
         "paper_gate": gate.to_dict(),
         "action": (
