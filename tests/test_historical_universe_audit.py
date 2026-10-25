@@ -272,3 +272,31 @@ def test_extraneous_open_interval_blocks_gate():
     assert out["current_interval_coverage"]["TPEx"]["extraneous_open_symbol_count"] == 1
     assert "9998" in out["current_interval_coverage"]["TPEx"]["extraneous_open_symbols"]
     assert out["historical_universe_gate_pass"] is False
+
+
+def test_windowed_cross_exchange_migration_closes_prior_market():
+    p=_payload()
+    p["events"].extend([
+        {
+            "symbol":"4444","exchange":"TPEx","name":"Mover",
+            "event_type":"LIST","event_date":"2020-01-01",
+            "source":"official","source_url":"u","source_as_of":"2026-10-25","notes":"",
+        },
+        {
+            "symbol":"4444","exchange":"TWSE","name":"Mover",
+            "event_type":"LIST","event_date":"2025-02-03",
+            "source":"official","source_url":"u","source_as_of":"2026-10-25","notes":"",
+        },
+    ])
+    current=[
+        {"symbol":"2222","exchange":"TWSE"},
+        {"symbol":"3333","exchange":"TPEx"},
+        {"symbol":"4444","exchange":"TWSE"},
+    ]
+    out=build_historical_universe_audit(
+        official_payload=p,
+        current_universe=current,
+        audit_dates=["2025-12-31"],
+    )
+    assert out["current_open_interval_alignment_ok"] is True
+    assert out["historical_universe_gate_pass"] is True
