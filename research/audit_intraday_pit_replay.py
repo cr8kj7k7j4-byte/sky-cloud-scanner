@@ -66,12 +66,18 @@ def leakage_audit(df: pd.DataFrame) -> dict:
             reasons.append("UNKNOWN_SPREAD_IMPUTED_ZERO")
 
     future_sector=0
+    expired_sector=0
     if {"sector_effective_from","session_date"}.issubset(df.columns):
         sess=pd.to_datetime(df["session_date"],errors="coerce")
         start=pd.to_datetime(df["sector_effective_from"],errors="coerce")
         future_sector=int((start.notna() & sess.notna() & (start>sess)).sum())
         if future_sector:
             reasons.append("FUTURE_SECTOR_MAPPING")
+        if "sector_effective_to" in df.columns:
+            end=pd.to_datetime(df["sector_effective_to"],errors="coerce")
+            expired_sector=int((end.notna() & sess.notna() & (end<sess)).sum())
+            if expired_sector:
+                reasons.append("EXPIRED_SECTOR_MAPPING")
 
     return {
         "status":"PASS" if not reasons else "FAIL",
@@ -80,6 +86,7 @@ def leakage_audit(df: pd.DataFrame) -> dict:
         "outcome_before_decision_violations":outcome_before,
         "unknown_spread_zero_imputations":spread_zero_unknown,
         "future_sector_mapping_violations":future_sector,
+        "expired_sector_mapping_violations":expired_sector,
     }
 
 def coverage_audit(df: pd.DataFrame) -> dict:
@@ -97,8 +104,36 @@ def coverage_audit(df: pd.DataFrame) -> dict:
         "cost_stress_065":_share(df,["net_r_065"]),
     }
 
+def candidate_pool_audit(df: pd.DataFrame) -> dict:
+    required={"candidate_pool_id","candidate_pool_size","ranking_position"}
+    if df.empty or not required.issubset(df.columns):
+        return {"status":"FAIL","violations":int(len(df)),"reasons":["MISSING_POOL_FIELDS"]}
+
+    violations=0
+    reasons=[]
+    for pool_id,part in df.groupby("candidate_pool_id",dropna=False):
+        declared=pd.to_numeric(part["candidate_pool_size"],errors="coerce").dropna().unique()
+        actual=int(len(part))
+        if len(declared)!=1 or int(declared[0])!=actual:
+            violations+=actual
+            reasons.append(f"POOL_SIZE_MISMATCH:{pool_id}")
+            continue
+        pos=pd.to_numeric(part["ranking_position"],errors="coerce")
+        expected=set(range(1,actual+1))
+        observed=set(int(x) for x in pos.dropna())
+        if len(pos.dropna())!=actual or observed!=expected:
+            violations+=actual
+            reasons.append(f"RANKING_POSITION_INCOMPLETE:{pool_id}")
+
+    return {
+        "status":"PASS" if violations==0 else "FAIL",
+        "violations":violations,
+        "reasons":sorted(set(reasons))[:500],
+    }
+
 def audit_frame(df: pd.DataFrame) -> tuple[dict,pd.DataFrame]:
     leakage=leakage_audit(df)
+    pool_audit=candidate_pool_audit(df)
     audited=df.copy()
     if leakage["status"]=="PASS":
         audited["leakage_audit_status"]="PASS"
@@ -121,6 +156,8 @@ def audit_frame(df: pd.DataFrame) -> tuple[dict,pd.DataFrame]:
             blockers.append(f"COVERAGE_FAIL:{key}:{value:.6f}")
     if leakage["status"]!="PASS":
         blockers += [f"LEAKAGE:{x}" for x in leakage["reasons"]]
+    if pool_audit["status"]!="PASS":
+        blockers.append("CANDIDATE_POOL_INTEGRITY_FAIL")
     if "cost_scenario_status" in audited.columns:
         cost_status = audited["cost_scenario_status"].astype(str).str.upper()
         if (cost_status == "CONFLICT").any():
@@ -140,6 +177,7 @@ def audit_frame(df: pd.DataFrame) -> tuple[dict,pd.DataFrame]:
         "coverage":{k:round(v,6) for k,v in coverage.items()},
         "coverage_thresholds":thresholds,
         "leakage_audit":leakage,
+        "candidate_pool_audit":pool_audit,
         "timestamp_causality_audit":{
             "violations":leakage["timestamp_causality_violations"],
             "status":"PASS" if leakage["timestamp_causality_violations"]==0 else "FAIL",
