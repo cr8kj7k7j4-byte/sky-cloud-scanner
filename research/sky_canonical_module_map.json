@@ -8,9 +8,9 @@
       "diagnose_sources.py"
     ],
     "P0-K": [
-      "knowledge_engine.py",
-      "evidence_ledger.py(adapter)",
-      "news_evidence.py(adapter)",
+      "knowledge_engine.py (canonical)",
+      "evidence_ledger.py (legacy adapter)",
+      "news_evidence.py (legacy adapter)",
       "research_sources.py",
       "industry_news.py"
     ],
@@ -42,7 +42,8 @@
       "strategy_builder.py"
     ],
     "P0-C": [
-      "sky_rules.py (to consolidate)"
+      "decision_engine.py (canonical)",
+      "sky_rules.py (decompose legacy mixed helpers)"
     ],
     "P0-O": [
       "ranking_engine.py",
@@ -63,7 +64,7 @@
       "premarket_state.py"
     ],
     "PMS": [
-      "MISSING_CANONICAL_MODULE"
+      "position_manager.py (canonical)"
     ],
     "P0-L": [
       "trade_logger.py (canonical)",
@@ -91,11 +92,11 @@
     ]
   },
   "immediate_priorities": [
-    "P0-K consolidation",
-    "P0-C canonical decision contract",
-    "PMS canonical position manager",
-    "PR 23-29 extraction and closure; PR29 superseded by PR38",
-    "single production ranking entry"
+    "close PR29 as superseded by PR38",
+    "PR 23-28 extraction and closure",
+    "single production ranking entry",
+    "decompose sky_rules mixed responsibilities",
+    "update readiness checks for canonical P0-K/P0-C/PMS"
   ],
   "paused": [
     "new phases beyond consolidation",
@@ -107,6 +108,9 @@
     "P0-X runtime import fix merged via PR41",
     "P0-L canonical trade_logger schema merged via PR41",
     "OOS-gated Shadow/Paper ledger merged via PR38",
-    "P0-S OOS workflow automation merged via PR34/PR35"
+    "P0-S OOS workflow automation merged via PR34/PR35",
+    "P0-K canonical evidence merged via PR43",
+    "P0-C canonical decision contract merged via PR44",
+    "PMS canonical position manager merged via PR45"
   ]
 }
