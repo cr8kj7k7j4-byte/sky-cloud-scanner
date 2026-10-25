@@ -45,6 +45,7 @@ jobs:
           pytest -q \
             tests/test_state_store.py \
             tests/test_notifier.py \
+            tests/test_structured_log.py \
             tests/test_p0r.py \
             tests/test_p0l_canonical_ledger.py \
             tests/test_pms_canonical_position_manager.py
