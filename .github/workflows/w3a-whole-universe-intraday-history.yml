@@ -11,10 +11,6 @@ on:
         description: "End date"
         required: true
         default: "2026-10-22"
-      shard_count:
-        description: "Deterministic shard count (workflow currently defines 20 shards)"
-        required: true
-        default: "20"
 
 permissions:
   contents: read
@@ -76,7 +72,7 @@ jobs:
             --pit-intervals input/pit_intervals.json \
             --from-date "${{ inputs.from_date }}" \
             --to-date "${{ inputs.to_date }}" \
-            --shard-count "${{ inputs.shard_count }}" \
+            --shard-count "20" \
             --shard-index "${{ matrix.shard_index }}" \
             --out "research_data/pit_history_shard_${{ matrix.shard_index }}"
       - name: Create shard archive
