@@ -1,0 +1,26 @@
+name: VNext Residual Ranking Governance
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test/runtime dependencies
+        run: pip install -r requirements.txt pytest
+      - name: Compile
+        run: python -m compileall -q research tests
+      - name: VNext governance tests
+        run: PYTHONPATH=. pytest -q tests/test_vnext_residual_ranking_governance.py tests/test_research_freeze_governance.py
+      - name: Production E2E
+        run: PYTHONPATH=. pytest -q tests/test_production_e2e_acceptance.py
