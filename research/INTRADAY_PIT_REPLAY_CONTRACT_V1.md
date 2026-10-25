@@ -58,6 +58,14 @@ Market
 - feature_schema_version
 - rule_schema_version
 - cost_model_version
+- research_split
+
+Allowed `research_split`:
+- TRAIN
+- VALIDATION
+- OOS
+
+Formal W2 Rule Contribution / final efficacy conclusions are computed on OOS only.
 
 Rules:
 
@@ -325,6 +333,7 @@ Full 10-rule Day Trading Ablation may start only when:
 - Sector mapping coverage >= 95% when Sector/RS is claimed
 - Sector RS price coverage >= 95%
 - Core Phase / Anti-Chase coverage >= 95%
+- OOS rows are explicitly identified by `research_split = OOS`
 - Outcome completeness >= 95%
 - Cost model completeness = 100% for tested cost scenario
 - Leakage audit = PASS
