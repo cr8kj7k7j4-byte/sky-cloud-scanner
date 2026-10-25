@@ -114,9 +114,11 @@ Raw OHLC rows with zero/non-positive prices are omitted and remain explicit miss
 The workflow uses 40 symbol shards with max-parallel=8.
 
 At approximately 2,073 canonical symbols this is about 52 symbols per shard. Maximum planned requests are about:
-52 symbols × 5 datasets = 260 requests per runner.
+- per-symbol: raw price + dividend result + capital reduction = 3 × ~52
+- per-shard global: split + par-value change = 2
+- total ≈ 158 requests per runner.
 
-This remains below the documented unauthenticated FinMind hourly request ceiling while also supporting an optional FINMIND_TOKEN when available.
+This remains below the documented unauthenticated FinMind hourly request ceiling while also supporting an optional FINMIND_TOKEN when available. Global split/par-value tables are grouped by stock_id before any symbol adjustment is constructed.
 
 Provider 402/429 errors fail fast; invalid entitlement/quota errors are not retried across every symbol.
 
