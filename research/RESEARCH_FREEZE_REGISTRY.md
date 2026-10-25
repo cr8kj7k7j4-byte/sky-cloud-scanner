@@ -19,6 +19,7 @@
 | Event-driven Intraday Ranking / Catalyst Stack | ARCHIVED_NO_RETUNE | Slower horizon or new target family, not intraday threshold tuning |
 | Transparent Intraday ML Ensemble | ARCHIVED_NO_RETUNE | New labels / data contract / validation period, not model hyperparameter search |
 | Low-vol Market-residual Long-only | ARCHIVED_NO_RETUNE | Cross-sectional residual target / market-neutral formulation |
+| VNext Residual Ranking Baseline v1 | ARCHIVED_NO_RETUNE | New structural preregistration only; no weight/Top-N/horizon/ML rescue of v1 |
 
 ## Active but blocked research
 
@@ -29,11 +30,12 @@
 | Revenue YoY 5D | HOLD_CONCENTRATION_FAIL | Concentration gate failed |
 | Revenue YoY 20D | HOLD_CONCENTRATION_FAIL | Concentration gate failed |
 
-## Sole VNext alpha research lane
+## VNext alpha research status
 
-**Residual / Market-Neutral Cross-sectional Ranking**
+**No active VNext Alpha candidate is currently authorized.**
 
-This is the only newly authorized Alpha research lane after the current freeze.
+Residual / Market-Neutral Cross-sectional Ranking Baseline v1 has been rejected.
+Any successor requires a new structural preregistration; the current v1 may not be rescued by local retuning or nonlinear model escalation.
 
 - Labels: 3D / 5D / 10D residual return.
 - Residual return = stock forward return minus market benchmark return, with
