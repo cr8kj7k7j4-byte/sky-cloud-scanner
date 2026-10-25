@@ -17,6 +17,7 @@ from .config import (
     EXEC_LIQUIDITY_PENALTY_BPS, EXEC_FILL_PROBABILITY,
     EXEC_FINANCING_INTEREST_PER_SHARE, EXEC_COST_PROFILE, EXEC_MIN_RR,
     EXEC_ENFORCE_GATE, PAPER_TRADING_MODE, P0S_OOS_VERDICT, PAPER_GCS_BUCKET,
+    P0S_5M_BREAKOUT_ENABLED,
 )
 from .official import load_official_universe, fetch_mis_quotes
 from .fugle import get_ticker, get_quote, get_candles
@@ -359,8 +360,17 @@ def run():
                     item, now.isoformat()
                 )
 
-                strategy_plan = build_breakout_plan(item, ks)
+                strategy_plan = (
+                    build_breakout_plan(item, ks)
+                    if P0S_5M_BREAKOUT_ENABLED
+                    else None
+                )
                 item = apply_plan(item, strategy_plan)
+                item["p0s_5m_breakout"] = {
+                    "enabled": bool(P0S_5M_BREAKOUT_ENABLED),
+                    "verdict": P0S_OOS_VERDICT,
+                    "production_eligible": False,
+                }
 
                 risk = evaluate_candidate(item, portfolio_context, policy)
                 risk["status_zh"] = RISK_STATUS_ZH.get(risk["status"], risk["status"])
@@ -610,6 +620,7 @@ def run():
             "P0-K 規則：任何重要結論必須可追溯；過期、衝突或無來源資訊不得升級為主要交易依據。",
             "P0-AG 規則：任何單一 Agent 均不得直接產生可執行交易；必須再通過 P0-C 與 P0-R。",
             "P0-ML 規則：目前僅為研究用 baseline；未通過 Walk-forward／OOS／成本壓力／資料洩漏檢查／Paper Trading 前，不得提升為正式交易依據。",
+            "P0-S 5分K突破：OOS 已淘汰，主掃描預設停用；僅允許顯式研究模式重現。",
             "Paper Trading 規則：shadow 僅留痕；paper 仍須 OOS=PASS_TO_PAPER_TRADING 才可模擬成交，任何模式都不得送真實委託。",
             (
                 "A+ 必須再通過 Market Gate→Sector/RS→MTF→SSS→Phase→"
