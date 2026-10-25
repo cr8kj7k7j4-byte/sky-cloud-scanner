@@ -2,9 +2,12 @@ name: Revenue Historical PIT Coverage Audit
 
 on:
   workflow_dispatch:
+  schedule:
+    # Recompute after the main monthly-revenue filing window.
+    - cron: '30 3 16 * *'
   push:
     branches:
-      - 'research/mops-revenue-pit-backfill'
+      - 'governance/revenue-pit-coverage-gate'
     paths:
       - 'research/audit_revenue_pit_coverage.py'
       - 'tests/test_revenue_pit_coverage.py'
