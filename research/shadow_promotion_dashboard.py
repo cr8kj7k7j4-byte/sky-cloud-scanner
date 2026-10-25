@@ -34,6 +34,46 @@ def load_json(path):
     return json.loads(p.read_text(encoding="utf-8"))
 
 
+def render_markdown(dashboard):
+    s = dashboard.get("summary", {})
+    gaps = dashboard.get("sample_gaps", {})
+    blockers = dashboard.get("blocking_items", [])
+    source = dashboard.get("source", {})
+    lines = [
+        "# Sky Shadow Promotion Dashboard",
+        "",
+        f"**Stage:** {dashboard.get('stage')}",
+        "",
+        "| 指標 | 現況 |",
+        "|---|---:|",
+        f"| Shadow/Paper 樣本 | {s.get('samples', 0)} |",
+        f"| 交易日 | {s.get('trading_days', 0)} |",
+        f"| Regime 數 | {s.get('regime_count', 0)} |",
+        f"| Outcome 完整率 | {float(s.get('outcome_complete_ratio', 0))*100:.1f}% |",
+        f"| 單一股票最高占比 | {float(s.get('top_symbol_share', 0))*100:.1f}% |",
+        f"| Promotion Evidence Score | {s.get('promotion_score', 0)} / 100 |",
+        "",
+        "## 樣本缺口",
+        f"- 尚缺樣本：{gaps.get('samples_remaining', 0)}",
+        f"- 尚缺交易日：{gaps.get('trading_days_remaining', 0)}",
+        f"- 尚缺 Regime：{gaps.get('regimes_remaining', 0)}",
+        f"- Outcome 完整率缺口：{float(gaps.get('outcome_completeness_gap', 0))*100:.1f} 個百分點",
+        f"- 集中度超標：{float(gaps.get('symbol_concentration_excess', 0))*100:.1f} 個百分點",
+        "",
+        "## 阻塞項目",
+    ]
+    lines.extend([f"- {x}" for x in blockers] or ["- 無"])
+    lines += [
+        "",
+        "## 資料來源",
+        f"- 掃描 artifact 檔案數：{source.get('files_scanned', 0)}",
+        f"- 載入 records：{source.get('records_loaded', 0)}",
+        "",
+        "> 此分數是升版證據成熟度，不是勝率、獲利機率或自動 Production 授權。",
+    ]
+    return "\n".join(lines) + "\n"
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--paper-dir", default="output/paper")
@@ -42,6 +82,10 @@ def main():
     ap.add_argument(
         "--out",
         default="research_output/shadow_promotion_dashboard.json",
+    )
+    ap.add_argument(
+        "--markdown-out",
+        default="research_output/shadow_promotion_dashboard.md",
     )
     ap.add_argument("--min-samples", type=int, default=200)
     ap.add_argument("--min-trading-days", type=int, default=20)
@@ -82,6 +126,9 @@ def main():
         json.dumps(dashboard, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
+    markdown_out = Path(args.markdown_out)
+    markdown_out.parent.mkdir(parents=True, exist_ok=True)
+    markdown_out.write_text(render_markdown(dashboard), encoding="utf-8")
     print(json.dumps(dashboard, ensure_ascii=False, indent=2))
 
 
