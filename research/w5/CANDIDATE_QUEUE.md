@@ -16,9 +16,9 @@
 
 | Candidate | W5 Status | Reason | Next step |
 |---|---|---|---|
-| Overnight-to-First-30m Reversal for Taiwan | W7_INBOUND | 新 target + 新 causal timing architecture；待 W5 Intake | Duplicate/Low-value Gate → PIT feasibility → preregistration decision |
-| Taiwan Dynamic Futures/ETF/Spot Lead-Lag State | W7_INBOUND | 新 cross-market PIT data family；待 W5 Intake | Data sync/PIT audit → W5 decision |
-| Taiwan Broker-Identity / Skill-Conditioned Flow | W7_INBOUND | 新 identity-tagged data family；資料取得為 hard gate | Vendor/data feasibility → W5 decision |
+| Overnight-to-First-30m Reversal for Taiwan | W7_INBOUND | 新 target + 新 causal timing architecture；Fugle 分K自 2023-05-23，初步資料可行 | Duplicate/Low-value Gate → canonical PIT audit → preregistration decision |
+| Taiwan Dynamic Futures/ETF/Spot Lead-Lag State | W7_INBOUND | 新 cross-market PIT data family；Fugle 期貨分K自 2017-06、股票/指數分K自 2023-05-23 | Cross-market timestamp/roll PIT audit → W5 decision |
+| Taiwan Broker-Identity / Skill-Conditioned Flow | W7_INBOUND | 新 identity-tagged data family；TWSE 官方全市場日資料存在但成本高，暫不購買 | Sample/schema/branch-code feasibility → cost gate → W5 decision |
 
 ## Inherited blocked research context
 
