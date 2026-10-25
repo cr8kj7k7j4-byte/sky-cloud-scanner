@@ -1,7 +1,7 @@
 name: W3 Swing Canonical PIT Daily Price Build
 
 concurrency:
-  group: w3-swing-pit-${{ github.ref }}
+  group: w3-swing-pit-price-build
   cancel-in-progress: true
 
 on:
