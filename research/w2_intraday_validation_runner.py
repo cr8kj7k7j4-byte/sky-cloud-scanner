@@ -90,9 +90,26 @@ def run_validation(df: pd.DataFrame) -> dict:
         )
         return report
 
-    primary = run_ablation(df, outcome_column="net_r_045")
-    stress = run_ablation(df, outcome_column="net_r_065")
-    stability = build_stability_matrix(df)
+    oos = df[df["research_split"].astype(str).str.upper() == "OOS"].copy()
+    if oos.empty:
+        report.update(
+            {
+                "ablation_primary_045": None,
+                "ablation_stress_065": None,
+                "stability_matrix": None,
+                "stable_rules": [],
+                "mixed_rules": [],
+                "negative_rules": [],
+                "outstanding_data_gaps": ["NO_OOS_ROWS"],
+                "decision_note": "No OOS rows are available; W2 remains HOLD.",
+            }
+        )
+        return report
+
+    report["oos_row_count"] = int(len(oos))
+    primary = run_ablation(oos, outcome_column="net_r_045")
+    stress = run_ablation(oos, outcome_column="net_r_065")
+    stability = build_stability_matrix(oos)
     registry = _rule_registry(primary, stress, stability)
 
     report.update(
