@@ -9,7 +9,7 @@
 - Official sources healthy: 6 / 6
 - Official events: 2,426
 - Strict full-history intervals: 2,136
-- Strict pre-window unresolved: 230
+- Strict pre-window unresolved: 231
 - Windowed intervals: 2,116
 - Window unresolved: 0
 - Left-censored at window start: 13
@@ -37,4 +37,4 @@
 - Historical membership differs materially from today's listed universe at every audited date.
 - Promotion-grade research for 2023+ must use the point-in-time universe.
 - Today's listing universe must not be used backward as a substitute.
-- Full-history strict ledger still has 230 pre-window unresolved events; this PASS is not an all-history completeness claim.
+- Full-history strict ledger still has 231 pre-window unresolved events; this PASS is not an all-history completeness claim.
