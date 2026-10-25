@@ -26,7 +26,6 @@ Research namespaces:
 | Revenue YoY 5D | HOLD_CONCENTRATION_FAIL | 4 | Primary/stress return gates passed, but top-5-symbol concentration exceeded threshold across splits. Do not promote. |
 | Revenue YoY Acceleration 5D | PRE_PIT_CANDIDATE | 2 | Robustness gates passed, but 2023–2026 historical PIT coverage is 0.0000% (0 / 87,588 company-months). Remains pre-promotion research only; statutory-deadline proxies do not satisfy PIT. |
 | Revenue YoY 20D | HOLD_CONCENTRATION_FAIL | 5 | Return gates passed, but concentration gate failed; do not promote despite high average returns. |
-| Stage 7A Broader Market Alpha | RESEARCH | 5 | Pre-registered broader-market alpha study; no production impact until all gates pass. |
 
 ## Evidence-only features
 
@@ -46,6 +45,7 @@ Research namespaces:
 | Event-driven intraday ranking / catalyst stack | REJECTED | OOS and post-cost evidence insufficient. |
 | Transparent intraday ML feature ensemble | REJECTED | Negative post-cost Train/Valid/Test performance. |
 | Low-vol market-residual long-only | REJECTED_AS_STRATEGY | Stable IC did not convert into robust tradable long-only edge. |
+| Stage 7A Broader Market Alpha | REJECTED | Pre-registered A1–A5 hypotheses failed stable-positive and cost gates; archived and no further local retuning allowed. |
 
 ## Historical Revenue PIT coverage audit
 
