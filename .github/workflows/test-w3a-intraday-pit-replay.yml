@@ -8,14 +8,19 @@ on:
       - "research/intraday_pit_costs.py"
       - "research/run_intraday_pit_replay_pipeline.py"
       - "research/build_intraday_market_context.py"
+      - "research/build_intraday_decision_primitives.py"
+      - "research/build_intraday_stock_return_snapshots.py"
+      - "research/build_intraday_sector_rs_context.py"
+      - "research/build_intraday_counterfactual_outcomes.py"
+      - "research/audit_frozen_v14_replay_readiness.py"
+      - "research/INTRADAY_PIT_FIELD_PROVENANCE_REGISTRY.json"
+      - "research/audit_intraday_pit_field_provenance.py"
+      - "research/audit_sharded_pit_intraday_history.py"
       - "research/collect_current_sector_anchor.py"
       - "research/build_effective_sector_mapping.py"
       - "research/intraday_pit_replay_readiness.py"
-      - "research/build_intraday_counterfactual_outcomes.py"
-      - "tests/test_pit_history_sharding.py"
-      - "research/merge_pit_history_shards.py"
-      - "research/shard_pit_history_manifest.py"
       - "research/intraday_replay_validator.py"
+      - "src/sector_membership_events.py"
       - "src/point_in_time_universe.py"
       - "src/data_quality.py"
       - "tests/test_intraday_pit_replay_builder.py"
@@ -23,6 +28,10 @@ on:
       - "tests/test_intraday_pit_pipeline_v2.py"
       - "tests/test_intraday_counterfactual_outcomes.py"
       - "tests/test_intraday_pit_source_builders.py"
+      - "tests/test_intraday_decision_primitives.py"
+      - "tests/test_intraday_sector_rs_context.py"
+      - "tests/test_intraday_pit_field_provenance.py"
+      - "tests/test_w2_intraday_validation.py"
       - ".github/workflows/test-w3a-intraday-pit-replay.yml"
   workflow_dispatch:
 
@@ -42,27 +51,55 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: pip install pandas pytest
+        run: pip install pandas pytest requests beautifulsoup4
 
-      - name: Run W3A replay builder and audit tests
+      - name: Run W3A replay, primitive, sector-RS and W2 regression tests
         run: |
-          python -m pytest -q             tests/test_intraday_pit_replay_builder.py             tests/test_intraday_pit_replay_audit.py             tests/test_w2_intraday_validation.py
+          python -m pytest -q \
+            tests/test_intraday_pit_replay_builder.py \
+            tests/test_intraday_pit_replay_audit.py \
+            tests/test_intraday_pit_pipeline_v2.py \
+            tests/test_intraday_counterfactual_outcomes.py \
+            tests/test_intraday_pit_source_builders.py \
+            tests/test_intraday_decision_primitives.py \
+            tests/test_intraday_sector_rs_context.py \
+            tests/test_intraday_pit_field_provenance.py \
+            tests/test_w2_intraday_validation.py
+
+      - name: Audit frozen v1.4 replay provenance
+        run: |
+          python research/audit_frozen_v14_replay_readiness.py \
+            --out research_output/w3a_intraday_pit/frozen_v14_replay_readiness.json
+
+      - name: Audit field-level provenance
+        run: |
+          python research/audit_intraday_pit_field_provenance.py \
+            --registry research/INTRADAY_PIT_FIELD_PROVENANCE_REGISTRY.json \
+            --out research_output/w3a_intraday_pit/field_provenance.json
 
       - name: Run source-readiness gate
         run: |
-          python research/intraday_pit_replay_readiness.py             --out research_output/w3a_intraday_pit/readiness.json
+          python research/intraday_pit_replay_readiness.py \
+            --out research_output/w3a_intraday_pit/readiness.json
 
       - name: Publish readiness summary
         if: always()
         run: |
-          echo "## W3A Issue #81 Readiness" >> "$GITHUB_STEP_SUMMARY"
+          echo "## W3A Intraday PIT Readiness" >> "$GITHUB_STEP_SUMMARY"
           cat research_output/w3a_intraday_pit/readiness.json >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          cat research_output/w3a_intraday_pit/frozen_v14_replay_readiness.json >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          cat research_output/w3a_intraday_pit/field_provenance.json >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Upload readiness report
+      - name: Upload readiness reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: w3a-issue81-readiness
-          path: research_output/w3a_intraday_pit/readiness.json
+          name: w3a-intraday-pit-readiness
+          path: |
+            research_output/w3a_intraday_pit/readiness.json
+            research_output/w3a_intraday_pit/frozen_v14_replay_readiness.json
+            research_output/w3a_intraday_pit/field_provenance.json
           if-no-files-found: error
           retention-days: 30
