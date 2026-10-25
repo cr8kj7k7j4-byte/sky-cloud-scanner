@@ -1,0 +1,112 @@
+name: W1 Swing W3 Data Handoff Gate
+
+on:
+  repository_dispatch:
+    types: [w3_swing_data_ready]
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: 'W3 workflow run id containing canonical daily history artifact'
+        required: true
+        type: string
+      artifact_name:
+        description: 'Exact W3 artifact name'
+        required: true
+        default: 'w3-swing-canonical-daily-history'
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  accept-w3-handoff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Resolve handoff payload
+        id: payload
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            RUN_ID="${{ github.event.client_payload.run_id }}"
+            ARTIFACT="${{ github.event.client_payload.artifact_name }}"
+          else
+            RUN_ID="${{ inputs.source_run_id }}"
+            ARTIFACT="${{ inputs.artifact_name }}"
+          fi
+          test -n "$RUN_ID"
+          test -n "$ARTIFACT"
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "artifact=$ARTIFACT" >> "$GITHUB_OUTPUT"
+
+      - name: Install PIT audit dependencies
+        run: pip install requests beautifulsoup4
+
+      - name: Rebuild canonical PIT intervals
+        run: python research/audit_historical_universe.py --out output/historical_universe_audit
+
+      - name: Download W3 canonical daily history artifact
+        uses: dawidd6/action-download-artifact@v11
+        with:
+          run_id: ${{ steps.payload.outputs.run_id }}
+          name: ${{ steps.payload.outputs.artifact }}
+          path: _w3_history
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Locate canonical daily history
+        id: data
+        shell: bash
+        run: |
+          HIST_DIR=$(find _w3_history -type f -name '*_D.json' -printf '%h\n' | sort -u | head -1)
+          if [ -z "$HIST_DIR" ]; then
+            echo "No *_D.json canonical daily files found in W3 artifact" >&2
+            exit 2
+          fi
+          echo "history_dir=$HIST_DIR" >> "$GITHUB_OUTPUT"
+
+      - name: Run fail-closed W1 PIT price-history gate
+        run: |
+          python research/validate_swing_pit_readiness.py \
+            --history-dir "${{ steps.data.outputs.history_dir }}" \
+            --pit-json output/historical_universe_audit/pit_intervals.json \
+            --out output/w1_swing_w3_handoff
+
+      - name: Enforce READY status
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, sys
+          p="output/w1_swing_w3_handoff/swing_pit_readiness.json"
+          x=json.load(open(p,encoding="utf-8"))
+          print("W1 handoff status:", x.get("status"))
+          if x.get("status") != "READY_FOR_CANONICAL_SWING_REPLAY":
+              sys.exit(3)
+          PY
+
+      - name: Publish summary
+        if: always()
+        run: |
+          if [ -f output/w1_swing_w3_handoff/swing_pit_readiness.md ]; then
+            cat output/w1_swing_w3_handoff/swing_pit_readiness.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload W1 acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: w1-w3-handoff-gate-${{ github.run_id }}
+          path: |
+            output/w1_swing_w3_handoff/
+            output/historical_universe_audit/pit_intervals.json
+            output/historical_universe_audit/audit.json
+          retention-days: 90
+          if-no-files-found: warn
