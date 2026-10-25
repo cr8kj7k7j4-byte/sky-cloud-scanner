@@ -121,6 +121,10 @@ def audit_frame(df: pd.DataFrame) -> tuple[dict,pd.DataFrame]:
             blockers.append(f"COVERAGE_FAIL:{key}:{value:.6f}")
     if leakage["status"]!="PASS":
         blockers += [f"LEAKAGE:{x}" for x in leakage["reasons"]]
+    if "cost_scenario_status" in audited.columns:
+        cost_status = audited["cost_scenario_status"].astype(str).str.upper()
+        if (cost_status == "CONFLICT").any():
+            blockers.append("COST_SCENARIO_CONFLICT")
 
     oos_present=(
         "research_split" in audited.columns
@@ -142,6 +146,7 @@ def audit_frame(df: pd.DataFrame) -> tuple[dict,pd.DataFrame]:
         },
         "w2_contract_validation":contract,
         "oos_present":bool(oos_present),
+        "cost_scenario_conflicts": int((audited["cost_scenario_status"].astype(str).str.upper()=="CONFLICT").sum()) if "cost_scenario_status" in audited.columns else 0,
         "blockers":blockers,
         "production_change":False,
     }
