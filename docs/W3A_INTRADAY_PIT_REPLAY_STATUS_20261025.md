@@ -2,7 +2,14 @@
 
 ## Current status
 
-**DATA ENGINEERING ACTIVE / W2 DATA_BLOCKED**
+**W3A DATA MAINTENANCE / HISTORICAL v1.4 FULL-RULE REPLAY CLOSED BY W0**
+
+Superseding governance:
+- `docs/W0_V14_HISTORICAL_REPLAY_GOVERNANCE_DECISION_20261026.md`
+- Historical v1.4 full-rule replay is **NOT FULLY RECONSTRUCTABLE from the current GitHub SSOT**.
+- W2 formal status: **HOLD / HISTORICAL_V14_FULL_RULE_REPLAY_UNAVAILABLE**.
+- W3A must maintain PIT/data/lineage and must not synthesize missing v1.4 Alpha rules.
+- Current P0 critical path is **W4 → P0-R / W6 → W3B → W0/P0-G**.
 
 Production impact: **NONE**
 
@@ -160,7 +167,14 @@ W2 efficacy executes only when all fail-closed gates PASS.
 
 ## CURRENT W2 READINESS
 
-**DATA_BLOCKED / HOLD**
+**HOLD / HISTORICAL_V14_FULL_RULE_REPLAY_UNAVAILABLE**
+
+The data-engineering source layer is no longer the primary blocker:
+- corrected whole-universe 5m raw source: PASS
+- PIT Universe: PASS
+- TAIEX benchmark: PASS
+
+The remaining limitation is authoritative historical Production-v1.4 rule provenance, which W0 has formally classified as not fully reconstructable from the current SSOT.
 
 The remaining hard dependency is not a missing research formula. It is the absence of a canonical frozen Production-v1.4 historical decision source / executable replay adapter capable of producing:
 - full 10-rule gate outputs
@@ -181,3 +195,15 @@ Without that evidence, Candidate Pool / Ranking, Execution Context and Outcome J
 - No future bars used in features.
 - No missing spread/slippage imputed to zero.
 - No W2 Rule Contribution may run while readiness is DATA_BLOCKED.
+
+## 2026-10-26 Governance Closure
+
+GitHub Issue #81 is closed as `not_planned` under the W0 governance decision.
+
+Reason:
+- W3A data engineering and source lineage are complete enough for canonical PIT/raw-market maintenance.
+- The original issue's final objective—historical Production-v1.4 full-rule efficacy replay—cannot be completed without an authoritative frozen implementation or complete historical decision snapshot.
+- W3A is prohibited from inventing or retrospectively reconstructing those missing Alpha rules.
+
+Re-open condition:
+- W0/P0-G accepts an authoritative `FROZEN_CANONICAL_IMPLEMENTATION` or `HISTORICAL_SNAPSHOT`.
