@@ -137,5 +137,10 @@ Research Candidate 不得自動覆蓋上述正式版本。
 - 公司級 `filing_published_at` 僅在可同時辨識公司代號、營收月份與官方發布時間時才寫入。
 - API 無新公告（`data=[]`）屬正常狀態，不得視為資料失敗。
 - Forward ledger：排程累積未來正式公告時間。
-- **Historical filing timestamp backfill：NOT COMPLETE。**
+- **Historical filing timestamp backfill：BLOCKED BY SOURCE COVERAGE。**
+- 2023-01～2026-09 實測月營收母體：87,588 個公司×月份。
+- Verified official filing timestamp：0；Historical PIT Coverage = **0.0000%**。
+- 分年：2023 22,752／0；2024 23,266／0；2025 23,715／0；2026(1–9月) 17,855／0。
+- MOPS `t51sb10` more-info 舊頁探測僅有 `Stp` / `TK`，未暴露 year/month/date 歷史 timestamp 查詢欄位。
+- 法定期限 proxy 不計入 coverage；不得用 proxy 假裝 Historical PIT 已完成。
 - Revenue MoM 5D / YoY Acceleration 5D 在歷史 PIT backfill 與 coverage audit 完成前仍維持 `PRE_PIT_CANDIDATE`，不得 Promotion。

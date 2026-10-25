@@ -22,9 +22,9 @@ Research namespaces:
 
 | Candidate | Status | Priority | Current evidence |
 |---|---|---:|---|
-| Revenue MoM 5D | PRE_PIT_CANDIDATE | 1 | Robustness gates passed, but knowledge date still uses statutory-deadline proxy. Must verify company filing timestamp before promotion research continues. |
+| Revenue MoM 5D | PRE_PIT_CANDIDATE | 1 | Robustness gates passed, but 2023–2026 historical PIT audit found 0 / 87,588 company-months with verified MOPS filing timestamps (0.0000%). Promotion blocked until historical PIT coverage is resolved or the research window is redefined prospectively. |
 | Revenue YoY 5D | HOLD_CONCENTRATION_FAIL | 4 | Primary/stress return gates passed, but top-5-symbol concentration exceeded threshold across splits. Do not promote. |
-| Revenue YoY Acceleration 5D | PRE_PIT_CANDIDATE | 2 | Robustness gates passed, but actual filing timestamp is not yet aligned. Remains pre-promotion research only. |
+| Revenue YoY Acceleration 5D | PRE_PIT_CANDIDATE | 2 | Robustness gates passed, but 2023–2026 historical PIT coverage is 0.0000% (0 / 87,588 company-months). Remains pre-promotion research only; statutory-deadline proxies do not satisfy PIT. |
 | Revenue YoY 20D | HOLD_CONCENTRATION_FAIL | 5 | Return gates passed, but concentration gate failed; do not promote despite high average returns. |
 | Stage 7A Broader Market Alpha | RESEARCH | 5 | Pre-registered broader-market alpha study; no production impact until all gates pass. |
 
@@ -46,6 +46,17 @@ Research namespaces:
 | Event-driven intraday ranking / catalyst stack | REJECTED | OOS and post-cost evidence insufficient. |
 | Transparent intraday ML feature ensemble | REJECTED | Negative post-cost Train/Valid/Test performance. |
 | Low-vol market-residual long-only | REJECTED_AS_STRATEGY | Stable IC did not convert into robust tradable long-only edge. |
+
+## Historical Revenue PIT coverage audit
+
+- Audit run: GitHub Actions #40168078271 (2026-10-25)
+- Scope: TWSE + TPEx monthly revenue, 2023-01 through 2026-09
+- Expected company-months: 87,588
+- Verified MOPS filing timestamps: 0
+- Historical PIT coverage: 0.0000%
+- Gate: FAIL
+- Governance consequence: Revenue candidates remain PRE_PIT_CANDIDATE.
+- The MOPS latest-finance endpoint `t51sb10` supports latest records only; its more-info form exposed only `Stp` and `TK`, with no year/month/date history selector in the probed official interface.
 
 ## Promotion gate
 
