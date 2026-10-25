@@ -35,8 +35,9 @@ def test_news_adapter_never_creates_trade_signal():
         "authority_score": 60,
         "affected_sectors": ["panel"],
     }]
-    canonical = build_news_evidence_ledger(rows)
-    legacy = legacy_news_ledger(rows)
+    run_time = "2026-10-25T09:00:00+08:00"
+    canonical = build_news_evidence_ledger(rows, run_time=run_time)
+    legacy = legacy_news_ledger(rows, run_time=run_time)
     assert canonical == legacy
     assert canonical["record_count"] == 1
     assert canonical["records"][0]["trade_signal"] is False
