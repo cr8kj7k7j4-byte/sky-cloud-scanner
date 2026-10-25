@@ -169,3 +169,31 @@ W3 must build a canonical point-in-time historical decision replay dataset that 
 4. Remaining Production hardening / rollback readiness
 5. W1 canonical PIT Swing replay when its required data path is ready
 6. New alpha research only after the above bottlenecks are materially reduced
+
+## L. Window Execution Directives — 2026-10-25
+
+### Current critical path
+**W3A → W2 → W4 → W0**
+
+### Priority map
+1. **W3A / P0 Highest** — Intraday PIT Historical Replay Dataset.
+2. **W2 / P1 dependent** — Run canonical 10-rule validation only after W3A dataset passes fail-closed validation; until then HOLD / DATA_BLOCKED.
+3. **W4 / P1** — Continue Shadow/Paper evidence accumulation to sufficiency gate.
+4. **W3B / P1** — Production engineering support for reproducible W3A→W2 pipeline, CI/E2E/runtime/rollback.
+5. **W6 / P2** — Execution/microstructure evidence, especially historically reconstructable spread/slippage/fill/liquidity assumptions.
+6. **W1 / P3** — HOLD; prepare canonical PIT Swing replay, no duplicate current-universe reruns as new evidence.
+7. **W5 / P4** — Intake only; duplicate/low-value screening before new research.
+8. **W7 / P4** — Low-intensity global/vendor intelligence; route candidates through W5 and W0.
+
+### Workstream split
+- W3A owns Data / PIT / Feature Engineering.
+- W3B owns Cloud / Deployment / Runtime / Monitoring / E2E.
+- Legacy W3 is deprecated for new work and retained only as history.
+
+### Production governance
+- Day Trading v1.4 remains ACTIVE and unchanged.
+- Swing V1.0 remains ACTIVE and unchanged.
+- W2 remains HOLD.
+- No new Stable Production Rule has been authorized.
+- No Small Live authorization exists.
+- New alpha expansion is lower priority than evidence/data completion.
