@@ -82,12 +82,20 @@ def test_dashboard_governance_review_ready_only_after_all_gates():
 def test_runner_loads_multiple_paper_files():
     with TemporaryDirectory() as td:
         root=Path(td)
-        (root/"a.json").write_text(
+        p1=root/"run1"/"output"/"paper"
+        p2=root/"run2"/"output"/"paper"
+        p1.mkdir(parents=True)
+        p2.mkdir(parents=True)
+        (p1/"a.json").write_text(
             json.dumps({"records": _records(n=2, days=2, symbols=2)}),
             encoding="utf-8",
         )
-        (root/"b.json").write_text(
+        (p2/"b.json").write_text(
             json.dumps({"records": _records(n=3, days=3, symbols=3)}),
+            encoding="utf-8",
+        )
+        (root/"unrelated.json").write_text(
+            json.dumps({"records": _records(n=99)}),
             encoding="utf-8",
         )
         rows, files = load_shadow_records(root)
