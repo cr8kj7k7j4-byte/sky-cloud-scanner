@@ -8,7 +8,7 @@ import pandas as pd
 
 from src.point_in_time_universe import universe_as_of
 
-SCHEMA_VERSION="INTRADAY_MARKET_CONTEXT_V1_1"
+SCHEMA_VERSION="INTRADAY_MARKET_CONTEXT_V1_2"
 
 def load_history_dir(path: str) -> pd.DataFrame:
     rows=[]
@@ -70,6 +70,8 @@ def build_market_context(decisions, bars, pit_intervals, benchmark=None, regime_
     if benchmark is not None and not benchmark.empty:
         benchmark=benchmark.copy()
         benchmark['timestamp']=pd.to_datetime(benchmark['timestamp'],errors='coerce',utc=True)
+        if 'available_at' in benchmark.columns:
+            benchmark['available_at']=pd.to_datetime(benchmark['available_at'],errors='coerce',utc=True)
         benchmark['market_return']=pd.to_numeric(benchmark['market_return'],errors='coerce')
         benchmark_series=benchmark.dropna(subset=['timestamp']).sort_values('timestamp')
 
@@ -87,7 +89,11 @@ def build_market_context(decisions, bars, pit_intervals, benchmark=None, regime_
         session=str(part.iloc[0]['session_date'])
         members=universe_as_of(pit_intervals,session)
         member_syms={str(x['symbol']) for x in members}
-        avail=b[(b['session_date']==session)&(b['symbol'].astype(str).isin(member_syms))&(b['timestamp']<=ts)]
+        avail=b[
+            (b['session_date']==session)
+            & (b['symbol'].astype(str).isin(member_syms))
+            & ((b['timestamp'] + pd.Timedelta(minutes=5))<=ts)
+        ]
         latest=avail.sort_values('timestamp').groupby('symbol',as_index=False).tail(1)
         first=avail.sort_values('timestamp').groupby('symbol',as_index=False).head(1)[['symbol','open']].rename(columns={'open':'session_open'})
         snap=latest.merge(first,on='symbol',how='left')
@@ -102,7 +108,10 @@ def build_market_context(decisions, bars, pit_intervals, benchmark=None, regime_
         coverage=observed/expected if expected else 0.0
         market_return=None
         if benchmark_series is not None:
-            z=benchmark_series[benchmark_series['timestamp']<=ts]
+            if 'available_at' in benchmark_series.columns:
+                z=benchmark_series[benchmark_series['available_at']<=ts]
+            else:
+                z=benchmark_series[benchmark_series['timestamp']<=ts]
             if not z.empty: market_return=float(z.iloc[-1]['market_return'])
         record={
             'market_return':market_return,

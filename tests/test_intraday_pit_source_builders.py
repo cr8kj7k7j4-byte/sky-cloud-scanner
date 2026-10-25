@@ -90,3 +90,44 @@ def test_market_context_does_not_substitute_equal_weight_for_missing_benchmark()
     assert report["status"]=="BLOCKED"
     assert pd.isna(frame.loc[0,"market_return"])
     assert frame.loc[0,"market_equal_weight_return"] is not None
+
+
+def test_market_context_excludes_incomplete_same_start_bar():
+    decisions=pd.DataFrame([{
+        "decision_id":"d1","decision_timestamp":"2026-01-05T09:05:00+08:00",
+        "session_date":"2026-01-05",
+    }])
+    bars=pd.DataFrame([
+        {"symbol":"1111","timestamp":"2026-01-05T09:00:00+08:00","open":10.0,"close":10.0},
+        {"symbol":"1111","timestamp":"2026-01-05T09:05:00+08:00","open":10.0,"close":99.0},
+        {"symbol":"2222","timestamp":"2026-01-05T09:00:00+08:00","open":20.0,"close":20.0},
+        {"symbol":"2222","timestamp":"2026-01-05T09:05:00+08:00","open":20.0,"close":1.0},
+    ])
+    pit=[
+        {"symbol":"1111","exchange":"TWSE","name":"A","listed_from":"2020-01-01","listed_to":None},
+        {"symbol":"2222","exchange":"TWSE","name":"B","listed_from":"2020-01-01","listed_to":None},
+    ]
+    benchmark=pd.DataFrame([{
+        "timestamp":"2026-01-05T09:05:00+08:00","market_return":0.0,
+    }])
+    regime=pd.DataFrame([{"decision_id":"d1","market_regime":"FROZEN_TEST"}])
+    frame,report=build_market_context(decisions,bars,pit,benchmark,regime)
+    assert report["status"]=="PASS"
+    assert report["min_member_coverage"]==1.0
+    assert float(frame.loc[0,"market_equal_weight_return"])==0.0
+    assert float(frame.loc[0,"market_breadth"])==0.0
+
+
+def test_fugle_benchmark_json_uses_available_at_not_bar_start(tmp_path):
+    from research.build_intraday_market_context import benchmark_returns_from_fugle_json
+
+    p=tmp_path/"ix.json"
+    p.write_text(__import__("json").dumps({
+        "data":[
+            {"date":"2026-01-05T09:00:00+08:00","open":100.0,"close":101.0},
+            {"date":"2026-01-05T09:05:00+08:00","open":101.0,"close":150.0},
+        ]
+    }),encoding="utf-8")
+    x=benchmark_returns_from_fugle_json(str(p))
+    assert str(x.iloc[0]["available_at"]).startswith("2026-01-05 01:05:00")
+    assert str(x.iloc[1]["available_at"]).startswith("2026-01-05 01:10:00")
