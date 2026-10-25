@@ -1,0 +1,29 @@
+name: MOPS Revenue MoreInfo Historical Probe
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'research/mops-revenue-pit-backfill'
+    paths:
+      - 'research/probe_mops_revenue_moreinfo.py'
+      - '.github/workflows/mops-revenue-moreinfo-probe.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python research/probe_mops_revenue_moreinfo.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mops-revenue-moreinfo-probe-${{ github.run_id }}
+          path: output/mops_backfill_moreinfo/
+          retention-days: 30
