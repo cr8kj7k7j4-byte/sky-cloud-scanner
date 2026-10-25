@@ -178,17 +178,27 @@ def build_historical_universe_audit(
         if symbol and exchange:
             interval_by_exchange[exchange].add(symbol)
 
+    open_by_exchange = defaultdict(set)
+    for row in intervals:
+        if row.get("listed_to") in (None, ""):
+            open_by_exchange[str(row.get("exchange") or "")].add(str(row.get("symbol") or ""))
+
     current_coverage = {}
-    for exchange in sorted(set(current_by_exchange) | set(interval_by_exchange)):
+    for exchange in sorted(set(current_by_exchange) | set(interval_by_exchange) | set(open_by_exchange)):
         current = current_by_exchange.get(exchange, set())
         known = interval_by_exchange.get(exchange, set())
+        open_now = open_by_exchange.get(exchange, set())
         covered = current & known
         missing = sorted(current - known)
+        extraneous_open = sorted(open_now - current)
         current_coverage[exchange] = {
             "current_symbols": len(current),
             "symbols_with_listing_interval": len(covered),
             "coverage_pct": round((len(covered) / len(current) * 100.0), 4) if current else 0.0,
             "missing_current_symbols": missing[:200],
+            "open_interval_symbols": len(open_now),
+            "extraneous_open_symbol_count": len(extraneous_open),
+            "extraneous_open_symbols": extraneous_open[:200],
         }
 
     dates = {}
@@ -245,6 +255,10 @@ def build_historical_universe_audit(
         for x in current_coverage.values()
         if x["current_symbols"] > 0
     )
+    open_interval_alignment_ok = all(
+        int(x.get("extraneous_open_symbol_count") or 0) == 0
+        for x in current_coverage.values()
+    )
     unresolved_ok = len(unresolved) == 0
     historical_dates_nonempty = bool(dates) and all(
         int(item.get("pit_symbols_total") or 0) > 0
@@ -256,6 +270,7 @@ def build_historical_universe_audit(
         and historical_source_coverage_ok
         and validation.get("valid")
         and current_coverage_ok
+        and open_interval_alignment_ok
         and unresolved_ok
         and historical_dates_nonempty
     )
@@ -321,6 +336,7 @@ def build_historical_universe_audit(
         "current_interval_coverage": current_coverage,
         "historical_dates": dates,
         "historical_source_coverage_ok": historical_source_coverage_ok,
+        "current_open_interval_alignment_ok": open_interval_alignment_ok,
         "historical_dates_nonempty": historical_dates_nonempty,
         "historical_universe_gate_pass": gate_pass,
         "production_eligible": gate_pass,
@@ -337,6 +353,8 @@ def build_historical_universe_audit(
             "all_audit_dates_must_have_nonzero_pit_membership": True,
             "window_start": WINDOW_START,
             "strict_pre_window_unresolved_do_not_block_window_gate": True,
+            "current_open_intervals_must_match_production_universe": True,
+            "extraneous_open_intervals_allowed": 0,
             "window_unresolved_events_allowed": 0,
             "rule": (
                 "Current-universe-only historical studies must not be promoted "
@@ -362,17 +380,19 @@ def write_markdown(report: dict, path: Path):
         f"- Interval validation: {'PASS' if report['interval_validation']['valid'] else 'FAIL'}",
         f"- Historical source coverage: {'PASS' if report['historical_source_coverage_ok'] else 'FAIL'}",
         f"- Historical dates non-empty: {'PASS' if report['historical_dates_nonempty'] else 'FAIL'}",
+        f"- Current open-interval alignment: {'PASS' if report.get('current_open_interval_alignment_ok') else 'FAIL'}",
         f"- Historical Universe Gate: {'PASS' if report['historical_universe_gate_pass'] else 'FAIL'}",
         "",
         "## Current-universe interval coverage",
         "",
-        "| Exchange | Current | Covered by interval | Coverage |",
-        "|---|---:|---:|---:|",
+        "| Exchange | Current | Covered by interval | Coverage | Open intervals | Extraneous open |",
+        "|---|---:|---:|---:|---:|---:|",
     ]
     for exchange, x in report["current_interval_coverage"].items():
         lines.append(
             f"| {exchange} | {x['current_symbols']:,} | "
-            f"{x['symbols_with_listing_interval']:,} | {x['coverage_pct']:.4f}% |"
+            f"{x['symbols_with_listing_interval']:,} | {x['coverage_pct']:.4f}% | "
+            f"{x.get('open_interval_symbols',0):,} | {x.get('extraneous_open_symbol_count',0):,} |"
         )
 
     for d, item in report["historical_dates"].items():
