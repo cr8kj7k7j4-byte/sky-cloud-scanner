@@ -11,7 +11,8 @@
     "Fixed-time Intraday Ranking",
     "Event-driven Intraday Ranking / Catalyst Stack",
     "Transparent Intraday ML Ensemble",
-    "Low-vol Market-residual Long-only"
+    "Low-vol Market-residual Long-only",
+    "VNext Residual Ranking Baseline v1"
   ],
   "active_blocked": {
     "Revenue MoM 5D": "PRE_PIT_CANDIDATE",
@@ -19,5 +20,6 @@
     "Revenue YoY 5D": "HOLD_CONCENTRATION_FAIL",
     "Revenue YoY 20D": "HOLD_CONCENTRATION_FAIL"
   },
-  "sole_vnext_lane": "Residual / Market-Neutral Cross-sectional Ranking"
+  "sole_vnext_lane": "NONE_AUTHORIZED",
+  "vnext_status": "VNext Residual Ranking Baseline v1 rejected; successor requires new structural preregistration"
 }
