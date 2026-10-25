@@ -90,10 +90,22 @@ def main():
         allp[name]=diagnose(name,url,out)
     allp["TPEX_API_PROBES"] = probe_tpex_api(out)
     (out/"summary.json").write_text(json.dumps(allp,ensure_ascii=False,indent=2),encoding="utf-8")
-    print(json.dumps({k:{
-      "status":v["status"],"html_len":v["html_len"],"tables":v["tables"],
-      "scripts":len(v["scripts"]),"candidates":len(v["candidates"]),"script_hit_files":len(v["script_hits"])
-    } for k,v in allp.items()},ensure_ascii=False,indent=2))
+    summary={}
+    for k,v in allp.items():
+        if k=="TPEX_API_PROBES":
+            summary[k]={n:{
+                "status":x.get("status"),
+                "content_type":x.get("content_type"),
+                "has_json":x.get("json") is not None,
+                "error":x.get("error"),
+            } for n,x in v.items()}
+        else:
+            summary[k]={
+                "status":v.get("status"),"html_len":v.get("html_len"),"tables":v.get("tables"),
+                "scripts":len(v.get("scripts",[])),"candidates":len(v.get("candidates",[])),
+                "script_hit_files":len(v.get("script_hits",{}))
+            }
+    print(json.dumps(summary,ensure_ascii=False,indent=2))
 
 
 
