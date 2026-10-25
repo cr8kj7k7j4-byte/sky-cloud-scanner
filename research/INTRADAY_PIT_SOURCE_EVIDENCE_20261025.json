@@ -30,15 +30,21 @@
     "note": "Current anchor only; not historical PIT evidence by itself."
   },
   "whole_universe_intraday": {
-    "status": "IN_PROGRESS",
+    "status": "DIAGNOSTIC_RUN_INVALIDATED_BY_PIT_UNIVERSE_REVALIDATION",
     "legacy_monolithic_run_id": 40197918327,
     "canonical_sharded_run_id": 40198835143,
     "required_gate": 0.95,
-    "note": "Final status depends on symbol-day coverage audit."
+    "note": "Existing monolithic/sharded downloads were seeded from the pre-fix PIT interval artifact and cannot be promotion-grade canonical evidence even if transport/coverage succeeds."
   },
   "frozen_v14_alpha": {
     "status": "FROZEN_ALPHA_INPUT_REQUIRED",
     "audit_source": "research/audit_frozen_v14_replay_readiness.py",
     "note": "Executable historical v1.4 10-rule replay provider and canonical decision stream are absent from current repository evidence."
+  },
+  "historical_universe": {
+    "status": "REVALIDATION_REQUIRED",
+    "reason": "Real shard evidence exposed stale open TPEx/TWSE intervals absent from Production universe. PR #110 is revalidating active-membership semantics.",
+    "prior_gate_pass_invalidated_for_canonical_replay": true,
+    "revalidation_pr": 110
   }
 }
