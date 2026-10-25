@@ -1,0 +1,166 @@
+name: W3 Swing Canonical PIT Daily V2
+
+on:
+  push:
+    branches: [engineering/w3-swing-pit-daily-v2-20261025]
+  pull_request:
+    paths:
+      - "research/collect_swing_pit_daily_v2.py"
+      - "research/audit_swing_pit_price_coverage_v2.py"
+      - "research/W3_SWING_PIT_DAILY_PRICE_DATA_CONTRACT_V2.md"
+      - "tests/test_swing_pit_daily_v2.py"
+      - ".github/workflows/w3-swing-pit-daily-v2.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-pit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt pytest
+      - name: Unit tests
+        env:
+          PYTHONPATH: .
+        run: >
+          python -m pytest -q
+          tests/test_swing_pit_daily_v2.py
+          tests/test_point_in_time_universe.py
+      - name: Build canonical PIT intervals
+        env:
+          PYTHONPATH: .
+        run: python research/audit_historical_universe.py --out canonical_pit
+      - name: Assert canonical PIT gate
+        run: |
+          python - <<'PY'
+          import json
+          x=json.load(open("canonical_pit/pit_intervals.json",encoding="utf-8"))
+          assert x.get("historical_universe_gate_pass") is True
+          assert (x.get("interval_validation") or {}).get("valid") is True
+          print("intervals",len(x.get("intervals") or []))
+          print("symbols",len({str(r.get("symbol")) for r in x.get("intervals") or [] if r.get("symbol")}))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: w3-swing-v2-canonical-pit
+          path: canonical_pit/
+          retention-days: 90
+
+  collect:
+    needs: build-pit
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        shard: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests
+      - uses: actions/download-artifact@v4
+        with:
+          name: w3-swing-v2-canonical-pit
+          path: canonical_pit
+      - name: Collect raw daily and apply governed corporate-action adjustment
+        env:
+          PYTHONPATH: .
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+        run: >
+          python research/collect_swing_pit_daily_v2.py
+          --pit-json canonical_pit/pit_intervals.json
+          --out shard_out
+          --start 2023-01-01
+          --end 2026-10-25
+          --shard-index ${{ matrix.shard }}
+          --shard-count 40
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: w3-swing-v2-shard-${{ matrix.shard }}
+          path: shard_out/
+          retention-days: 90
+          compression-level: 7
+          if-no-files-found: warn
+
+  combine-audit:
+    needs: collect
+    if: always() && needs.collect.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: w3-swing-v2-canonical-pit
+          path: canonical_pit
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: w3-swing-v2-shard-*
+          path: combined
+          merge-multiple: true
+      - name: Structural artifact check
+        run: |
+          echo "history files=$(find combined/history -name '*_D.json' 2>/dev/null | wc -l)"
+          echo "shard reports=$(find combined -name 'shard_report_*.json' | wc -l)"
+          test "$(find combined -name 'shard_report_*.json' | wc -l)" -eq 40
+      - name: Coverage and missingness audit
+        env:
+          PYTHONPATH: .
+        run: >
+          python research/audit_swing_pit_price_coverage_v2.py
+          --history-dir combined/history
+          --pit-json canonical_pit/pit_intervals.json
+          --shard-root combined
+          --out audit
+      - name: W1 registered readiness validator
+        env:
+          PYTHONPATH: .
+        run: >
+          python research/validate_swing_pit_readiness.py
+          --history-dir combined/history
+          --pit-json canonical_pit/pit_intervals.json
+          --out w1_readiness
+      - name: Enforce W1 READY
+        run: |
+          python - <<'PY'
+          import json
+          x=json.load(open("w1_readiness/swing_pit_readiness.json",encoding="utf-8"))
+          print(json.dumps(x,ensure_ascii=False,indent=2))
+          assert x.get("status")=="READY_FOR_CANONICAL_SWING_REPLAY"
+          PY
+      - name: Manifest
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          files=sorted(Path("combined/history").glob("*_D.json"))
+          m={"schema_version":"SWING_PIT_DAILY_MANIFEST_2.0","files":len(files),"sha256":{}}
+          for p in files:m["sha256"][p.name]=hashlib.sha256(p.read_bytes()).hexdigest()
+          Path("audit/manifest.json").write_text(json.dumps(m,ensure_ascii=False,indent=2),encoding="utf-8")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: w3-swing-canonical-daily-history-${{ github.run_id }}
+          path: |
+            combined/history/
+            audit/
+            w1_readiness/
+            canonical_pit/pit_intervals.json
+            canonical_pit/audit.json
+          retention-days: 90
+          compression-level: 9
+          if-no-files-found: warn
