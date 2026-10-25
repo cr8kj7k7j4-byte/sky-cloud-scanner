@@ -49,6 +49,7 @@ def test_reconstruct_intervals_backwards_from_current_sector():
             "effective_from": "2010-01-01",
             "effective_to": "2026-05-31",
             "source": "official_sector_event_ledger",
+            "source_url": "",
             "source_as_of": "2026-10-25",
         },
         {
@@ -59,7 +60,8 @@ def test_reconstruct_intervals_backwards_from_current_sector():
             "effective_from": "2026-06-01",
             "effective_to": None,
             "source": "official_sector_event_ledger",
-            "source_as_of": "2026-10-25",
+            "source_url": "u",
+            "source_as_of": "2026-05-19",
         },
     ]
 
