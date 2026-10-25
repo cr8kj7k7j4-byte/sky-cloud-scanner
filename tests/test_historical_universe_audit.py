@@ -249,3 +249,26 @@ def test_missing_delisting_evidence_blocks_gate():
     )
     assert out["historical_source_coverage_ok"] is False
     assert out["historical_universe_gate_pass"] is False
+
+
+def test_extraneous_open_interval_blocks_gate():
+    p=_payload()
+    p["events"].append({
+        "symbol":"9998","exchange":"TPEx","name":"StaleManaged",
+        "event_type":"LIST","event_date":"2020-01-01",
+        "source":"official_basic_data","source_url":"u",
+        "source_as_of":"2026-10-25","notes":"",
+    })
+    current=[
+        {"symbol":"2222","exchange":"TWSE"},
+        {"symbol":"3333","exchange":"TPEx"},
+    ]
+    out=build_historical_universe_audit(
+        official_payload=p,
+        current_universe=current,
+        audit_dates=["2025-12-31"],
+    )
+    assert out["current_open_interval_alignment_ok"] is False
+    assert out["current_interval_coverage"]["TPEx"]["extraneous_open_symbol_count"] == 1
+    assert "9998" in out["current_interval_coverage"]["TPEx"]["extraneous_open_symbols"]
+    assert out["historical_universe_gate_pass"] is False
