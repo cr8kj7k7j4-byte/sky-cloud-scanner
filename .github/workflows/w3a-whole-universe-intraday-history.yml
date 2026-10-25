@@ -1,0 +1,96 @@
+name: W3A Whole-Universe PIT Intraday History
+
+on:
+  workflow_dispatch:
+    inputs:
+      from_date:
+        description: "Start date"
+        required: true
+        default: "2023-05-23"
+      to_date:
+        description: "End date"
+        required: true
+        default: "2026-10-22"
+      shard_count:
+        description: "Deterministic shard count (workflow currently defines 20 shards)"
+        required: true
+        default: "20"
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4 pytest
+      - name: Build canonical 2023+ PIT intervals
+        run: python research/audit_historical_universe.py --out output/historical_universe_audit
+      - name: Require PIT Universe gate PASS
+        run: |
+          python - <<'PY'
+          import json
+          p=json.load(open("output/historical_universe_audit/audit.json", encoding="utf-8"))
+          assert p["historical_universe_gate_pass"], p
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: w3a-pit-universe-${{ github.run_id }}
+          path: output/historical_universe_audit/pit_intervals.json
+          retention-days: 7
+
+  download:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        shard_index: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+    env:
+      PYTHONPATH: .
+      FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install requests pytest
+      - uses: actions/download-artifact@v4
+        with:
+          name: w3a-pit-universe-${{ github.run_id }}
+          path: input
+      - name: Download shard
+        run: |
+          python research/download_pit_universe_intraday.py \
+            --pit-intervals input/pit_intervals.json \
+            --from-date "${{ inputs.from_date }}" \
+            --to-date "${{ inputs.to_date }}" \
+            --shard-count "${{ inputs.shard_count }}" \
+            --shard-index "${{ matrix.shard_index }}" \
+            --out "research_data/pit_history_shard_${{ matrix.shard_index }}"
+      - name: Create shard archive
+        if: always()
+        run: |
+          tar -czf "pit-history-shard-${{ matrix.shard_index }}-${{ github.run_id }}.tar.gz" \
+            "research_data/pit_history_shard_${{ matrix.shard_index }}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pit-history-shard-${{ matrix.shard_index }}-${{ github.run_id }}
+          path: |
+            pit-history-shard-${{ matrix.shard_index }}-${{ github.run_id }}.tar.gz
+            research_data/pit_history_shard_${{ matrix.shard_index }}/pit_universe_manifest.json
+            research_data/pit_history_shard_${{ matrix.shard_index }}/download_summary.json
+          if-no-files-found: error
+          retention-days: 7
