@@ -7,6 +7,8 @@ def test_roc_dates():
     assert normalize_roc_date("115.10.16") == "2026-10-16"
     assert normalize_roc_date("114/08/15") == "2025-08-15"
     assert normalize_roc_date("2026-10-16") == "2026-10-16"
+    assert normalize_roc_date("20180808") == "2018-08-08"
+    assert normalize_roc_date("1070808") == "2018-08-08"
 
 def test_basic_record_parser():
     rows=[{"公司代號":"2409","公司名稱":"友達","上市日期":"85.09.06"}]
