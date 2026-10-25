@@ -91,3 +91,12 @@ def test_cross_exchange_list_closes_prior_open_interval():
     assert old["listed_to"]=="2024-01-14"
     assert "closed_by_cross_exchange_list:TWSE:2024-01-15" in old["notes"]
     assert out["migration_notes"][0]["evidence"]=="OFFICIAL_CROSS_EXCHANGE_LIST"
+
+
+def test_basic_parser_excludes_tpex_managed_stocks():
+    rows=[
+        {"公司代號":"1111","公司名稱":"Mainboard","上櫃日期":"100.01.01"},
+        {"公司代號":"1807","公司名稱":"羅馬磁磚(管理股票)","上櫃日期":"95.08.08"},
+    ]
+    out=parse_basic_records(rows,"TPEx","u","2026-10-25T00:00:00+08:00")
+    assert [x.symbol for x in out] == ["1111"]
