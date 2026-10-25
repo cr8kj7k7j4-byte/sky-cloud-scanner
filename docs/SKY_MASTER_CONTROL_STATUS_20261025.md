@@ -129,3 +129,43 @@ PIT + leakage/survivorship + preregistration + walk-forward + OOS + cost stress 
 
 ### Autonomous execution policy
 Within existing authorization, W0 continues to: inventory -> converge -> validate governance evidence -> update Registry -> set next priority. No per-step user approval is required. User intervention is required only for new external credentials/accounts, real-capital or irreversible risk, user-specific 1R/max-position settings, unavailable critical external data, or manual ChatGPT window operations.
+
+## K. W2 PR #79 Review / Merge — 2026-10-25
+
+### Review result
+- PR #79 `W2: canonical intraday PIT replay + 10-rule validation framework` — **MERGED**.
+- Merge commit: `41fc829d2261e78a559d5fdb7e07446c1c875f8b`.
+- W0/P0-G decision: research infrastructure accepted; **no Production trading-rule promotion**.
+- Sky Day Trading v1.4 / P0-C MVP Production behavior remains unchanged.
+
+### Accepted W2 research infrastructure
+- Intraday PIT Replay Contract
+- Fail-closed replay validator
+- Canonical 10-Rule Remove-One Ablation
+- Walk-forward / Market-Regime stability analysis
+- 0.45% / 0.65% cost-stress framework
+- W2 end-to-end validation runner
+- W2 CI / unit tests
+
+### Governance confirmation
+- Research Freeze Registry respected.
+- No ARCHIVED_NO_RETUNE family was revived by threshold, Top-N, indicator-period, weight, stop/target or nonlinear-model retuning.
+- Missing mandatory PIT evidence results in `DATA_BLOCKED` / HOLD.
+- No Day Trading rule is newly classified as Production Stable Rule.
+- W2 formal status remains **HOLD**.
+
+### Highest-priority next workstream
+**W3｜Intraday PIT Historical Replay Dataset — P0 / Highest Priority**
+
+Formal handoff:
+`docs/W3_INTRADAY_PIT_REPLAY_DATASET_PRIORITY_20261025.md`
+
+W3 must build a canonical point-in-time historical decision replay dataset that passes the W2 fail-closed validator before W2 may produce full 10-rule efficacy evidence.
+
+### Updated master-control priority
+1. **W3 Intraday PIT Historical Replay Dataset**
+2. W4 Shadow/Paper evidence accumulation
+3. P0-R portfolio/risk validation
+4. Remaining Production hardening / rollback readiness
+5. W1 canonical PIT Swing replay when its required data path is ready
+6. New alpha research only after the above bottlenecks are materially reduced
