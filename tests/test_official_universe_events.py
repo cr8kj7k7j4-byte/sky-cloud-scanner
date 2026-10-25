@@ -40,3 +40,15 @@ def test_interval_build_and_fail_closed_unresolved():
     out=build_intervals(e)
     assert out["intervals"][0]["listed_to"]=="2025-06-30"
     assert out["unresolved"][0]["symbol"]=="2222"
+
+
+def test_twse_delisting_title_row_shape():
+    html = """<table>
+    <tr><th colspan="3">終止上市公司</th></tr>
+    <tr><th>終止上市日期</th><th>公司名稱</th><th>上市編號</th></tr>
+    <tr><td>115年09月01日</td><td>三商壽</td><td>2867</td></tr>
+    <tr><td>114年08月15日</td><td>測試公司</td><td>6288</td></tr>
+    </table>"""
+    out = parse_delisting_html(html, "TWSE", "u", "2026-10-25T00:00:00+08:00")
+    assert [x.symbol for x in out] == ["2867", "6288"]
+    assert out[0].event_date == "2026-09-01"
