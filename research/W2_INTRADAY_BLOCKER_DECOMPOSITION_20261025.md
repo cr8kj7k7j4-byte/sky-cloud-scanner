@@ -118,6 +118,30 @@ Must support:
 - missed entry;
 - outcome completeness >=95%.
 
+
+## Source-feasibility update — 2026-10-25
+
+Two blockers previously labeled as generic external-data requirements are now narrowed:
+
+### Sector membership: RECONSTRUCTIBLE_FROM_OFFICIAL_ANNOUNCEMENTS
+TWSE and TPEx publish official industry-category adjustment notices with effective dates and before/after categories. Therefore 2023+ effective-dated sector membership should be reconstructed from official dated notices plus a verified current/base classification snapshot.
+
+This is a W3A data-engineering task, not a new strategy hypothesis and not a reason to buy a third-party dataset by default.
+
+### Whole-universe 5m history: EXISTING_AUTHORIZED_SOURCE / SCALE_ENGINEERING_REQUIRED
+The repository already contains:
+- `research/download_intraday.py`;
+- `.github/workflows/export-history-5m.yml`;
+- a configured GitHub `FUGLE_API_KEY` secret proven by the existing 100-symbol export.
+
+The current 100-symbol artifact is not promotion-grade because it covers only about 4.8%–5.3% of the governed PIT universe and uses current-universe backward sampling.
+
+The next step is not a new data vendor by default. It is a PIT-universe, sharded, rate-limit-aware whole-universe export and merge pipeline with survivorship-safe symbol membership by date.
+
+### Remaining potentially external evidence
+Empirical historical microstructure evidence (spread/slippage/liquidity/fill) may still require a distinct source or may remain explicitly MISSING/UNKNOWN where unavailable. It must never be silently imputed to zero.
+
+
 ## Formal W2 start gate
 
 W2 canonical 10-rule efficacy work may run only when the replay satisfies:
