@@ -45,14 +45,27 @@ def normalize_roc_date(value: Any) -> Optional[str]:
         return s
     m = ROC_DATE_RE.match(s)
     if not m:
-        # Common ROC basic-data format: 1121215
         digits = re.sub(r"\D", "", s)
-        if len(digits) in (7, 8):
+        # 8-digit values from official basic data can be Gregorian YYYYMMDD
+        # (e.g. 19960906). Do not add 1911 to those values.
+        if len(digits) == 8:
             try:
-                y = int(digits[:-4])
-                mo = int(digits[-4:-2])
-                d = int(digits[-2:])
-                return f"{y+1911:04d}-{mo:02d}-{d:02d}"
+                y = int(digits[:4])
+                mo = int(digits[4:6])
+                d = int(digits[6:8])
+                if 1900 <= y <= 2100:
+                    datetime(y, mo, d)
+                    return f"{y:04d}-{mo:02d}-{d:02d}"
+            except Exception:
+                return None
+        # Common ROC compact format: YYYMMDD, e.g. 1121215.
+        if len(digits) == 7:
+            try:
+                y = int(digits[:3]) + 1911
+                mo = int(digits[3:5])
+                d = int(digits[5:7])
+                datetime(y, mo, d)
+                return f"{y:04d}-{mo:02d}-{d:02d}"
             except Exception:
                 return None
         return None
