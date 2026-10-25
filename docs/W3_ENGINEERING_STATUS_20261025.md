@@ -83,7 +83,7 @@ Added .github/workflows/test-w3-engineering.yml covering:
 
 ## IN PROGRESS
 
-1. GitHub Actions validation for PR #77.
+1. GitHub Actions W3 engineering validation: PASS for the expanded engineering test set.
 2. Strict TPEx official intraday all-market chain.
 3. Market calendar contract.
 4. Corporate action and symbol continuity production ledger beyond listing intervals.
