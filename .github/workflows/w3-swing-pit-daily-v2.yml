@@ -1,8 +1,6 @@
 name: W3 Swing Canonical PIT Daily V2
 
 on:
-  push:
-    branches: [engineering/w3-swing-pit-daily-v2-20261025]
   pull_request:
     paths:
       - "research/collect_swing_pit_daily_v2.py"
