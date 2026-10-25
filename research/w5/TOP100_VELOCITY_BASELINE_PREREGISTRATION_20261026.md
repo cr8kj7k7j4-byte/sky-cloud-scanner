@@ -223,3 +223,35 @@ If historical Baseline A survives:
 - P0-R / W6 / W0 / P0-G remain mandatory before any Production decision.
 
 Sky Day Trading v1.4 remains ACTIVE and unchanged.
+
+
+## 13. Frozen executable specification — 2026-10-26
+
+This section freezes the first executable Baseline A before historical outcome evaluation.
+
+- Data frequency: 5-minute completed bars.
+- Decision timestamps: 09:15, 09:30, 09:50, 10:15 Taiwan time.
+- 09:05 is excluded from Baseline A because a causal prior 5-minute rank / volume interval is unavailable at that timestamp.
+- Current Top100: rank all eligible PIT members by current-day return using the latest completed 5-minute close versus prior trading-day close.
+- Price velocity lookback: 5 minutes.
+- Rank velocity lookback: 5 minutes.
+- Volume acceleration: latest completed 5-minute volume / previous completed 5-minute volume - 1.
+- Eligibility:
+  - current gain rank <= 100;
+  - current price <= TWD 100;
+  - current-day return < 9.5% as a conservative near-limit-up guard;
+  - price velocity > 0;
+  - rank velocity > 0;
+  - volume acceleration > 0.
+- Composite score: equal-weight mean percentile rank of price velocity, rank velocity, and volume acceleration inside the eligible Top100 pool.
+- Selection: Top 3 new symbols at each decision timestamp.
+- Same symbol: maximum one selected observation per trading day.
+- Entry proxy: open of the 5-minute bar beginning at the decision timestamp.
+- Exit: close after 60 minutes (12 x 5-minute bars); no stop/target optimization in Baseline A.
+- Primary round-trip cost: 0.45%.
+- Stress round-trip cost: 0.65%.
+- Primary metrics: after-cost expectancy, PF, Max Drawdown, Avg Win/Loss, stability.
+- Win rate remains secondary.
+- No threshold / Top-N / lookback / exit-horizon search is permitted after results are observed.
+
+Any alternative specification requires a new preregistration and must not be selected because this baseline underperforms.

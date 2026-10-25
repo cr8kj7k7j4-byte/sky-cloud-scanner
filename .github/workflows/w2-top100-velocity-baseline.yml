@@ -1,0 +1,70 @@
+name: W2 Top100 Velocity Baseline Historical Run
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  SOURCE_RUN_ID: "40221377923"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Unit tests
+        run: python -m pytest -q tests/test_top100_velocity_baseline.py
+
+      - name: Download corrected PIT cache shards
+        uses: actions/download-artifact@v4
+        with:
+          pattern: corrected-pit-cache-shard-*-${{ env.SOURCE_RUN_ID }}
+          path: source_artifacts
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+
+      - name: Build compact shard snapshots
+        run: |
+          mkdir -p compact
+          IDX=0
+          while IFS= read -r TAR; do
+            WORK="work_${IDX}"
+            mkdir -p "$WORK"
+            tar -xzf "$TAR" -C "$WORK"
+            python research/top100_velocity_baseline.py build-shard \
+              --history-root "$WORK" \
+              --out "compact/shard_${IDX}.csv"
+            rm -rf "$WORK"
+            IDX=$((IDX+1))
+          done < <(find source_artifacts -type f -name 'corrected-pit-cache-shard-*.tar.gz' | sort)
+          test "$IDX" -eq 20
+
+      - name: Aggregate causal Top100 and evaluate frozen baseline
+        run: |
+          python research/top100_velocity_baseline.py aggregate \
+            --inputs compact/shard_*.csv \
+            --out-trades research_output/top100_velocity_trades.csv \
+            --out-report research_output/top100_velocity_report.json
+
+      - name: Publish summary
+        run: |
+          echo "## Top100 Velocity Baseline" >> "$GITHUB_STEP_SUMMARY"
+          cat research_output/top100_velocity_report.json >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: top100-velocity-baseline-${{ github.run_id }}
+          path: |
+            research_output/top100_velocity_trades.csv
+            research_output/top100_velocity_report.json
+          retention-days: 30
