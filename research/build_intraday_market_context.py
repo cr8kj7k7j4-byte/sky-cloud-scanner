@@ -8,7 +8,7 @@ import pandas as pd
 
 from src.point_in_time_universe import universe_as_of
 
-SCHEMA_VERSION="INTRADAY_MARKET_CONTEXT_V1_0"
+SCHEMA_VERSION="INTRADAY_MARKET_CONTEXT_V1_1"
 
 def load_history_dir(path: str) -> pd.DataFrame:
     rows=[]
@@ -31,6 +31,25 @@ def load_history_dir(path: str) -> pd.DataFrame:
             df[c]=pd.to_numeric(df[c],errors='coerce')
         df=df[df['timestamp'].notna()].sort_values(['symbol','timestamp'])
     return df
+
+
+def benchmark_returns_from_fugle_json(path: str) -> pd.DataFrame:
+    obj=json.loads(Path(path).read_text(encoding='utf-8'))
+    rows=[]
+    for b in obj.get('data') or []:
+        rows.append({'timestamp':b.get('date'),'open':b.get('open'),'close':b.get('close')})
+    x=pd.DataFrame(rows)
+    if x.empty:
+        return pd.DataFrame(columns=['timestamp','market_return'])
+    x['timestamp']=pd.to_datetime(x['timestamp'],errors='coerce',utc=True)
+    x['open']=pd.to_numeric(x['open'],errors='coerce')
+    x['close']=pd.to_numeric(x['close'],errors='coerce')
+    x=x.dropna(subset=['timestamp','open','close']).sort_values('timestamp')
+    x['session_date']=x['timestamp'].dt.tz_convert('Asia/Taipei').dt.date.astype(str)
+    first=x.groupby('session_date',as_index=False).head(1)[['session_date','open']].rename(columns={'open':'session_open'})
+    x=x.merge(first,on='session_date',how='left')
+    x['market_return']=x['close']/x['session_open']-1.0
+    return x[['timestamp','market_return']].sort_values('timestamp')
 
 def build_market_context(decisions, bars, pit_intervals, benchmark=None, regime_context=None):
     """Build contemporaneous breadth/volatility from synchronized PIT members.
@@ -137,7 +156,7 @@ def main():
     bars=load_history_dir(args.history_dir)
     obj=json.loads(Path(args.pit_universe).read_text(encoding='utf-8'))
     intervals=obj if isinstance(obj,list) else obj.get('intervals',[])
-    benchmark=pd.read_csv(args.benchmark) if args.benchmark else None
+    benchmark=(benchmark_returns_from_fugle_json(args.benchmark) if args.benchmark and str(args.benchmark).lower().endswith('.json') else (pd.read_csv(args.benchmark) if args.benchmark else None))
     regime=pd.read_csv(args.regime_context) if args.regime_context else None
     frame,report=build_market_context(decisions,bars,intervals,benchmark,regime)
     out=Path(args.out_dir);out.mkdir(parents=True,exist_ok=True)
