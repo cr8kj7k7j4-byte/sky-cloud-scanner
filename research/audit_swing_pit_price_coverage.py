@@ -21,7 +21,7 @@ def load_history(history_dir: str):
     observed_dates = defaultdict(set)
     duplicates = []
     invalid = []
-    adjusted_false = []
+    adjustment_not_capable = []
     source_counts = defaultdict(int)
 
     for p in sorted(Path(history_dir).glob("*_D.json")):
@@ -44,8 +44,8 @@ def load_history(history_dir: str):
                     duplicates.append({"symbol": sym, "exchange": key[0], "date": day})
                     continue
                 seen.add(key)
-                if bar.get("adjusted") is not True:
-                    adjusted_false.append({"symbol": sym, "date": day})
+                if obj.get("adjustment_capability") != "PIT_ASOF_EVENT_LEDGER":
+                    adjustment_not_capable.append({"symbol": sym, "date": day})
                 for f in ("open", "high", "low", "close"):
                     try:
                         if float(bar.get(f)) <= 0:
@@ -65,14 +65,14 @@ def load_history(history_dir: str):
                     "min_date": min(dates),
                     "max_date": max(dates),
                     "bars": len(dates),
-                    "adjusted": bool(obj.get("adjusted")),
+                    "adjustment_capability": obj.get("adjustment_capability"),
                     "source": obj.get("source"),
                     "sha256": obj.get("sha256"),
                 }
         except Exception as exc:
             invalid.append({"file": str(p), "reason": f"parse_error:{type(exc).__name__}"})
 
-    return meta, observed_dates, duplicates, invalid, adjusted_false, dict(source_counts)
+    return meta, observed_dates, duplicates, invalid, adjustment_not_capable, dict(source_counts)
 
 
 def compress_missing(days: list[str]) -> list[dict]:
@@ -105,7 +105,7 @@ def main():
 
     pit = json.loads(Path(args.pit_json).read_text(encoding="utf-8"))
     intervals = list(pit.get("intervals") or [])
-    history, observed_dates, duplicates, invalid, adjusted_false, source_counts = load_history(args.history_dir)
+    history, observed_dates, duplicates, invalid, adjustment_not_capable, source_counts = load_history(args.history_dir)
 
     shard_reports = []
     provider_blockers = []
@@ -137,7 +137,7 @@ def main():
         pit.get("historical_universe_gate_pass")
         and (pit.get("interval_validation") or {}).get("valid")
         and not duplicates
-        and not adjusted_false
+        and not adjustment_not_capable
         and not continuity_conflicts
     )
 
@@ -152,7 +152,7 @@ def main():
             if s in history
             and history[s]["min_date"] <= day
             and history[s]["max_date"] >= day
-            and history[s]["adjusted"]
+            and history[s]["adjustment_capability"] == "PIT_ASOF_EVENT_LEDGER"
         ])
         missing = sorted(set(eligible) - set(covered))
         pct = (len(covered) / len(eligible) * 100.0) if eligible else 0.0
@@ -202,7 +202,7 @@ def main():
         "symbol_day_coverage_pct": round(symbol_day_coverage, 4),
         "duplicates": duplicates,
         "invalid_rows": invalid[:500],
-        "adjusted_false_rows": adjusted_false[:500],
+        "adjustment_not_capable_rows": adjustment_not_capable[:500],
         "source_counts": source_counts,
         "shard_reports_found": len(shard_reports),
         "provider_blockers": provider_blockers,
@@ -234,7 +234,7 @@ def main():
         f"- Price symbols available: {len(history):,}",
         f"- Symbol-day coverage: {symbol_day_coverage:.2f}%",
         f"- Duplicate symbol/exchange/date rows: {len(duplicates):,}",
-        f"- Non-adjusted rows: {len(adjusted_false):,}",
+        f"- Rows/files without PIT as-of adjustment capability: {len(adjustment_not_capable):,}",
         f"- Shard reports found: {len(shard_reports):,}",
         f"- Provider blockers: {len(provider_blockers):,}",
         f"- Corporate-action conflicts: {len(corporate_action_conflicts):,}",
