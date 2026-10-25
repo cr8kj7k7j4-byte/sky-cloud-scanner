@@ -95,7 +95,7 @@ def main():
       "scripts":len(v["scripts"]),"candidates":len(v["candidates"]),"script_hit_files":len(v["script_hits"])
     } for k,v in allp.items()},ensure_ascii=False,indent=2))
 
-if __name__=="__main__": main()
+
 
 
 def probe_tpex_api(outdir):
@@ -137,3 +137,5 @@ def probe_tpex_api(outdir):
         except Exception as e:
             out[name] = {"url": url, "error": f"{type(e).__name__}: {e}"}
     return out
+
+if __name__=="__main__": main()
