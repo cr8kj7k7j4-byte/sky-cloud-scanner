@@ -100,11 +100,36 @@ def main():
     ap.add_argument("--history-dir", required=True)
     ap.add_argument("--pit-json", required=True)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--shard-report-dir")
     args = ap.parse_args()
 
     pit = json.loads(Path(args.pit_json).read_text(encoding="utf-8"))
     intervals = list(pit.get("intervals") or [])
     history, observed_dates, duplicates, invalid, adjusted_false, source_counts = load_history(args.history_dir)
+
+    shard_reports = []
+    provider_blockers = []
+    corporate_action_conflicts = []
+    continuity_conflicts = []
+    shard_symbols_failed = []
+    if args.shard_report_dir:
+        for p in sorted(Path(args.shard_report_dir).glob("shard_report_*.json")):
+            try:
+                x = json.loads(p.read_text(encoding="utf-8"))
+                shard_reports.append({
+                    "file": p.name,
+                    "shard_index": x.get("shard_index"),
+                    "symbols_selected": x.get("symbols_selected"),
+                    "symbols_written": x.get("symbols_written"),
+                    "rows_written": x.get("rows_written"),
+                })
+                if x.get("provider_blocker"):
+                    provider_blockers.append(x.get("provider_blocker"))
+                corporate_action_conflicts.extend(x.get("corporate_action_conflicts") or [])
+                continuity_conflicts.extend(x.get("continuity_conflicts") or [])
+                shard_symbols_failed.extend(x.get("symbols_failed") or [])
+            except Exception as exc:
+                invalid.append({"file": str(p), "reason": f"shard_report_parse_error:{type(exc).__name__}"})
 
     all_dates = sorted({d for values in observed_dates.values() for d in values})
     audit_rows = {}
@@ -113,6 +138,7 @@ def main():
         and (pit.get("interval_validation") or {}).get("valid")
         and not duplicates
         and not adjusted_false
+        and not continuity_conflicts
     )
 
     for day in AUDIT_DATES:
@@ -178,6 +204,11 @@ def main():
         "invalid_rows": invalid[:500],
         "adjusted_false_rows": adjusted_false[:500],
         "source_counts": source_counts,
+        "shard_reports_found": len(shard_reports),
+        "provider_blockers": provider_blockers,
+        "corporate_action_conflicts": corporate_action_conflicts,
+        "continuity_conflicts": continuity_conflicts,
+        "shard_symbols_failed": shard_symbols_failed,
         "missingness_by_symbol": missing_by_symbol,
         "governance": {
             "current_universe_substitution_forbidden": True,
@@ -204,6 +235,10 @@ def main():
         f"- Symbol-day coverage: {symbol_day_coverage:.2f}%",
         f"- Duplicate symbol/exchange/date rows: {len(duplicates):,}",
         f"- Non-adjusted rows: {len(adjusted_false):,}",
+        f"- Shard reports found: {len(shard_reports):,}",
+        f"- Provider blockers: {len(provider_blockers):,}",
+        f"- Corporate-action conflicts: {len(corporate_action_conflicts):,}",
+        f"- Continuity conflicts: {len(continuity_conflicts):,}",
         "",
         "| Audit date | PIT symbols | Price-covered | Coverage | Gate |",
         "|---|---:|---:|---:|---|",
