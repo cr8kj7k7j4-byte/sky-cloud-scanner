@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "policy": "A family with status ARCHIVED_NO_RETUNE cannot be re-opened by parameter tweaks. Re-open requires a structural change in data, label/target, horizon, or execution architecture and new preregistration.",
+  "frozen_families": [
+    "P0-S 5m Breakout",
+    "Stage 6B Catalyst Score",
+    "Stage 6C Event Interaction",
+    "Stage 6D Reaction-first Intraday",
+    "Stage 7A Broader Market Alpha A1-A5",
+    "Weak-Regime Mean-Reversion 5-20D",
+    "Fixed-time Intraday Ranking",
+    "Event-driven Intraday Ranking / Catalyst Stack",
+    "Transparent Intraday ML Ensemble",
+    "Low-vol Market-residual Long-only"
+  ],
+  "active_blocked": {
+    "Revenue MoM 5D": "PRE_PIT_CANDIDATE",
+    "Revenue YoY Acceleration 5D": "PRE_PIT_CANDIDATE",
+    "Revenue YoY 5D": "HOLD_CONCENTRATION_FAIL",
+    "Revenue YoY 20D": "HOLD_CONCENTRATION_FAIL"
+  },
+  "sole_vnext_lane": "Residual / Market-Neutral Cross-sectional Ranking"
+}
