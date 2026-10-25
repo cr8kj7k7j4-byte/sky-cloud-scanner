@@ -17,6 +17,15 @@ TWSE_DELIST_URL = "https://www.twse.com.tw/company/suspendListingCsvAndHtml?lang
 TPEX_NEW_URL = "https://www.tpex.org.tw/zh-tw/mainboard/applying/status/new-listed.html"
 TPEX_DELIST_URL = "https://www.tpex.org.tw/zh-tw/mainboard/listed/delisted.html"
 
+SOURCE_EXPECTATIONS = {
+    "TWSE_BASIC": {"min_events": 100, "role": "CURRENT_BASE"},
+    "TPEX_BASIC": {"min_events": 100, "role": "CURRENT_BASE"},
+    "TWSE_NEW": {"min_events": 1, "role": "HISTORICAL_EVENT"},
+    "TWSE_DELIST": {"min_events": 1, "role": "HISTORICAL_EVENT"},
+    "TPEX_NEW": {"min_events": 1, "role": "HISTORICAL_EVENT"},
+    "TPEX_DELIST": {"min_events": 1, "role": "HISTORICAL_EVENT"},
+}
+
 ROC_DATE_RE = re.compile(r"^\s*(\d{2,3})[./-](\d{1,2})[./-](\d{1,2})\s*$")
 ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -186,6 +195,31 @@ def build_intervals(events: Iterable[UniverseEvent]) -> Dict[str, Any]:
             })
     return {"intervals":intervals,"unresolved":unresolved}
 
+def assess_source_health(name: str, parsed_events: int, *, transport_ok: bool, error: str | None = None) -> dict:
+    expectation = SOURCE_EXPECTATIONS.get(name, {"min_events": 1, "role": "UNKNOWN"})
+    min_events = int(expectation["min_events"])
+    if not transport_ok:
+        status = "TRANSPORT_FAIL"
+        healthy = False
+    elif int(parsed_events) < min_events:
+        status = "PARSE_SUSPECT"
+        healthy = False
+    else:
+        status = "OK"
+        healthy = True
+    out = {
+        "source": name,
+        "transport_ok": bool(transport_ok),
+        "parse_status": status,
+        "healthy": healthy,
+        "parsed_events": int(parsed_events),
+        "min_expected_events": min_events,
+        "role": expectation["role"],
+    }
+    if error:
+        out["error"] = error
+    return out
+
 def collect_official_events() -> Dict[str, Any]:
     as_of=datetime.now().astimezone().isoformat()
     events=[]
@@ -207,9 +241,16 @@ def collect_official_events() -> Dict[str, Any]:
                 html=fetch_text(url)
                 parsed=parse_listing_html(html,exchange,url,as_of) if parser=="list" else parse_delisting_html(html,exchange,url,as_of)
             events.extend(parsed)
-            health.append({"source":name,"url":url,"ok":True,"parsed_events":len(parsed)})
+            h = assess_source_health(name, len(parsed), transport_ok=True)
+            h["url"] = url
+            health.append(h)
         except Exception as e:
-            health.append({"source":name,"url":url,"ok":False,"parsed_events":0,"error":f"{type(e).__name__}: {e}"})
+            h = assess_source_health(
+                name, 0, transport_ok=False,
+                error=f"{type(e).__name__}: {e}"
+            )
+            h["url"] = url
+            health.append(h)
     events=dedupe_events(events)
     built=build_intervals(events)
     return {
@@ -218,8 +259,9 @@ def collect_official_events() -> Dict[str, Any]:
         "health":health,
         "events":[e.to_dict() for e in events],
         **built,
-        "production_eligible": all(x["ok"] for x in health) and not built["unresolved"],
-        "note":"Fail closed: incomplete official source coverage or unresolved delisting events prevents production eligibility."
+        "production_eligible": all(x["healthy"] for x in health) and not built["unresolved"],
+        "source_health_complete": all(x["healthy"] for x in health),
+        "note":"Fail closed: transport success alone is insufficient. Zero/implausibly low parsed event counts, incomplete historical coverage, or unresolved delisting events prevent production eligibility."
     }
 
 def write_snapshot(path: str|Path, payload: Dict[str,Any]):
