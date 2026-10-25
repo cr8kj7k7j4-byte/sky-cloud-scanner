@@ -2,8 +2,11 @@ name: Historical Universe Survivorship Audit
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '30 14 * * *'
   push:
     branches:
+      - main
       - 'governance/historical-universe-main-native'
     paths:
       - 'research/audit_historical_universe.py'
