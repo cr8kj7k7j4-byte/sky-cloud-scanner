@@ -155,3 +155,14 @@ Research Candidate 不得自動覆蓋上述正式版本。
 - 只從 artifact 中的 `output/paper/*.json` 載入 canonical Shadow/Paper records。
 - 每日 5 次盤中掃描 × 90 天保留期，足以讓 20 個交易日 Sufficiency Gate 在資料正常產生時可達成。
 - 舊 scan artifacts 可以保留作研究參考，但不得冒充正式 Shadow Promotion evidence。
+
+
+## Shadow Outcome Backfill Contract（2026-10-25）
+
+- 盤後 Outcome 回填只使用 observation timestamp 之後的 5 分 K。
+- Ranking Outcome：所有具有效觀察價的 canonical Shadow records 可計算 forward return / MFE / MAE；此結果是觀察性研究證據，不是成交或實現損益。
+- Strategy Counterfactual Outcome：只有 monitor=TRIGGERED、P0-R=ALLOW 且 trigger/stop/target 完整時才計算。
+- 同一根 K 同時觸及停損與目標時，以停損先發生的保守順序處理，並標記 ambiguous_same_bar。
+- 手續費、交易稅與 entry/exit execution impact 必須為明確輸入；缺少滑價/spread/liquidity 假設時，允許保留 Gross/MFE/MAE，但不得產生完整成本後 R。
+- Counterfactual Shadow Outcome 永遠不得描述為真實成交、實際損益或實際勝率。
+- Shadow ledger 保留 ranking_position / rank_score，供後續 P0-O forward ranking validation。
