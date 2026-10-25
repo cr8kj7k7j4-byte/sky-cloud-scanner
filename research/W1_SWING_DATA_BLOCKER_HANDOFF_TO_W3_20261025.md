@@ -134,3 +134,26 @@ After acceptance, W1 resumes automatically from the frozen contract:
 10. final W1 status for W0
 
 No retuning is authorized during the handoff.
+
+
+## 10. Machine-to-machine handoff
+
+To remove the need for manual W1 re-entry, W3 should publish the governed daily dataset as a GitHub Actions artifact and then emit:
+
+- event type: `w3_swing_data_ready`
+- `client_payload.run_id`: W3 workflow run id that owns the artifact
+- `client_payload.artifact_name`: exact artifact name
+
+Canonical per-symbol files for this interface use the suffix `*_D.json`. The existing W1 readiness validator also accepts legacy `*_5.json` only for gap measurement; W3 canonical delivery should use daily files.
+
+W1 listener:
+- `.github/workflows/w1-swing-w3-data-handoff.yml`
+
+The listener:
+1. rebuilds the official PIT membership intervals;
+2. downloads the exact W3 artifact;
+3. runs the registered >=95% readiness gate;
+4. fails closed unless status is `READY_FOR_CANONICAL_SWING_REPLAY`;
+5. preserves the acceptance evidence as a 90-day artifact.
+
+This interface does not authorize any strategy retuning or Production change.
