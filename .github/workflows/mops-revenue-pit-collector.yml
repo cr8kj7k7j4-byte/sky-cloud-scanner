@@ -52,6 +52,7 @@ jobs:
             output/mops_home_raw.html
             output/mops_asset_*
             output/mops_t51sb10_raw.json
+            output/mops_t51sb10_probe.json
           if-no-files-found: warn
           retention-days: 90
 
