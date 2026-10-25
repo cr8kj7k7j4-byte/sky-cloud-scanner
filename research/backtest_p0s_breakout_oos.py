@@ -360,6 +360,7 @@ def main():
         f"- OOS: {report['oos']}",
         f"- OOS excursion: {report['diagnostics']['oos_excursion']}",
         f"- OOS cost sensitivity: {report['diagnostics']['oos_cost_sensitivity']}",
+        f"- OOS breakdown: {report['diagnostics']['oos_breakdown']}",
         "",
         "Research only. A+ / live promotion remains prohibited until Paper Trading and governance gates pass.",
     ]
