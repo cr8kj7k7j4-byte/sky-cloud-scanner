@@ -1,0 +1,52 @@
+name: W3A TAIEX 5m Benchmark Audit
+
+on:
+  push:
+    branches:
+      - w3a/market-benchmark-pit
+    paths:
+      - ".github/workflows/w3a-market-benchmark-audit.yml"
+      - "research/download_market_benchmark_5m.py"
+      - "research/build_intraday_market_context.py"
+      - "tests/test_intraday_pit_source_builders.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests pandas pytest
+      - name: Run source builder tests
+        run: python -m pytest -q tests/test_intraday_pit_source_builders.py
+      - name: Download official TAIEX proxy benchmark from existing Fugle source
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+        run: |
+          python research/download_market_benchmark_5m.py             --symbol IX0001             --from-date 2023-05-23             --to-date 2026-10-24             --out research_data/taiex_ix0001_5m.json
+      - name: Validate benchmark artifact
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("research_data/taiex_ix0001_5m.json")
+          x=json.loads(p.read_text(encoding="utf-8"))
+          n=len(x.get("data") or [])
+          if n <= 0:
+              raise SystemExit("TAIEX historical 5m benchmark has no bars")
+          print({"symbol":x.get("symbol"),"bars":n,"from":x.get("from"),"to":x.get("to")})
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: w3a-taiex-ix0001-5m
+          path: research_data/taiex_ix0001_5m.json
+          retention-days: 30
