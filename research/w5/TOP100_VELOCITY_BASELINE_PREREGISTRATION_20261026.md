@@ -1,194 +1,225 @@
-# W5 Preregistration — Top100 Velocity Baseline vs Sky Day Trading v1.4
+# W5 Preregistration — Top100 Velocity Baseline
 
 Date: 2026-10-26
 Owner: W5｜Sky Candidate Strategy Lab
-Status: PREREGISTERED_RESEARCH_CANDIDATE / DATA_BLOCKED
+Status: PREREGISTERED_RESEARCH_CANDIDATE / HISTORICAL_BASELINE_ELIGIBLE
 Production impact: NONE
 
 ## 1. Research question
 
 Does the user's original intraday hypothesis:
 
-> current-day top-100 gainers -> identify the fastest currently strengthening stocks
+> current-day Top100 gainers -> identify the fastest currently strengthening stocks
 
-produce higher after-cost expectancy than the current Sky Day Trading v1.4 decision stack, and which later-added rules contribute incremental value versus suppress profitable momentum?
+contain a causal, reproducible after-cost intraday edge?
 
-The purpose is not to restore an old rule by intuition. It is to reconstruct the original alpha hypothesis as a frozen baseline and compare it fairly against later Sky rules.
+Historical work evaluates the challenger itself. It does not claim a historical full-rule comparison versus Sky Day Trading v1.4 because W0 PR #118 formally closed that lane as not fully reconstructable from the current GitHub SSOT.
+
+Champion-versus-challenger comparison against live Production v1.4 is reserved for prospective Shadow/Paper evidence.
 
 ## 2. Structural distinction from frozen families
 
-This candidate is NOT a local retune of:
-- Fixed-time Intraday Ranking
-- P0-S 5m Breakout
-- Event-driven Intraday Ranking / Catalyst Stack
-- Transparent Intraday ML Ensemble
+This candidate is not a local retune of:
+- Fixed-time Intraday Ranking;
+- P0-S 5m Breakout;
+- Event-driven Intraday Ranking / Catalyst Stack;
+- Transparent Intraday ML Ensemble.
 
-The structural hypothesis is dynamic cross-sectional *change*:
-- rolling membership in current-day top-100 gainers;
+The distinct hypothesis is dynamic cross-sectional acceleration:
+- rolling membership in current-day Top100 gainers;
 - price velocity;
 - gain-rank velocity;
-- volume acceleration;
-- optionally relative-strength acceleration.
+- volume-rate acceleration.
 
-The primary signal is therefore temporal acceleration / rank migration inside a dynamically refreshed strong-stock universe, not a fixed-time cross-sectional score or a threshold tweak to an archived breakout family.
+If implementation collapses into fixed-time ranking or ordinary breakout threshold tuning, stop as `DUPLICATE_FROZEN_FAMILY`.
 
-If implementation collapses into a fixed-time rank or ordinary breakout rule, the experiment must be stopped as DUPLICATE_FROZEN_FAMILY.
+## 3. Historical source eligibility
 
-## 3. Universe
+Canonical source:
+- corrected PIT whole-universe 5-minute Fugle history;
+- W3A corrected reconciliation workflow 40221377923;
+- 2,022 symbols with bars;
+- symbol coverage 99.8519%;
+- symbol-day coverage 98.9071%;
+- minimum daily coverage 97.3726%;
+- 54,187,242 retained 5m bars;
+- duplicate/conflicting/out-of-membership bars = 0.
 
-Eligible Taiwan listed / OTC common stocks available point-in-time at each observation timestamp.
+Research window:
+2023-05-23 through 2026-10-22.
 
-Base eligibility:
-- current price <= TWD 100 for new-entry experiments, consistent with current Sky default;
-- exclude limit-up names;
-- exclude inadequate liquidity;
-- exclude excessive spread;
-- exclude symbols lacking causal point-in-time observations.
+## 4. Frozen Baseline A specification
 
-At every decision timestamp, construct the Top100 pool using **only information observable at that timestamp**:
+### Scan timestamps
+Reference scan:
+- 09:05 (feature/rank reference only; no trade entry)
 
-Top100_t = top 100 eligible stocks ranked by current-day return from prior close to price_t.
+Tradable observations:
+- 09:15
+- 09:30
+- 09:50
+- 10:15
 
-No end-of-day rankings may be backfilled into earlier timestamps.
+Asia/Taipei.
 
-## 4. Baseline A — Original Top100 Velocity
+A 5-minute candle is usable for features only when:
+`bar_start + 5 minutes <= observation_timestamp`.
 
-Baseline A is intentionally simple.
+### Universe
+At each timestamp:
+1. governed PIT-active Taiwan equity universe;
+2. current causal price > 0;
+3. price <= TWD 100;
+4. valid prior-session close;
+5. day return < +9.9% to conservatively exclude limit-up/near-limit observations;
+6. enough completed bars for the required feature intervals.
 
+No end-of-day ranking may be backfilled into earlier timestamps.
+
+### Top100
+`Top100_t` = the 100 highest current-day returns among eligible names at timestamp t.
+
+Current-day return:
+`price_t / prior_session_close - 1`.
+
+### Velocity features
+For each tradable observation and its immediately prior official scan:
+
+`price_velocity_per_min = (day_return_t - day_return_prev) / elapsed_minutes`
+
+`rank_velocity_per_min = (gain_rank_prev - gain_rank_t) / elapsed_minutes`
+
+Positive rank velocity means the stock is climbing toward rank 1.
+
+Volume rate:
+interval volume between the prior scan and current scan divided by elapsed minutes.
+
+Volume acceleration:
+`volume_rate_current / volume_rate_previous - 1`.
+
+The 09:05 scan supplies the first previous-scan reference.
+
+### Signal eligibility
 Candidate must:
-1. belong to Top100_t;
-2. show positive short-horizon price velocity;
-3. show positive gain-rank velocity (moving toward rank 1);
-4. show positive volume acceleration.
+- be in `Top100_t`;
+- price_velocity_per_min > 0;
+- rank_velocity_per_min > 0;
+- volume_acceleration > 0.
 
-Primary concept:
+### Frozen score
+Within the current Top100 signal candidates:
+- percentile rank price velocity;
+- percentile rank rank velocity;
+- percentile rank volume acceleration.
 
-PriceVelocity_t = change in intraday return over a frozen lookback.
+`velocity_score = mean(three percentile ranks)`.
 
-RankVelocity_t = prior gain-rank - current gain-rank.
-Positive values mean the stock is climbing the gainers ranking.
+No optimized weights.
 
-VolumeAcceleration_t = recent volume rate / prior comparable volume rate - 1.
+### Frozen selection
+Select the top decile by `velocity_score` at each observation.
+Because the parent universe is Top100, the selected basket is at most 10 names.
 
-No Market Gate, Sector Gate, Phase, VWAP, Anti-Chase, Setup/Trigger, or RR filter is included in Baseline A except mandatory tradability/risk/accounting constraints.
+No alternative Top-N is tested in this preregistration.
 
-## 5. Frozen parameter policy
+## 5. Entry / exit / outcome
 
-Exact lookbacks and thresholds must be fixed before outcome evaluation.
+Entry:
+- open of the first 5-minute bar whose start timestamp equals the observation timestamp;
+- that bar is not used in decision features.
 
-Initial research grid is prohibited.
+Exit:
+- close of the bar ending 30 minutes after entry.
 
-Use one preregistered specification per experiment. No result-driven search across:
-- Top N other than 100;
-- velocity lookbacks;
-- rank-velocity lookbacks;
-- volume thresholds;
-- stop/target values;
-- holding periods;
-- time-of-day exclusions.
+Baseline A deliberately uses a fixed 30-minute horizon and no stop/target optimization. This isolates directional acceleration edge before trade-management rules are introduced.
 
-Any alternative specification requires a separate preregistration and cannot be selected based on results from this experiment.
+Record:
+- gross return;
+- net return after 0.45% round-trip cost;
+- net return after 0.65% round-trip cost;
+- MFE during holding window;
+- MAE during holding window;
+- holding time;
+- observation time;
+- symbol/date concentration.
 
-## 6. Champion–Challenger ladder
+## 6. Validation splits
 
-Compare the following sequentially:
+No parameter fitting occurs after outcome visibility.
 
-A. Top100 + Velocity only
-B. A + Anti-Chase
-C. B + VWAP quality
-D. C + Market Gate
-E. D + Sector / Relative Strength
-F. E + Phase
-G. F + Setup / Trigger
-H. G + RR Gate
-I. Full reproducible Sky Day Trading v1.4 stack
+Chronological reporting:
+- DEVELOPMENT: 2023-05-23 through 2024-12-31;
+- VALIDATION: 2025-01-01 through 2025-12-31;
+- RESEARCH_TEST: 2026-01-01 through 2026-10-22.
 
-The ladder is an ablation / incremental-value study, not a search for the highest backtest metric.
+2026 is not described as fresh untouched OOS because Sky has already used 2026 data in prior research.
 
-For every added layer record:
-- delta after-cost expectancy;
-- delta PF;
-- delta win rate;
-- delta average win / average loss;
-- delta max drawdown;
-- delta trade count;
-- delta turnover;
-- missed large winners;
-- avoided large losers.
+Fresh evidence must come from prospective W4 Shadow/Paper.
 
-A rule is not justified merely because win rate increases.
+## 7. Primary metrics
 
-## 7. Primary evaluation metrics
-
-Promotion-relevant priority:
-
+Priority:
 1. After-cost Expectancy
 2. Profit Factor
 3. Max Drawdown
-4. Cross-fold / cross-regime stability
+4. Fold/year/time-of-day stability
 5. Average Win / Average Loss
 6. MAE / MFE
 7. Win Rate
-8. Turnover and capacity
+8. Turnover / concentration / capacity proxies
 
-Win rate is descriptive only and must not be treated as true predictive probability.
+Win rate is descriptive, not probability.
 
 ## 8. Cost model
 
-Primary round-trip cost: 0.45%
-Stress round-trip cost: 0.65%
+Primary: 0.45% round trip.
+Stress: 0.65% round trip.
 
-Execution assumptions must be causal and consistent across all variants.
+A candidate that is positive only before cost fails.
 
-If a candidate is positive only before cost, it fails.
+## 9. Walk-forward / stability
 
-## 9. Validation
+Report at minimum:
+- half-year folds where sample is sufficient;
+- year/split;
+- observation timestamp;
+- exchange where identifiable;
+- concentration by symbol;
+- number of selected names per observation.
 
-Mandatory gates:
-- point-in-time alignment;
-- survivorship audit;
-- leakage audit;
-- preregistration;
-- Train / Validation / OOS separation where model fitting is involved;
-- walk-forward >= 3 folds;
-- Bull / Neutral / Bear regime analysis;
-- 0.45% and 0.65% cost stress;
-- portfolio / concentration / capacity;
-- Shadow / Paper before any promotion;
-- P0-R;
-- P0-G.
+No result-driven threshold changes are allowed.
 
-No result from the existing ~100-symbol historical artifact can be described as promotion-grade evidence for this strategy.
+## 10. Historical ladder boundary
 
-## 10. Current blocker
+The first authorized historical experiment is Baseline A only.
 
-Formal historical evaluation is DATA_BLOCKED because current intraday history covers only about 100 symbols, roughly 4.8%-5.3% of the governed PIT universe, while the research gate requires promotion-grade whole-universe coverage.
+Later challenger layers may be separately preregistered only after Baseline A evidence is known and without using result-driven parameter rescue.
 
-This experiment specifically requires broad-universe synchronized intraday history because Top100_t cannot be reconstructed correctly from a 100-symbol subset.
+Historical layer I = “full v1.4” is removed because W0 PR #118 established that authoritative historical full-rule v1.4 replay is unavailable.
 
-Until coverage is resolved:
-- no win-rate superiority claim;
-- no profitability superiority claim;
-- no production change;
-- forward Shadow/Paper evidence may be collected prospectively if the live scanner can construct the full Top100_t causally.
+Production v1.4 comparison occurs prospectively in W4 Shadow/Paper.
 
 ## 11. Decision rules
 
-PROMOTE_CANDIDATE only if:
-- the Top100 Velocity hypothesis demonstrates positive after-cost expectancy;
-- results are stable across folds/regimes;
-- capacity and concentration gates pass;
-- it survives Shadow/Paper sufficiency;
-- the winning architecture outperforms or adds robust incremental value versus v1.4.
+`PROMOTE_TO_SHADOW_CANDIDATE` only if:
+- 0.45% after-cost expectancy > 0;
+- PF > 1;
+- 0.65% stress is not structurally catastrophic;
+- results are not dominated by one fold/year/time slot/symbol;
+- drawdown and MAE are acceptable relative to expectancy.
 
-HOLD if evidence is insufficient or data coverage fails.
+`HOLD` if evidence is mixed or sample coverage is insufficient.
 
-REJECT if after-cost expectancy or stability fails.
+`REJECT` if after-cost expectancy/PF/stability fail.
 
-If later-added Sky rules reduce expectancy without compensating risk reduction, they should be candidates for removal from the challenger architecture; Production remains unchanged until P0-G review.
+No historical result changes Production directly.
 
-## 12. Governance statement
+## 12. Forward Champion–Challenger
 
-This document restores the user's original Top100 -> fastest-strengthening-stock concept as a formal research baseline, not as a production rule.
+If historical Baseline A survives:
+- W4 collects prospective Top100 Velocity observations;
+- Production v1.4 is recorded in parallel at the same timestamps where feasible;
+- comparison uses forward after-cost counterfactual evidence;
+- P0-R / W6 / W0 / P0-G remain mandatory before any Production decision.
 
-Sky Day Trading v1.4 remains ACTIVE and unchanged until all promotion gates are passed and W0/P0-G records a formal decision.
+Sky Day Trading v1.4 remains ACTIVE and unchanged.
