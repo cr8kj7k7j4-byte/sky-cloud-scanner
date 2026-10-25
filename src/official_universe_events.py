@@ -12,9 +12,9 @@ from bs4 import BeautifulSoup
 
 TWSE_BASIC_URL = "https://openapi.twse.com.tw/v1/opendata/t187ap03_L"
 TPEX_BASIC_URL = "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap03_O"
-TWSE_NEW_URL = "https://www.twse.com.tw/zh/listed/listed/new-listing.html"
+TWSE_NEW_URL = "https://www.twse.com.tw/rwd/zh/company/newlisting"
 TWSE_DELIST_URL = "https://www.twse.com.tw/company/suspendListingCsvAndHtml?lang=zh&type=html"
-TPEX_NEW_URL = "https://www.tpex.org.tw/zh-tw/mainboard/applying/status/new-listed.html"
+TPEX_NEW_URL = "https://www.tpex.org.tw/www/zh-tw/company/applicantStatDl"
 TPEX_DELIST_URL = "https://www.tpex.org.tw/www/zh-tw/company/deListed"
 
 ROC_DATE_RE = re.compile(r"^\s*(\d{2,3})[./-](\d{1,2})[./-](\d{1,2})\s*$")
@@ -166,6 +166,132 @@ def parse_delisting_html(html: str, exchange: str, source_url: str, source_as_of
         ))
     return out
 
+def parse_twse_newlisting_payload(payload: Dict[str, Any], source_url: str, source_as_of: str) -> List[UniverseEvent]:
+    if not isinstance(payload, dict) or str(payload.get("stat") or "").upper() != "OK":
+        return []
+    fields=list(payload.get("fields") or [])
+    data=list(payload.get("data") or [])
+    if not fields or not data:
+        return []
+    out=[]
+    for row in data:
+        if not isinstance(row, list) or len(row) != len(fields):
+            continue
+        item=dict(zip(fields,row))
+        symbol=str(item.get("公司代號") or "").strip()
+        if not (len(symbol)==4 and symbol.isdigit()):
+            continue
+        d=normalize_roc_date(item.get("股票上市買賣日期"))
+        if not d:
+            continue
+        out.append(UniverseEvent(
+            symbol=symbol,
+            exchange="TWSE",
+            name=str(item.get("公司簡稱") or "").strip(),
+            event_type="LIST",
+            event_date=d,
+            source="official_listing_api",
+            source_url=source_url,
+            source_as_of=source_as_of,
+            notes=str(item.get("備註") or "").strip(),
+        ))
+    return out
+
+
+def fetch_twse_newlisting_events(
+    *,
+    start_year: int = 2000,
+    end_year: Optional[int] = None,
+    timeout: int = 30,
+    source_as_of: Optional[str] = None,
+) -> List[UniverseEvent]:
+    end_year=end_year or datetime.now().year
+    source_as_of=source_as_of or datetime.now().astimezone().isoformat()
+    events=[]
+    for year in range(int(start_year), int(end_year)+1):
+        r=requests.get(
+            TWSE_NEW_URL,
+            params={"date":str(year),"selectType":"","response":"json"},
+            timeout=timeout,
+            headers={"User-Agent":"sky-cloud-scanner/1.0"},
+        )
+        r.raise_for_status()
+        events.extend(
+            parse_twse_newlisting_payload(r.json(),TWSE_NEW_URL,source_as_of)
+        )
+    return dedupe_events(events)
+
+
+def _decode_tpex_csv(raw: bytes) -> str:
+    for enc in ("utf-8-sig","utf-8","cp950","big5"):
+        try:
+            return raw.decode(enc)
+        except UnicodeDecodeError:
+            continue
+    return raw.decode("cp950",errors="replace")
+
+
+def parse_tpex_newlisting_csv(text: str, source_url: str, source_as_of: str) -> List[UniverseEvent]:
+    import csv
+    from io import StringIO
+
+    lines=(text or "").splitlines()
+    if len(lines) < 2:
+        return []
+    # First line is a title; second line is the CSV header.
+    reader=csv.DictReader(StringIO("\n".join(lines[1:])))
+    out=[]
+    for row in reader:
+        symbol=str(row.get("公司代號") or "").strip()
+        if not (len(symbol)==4 and symbol.isdigit()):
+            continue
+        d=normalize_roc_date(row.get("上櫃日期"))
+        if not d:
+            continue
+        out.append(UniverseEvent(
+            symbol=symbol,
+            exchange="TPEx",
+            name=str(row.get("公司名稱") or "").strip(),
+            event_type="LIST",
+            event_date=d,
+            source="official_listing_csv",
+            source_url=source_url,
+            source_as_of=source_as_of,
+        ))
+    return out
+
+
+def fetch_tpex_newlisting_events(
+    *,
+    start_year: int = 2005,
+    end_year: Optional[int] = None,
+    timeout: int = 30,
+    source_as_of: Optional[str] = None,
+) -> List[UniverseEvent]:
+    end_year=end_year or datetime.now().year
+    source_as_of=source_as_of or datetime.now().astimezone().isoformat()
+    events=[]
+    for year in range(int(start_year), int(end_year)+1):
+        r=requests.get(
+            TPEX_NEW_URL,
+            params={"type":"list","date":str(year)},
+            timeout=timeout,
+            headers={
+                "User-Agent":"sky-cloud-scanner/1.0",
+                "Referer":"https://www.tpex.org.tw/zh-tw/mainboard/applying/status/new-listed.html",
+            },
+        )
+        r.raise_for_status()
+        ctype=str(r.headers.get("content-type") or "").lower()
+        if "text/html" in ctype and "404" in r.text[:1000]:
+            continue
+        text=_decode_tpex_csv(r.content)
+        events.extend(
+            parse_tpex_newlisting_csv(text,TPEX_NEW_URL,source_as_of)
+        )
+    return dedupe_events(events)
+
+
 def parse_tpex_delisting_payload(payload: Dict[str, Any], source_url: str, source_as_of: str) -> List[UniverseEvent]:
     if not isinstance(payload, dict) or payload.get("stat") != "ok":
         return []
@@ -288,9 +414,9 @@ def collect_official_events() -> Dict[str, Any]:
     sources=[
         ("TWSE_BASIC",TWSE_BASIC_URL,"json","TWSE","basic"),
         ("TPEX_BASIC",TPEX_BASIC_URL,"json","TPEx","basic"),
-        ("TWSE_NEW",TWSE_NEW_URL,"html","TWSE","list"),
+        ("TWSE_NEW",TWSE_NEW_URL,"custom","TWSE","list"),
         ("TWSE_DELIST",TWSE_DELIST_URL,"html","TWSE","delist"),
-        ("TPEX_NEW",TPEX_NEW_URL,"html","TPEx","list"),
+        ("TPEX_NEW",TPEX_NEW_URL,"custom","TPEx","list"),
         ("TPEX_DELIST",TPEX_DELIST_URL,"custom","TPEx","delist"),
     ]
     for name,url,kind,exchange,parser in sources:
@@ -298,6 +424,18 @@ def collect_official_events() -> Dict[str, Any]:
             if kind=="json":
                 payload=fetch_json(url)
                 parsed=parse_basic_records(payload if isinstance(payload,list) else [],exchange,url,as_of)
+            elif kind=="custom" and name=="TWSE_NEW":
+                parsed=fetch_twse_newlisting_events(
+                    start_year=2000,
+                    end_year=datetime.now().year,
+                    source_as_of=as_of,
+                )
+            elif kind=="custom" and name=="TPEX_NEW":
+                parsed=fetch_tpex_newlisting_events(
+                    start_year=2005,
+                    end_year=datetime.now().year,
+                    source_as_of=as_of,
+                )
             elif kind=="custom" and name=="TPEX_DELIST":
                 parsed=fetch_tpex_delisting_events(
                     start_year=2021,
