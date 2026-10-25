@@ -88,6 +88,7 @@ def main():
     allp={}
     for name,url in URLS.items():
         allp[name]=diagnose(name,url,out)
+    allp["TPEX_API_PROBES"] = probe_tpex_api(out)
     (out/"summary.json").write_text(json.dumps(allp,ensure_ascii=False,indent=2),encoding="utf-8")
     print(json.dumps({k:{
       "status":v["status"],"html_len":v["html_len"],"tables":v["tables"],
@@ -95,3 +96,44 @@ def main():
     } for k,v in allp.items()},ensure_ascii=False,indent=2))
 
 if __name__=="__main__": main()
+
+
+def probe_tpex_api(outdir):
+    endpoints = {
+        "TPEX_NEW_API": (
+            "https://www.tpex.org.tw/www/zh-tw/company/applicantStat",
+            {"date": ""},
+        ),
+        "TPEX_DELIST_API": (
+            "https://www.tpex.org.tw/www/zh-tw/company/deListed",
+            {"code": "", "date": "", "reason": "-1"},
+        ),
+    }
+    out = {}
+    for name, (url, data) in endpoints.items():
+        try:
+            r = requests.post(
+                url, data=data, timeout=30,
+                headers={
+                    "User-Agent": "Mozilla/5.0",
+                    "Referer": "https://www.tpex.org.tw/zh-tw/",
+                    "X-Requested-With": "XMLHttpRequest",
+                },
+            )
+            rec = {
+                "url": url,
+                "status": r.status_code,
+                "content_type": r.headers.get("content-type"),
+                "text_prefix": r.text[:12000],
+            }
+            try:
+                rec["json"] = r.json()
+            except Exception:
+                rec["json"] = None
+            out[name] = rec
+            (outdir/f"{name.lower()}.json").write_text(
+                json.dumps(rec, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+        except Exception as e:
+            out[name] = {"url": url, "error": f"{type(e).__name__}: {e}"}
+    return out
