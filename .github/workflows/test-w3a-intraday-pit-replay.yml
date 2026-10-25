@@ -5,12 +5,15 @@ on:
     paths:
       - "research/build_intraday_pit_replay.py"
       - "research/audit_intraday_pit_replay.py"
+      - "research/intraday_pit_costs.py"
+      - "research/run_intraday_pit_replay_pipeline.py"
       - "research/intraday_pit_replay_readiness.py"
       - "research/intraday_replay_validator.py"
       - "src/point_in_time_universe.py"
       - "src/data_quality.py"
       - "tests/test_intraday_pit_replay_builder.py"
       - "tests/test_intraday_pit_replay_audit.py"
+      - "tests/test_intraday_pit_pipeline_v2.py"
       - ".github/workflows/test-w3a-intraday-pit-replay.yml"
   workflow_dispatch:
 
