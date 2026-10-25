@@ -11,7 +11,7 @@ SCHEMA_VERSION="EFFECTIVE_SECTOR_MAPPING_V1_0"
 
 
 def _d(value):
-    if value in (None,"",pd.NA):
+    if value is None or pd.isna(value) or not str(value).strip():
         return None
     return date.fromisoformat(str(value)[:10])
 
