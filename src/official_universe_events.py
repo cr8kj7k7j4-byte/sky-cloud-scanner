@@ -94,6 +94,10 @@ def _code(row):
 def _name(row):
     return str(_pick(row, ["公司名稱","公司簡稱","證券名稱","Name","CompanyName"]) or "").strip()
 
+def _is_managed_security(name: str) -> bool:
+    s=str(name or "")
+    return "管理股票" in s
+
 def parse_basic_records(rows: Iterable[Dict[str, Any]], exchange: str, source_url: str, source_as_of: str, allowed_symbols: set[str] | None = None) -> List[UniverseEvent]:
     out=[]
     date_keys = ["上市日期","股票上市買賣日期","上櫃日期","掛牌日期","ListingDate","DateOfListing"]
@@ -103,11 +107,14 @@ def parse_basic_records(rows: Iterable[Dict[str, Any]], exchange: str, source_ur
             continue
         if allowed_symbols is not None and symbol not in allowed_symbols:
             continue
+        name=_name(row)
+        if exchange=="TPEx" and _is_managed_security(name):
+            continue
         listed=normalize_roc_date(_pick(row,date_keys))
         if not listed:
             continue
         out.append(UniverseEvent(
-            symbol=symbol, exchange=exchange, name=_name(row),
+            symbol=symbol, exchange=exchange, name=name,
             event_type="LIST", event_date=listed,
             source="official_basic_data", source_url=source_url,
             source_as_of=source_as_of
@@ -253,12 +260,15 @@ def fetch_tpex_new_events(source_as_of: str, start_year: int = 2005, end_year: O
             symbol=str(row.get("公司代號") or "").strip()
             if not (len(symbol)==4 and symbol.isdigit()):
                 continue
+            name=str(row.get("公司名稱") or "").strip()
+            if _is_managed_security(name):
+                continue
             d=normalize_roc_date(row.get("上櫃日期"))
             if not d:
                 continue
             out.append(UniverseEvent(
                 symbol=symbol, exchange="TPEx",
-                name=str(row.get("公司名稱") or "").strip(),
+                name=name,
                 event_type="LIST", event_date=d,
                 source="TPEX_OFFICIAL_NEWLIST_CSV", source_url=url,
                 source_as_of=source_as_of,
@@ -443,6 +453,7 @@ def collect_official_events() -> Dict[str, Any]:
     as_of=datetime.now().astimezone().isoformat()
     events=[]
     health=[]
+    current_membership=[]
 
     # Production TPEx universe semantics use tpex_mainboard_quotes. The MOPS
     # company-basic endpoint also contains non-mainboard/managed securities,
@@ -487,10 +498,7 @@ def collect_official_events() -> Dict[str, Any]:
                 elif parser=="twse_delist":
                     parsed=parse_twse_delist_records(rows,url,as_of)
                 else:
-                    parsed=parse_basic_records(
-                        rows,exchange,url,as_of,
-                        allowed_symbols=(tpex_active_symbols if name=="TPEX_BASIC" else None),
-                    )
+                    parsed=parse_basic_records(rows,exchange,url,as_of)
             elif kind=="tpex_new_api":
                 parsed=fetch_tpex_new_events(as_of)
             elif kind=="tpex_delist_api":
@@ -499,6 +507,17 @@ def collect_official_events() -> Dict[str, Any]:
                 html=fetch_text(url)
                 parsed=parse_listing_html(html,exchange,url,as_of) if parser=="list" else parse_delisting_html(html,exchange,url,as_of)
             events.extend(parsed)
+            if name in {"TWSE_BASIC","TPEX_BASIC"}:
+                current_membership.extend(
+                    {
+                        "symbol":e.symbol,
+                        "exchange":e.exchange,
+                        "name":e.name,
+                        "source":e.source,
+                        "source_as_of":e.source_as_of,
+                    }
+                    for e in parsed
+                )
             h = assess_source_health(name, len(parsed), transport_ok=True)
             h["url"] = url
             health.append(h)
@@ -515,6 +534,10 @@ def collect_official_events() -> Dict[str, Any]:
         "schema_version":"1.0.0",
         "source_as_of":as_of,
         "health":health,
+        "current_membership":sorted(
+            current_membership,
+            key=lambda x:(x["exchange"],x["symbol"]),
+        ),
         "events":[e.to_dict() for e in events],
         **built,
         "production_eligible": all(x["healthy"] for x in health) and not built["unresolved"],
