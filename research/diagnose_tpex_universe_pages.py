@@ -41,10 +41,15 @@ def diagnose(name,url,outdir):
             except re.error:
                 pass
     script_hits={}
-    for s in scripts:
+    api_pattern_defs=[]
+    for si,s in enumerate(scripts):
         try:
             sr=requests.get(s,timeout=20,headers={"User-Agent":"Mozilla/5.0"})
             txt=sr.text
+            safe_name=re.sub(r"[^A-Za-z0-9._-]+","_",s.split("/")[-1] or f"script_{si}")
+            if safe_name in {"main.js","tables.js"}:
+                (outdir/f"{name.lower()}_{safe_name}").write_text(txt,encoding="utf-8")
+            api_pattern_defs.extend(re.findall(r'API_PATTERN\s*=\s*([^;]+);',txt,re.I))
             hits=sorted(set(re.findall(r'[^"\'\s]{0,80}(?:api|ajax|query|delist|new-listed|mainboard)[^"\'\s]{0,120}',txt,re.I)))
             if hits:
                 script_hits[s]=hits[:100]
@@ -71,6 +76,7 @@ def diagnose(name,url,outdir):
       "api_actions":api_actions,
       "api_options":api_options,
       "api_action_attributes":action_attrs,
+      "api_pattern_defs":api_pattern_defs[:20],
       "inline_prefix":inline[:12000],
     }
     (outdir/f"{name.lower()}.json").write_text(json.dumps(payload,ensure_ascii=False,indent=2),encoding="utf-8")
