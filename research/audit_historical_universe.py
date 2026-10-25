@@ -126,12 +126,51 @@ def build_historical_universe_audit(
         and historical_dates_nonempty
     )
 
+    # Diagnostic timelines for unresolved delists and overlapping intervals.
+    event_rows = list(official_payload.get("events") or [])
+    unresolved_samples = unresolved[:200]
+    diagnostic_symbols = {
+        (str(x.get("symbol") or ""), str(x.get("exchange") or ""))
+        for x in unresolved_samples
+    }
+    for err in validation.get("errors") or []:
+        if str(err).startswith("overlap:"):
+            _, symbol, exchange = str(err).split(":", 2)
+            diagnostic_symbols.add((symbol, exchange))
+
+    timelines = {}
+    for symbol, exchange in sorted(diagnostic_symbols):
+        key = f"{exchange}:{symbol}"
+        timelines[key] = sorted(
+            [
+                {
+                    "event_type": x.get("event_type"),
+                    "event_date": x.get("event_date"),
+                    "source": x.get("source"),
+                    "source_url": x.get("source_url"),
+                    "name": x.get("name"),
+                    "notes": x.get("notes"),
+                }
+                for x in event_rows
+                if str(x.get("symbol") or "") == symbol
+                and str(x.get("exchange") or "") == exchange
+            ],
+            key=lambda x: (str(x.get("event_date") or ""), str(x.get("event_type") or "")),
+        )
+
+    unresolved_by_exchange = defaultdict(int)
+    for x in unresolved:
+        unresolved_by_exchange[str(x.get("exchange") or (x.get("event") or {}).get("exchange") or "")] += 1
+
     return {
         "schema_version": "1.0",
         "source_health": source_health,
         "events": len(official_payload.get("events") or []),
         "intervals": len(intervals),
         "unresolved": len(unresolved),
+        "unresolved_by_exchange": dict(sorted(unresolved_by_exchange.items())),
+        "unresolved_samples": unresolved_samples,
+        "diagnostic_event_timelines": timelines,
         "interval_validation": validation,
         "current_interval_coverage": current_coverage,
         "historical_dates": dates,
@@ -166,6 +205,7 @@ def write_markdown(report: dict, path: Path):
         f"- Events: {report['events']:,}",
         f"- Intervals: {report['intervals']:,}",
         f"- Unresolved events: {report['unresolved']:,}",
+        f"- Unresolved by exchange: {report.get('unresolved_by_exchange', {})}",
         f"- Interval validation: {'PASS' if report['interval_validation']['valid'] else 'FAIL'}",
         f"- Historical source coverage: {'PASS' if report['historical_source_coverage_ok'] else 'FAIL'}",
         f"- Historical dates non-empty: {'PASS' if report['historical_dates_nonempty'] else 'FAIL'}",
