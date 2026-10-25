@@ -513,6 +513,7 @@ def collect_official_events() -> Dict[str, Any]:
                         "symbol":e.symbol,
                         "exchange":e.exchange,
                         "name":e.name,
+                        "listed_from":e.event_date,
                         "source":e.source,
                         "source_as_of":e.source_as_of,
                     }
