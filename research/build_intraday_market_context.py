@@ -40,17 +40,17 @@ def benchmark_returns_from_fugle_json(path: str) -> pd.DataFrame:
         rows.append({'timestamp':b.get('date'),'open':b.get('open'),'close':b.get('close')})
     x=pd.DataFrame(rows)
     if x.empty:
-        return pd.DataFrame(columns=['timestamp','market_return'])
+        return pd.DataFrame(columns=['timestamp','available_at','market_return'])
     x['timestamp']=pd.to_datetime(x['timestamp'],errors='coerce',utc=True)
     x['open']=pd.to_numeric(x['open'],errors='coerce')
     x['close']=pd.to_numeric(x['close'],errors='coerce')
     x=x.dropna(subset=['timestamp','open','close']).sort_values('timestamp')
+    x['available_at']=x['timestamp']+pd.Timedelta(minutes=5)
     x['session_date']=x['timestamp'].dt.tz_convert('Asia/Taipei').dt.date.astype(str)
     first=x.groupby('session_date',as_index=False).head(1)[['session_date','open']].rename(columns={'open':'session_open'})
     x=x.merge(first,on='session_date',how='left')
     x['market_return']=x['close']/x['session_open']-1.0
-    return x[['timestamp','market_return']].sort_values('timestamp')
-
+    return x[['timestamp','available_at','market_return']].sort_values('timestamp')
 def build_market_context(decisions, bars, pit_intervals, benchmark=None, regime_context=None):
     """Build contemporaneous breadth/volatility from synchronized PIT members.
     Raw market data only. market_return requires an explicit benchmark.\n    market_regime is never inferred by W3A; a frozen provider/snapshot is required."""
@@ -139,6 +139,7 @@ def build_market_context(decisions, bars, pit_intervals, benchmark=None, regime_
             'equal_weight_return_not_substituted_for_market_return':True,
             'market_regime_not_inferred_by_w3a':True,
             'pit_membership_required':True,'future_bars_allowed':False,
+            'only_completed_5m_bars_used':True,
         },
     }
     return result,report
