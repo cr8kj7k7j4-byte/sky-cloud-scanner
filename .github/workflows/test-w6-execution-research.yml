@@ -1,0 +1,22 @@
+name: Test W6 Execution Research
+
+on:
+  push:
+    paths:
+      - "research/w6_execution_baseline.py"
+      - "research/w6_execution_evidence.py"
+      - "research/w6_p1_report.py"
+      - "tests/test_w6_execution_research.py"
+      - ".github/workflows/test-w6-execution-research.yml"
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run W6 unit tests
+        run: python -m pytest -q tests/test_w6_execution_research.py
