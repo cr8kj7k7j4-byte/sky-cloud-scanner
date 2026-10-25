@@ -4,6 +4,7 @@ import csv
 import io
 import json
 import re
+import time
 from dataclasses import dataclass, asdict
 from datetime import datetime
 from pathlib import Path
@@ -195,27 +196,44 @@ def parse_delisting_html(html: str, exchange: str, source_url: str, source_as_of
         ))
     return out
 
+def _request_with_retry(method: str, url: str, *, timeout=30, retries=5, **kwargs):
+    last_error = None
+    for attempt in range(1, int(retries) + 1):
+        try:
+            r = requests.request(method, url, timeout=timeout, **kwargs)
+            r.raise_for_status()
+            return r
+        except requests.RequestException as e:
+            last_error = e
+            if attempt >= retries:
+                break
+            time.sleep(min(2 ** (attempt - 1), 8))
+    raise last_error
+
 def fetch_json(url: str, timeout=30) -> Any:
-    r=requests.get(url,timeout=timeout,headers={"User-Agent":"sky-cloud-scanner/1.0"})
-    r.raise_for_status()
+    r=_request_with_retry(
+        "GET", url, timeout=timeout,
+        headers={"User-Agent":"sky-cloud-scanner/1.0"},
+    )
     return r.json()
 
 def fetch_text(url: str, timeout=30) -> str:
-    r=requests.get(url,timeout=timeout,headers={"User-Agent":"sky-cloud-scanner/1.0"})
-    r.raise_for_status()
+    r=_request_with_retry(
+        "GET", url, timeout=timeout,
+        headers={"User-Agent":"sky-cloud-scanner/1.0"},
+    )
     r.encoding = r.apparent_encoding or r.encoding
     return r.text
 
 def post_json(url: str, data: Dict[str, Any], timeout=30) -> Any:
-    r=requests.post(
-        url, data=data, timeout=timeout,
+    r=_request_with_retry(
+        "POST", url, data=data, timeout=timeout,
         headers={
             "User-Agent":"sky-cloud-scanner/1.0",
             "Referer":"https://www.tpex.org.tw/zh-tw/",
             "X-Requested-With":"XMLHttpRequest",
         },
     )
-    r.raise_for_status()
     return r.json()
 
 def _payload_table_dicts(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -238,8 +256,10 @@ def fetch_tpex_new_events(source_as_of: str, start_year: int = 2005, end_year: O
     out=[]
     for year in range(int(start_year), int(end_year)+1):
         url=f"https://www.tpex.org.tw/www/zh-tw/company/applicantStatDl?type=list&date={year}"
-        r=requests.get(url,timeout=30,headers={"User-Agent":"sky-cloud-scanner/1.0"})
-        r.raise_for_status()
+        r=_request_with_retry(
+            "GET", url, timeout=30,
+            headers={"User-Agent":"sky-cloud-scanner/1.0"},
+        )
         text=r.content.decode("cp950",errors="replace")
         lines=text.splitlines()
         if len(lines) < 2:
