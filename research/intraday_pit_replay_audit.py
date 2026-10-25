@@ -18,6 +18,12 @@ def _share(df: pd.DataFrame, cols: list[str]) -> float:
         return 0.0
     return float(df[cols].notna().all(axis=1).mean())
 
+def _pit_share(df: pd.DataFrame) -> float:
+    if df.empty or "pit_universe_member" not in df.columns:
+        return 0.0
+    s=df["pit_universe_member"]
+    return float(s.map(lambda x: str(x).strip().lower() in {"true","1"}).mean())
+
 def leakage_audit(df: pd.DataFrame) -> dict:
     reasons=[]
     if df.empty:
@@ -57,12 +63,12 @@ def leakage_audit(df: pd.DataFrame) -> dict:
         if spread_zero_unknown:
             reasons.append("UNKNOWN_SPREAD_IMPUTED_ZERO")
 
-    current_only_sector=0
-    if {"sector_mapping_status","sector_effective_from","session_date"}.issubset(df.columns):
+    future_sector=0
+    if {"sector_effective_from","session_date"}.issubset(df.columns):
         sess=pd.to_datetime(df["session_date"],errors="coerce")
         start=pd.to_datetime(df["sector_effective_from"],errors="coerce")
-        current_only_sector=int((start.notna() & sess.notna() & (start>sess)).sum())
-        if current_only_sector:
+        future_sector=int((start.notna() & sess.notna() & (start>sess)).sum())
+        if future_sector:
             reasons.append("FUTURE_SECTOR_MAPPING")
 
     return {
@@ -71,12 +77,12 @@ def leakage_audit(df: pd.DataFrame) -> dict:
         "timestamp_causality_violations":violations,
         "outcome_before_decision_violations":bad,
         "unknown_spread_zero_imputations":spread_zero_unknown,
-        "future_sector_mapping_violations":current_only_sector,
+        "future_sector_mapping_violations":future_sector,
     }
 
 def coverage_audit(df: pd.DataFrame) -> dict:
     return {
-        "pit_universe": _share(df,["pit_universe_member"]),
+        "pit_universe": _pit_share(df),
         "market_context": _share(df,["market_regime","market_return","market_breadth","market_volatility"]),
         "sector_mapping": _share(df,["sector","sector_effective_from"]),
         "sector_rs_price": _share(df,["sector_return","sector_rs_vs_market","stock_rs_vs_sector"]),
@@ -89,10 +95,14 @@ def coverage_audit(df: pd.DataFrame) -> dict:
         "cost_stress_065": _share(df,["net_r_065"]),
     }
 
-def audit_frame(df: pd.DataFrame) -> dict:
-    contract=validate_replay_frame(df)
+def audit_frame(df: pd.DataFrame) -> tuple[dict,pd.DataFrame]:
     leakage=leakage_audit(df)
-    coverage=coverage_audit(df)
+    audited=df.copy()
+    if leakage["status"]=="PASS":
+        audited["leakage_audit_status"]="PASS"
+
+    contract=validate_replay_frame(audited)
+    coverage=coverage_audit(audited)
     thresholds={
         "pit_universe":0.95,"market_context":0.95,"sector_mapping":0.95,
         "sector_rs_price":0.95,"phase_anti_chase":0.95,"outcome":0.95,
@@ -104,16 +114,16 @@ def audit_frame(df: pd.DataFrame) -> dict:
     if leakage["status"]!="PASS":
         blockers += [f"LEAKAGE:{x}" for x in leakage["reasons"]]
     oos_present=(
-        "research_split" in df.columns
-        and (df["research_split"].astype(str).str.upper()=="OOS").any()
+        "research_split" in audited.columns
+        and (audited["research_split"].astype(str).str.upper()=="OOS").any()
     )
     if not oos_present:
         blockers.append("OOS_SPLIT_MISSING")
     blockers=sorted(set(blockers))
     gate="PASS" if not blockers else "DATA_BLOCKED"
-    return {
+    report={
         "gate":gate,
-        "row_count":int(len(df)),
+        "row_count":int(len(audited)),
         "coverage":{k:round(v,6) for k,v in coverage.items()},
         "coverage_thresholds":thresholds,
         "leakage_audit":leakage,
@@ -126,16 +136,21 @@ def audit_frame(df: pd.DataFrame) -> dict:
         "blockers":blockers,
         "production_change":False,
     }
+    return report,audited
 
 def main():
     ap=argparse.ArgumentParser()
     ap.add_argument("--dataset",required=True)
     ap.add_argument("--out",default="research_output/intraday_pit_replay/audit.json")
+    ap.add_argument("--audited-dataset-out")
     args=ap.parse_args()
     df=pd.read_csv(args.dataset)
-    report=audit_frame(df)
+    report,audited=audit_frame(df)
     out=Path(args.out);out.parent.mkdir(parents=True,exist_ok=True)
     out.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8")
+    if args.audited_dataset_out:
+        p=Path(args.audited_dataset_out);p.parent.mkdir(parents=True,exist_ok=True)
+        audited.to_csv(p,index=False)
     print(json.dumps(report,ensure_ascii=False,indent=2))
 
 if __name__=="__main__":
