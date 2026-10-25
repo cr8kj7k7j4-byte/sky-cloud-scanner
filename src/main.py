@@ -21,13 +21,13 @@ from .config import (
 )
 from .official import load_official_universe, fetch_mis_quotes
 from .fugle import get_ticker, get_quote, get_candles
-from .sky_rules import first_gate, enrich
+from .decision_engine import first_gate, evaluate_decision
+from .feature_engine import build_features, enrich_candidate_context
 from .ranking_engine import rank_screening_candidates
 from .notifier import send_telegram
 from .risk_engine import RiskPolicy, evaluate_candidate, drawdown_state
 from .execution_engine import ExecutionCostPolicy
 from .cost_profiles import get_observed_cost_profile
-from .feature_engine import build_features
 from .regime_engine import detect_regime
 from .ml_layer import baseline_model_predictions, ensemble
 from .explainability import explain
@@ -44,7 +44,6 @@ from .event_risk import assess_event_risk
 from .evidence_ledger import build_evidence_ledger as build_structured_evidence_ledger
 from .strategy_builder import build_breakout_plan, apply_plan
 from .monitor_engine import evaluate_monitor_state
-from .decision_engine import evaluate_decision
 from .state_store import MonitorStateStore
 from .premarket_state import load_premarket_event_snapshot
 from .paper_trading import (
@@ -319,7 +318,7 @@ def run():
         for row in top[:probe_limit]:
             try:
                 ks = get_candles(row["symbol"], "5")
-                item = enrich(
+                item = enrich_candidate_context(
                     row,
                     get_ticker(row["symbol"]),
                     get_quote(row["symbol"]),
