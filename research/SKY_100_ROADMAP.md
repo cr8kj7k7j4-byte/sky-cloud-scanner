@@ -144,3 +144,14 @@ Research Candidate 不得自動覆蓋上述正式版本。
 - MOPS `t51sb10` more-info 舊頁探測僅有 `Stp` / `TK`，未暴露 year/month/date 歷史 timestamp 查詢欄位。
 - 法定期限 proxy 不計入 coverage；不得用 proxy 假裝 Historical PIT 已完成。
 - Revenue MoM 5D / YoY Acceleration 5D 在歷史 PIT backfill 與 coverage audit 完成前仍維持 `PRE_PIT_CANDIDATE`，不得 Promotion。
+
+
+## Shadow Evidence Retention Contract（2026-10-25）
+
+- Canonical Shadow/Paper Ledger 啟用時間：2026-10-24T23:28:08Z（PR #38）。
+- 啟用前的 Sky Cloud Scanner v0.3 artifacts 不回填為 Promotion Shadow 樣本，避免 schema／策略版本污染。
+- Scanner artifacts retention：90 天。
+- Dashboard 以 repository-wide Actions 歷史尋找所有名稱符合 `Sky Cloud Scanner*` 的成功 runs，不綁定單一 workflow identity。
+- 只從 artifact 中的 `output/paper/*.json` 載入 canonical Shadow/Paper records。
+- 每日 5 次盤中掃描 × 90 天保留期，足以讓 20 個交易日 Sufficiency Gate 在資料正常產生時可達成。
+- 舊 scan artifacts 可以保留作研究參考，但不得冒充正式 Shadow Promotion evidence。
