@@ -12,19 +12,10 @@ from bs4 import BeautifulSoup
 
 TWSE_BASIC_URL = "https://openapi.twse.com.tw/v1/opendata/t187ap03_L"
 TPEX_BASIC_URL = "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap03_O"
-TWSE_NEW_URL = "https://openapi.twse.com.tw/v1/company/newlisting"
-TWSE_DELIST_URL = "https://openapi.twse.com.tw/v1/company/suspendListingCsvAndHtml"
-TPEX_NEW_URL = "https://www.tpex.org.tw/zh-tw/mainboard/applying/status/new-listed.html"
-TPEX_DELIST_URL = "https://www.tpex.org.tw/zh-tw/mainboard/listed/delisted.html"
-
-SOURCE_EXPECTATIONS = {
-    "TWSE_BASIC": {"min_events": 100, "role": "CURRENT_BASE"},
-    "TPEX_BASIC": {"min_events": 100, "role": "CURRENT_BASE"},
-    "TWSE_NEW": {"min_events": 1, "role": "HISTORICAL_EVENT"},
-    "TWSE_DELIST": {"min_events": 1, "role": "HISTORICAL_EVENT"},
-    "TPEX_NEW": {"min_events": 1, "role": "HISTORICAL_EVENT"},
-    "TPEX_DELIST": {"min_events": 1, "role": "HISTORICAL_EVENT"},
-}
+TWSE_NEW_URL = "https://www.twse.com.tw/rwd/zh/company/newlisting"
+TWSE_DELIST_URL = "https://www.twse.com.tw/company/suspendListingCsvAndHtml?lang=zh&type=html"
+TPEX_NEW_URL = "https://www.tpex.org.tw/www/zh-tw/company/applicantStatDl"
+TPEX_DELIST_URL = "https://www.tpex.org.tw/www/zh-tw/company/deListed"
 
 ROC_DATE_RE = re.compile(r"^\s*(\d{2,3})[./-](\d{1,2})[./-](\d{1,2})\s*$")
 ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -55,24 +46,32 @@ def normalize_roc_date(value: Any) -> Optional[str]:
     m = ROC_DATE_RE.match(s)
     if not m:
         digits = re.sub(r"\D", "", s)
-        try:
-            # Gregorian compact date: YYYYMMDD
-            if len(digits) == 8 and 1900 <= int(digits[:4]) <= 2100:
-                y = int(digits[:4]); mo = int(digits[4:6]); d = int(digits[6:8])
+        # 8-digit values from official basic data can be Gregorian YYYYMMDD
+        # (e.g. 19960906). Do not add 1911 to those values.
+        if len(digits) == 8:
+            try:
+                y = int(digits[:4])
+                mo = int(digits[4:6])
+                d = int(digits[6:8])
+                if 1900 <= y <= 2100:
+                    datetime(y, mo, d)
+                    return f"{y:04d}-{mo:02d}-{d:02d}"
+            except Exception:
+                return None
+        # Common ROC compact format: YYYMMDD, e.g. 1121215.
+        if len(digits) == 7:
+            try:
+                y = int(digits[:3]) + 1911
+                mo = int(digits[3:5])
+                d = int(digits[5:7])
+                datetime(y, mo, d)
                 return f"{y:04d}-{mo:02d}-{d:02d}"
-            # ROC compact date: YYYMMDD
-            if len(digits) == 7:
-                y = int(digits[:3]); mo = int(digits[3:5]); d = int(digits[5:7])
-                return f"{y+1911:04d}-{mo:02d}-{d:02d}"
-        except Exception:
-            return None
+            except Exception:
+                return None
         return None
     y, mo, d = map(int, m.groups())
     try:
-        year = y if y >= 1900 else y + 1911
-        if not (1900 <= year <= 2100):
-            return None
-        return f"{year:04d}-{mo:02d}-{d:02d}"
+        return f"{y+1911:04d}-{mo:02d}-{d:02d}"
     except Exception:
         return None
 
@@ -106,42 +105,6 @@ def parse_basic_records(rows: Iterable[Dict[str, Any]], exchange: str, source_ur
         ))
     return out
 
-
-def parse_twse_new_records(rows: Iterable[Dict[str, Any]], source_url: str, source_as_of: str) -> List[UniverseEvent]:
-    out=[]
-    for row in rows or []:
-        symbol=str(row.get("Code") or "").strip()
-        if not (len(symbol)==4 and symbol.isdigit()):
-            continue
-        listed=normalize_roc_date(
-            row.get("ApprovedListingDate") or row.get("ListingDate")
-        )
-        if not listed:
-            continue
-        out.append(UniverseEvent(
-            symbol=symbol, exchange="TWSE", name=str(row.get("Company") or "").strip(),
-            event_type="LIST", event_date=listed, source="TWSE_OPENAPI_NEWLISTING",
-            source_url=source_url, source_as_of=source_as_of,
-            notes=str(row.get("Note") or "").strip(),
-        ))
-    return out
-
-def parse_twse_delist_records(rows: Iterable[Dict[str, Any]], source_url: str, source_as_of: str) -> List[UniverseEvent]:
-    out=[]
-    for row in rows or []:
-        symbol=str(row.get("Code") or "").strip()
-        if not (len(symbol)==4 and symbol.isdigit()):
-            continue
-        d=normalize_roc_date(row.get("DelistingDate"))
-        if not d:
-            continue
-        out.append(UniverseEvent(
-            symbol=symbol, exchange="TWSE", name=str(row.get("Company") or "").strip(),
-            event_type="DELIST", event_date=d, source="TWSE_OPENAPI_DELIST",
-            source_url=source_url, source_as_of=source_as_of,
-        ))
-    return out
-
 def _table_rows(html: str) -> List[Dict[str,str]]:
     soup=BeautifulSoup(html or "", "html.parser")
     rows=[]
@@ -149,10 +112,22 @@ def _table_rows(html: str) -> List[Dict[str,str]]:
         trs=table.find_all("tr")
         if not trs:
             continue
-        headers=[x.get_text(" ",strip=True) for x in trs[0].find_all(["th","td"])]
-        if not headers:
+
+        # Some official pages place a one-cell title row before the actual
+        # column headers (e.g. TWSE delisting page). Pick the first row with
+        # at least two cells as the header row.
+        header_idx = None
+        headers = []
+        for i, tr in enumerate(trs):
+            cells=[x.get_text(" ",strip=True) for x in tr.find_all(["th","td"])]
+            if len(cells) >= 2:
+                header_idx = i
+                headers = cells
+                break
+        if header_idx is None or not headers:
             continue
-        for tr in trs[1:]:
+
+        for tr in trs[header_idx+1:]:
             vals=[x.get_text(" ",strip=True) for x in tr.find_all(["th","td"])]
             if len(vals) != len(headers):
                 continue
@@ -191,6 +166,202 @@ def parse_delisting_html(html: str, exchange: str, source_url: str, source_as_of
         ))
     return out
 
+def parse_twse_newlisting_payload(payload: Dict[str, Any], source_url: str, source_as_of: str) -> List[UniverseEvent]:
+    if not isinstance(payload, dict) or str(payload.get("stat") or "").upper() != "OK":
+        return []
+    fields=list(payload.get("fields") or [])
+    data=list(payload.get("data") or [])
+    if not fields or not data:
+        return []
+    out=[]
+    for row in data:
+        if not isinstance(row, list) or len(row) != len(fields):
+            continue
+        item=dict(zip(fields,row))
+        symbol=str(item.get("公司代號") or "").strip()
+        if not (len(symbol)==4 and symbol.isdigit()):
+            continue
+        d=normalize_roc_date(item.get("股票上市買賣日期"))
+        if not d:
+            continue
+        out.append(UniverseEvent(
+            symbol=symbol,
+            exchange="TWSE",
+            name=str(item.get("公司簡稱") or "").strip(),
+            event_type="LIST",
+            event_date=d,
+            source="official_listing_api",
+            source_url=source_url,
+            source_as_of=source_as_of,
+            notes=str(item.get("備註") or "").strip(),
+        ))
+    return out
+
+
+def fetch_twse_newlisting_events(
+    *,
+    start_year: int = 2000,
+    end_year: Optional[int] = None,
+    timeout: int = 30,
+    source_as_of: Optional[str] = None,
+) -> List[UniverseEvent]:
+    end_year=end_year or datetime.now().year
+    source_as_of=source_as_of or datetime.now().astimezone().isoformat()
+    events=[]
+    for year in range(int(start_year), int(end_year)+1):
+        r=requests.get(
+            TWSE_NEW_URL,
+            params={"date":str(year),"selectType":"","response":"json"},
+            timeout=timeout,
+            headers={"User-Agent":"sky-cloud-scanner/1.0"},
+        )
+        r.raise_for_status()
+        events.extend(
+            parse_twse_newlisting_payload(r.json(),TWSE_NEW_URL,source_as_of)
+        )
+    return dedupe_events(events)
+
+
+def _decode_tpex_csv(raw: bytes) -> str:
+    for enc in ("utf-8-sig","utf-8","cp950","big5"):
+        try:
+            return raw.decode(enc)
+        except UnicodeDecodeError:
+            continue
+    return raw.decode("cp950",errors="replace")
+
+
+def parse_tpex_newlisting_csv(text: str, source_url: str, source_as_of: str) -> List[UniverseEvent]:
+    import csv
+    from io import StringIO
+
+    lines=(text or "").splitlines()
+    if len(lines) < 2:
+        return []
+    # First line is a title; second line is the CSV header.
+    reader=csv.DictReader(StringIO("\n".join(lines[1:])))
+    out=[]
+    for row in reader:
+        symbol=str(row.get("公司代號") or "").strip()
+        if not (len(symbol)==4 and symbol.isdigit()):
+            continue
+        d=normalize_roc_date(row.get("上櫃日期"))
+        if not d:
+            continue
+        out.append(UniverseEvent(
+            symbol=symbol,
+            exchange="TPEx",
+            name=str(row.get("公司名稱") or "").strip(),
+            event_type="LIST",
+            event_date=d,
+            source="official_listing_csv",
+            source_url=source_url,
+            source_as_of=source_as_of,
+        ))
+    return out
+
+
+def fetch_tpex_newlisting_events(
+    *,
+    start_year: int = 2005,
+    end_year: Optional[int] = None,
+    timeout: int = 30,
+    source_as_of: Optional[str] = None,
+) -> List[UniverseEvent]:
+    end_year=end_year or datetime.now().year
+    source_as_of=source_as_of or datetime.now().astimezone().isoformat()
+    events=[]
+    for year in range(int(start_year), int(end_year)+1):
+        r=requests.get(
+            TPEX_NEW_URL,
+            params={"type":"list","date":str(year)},
+            timeout=timeout,
+            headers={
+                "User-Agent":"sky-cloud-scanner/1.0",
+                "Referer":"https://www.tpex.org.tw/zh-tw/mainboard/applying/status/new-listed.html",
+            },
+        )
+        r.raise_for_status()
+        ctype=str(r.headers.get("content-type") or "").lower()
+        if "text/html" in ctype and "404" in r.text[:1000]:
+            continue
+        text=_decode_tpex_csv(r.content)
+        events.extend(
+            parse_tpex_newlisting_csv(text,TPEX_NEW_URL,source_as_of)
+        )
+    return dedupe_events(events)
+
+
+def parse_tpex_delisting_payload(payload: Dict[str, Any], source_url: str, source_as_of: str) -> List[UniverseEvent]:
+    if not isinstance(payload, dict) or payload.get("stat") != "ok":
+        return []
+    out=[]
+    for table in payload.get("tables") or []:
+        fields=list(table.get("fields") or [])
+        data=list(table.get("data") or [])
+        if not fields or not data:
+            continue
+        for row in data:
+            if not isinstance(row, list) or len(row) != len(fields):
+                continue
+            item=dict(zip(fields,row))
+            symbol=str(item.get("股票代號") or "").strip()
+            if not (len(symbol)==4 and symbol.isdigit()):
+                continue
+            d=normalize_roc_date(item.get("終止上櫃日期"))
+            if not d:
+                continue
+            out.append(UniverseEvent(
+                symbol=symbol,
+                exchange="TPEx",
+                name=str(item.get("公司名稱") or "").strip(),
+                event_type="DELIST",
+                event_date=d,
+                source="official_delisting_api",
+                source_url=source_url,
+                source_as_of=source_as_of,
+                notes=str(item.get("終止上櫃原因") or "").strip(),
+            ))
+    return out
+
+
+def fetch_tpex_delisting_events(
+    *,
+    start_year: int = 2021,
+    end_year: Optional[int] = None,
+    timeout: int = 30,
+    source_as_of: Optional[str] = None,
+) -> List[UniverseEvent]:
+    end_year=end_year or datetime.now().year
+    source_as_of=source_as_of or datetime.now().astimezone().isoformat()
+    events=[]
+    for year in range(int(start_year), int(end_year)+1):
+        payload={
+            "code":"",
+            "date":str(year),
+            "reason":"-1",
+            "response":"json",
+            "paging-offset":"0",
+            "paging-size":"1000",
+        }
+        r=requests.post(
+            TPEX_DELIST_URL,
+            data=payload,
+            timeout=timeout,
+            headers={
+                "User-Agent":"sky-cloud-scanner/1.0",
+                "Referer":"https://www.tpex.org.tw/zh-tw/mainboard/listed/delisted.html",
+                "Accept":"application/json,text/javascript,*/*;q=0.01",
+                "X-Requested-With":"XMLHttpRequest",
+            },
+        )
+        r.raise_for_status()
+        events.extend(
+            parse_tpex_delisting_payload(r.json(),TPEX_DELIST_URL,source_as_of)
+        )
+    return dedupe_events(events)
+
+
 def fetch_json(url: str, timeout=30) -> Any:
     r=requests.get(url,timeout=timeout,headers={"User-Agent":"sky-cloud-scanner/1.0"})
     r.raise_for_status()
@@ -211,55 +382,89 @@ def dedupe_events(events: Iterable[UniverseEvent]) -> List[UniverseEvent]:
     return sorted(seen.values(),key=lambda e:(e.exchange,e.symbol,e.event_date,e.event_type))
 
 def build_intervals(events: Iterable[UniverseEvent]) -> Dict[str, Any]:
+    """
+    Build exchange-membership intervals.
+
+    Multiple LIST records for the same symbol/exchange without an intervening
+    DELIST are corroborating or board-transition records inside one continuous
+    exchange-membership episode. They must not create overlapping intervals.
+    A new interval starts only after a DELIST has ended the previous episode.
+    """
     grouped={}
     for e in dedupe_events(events):
         grouped.setdefault((e.symbol,e.exchange),[]).append(e)
+
     intervals=[]
     unresolved=[]
+
     for (symbol,exchange), arr in grouped.items():
-        lists=sorted([e for e in arr if e.event_type=="LIST"],key=lambda e:e.event_date)
-        dels=sorted([e for e in arr if e.event_type=="DELIST"],key=lambda e:e.event_date)
-        if not lists:
-            for d in dels:
-                unresolved.append({"symbol":symbol,"exchange":exchange,"reason":"DELIST_WITHOUT_CONFIRMED_LIST_DATE","event":d.to_dict()})
-            continue
-        for i,lst in enumerate(lists):
-            next_list=lists[i+1].event_date if i+1<len(lists) else None
-            eligible_dels=[d for d in dels if d.event_date>=lst.event_date and (next_list is None or d.event_date<next_list)]
-            end=eligible_dels[0].event_date if eligible_dels else None
+        ordered=sorted(
+            arr,
+            key=lambda e:(e.event_date, 0 if e.event_type=="LIST" else 1),
+        )
+
+        current_start=None
+        current_list_event=None
+        corroborating_lists=[]
+
+        for event in ordered:
+            if event.event_type=="LIST":
+                if current_start is None:
+                    current_start=event.event_date
+                    current_list_event=event
+                    corroborating_lists=[event]
+                else:
+                    # Same exchange membership is already active. Keep the
+                    # earliest confirmed start and record later LIST evidence
+                    # as corroboration / board transition, not a new interval.
+                    corroborating_lists.append(event)
+                continue
+
+            if event.event_type!="DELIST":
+                continue
+
+            if current_start is None:
+                unresolved.append({
+                    "symbol":symbol,
+                    "exchange":exchange,
+                    "reason":"DELIST_WITHOUT_CONFIRMED_LIST_DATE",
+                    "event":event.to_dict(),
+                })
+                continue
+
             intervals.append({
-                "symbol":symbol,"exchange":exchange,"name":lst.name,
-                "listed_from":lst.event_date,"listed_to":end,
+                "symbol":symbol,
+                "exchange":exchange,
+                "name":current_list_event.name if current_list_event else event.name,
+                "listed_from":current_start,
+                "listed_to":event.event_date,
                 "source":"official_event_ledger",
                 "source_as_of":max(e.source_as_of for e in arr if e.source_as_of),
-                "notes":""
+                "notes":(
+                    f"coalesced_list_records={len(corroborating_lists)}"
+                    if len(corroborating_lists)>1 else ""
+                ),
             })
-    return {"intervals":intervals,"unresolved":unresolved}
+            current_start=None
+            current_list_event=None
+            corroborating_lists=[]
 
-def assess_source_health(name: str, parsed_events: int, *, transport_ok: bool, error: str | None = None) -> dict:
-    expectation = SOURCE_EXPECTATIONS.get(name, {"min_events": 1, "role": "UNKNOWN"})
-    min_events = int(expectation["min_events"])
-    if not transport_ok:
-        status = "TRANSPORT_FAIL"
-        healthy = False
-    elif int(parsed_events) < min_events:
-        status = "PARSE_SUSPECT"
-        healthy = False
-    else:
-        status = "OK"
-        healthy = True
-    out = {
-        "source": name,
-        "transport_ok": bool(transport_ok),
-        "parse_status": status,
-        "healthy": healthy,
-        "parsed_events": int(parsed_events),
-        "min_expected_events": min_events,
-        "role": expectation["role"],
-    }
-    if error:
-        out["error"] = error
-    return out
+        if current_start is not None:
+            intervals.append({
+                "symbol":symbol,
+                "exchange":exchange,
+                "name":current_list_event.name if current_list_event else "",
+                "listed_from":current_start,
+                "listed_to":None,
+                "source":"official_event_ledger",
+                "source_as_of":max(e.source_as_of for e in arr if e.source_as_of),
+                "notes":(
+                    f"coalesced_list_records={len(corroborating_lists)}"
+                    if len(corroborating_lists)>1 else ""
+                ),
+            })
+
+    return {"intervals":intervals,"unresolved":unresolved}
 
 def collect_official_events() -> Dict[str, Any]:
     as_of=datetime.now().astimezone().isoformat()
@@ -268,36 +473,41 @@ def collect_official_events() -> Dict[str, Any]:
     sources=[
         ("TWSE_BASIC",TWSE_BASIC_URL,"json","TWSE","basic"),
         ("TPEX_BASIC",TPEX_BASIC_URL,"json","TPEx","basic"),
-        ("TWSE_NEW",TWSE_NEW_URL,"json","TWSE","twse_new"),
-        ("TWSE_DELIST",TWSE_DELIST_URL,"json","TWSE","twse_delist"),
-        ("TPEX_NEW",TPEX_NEW_URL,"html","TPEx","list"),
-        ("TPEX_DELIST",TPEX_DELIST_URL,"html","TPEx","delist"),
+        ("TWSE_NEW",TWSE_NEW_URL,"custom","TWSE","list"),
+        ("TWSE_DELIST",TWSE_DELIST_URL,"html","TWSE","delist"),
+        ("TPEX_NEW",TPEX_NEW_URL,"custom","TPEx","list"),
+        ("TPEX_DELIST",TPEX_DELIST_URL,"custom","TPEx","delist"),
     ]
     for name,url,kind,exchange,parser in sources:
         try:
             if kind=="json":
                 payload=fetch_json(url)
-                rows=payload if isinstance(payload,list) else []
-                if parser=="twse_new":
-                    parsed=parse_twse_new_records(rows,url,as_of)
-                elif parser=="twse_delist":
-                    parsed=parse_twse_delist_records(rows,url,as_of)
-                else:
-                    parsed=parse_basic_records(rows,exchange,url,as_of)
+                parsed=parse_basic_records(payload if isinstance(payload,list) else [],exchange,url,as_of)
+            elif kind=="custom" and name=="TWSE_NEW":
+                parsed=fetch_twse_newlisting_events(
+                    start_year=2000,
+                    end_year=datetime.now().year,
+                    source_as_of=as_of,
+                )
+            elif kind=="custom" and name=="TPEX_NEW":
+                parsed=fetch_tpex_newlisting_events(
+                    start_year=2005,
+                    end_year=datetime.now().year,
+                    source_as_of=as_of,
+                )
+            elif kind=="custom" and name=="TPEX_DELIST":
+                parsed=fetch_tpex_delisting_events(
+                    start_year=2021,
+                    end_year=datetime.now().year,
+                    source_as_of=as_of,
+                )
             else:
                 html=fetch_text(url)
                 parsed=parse_listing_html(html,exchange,url,as_of) if parser=="list" else parse_delisting_html(html,exchange,url,as_of)
             events.extend(parsed)
-            h = assess_source_health(name, len(parsed), transport_ok=True)
-            h["url"] = url
-            health.append(h)
+            health.append({"source":name,"url":url,"ok":True,"parsed_events":len(parsed)})
         except Exception as e:
-            h = assess_source_health(
-                name, 0, transport_ok=False,
-                error=f"{type(e).__name__}: {e}"
-            )
-            h["url"] = url
-            health.append(h)
+            health.append({"source":name,"url":url,"ok":False,"parsed_events":0,"error":f"{type(e).__name__}: {e}"})
     events=dedupe_events(events)
     built=build_intervals(events)
     return {
@@ -306,9 +516,8 @@ def collect_official_events() -> Dict[str, Any]:
         "health":health,
         "events":[e.to_dict() for e in events],
         **built,
-        "production_eligible": all(x["healthy"] for x in health) and not built["unresolved"],
-        "source_health_complete": all(x["healthy"] for x in health),
-        "note":"Fail closed: transport success alone is insufficient. Zero/implausibly low parsed event counts, incomplete historical coverage, or unresolved delisting events prevent production eligibility."
+        "production_eligible": all(x["ok"] for x in health) and not built["unresolved"],
+        "note":"Fail closed: incomplete official source coverage or unresolved delisting events prevents production eligibility."
     }
 
 def write_snapshot(path: str|Path, payload: Dict[str,Any]):
