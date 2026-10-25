@@ -3,7 +3,12 @@ name: MOPS Revenue PIT Collector
 on:
   workflow_dispatch:
   schedule:
-    - cron: '5 0-12 * * *'
+    # Asia/Taipei 08:05-20:35 every 30 minutes on days 1-15,
+    # covering the monthly-revenue filing window with margin for holidays.
+    - cron: '5,35 0-12 1-15 * *'
+    # Outside the main filing window, keep one daily observation for
+    # corrections / late filings. 04:05 UTC = 12:05 Asia/Taipei.
+    - cron: '5 4 16-31 * *'
   push:
     branches:
       - 'feature/mops-revenue-pit-collector'
@@ -42,24 +47,19 @@ jobs:
       - name: Collect official MOPS revenue publish timestamps
         run: python research/collect_mops_revenue_pit.py
 
-      - name: Upload observation snapshot and raw page
+      - name: Upload observation snapshot
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: mops-revenue-pit-${{ github.run_id }}
-          path: |
-            output/mops_revenue_pit_snapshot.json
-            output/mops_home_raw.html
-            output/mops_asset_*
-            output/mops_t51sb10_raw.json
-            output/mops_t51sb10_probe.json
+          path: output/mops_revenue_pit_snapshot.json
           if-no-files-found: warn
           retention-days: 90
 
       - name: Persist PIT ledger on main scheduled/manual runs
         if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'main')
         run: |
-          if git diff --quiet -- data/revenue_pit/mops_revenue_filing_times.jsonl; then
+          if [ -z "$(git status --porcelain -- data/revenue_pit/mops_revenue_filing_times.jsonl)" ]; then
             echo "No new MOPS revenue filing timestamps."
             exit 0
           fi
@@ -67,4 +67,5 @@ jobs:
           git config user.email "sky-pit-bot@users.noreply.github.com"
           git add data/revenue_pit/mops_revenue_filing_times.jsonl
           git commit -m "data: append MOPS revenue PIT timestamps"
+          git pull --rebase origin main
           git push origin HEAD:main
