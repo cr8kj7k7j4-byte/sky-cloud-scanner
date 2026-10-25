@@ -126,17 +126,21 @@ jobs:
           pattern: swing-pit-shard-*
           path: canonical_history
           merge-multiple: true
-      - name: Verify expected files exist
+      - name: Normalize downloaded shard layout
         run: |
-          echo "Daily JSON files: $(find canonical_history/history -name '*_D.json' | wc -l)"
-          echo "Shard reports: $(find canonical_history -name 'shard_report_*.json' | wc -l)"
-          test "$(find canonical_history -name 'shard_report_*.json' | wc -l)" -eq 16
+          mkdir -p canonical_history_flat/history
+          find canonical_history -type f -name '*_D.json' -exec cp {} canonical_history_flat/history/ \;
+          find canonical_history -type f -name 'shard_report_*.json' -exec cp {} canonical_history_flat/ \;
+          echo "Daily JSON files: $(find canonical_history_flat/history -name '*_D.json' | wc -l)"
+          echo "Shard reports: $(find canonical_history_flat -name 'shard_report_*.json' | wc -l)"
+          test "$(find canonical_history_flat -name 'shard_report_*.json' | wc -l)" -eq 16
+          test "$(find canonical_history_flat/history -name '*_D.json' | wc -l)" -gt 0
       - name: Run coverage / missingness audit
         env:
           PYTHONPATH: .
         run: >
           python research/audit_swing_pit_price_coverage.py
-          --history-dir canonical_history/history
+          --history-dir canonical_history_flat/history
           --pit-json canonical_pit/pit_intervals.json
           --out canonical_audit
       - name: Run W1 canonical readiness validator
@@ -144,7 +148,7 @@ jobs:
           PYTHONPATH: .
         run: >
           python research/validate_swing_pit_readiness.py
-          --history-dir canonical_history/history
+          --history-dir canonical_history_flat/history
           --pit-json canonical_pit/pit_intervals.json
           --out w1_readiness
       - name: Build manifest
@@ -152,7 +156,7 @@ jobs:
           python - <<'PY'
           import hashlib,json
           from pathlib import Path
-          files=sorted(Path("canonical_history/history").glob("*_D.json"))
+          files=sorted(Path("canonical_history_flat/history").glob("*_D.json"))
           manifest={
             "schema_version":"SWING_PIT_DAILY_MANIFEST_1.0",
             "files":len(files),
@@ -170,7 +174,7 @@ jobs:
         with:
           name: swing-canonical-pit-daily-${{ github.run_id }}
           path: |
-            canonical_history/history/
+            canonical_history_flat/history/
             canonical_audit/
             w1_readiness/
             canonical_pit/pit_intervals.json
