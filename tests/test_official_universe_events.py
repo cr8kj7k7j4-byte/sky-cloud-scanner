@@ -23,10 +23,10 @@ def test_listing_html_parser():
 def test_delisting_html_parser():
     html="""<table><tr><th>終止上市日期</th><th>公司名稱</th><th>上市編號</th></tr>
     <tr><td>114年08月15日</td><td>測試</td><td>6288</td></tr></table>"""
-    # ROC Chinese year format is intentionally not guessed by normalize_roc_date.
-    # Official adapter must normalize only verified supported formats.
     out=parse_delisting_html(html,"TWSE","u","2026-10-25T00:00:00+08:00")
-    assert out == []
+    assert len(out) == 1
+    assert out[0].symbol == "6288"
+    assert out[0].event_date == "2025-08-15"
 
 def test_interval_build_and_fail_closed_unresolved():
     from src.official_universe_events import UniverseEvent
