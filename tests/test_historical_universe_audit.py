@@ -10,10 +10,10 @@ from research.audit_historical_universe import build_historical_universe_audit
 def _payload():
     return {
         "health": [
-            {"source": "TWSE_BASIC", "ok": True},
-            {"source": "TPEX_BASIC", "ok": True},
-            {"source": "TWSE_DELIST", "ok": True},
-            {"source": "TPEX_DELIST", "ok": True},
+            {"source": "TWSE_BASIC", "ok": True, "parsed_events": 2},
+            {"source": "TPEX_BASIC", "ok": True, "parsed_events": 1},
+            {"source": "TWSE_DELIST", "ok": True, "parsed_events": 3},
+            {"source": "TPEX_DELIST", "ok": True, "parsed_events": 2},
         ],
         "events": [{"x": 1}],
         "intervals": [
@@ -105,4 +105,57 @@ def test_source_failure_blocks_gate():
         current_universe=current,
         audit_dates=["2025-12-31"],
     )
+    assert out["historical_universe_gate_pass"] is False
+
+
+def test_empty_historical_membership_blocks_gate():
+    p = _payload()
+    p["intervals"] = [
+        {
+            "symbol": "2222",
+            "exchange": "TWSE",
+            "name": "FutureOnly",
+            "listed_from": "2026-10-01",
+            "listed_to": None,
+            "source": "official",
+            "source_as_of": "2026-10-25",
+        },
+        {
+            "symbol": "3333",
+            "exchange": "TPEx",
+            "name": "FutureOnly2",
+            "listed_from": "2026-10-01",
+            "listed_to": None,
+            "source": "official",
+            "source_as_of": "2026-10-25",
+        },
+    ]
+    current = [
+        {"symbol": "2222", "exchange": "TWSE"},
+        {"symbol": "3333", "exchange": "TPEx"},
+    ]
+    out = build_historical_universe_audit(
+        official_payload=p,
+        current_universe=current,
+        audit_dates=["2025-12-31"],
+    )
+    assert out["historical_dates_nonempty"] is False
+    assert out["historical_universe_gate_pass"] is False
+
+
+def test_missing_delisting_evidence_blocks_gate():
+    p = _payload()
+    for item in p["health"]:
+        if item["source"] in {"TWSE_DELIST", "TPEX_DELIST"}:
+            item["parsed_events"] = 0
+    current = [
+        {"symbol": "2222", "exchange": "TWSE"},
+        {"symbol": "3333", "exchange": "TPEx"},
+    ]
+    out = build_historical_universe_audit(
+        official_payload=p,
+        current_universe=current,
+        audit_dates=["2025-12-31"],
+    )
+    assert out["historical_source_coverage_ok"] is False
     assert out["historical_universe_gate_pass"] is False
