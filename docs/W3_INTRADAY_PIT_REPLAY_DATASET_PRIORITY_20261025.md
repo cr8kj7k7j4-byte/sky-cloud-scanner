@@ -1,5 +1,18 @@
 # W3｜Intraday PIT Historical Replay Dataset — Priority Handoff 2026-10-25
 
+> **SUPERSEDED — 2026-10-26**
+>
+> This P0 handoff is retained for historical traceability only.
+> W0 has formally closed the Production-v1.4 historical full-rule replay lane because the authoritative frozen rule/decision source is not reconstructable from the current SSOT.
+>
+> Canonical replacement:
+> - `docs/W0_V14_HISTORICAL_REPLAY_GOVERNANCE_DECISION_20261026.md`
+>
+> Current critical path:
+> **W4 Forward Shadow/Paper → P0-R → W6 execution evidence → W3B forward-evidence pipeline → W0/P0-G**
+>
+> W3A responsibility is now PIT/data/lineage maintenance only; it must not synthesize missing v1.4 Alpha rules.
+
 > Owner: W3｜Sky 資料與系統工程
 > Requested by: W0｜Sky 總控與版本治理
 > Priority: **P0 / Highest**
