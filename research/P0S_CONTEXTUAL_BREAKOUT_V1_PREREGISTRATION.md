@@ -167,3 +167,9 @@ Before running the full study, verify whether the repository can reconstruct:
 for the same historical 5m universe.
 
 If these fields are incomplete, record DATA BLOCKED and do not fabricate or impute them.
+
+
+## Data audit status
+
+As of 2026-10-25: **DATA_BLOCKED / DO NOT BACKTEST YET**.
+See `research/P0S_CONTEXTUAL_BREAKOUT_V1_DATA_AUDIT.md`.
