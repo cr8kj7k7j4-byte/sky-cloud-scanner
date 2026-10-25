@@ -18,9 +18,11 @@ SOURCE_NAME = "FinMind TaiwanStockPrice + corporate-action reference datasets"
 ADJUSTMENT_METHOD = "SKY_BACKWARD_REFERENCE_RATIO_V1"
 DEFAULT_START = "2023-01-01"
 
-EVENT_DATASETS = (
+PER_SYMBOL_EVENT_DATASETS = (
     "TaiwanStockDividendResult",
     "TaiwanStockCapitalReductionReferencePrice",
+)
+GLOBAL_EVENT_DATASETS = (
     "TaiwanStockSplitPrice",
     "TaiwanStockParValueChange",
 )
@@ -76,7 +78,10 @@ def _get_dataset(dataset: str, symbol: str, start: str, end: str, token: str, re
             data = payload.get("data")
             if not isinstance(data, list):
                 raise RuntimeError(f"{dataset}:INVALID_DATA_PAYLOAD")
-            return data
+            return [
+                row for row in data
+                if str(row.get("stock_id") or symbol) == str(symbol)
+            ]
         except ProviderQuotaError:
             raise
         except Exception as exc:
@@ -85,6 +90,48 @@ def _get_dataset(dataset: str, symbol: str, start: str, end: str, token: str, re
                 break
             time.sleep(min(2 ** (attempt - 1), 8))
     raise RuntimeError(f"FETCH_FAILED:{dataset}:{symbol}:{type(last_error).__name__}:{last_error}")
+
+
+def _get_global_dataset(dataset: str, start: str, end: str, token: str, retries: int = 3):
+    params = {"dataset": dataset, "start_date": start, "end_date": end}
+    headers = {"User-Agent": "Sky-W3-Swing-PIT/1.1"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    last_error = None
+    for attempt in range(1, retries + 1):
+        try:
+            r = requests.get(FINMIND_URL, params=params, timeout=45, headers=headers)
+            if r.status_code in (402, 429):
+                raise ProviderQuotaError(f"{dataset}:RATE_OR_QUOTA_{r.status_code}:{r.text[:160]}")
+            if 400 <= r.status_code < 500:
+                raise RuntimeError(f"{dataset}:CLIENT_{r.status_code}:{r.text[:160]}")
+            r.raise_for_status()
+            payload = r.json()
+            status = payload.get("status")
+            if status not in (200, "200", None):
+                msg = payload.get("msg") or payload.get("message")
+                raise RuntimeError(f"{dataset}:FINMIND_STATUS_{status}:{msg}")
+            data = payload.get("data")
+            if not isinstance(data, list):
+                raise RuntimeError(f"{dataset}:INVALID_DATA_PAYLOAD")
+            return data
+        except ProviderQuotaError:
+            raise
+        except Exception as exc:
+            last_error = exc
+            if attempt >= retries:
+                break
+            time.sleep(min(2 ** (attempt - 1), 8))
+    raise RuntimeError(f"FETCH_FAILED:{dataset}:GLOBAL:{type(last_error).__name__}:{last_error}")
+
+
+def _group_events_by_symbol(rows: list[dict]) -> dict[str, list[dict]]:
+    grouped = defaultdict(list)
+    for row in rows or []:
+        symbol = str(row.get("stock_id") or "")
+        if symbol:
+            grouped[symbol].append(row)
+    return dict(grouped)
 
 def _symbol_intervals(pit: dict) -> dict[str, list[dict]]:
     out = defaultdict(list)
@@ -209,14 +256,40 @@ def collect(*, pit_path: str, out_dir: str, start: str, end: str, shard_index: i
         "outside_pit_rows_dropped": 0,
         "zero_or_invalid_price_rows_dropped": 0,
         "rows_written": 0,
-        "requests_expected_max": len(selected) * (1 + len(EVENT_DATASETS)),
+        "requests_expected_max": len(selected) * (1 + len(PER_SYMBOL_EVENT_DATASETS)) + len(GLOBAL_EVENT_DATASETS),
     }
+
+    global_events_by_dataset = {}
+    try:
+        for ds in GLOBAL_EVENT_DATASETS:
+            global_events_by_dataset[ds] = _group_events_by_symbol(
+                _get_global_dataset(ds, start, end, token)
+            )
+    except ProviderQuotaError as exc:
+        report["provider_blocker"] = {"type": "RATE_OR_QUOTA", "symbol": None, "error": str(exc)}
+        (out / f"shard_report_{shard_index:02d}.json").write_text(
+            json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        raise SystemExit(4)
+    except Exception as exc:
+        report["provider_blocker"] = {"type": "GLOBAL_EVENT_DATASET_ERROR", "symbol": None, "error": f"{type(exc).__name__}:{exc}"}
+        (out / f"shard_report_{shard_index:02d}.json").write_text(
+            json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        raise SystemExit(5)
 
     for n, symbol in enumerate(selected, 1):
         intervals = by_symbol[symbol]
         try:
             raw = _get_dataset("TaiwanStockPrice", symbol, start, end, token)
-            events_by_dataset = {ds: _get_dataset(ds, symbol, start, end, token) for ds in EVENT_DATASETS}
+            events_by_dataset = {
+                ds: _get_dataset(ds, symbol, start, end, token)
+                for ds in PER_SYMBOL_EVENT_DATASETS
+            }
+            for ds in GLOBAL_EVENT_DATASETS:
+                events_by_dataset[ds] = list(
+                    (global_events_by_dataset.get(ds) or {}).get(symbol) or []
+                )
             events, ca_conflicts, ca_invalid = _build_adjustment_events(symbol, events_by_dataset)
             if ca_conflicts:
                 report["corporate_action_conflicts"].extend(ca_conflicts)
