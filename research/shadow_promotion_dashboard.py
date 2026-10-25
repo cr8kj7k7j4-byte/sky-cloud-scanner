@@ -5,6 +5,10 @@ import json
 from pathlib import Path
 
 from src.model_registry import build_shadow_promotion_dashboard
+from src.shadow_evidence import (
+    evaluate_shadow_pipeline_readiness,
+    evaluate_portfolio_cost_capacity_evidence,
+)
 
 
 def load_shadow_records(root):
@@ -69,6 +73,8 @@ def render_markdown(dashboard):
     gaps = dashboard.get("sample_gaps", {})
     blockers = dashboard.get("blocking_items", [])
     source = dashboard.get("source", {})
+    pipeline = dashboard.get("pipeline_readiness", {})
+    portfolio = dashboard.get("portfolio_cost_capacity", {})
     lines = [
         "# Sky Shadow Promotion Dashboard",
         "",
@@ -82,6 +88,19 @@ def render_markdown(dashboard):
         f"| Outcome 完整率 | {float(s.get('outcome_complete_ratio', 0))*100:.1f}% |",
         f"| 單一股票最高占比 | {float(s.get('top_symbol_share', 0))*100:.1f}% |",
         f"| Promotion Evidence Score | {s.get('promotion_score', 0)} / 100 |",
+        "",
+        "## Shadow Pipeline Readiness",
+        f"- 狀態：{pipeline.get('status', 'UNKNOWN')}",
+        f"- 合格成功掃描 runs：{pipeline.get('eligible_successful_scan_runs', 0)}",
+        f"- Paper files：{pipeline.get('paper_files', 0)}",
+        f"- Records loaded：{pipeline.get('records_loaded', 0)}",
+        "",
+        "## Portfolio / Cost / Capacity Evidence",
+        f"- 狀態：{portfolio.get('status', 'NOT_EVALUABLE')}",
+        f"- 完整策略 outcomes：{portfolio.get('observed', {}).get('complete_strategy_outcomes', 0)}",
+        f"- 成本完整率：{float(portfolio.get('observed', {}).get('cost_complete_ratio', 0))*100:.1f}%",
+        f"- 單股最高占比：{float(portfolio.get('observed', {}).get('top_symbol_share', 0))*100:.1f}%",
+        f"- Capacity observations：{portfolio.get('observed', {}).get('capacity_observations', 0)}",
         "",
         "## 樣本缺口",
         f"- 尚缺樣本：{gaps.get('samples_remaining', 0)}",
@@ -125,6 +144,9 @@ def main():
     ap.add_argument("--min-expectancy-r", type=float, default=0.0)
     ap.add_argument("--min-profit-factor", type=float, default=1.0)
     ap.add_argument("--max-drawdown-r", type=float)
+    ap.add_argument("--ledger-start", default="2026-10-24T23:28:08Z")
+    ap.add_argument("--eligible-successful-scan-runs", type=int, default=0)
+    ap.add_argument("--max-participation-rate", type=float)
     args = ap.parse_args()
 
     records, files = load_shadow_records(args.paper_dir)
@@ -143,12 +165,25 @@ def main():
         min_profit_factor=args.min_profit_factor,
         max_drawdown_r=args.max_drawdown_r,
     )
+    pipeline = evaluate_shadow_pipeline_readiness(
+        ledger_start=args.ledger_start,
+        eligible_successful_scan_runs=args.eligible_successful_scan_runs,
+        paper_files=len(files),
+        records_loaded=len(records),
+    )
+    portfolio = evaluate_portfolio_cost_capacity_evidence(
+        records,
+        max_participation_rate=args.max_participation_rate,
+    )
+
     dashboard["source"] = {
         "paper_dir": str(args.paper_dir),
         "files_scanned": len(files),
         "records_loaded": len(records),
         "promotion_evidence_file": args.promotion_evidence,
     }
+    dashboard["pipeline_readiness"] = pipeline
+    dashboard["portfolio_cost_capacity"] = portfolio
 
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
