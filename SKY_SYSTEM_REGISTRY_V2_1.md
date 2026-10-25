@@ -46,6 +46,7 @@ Research namespaces:
 | Transparent intraday ML feature ensemble | REJECTED | Negative post-cost Train/Valid/Test performance. |
 | Low-vol market-residual long-only | REJECTED_AS_STRATEGY | Stable IC did not convert into robust tradable long-only edge. |
 | Stage 7A Broader Market Alpha | REJECTED | Pre-registered A1–A5 hypotheses failed stable-positive and cost gates; archived and no further local retuning allowed. |
+| VNext Residual Ranking Baseline v1 | REJECTED | All preregistered 3D/5D/10D × Top3/5/10 variants had negative Validation and Research-Test expectancy after 0.45% cost with PF < 1; do not retune or escalate to nonlinear ML. |
 
 ## Historical Revenue PIT coverage audit
 
