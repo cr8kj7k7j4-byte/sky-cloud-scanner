@@ -13,6 +13,8 @@ from src.point_in_time_universe import (
     validate_intervals,
 )
 
+MIN_CURRENT_INTERVAL_COVERAGE_PCT = 99.0
+
 DEFAULT_DATES = [
     "2023-12-31",
     "2024-12-31",
@@ -97,7 +99,7 @@ def build_historical_universe_audit(
 
     sources_ok = bool(source_health) and all(x.get("ok") for x in source_health)
     current_coverage_ok = all(
-        x["coverage_pct"] >= 99.0 for x in current_coverage.values()
+        x["coverage_pct"] >= MIN_CURRENT_INTERVAL_COVERAGE_PCT for x in current_coverage.values()
         if x["current_symbols"] > 0
     )
     unresolved_ok = len(unresolved) == 0
@@ -126,7 +128,7 @@ def build_historical_universe_audit(
             else "HISTORICAL_UNIVERSE_INCOMPLETE"
         ),
         "governance": {
-            "minimum_current_interval_coverage_pct": 99.0,
+            "minimum_current_interval_coverage_pct": MIN_CURRENT_INTERVAL_COVERAGE_PCT,
             "all_official_sources_must_be_healthy": True,
             "unresolved_events_allowed": 0,
             "rule": (
