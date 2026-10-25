@@ -1,0 +1,30 @@
+name: New Listing Source Probe
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'feature/historical-universe-audit'
+    paths:
+      - 'research/probe_new_listing_sources.py'
+      - '.github/workflows/probe-new-listing-sources.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install requests beautifulsoup4
+      - run: python research/probe_new_listing_sources.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: new-listing-probe-${{ github.run_id }}
+          path: output/new_listing_probe/
+          retention-days: 30
