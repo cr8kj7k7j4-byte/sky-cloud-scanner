@@ -134,3 +134,91 @@ def market_evidence_from_candidate(candidate: Dict[str, Any], observed_at: str) 
         ))
 
     return out
+
+
+def build_candidate_structured_ledger(candidate: Dict[str, Any], run_time: Optional[str] = None) -> Dict[str, Any]:
+    """Canonical P0-K adapter payload for structured candidate evidence.
+
+    This preserves the legacy evidence_ledger.py output contract while keeping
+    the evidence-building logic owned by knowledge_engine.py.
+    """
+    candidate = candidate or {}
+    observed_at = candidate.get("quote_time") or run_time
+    records = []
+
+    def add(field, value, source, kind="fact", note=""):
+        if value is None:
+            return
+        records.append({
+            "field": field,
+            "value": value,
+            "source": source,
+            "observed_at": observed_at,
+            "kind": kind,
+            "note": note,
+        })
+
+    quote_source = candidate.get("quote_source") or "unknown"
+    for field in ("last", "change_pct", "volume", "high", "low", "open"):
+        add(field, candidate.get(field), quote_source)
+
+    if candidate.get("universe_source"):
+        add("universe", candidate.get("symbol"), candidate.get("universe_source"))
+
+    if candidate.get("relative_strength_score") is not None:
+        add(
+            "relative_strength_score",
+            candidate.get("relative_strength_score"),
+            "Sky Relative Strength Engine",
+            kind="derived",
+            note="由候選池橫向比較計算，不代表勝率",
+        )
+
+    if candidate.get("market_intelligence"):
+        add(
+            "market_intelligence",
+            candidate.get("market_intelligence"),
+            "Sky P0-M Market Intelligence Engine",
+            kind="derived",
+        )
+
+    return {
+        "generated_at": run_time or datetime.now(timezone.utc).isoformat(),
+        "records": records,
+        "fact_count": sum(1 for x in records if x["kind"] == "fact"),
+        "derived_count": sum(1 for x in records if x["kind"] == "derived"),
+    }
+
+
+def build_news_evidence_ledger(articles, run_time: Optional[str] = None) -> Dict[str, Any]:
+    """Canonical P0-K news evidence payload.
+
+    News remains evidence only and never becomes a direct trade signal.
+    """
+    generated_at = run_time or datetime.now(timezone.utc).isoformat()
+    records = []
+    for article in articles or []:
+        title = (article.get("subject") or "").strip()
+        url = article.get("source_url")
+        published_at = article.get("published_at")
+        if not title or not url or not published_at:
+            continue
+        records.append({
+            "kind": "fact",
+            "category": "industry_news",
+            "statement": title,
+            "source": article.get("source") or "unknown",
+            "source_url": url,
+            "published_at": published_at,
+            "observed_at": generated_at,
+            "source_tier": article.get("source_tier"),
+            "authority_score": article.get("authority_score"),
+            "affected_sectors": article.get("affected_sectors") or [],
+            "trade_signal": False,
+            "note": "僅作 P0-K/P0-EVT 外部證據，不直接形成交易訊號",
+        })
+    return {
+        "generated_at": generated_at,
+        "record_count": len(records),
+        "records": records,
+    }
