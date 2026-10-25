@@ -319,6 +319,26 @@ def run():
 
         working_rows = apply_relative_strength(working_rows)
 
+        # W4 forward evidence only: preserve the pure current-day gainers rank
+        # from the contemporaneous market snapshot. This does not alter
+        # candidate selection, ranking, P0-C, P0-R, or Production behavior.
+        gain_ranked = sorted(
+            working_rows,
+            key=lambda x: float(x.get("change_pct") or float("-inf")),
+            reverse=True,
+        )
+        gainer_rank = {
+            str(row.get("symbol") or ""): i
+            for i, row in enumerate(gain_ranked, 1)
+            if str(row.get("symbol") or "")
+        }
+        for row in working_rows:
+            rank = gainer_rank.get(str(row.get("symbol") or ""))
+            row["gainer_rank"] = rank
+            row["top100_gainer_member"] = bool(rank is not None and rank <= 100)
+            row["gainer_universe_size"] = len(gain_ranked)
+            row["gainer_rank_source"] = "current_snapshot_change_pct"
+
         passed = []
         for r in working_rows:
             ok, reasons = first_gate(r)
