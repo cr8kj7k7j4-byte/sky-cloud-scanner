@@ -2,6 +2,14 @@ name: W2 Top100 Velocity Baseline Historical Run
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "research/top100_velocity_baseline.py"
+      - "tests/test_top100_velocity_baseline.py"
+      - "research/w5/TOP100_VELOCITY_BASELINE_PREREGISTRATION_20261026.md"
+      - ".github/workflows/w2-top100-velocity-baseline.yml"
 
 permissions:
   contents: read
