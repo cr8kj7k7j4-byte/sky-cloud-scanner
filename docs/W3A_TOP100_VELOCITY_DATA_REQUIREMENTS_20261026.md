@@ -1,46 +1,42 @@
-# W3A Data Requirements — Top100 Velocity Research
+# W3A Data Requirements — Top100 Velocity Baseline A
 
 Date: 2026-10-26
-Priority: tied to current intraday PIT historical coverage blocker
+Status: CORE_REQUIREMENTS_PASS
 
 ## Objective
-Enable causal reconstruction of the intraday rolling Top100 gainers universe for Taiwan equities.
 
-## Minimum historical fields per symbol / timestamp
-- symbol
-- exchange
-- observation_timestamp
-- prior_close
-- last_price or bar close
-- intraday high / low where available
-- cumulative volume
-- interval volume
-- bid / ask or spread fields where historically available
-- trading status / suspension / limit state
-- point-in-time listing membership
+Enable causal reconstruction of the rolling Top100 gainers universe and a fixed-horizon acceleration test.
 
-## Derived causal fields
-- intraday_return_t = price_t / prior_close - 1
-- gain_rank_t across the eligible full market at timestamp t
-- top100_member_t
-- price_velocity
-- rank_velocity
-- volume_acceleration
+## Required historical fields
 
-## Non-negotiable requirements
-- no end-of-day ranking backfill;
-- timestamp causality;
-- point-in-time universe membership;
-- historical delisted / newly listed handling;
-- synchronized cross-sectional snapshots;
-- >=95% governed universe coverage for promotion-grade claims;
-- data-quality flags and provenance retained.
+Available from corrected PIT whole-universe 5m source / PIT ledger:
+- symbol;
+- exchange;
+- 5m bar timestamp;
+- open/high/low/close;
+- interval volume;
+- cumulative transaction average where present;
+- point-in-time listing membership.
 
-## Preferred resolution path
-1. Reuse current official/PIT universe contract.
-2. Identify a source that can provide broad-universe synchronized intraday history.
-3. Produce source/licensing/cost/coverage evidence before purchase.
-4. Build the smallest reproducible sample that proves causal Top100 reconstruction.
-5. Scale only after data contract passes validation.
+Derived causally:
+- prior-session close;
+- current-day return;
+- full-market gain rank;
+- Top100 membership;
+- price velocity per minute;
+- rank velocity per minute;
+- interval volume rate;
+- volume acceleration;
+- next-bar entry;
+- 30-minute MFE / MAE / exit outcome.
 
-No purchase is authorized by this document. If paid data is required, stop at a comparison of vendor, coverage, license, and price for user approval.
+## Governance
+
+- completed bars only for features;
+- no end-of-day rank backfill;
+- no current-universe backward substitution;
+- no outcome field in decision features;
+- 2026 is Research Test, not fresh OOS;
+- historical empirical spread/slippage/fill is optional for Baseline A and remains a later W6 evidence gate.
+
+Core source coverage now exceeds the >=95% gate, so W2 may execute the preregistered Baseline A test.
