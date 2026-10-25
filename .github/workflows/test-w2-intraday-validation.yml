@@ -1,0 +1,35 @@
+name: test-w2-intraday-validation
+
+on:
+  pull_request:
+    paths:
+      - "research/intraday_*.py"
+      - "research/w2_intraday_validation_runner.py"
+      - "research/PHASE6_RULE_ABLATION_CONTRACT.md"
+      - "research/PHASE7_RULE_STABILITY_CONTRACT.md"
+      - "research/INTRADAY_PIT_REPLAY_CONTRACT_V1.md"
+      - "tests/test_w2_intraday_validation.py"
+      - ".github/workflows/test-w2-intraday-validation.yml"
+  push:
+    branches:
+      - "w2/**"
+    paths:
+      - "research/intraday_*.py"
+      - "research/w2_intraday_validation_runner.py"
+      - "tests/test_w2_intraday_validation.py"
+      - ".github/workflows/test-w2-intraday-validation.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install research dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas numpy
+      - name: Run W2 intraday validation tests
+        run: python -m unittest discover -s tests -p "test_w2_intraday_validation.py" -v
