@@ -367,3 +367,71 @@ def test_suspended_listed_member_can_be_absent_from_quote_universe():
     assert out["current_open_interval_alignment_ok"] is True
     assert out["current_membership_alignment"]["TWSE"]["missing_open_symbol_count"] == 0
     assert out["historical_universe_gate_pass"] is True
+
+
+def test_stale_prewindow_list_is_not_projected_into_governed_window():
+    events=[{
+        "symbol":"9998","exchange":"TPEx","name":"Old",
+        "event_type":"LIST","event_date":"2008-01-01",
+        "source":"official","source_url":"u","source_as_of":"2026-10-25","notes":"",
+    }]
+    out=build_windowed_intervals(
+        events,
+        current_membership=[],
+    )
+    assert not any(x["symbol"]=="9998" for x in out["intervals"])
+    assert any(
+        x.get("type")=="PREWINDOW_MEMBERSHIP_NOT_CONFIRMED_IN_GOVERNED_WINDOW"
+        for x in out["annotations"]
+    )
+
+
+def test_current_membership_can_bridge_prewindow_event_chain_conflict():
+    events=[
+        {
+            "symbol":"2301","exchange":"TWSE","name":"OldName",
+            "event_type":"LIST","event_date":"1995-11-17",
+            "source":"official","source_url":"u","source_as_of":"2026-10-25","notes":"",
+        },
+        {
+            "symbol":"2301","exchange":"TWSE","name":"OldName",
+            "event_type":"DELIST","event_date":"2002-11-04",
+            "source":"official","source_url":"u","source_as_of":"2026-10-25","notes":"",
+        },
+    ]
+    membership=[{
+        "symbol":"2301","exchange":"TWSE","name":"CurrentName",
+        "listed_from":"1995-11-17","source":"basic","source_as_of":"2026-10-25",
+    }]
+    out=build_windowed_intervals(events,current_membership=membership)
+    rows=[x for x in out["intervals"] if x["symbol"]=="2301"]
+    assert len(rows)==1
+    assert rows[0]["listed_from"]=="2023-01-01"
+    assert rows[0]["listed_to"] is None
+    assert any(
+        x.get("type")=="CURRENT_MEMBERSHIP_REASSERTED_AT_WINDOW_START"
+        for x in out["annotations"]
+    )
+
+
+def test_in_window_list_can_bridge_current_basic_snapshot_lag():
+    p=_payload()
+    p["events"].append({
+        "symbol":"6898","exchange":"TPEx","name":"New",
+        "event_type":"LIST","event_date":"2026-10-23",
+        "source":"official","source_url":"u","source_as_of":"2026-10-25","notes":"",
+    })
+    p["current_membership"]=[
+        {"symbol":"2222","exchange":"TWSE","name":"B","listed_from":"2020-01-01"},
+        {"symbol":"3333","exchange":"TPEx","name":"C","listed_from":"2020-01-01"},
+    ]
+    current=[
+        {"symbol":"2222","exchange":"TWSE"},
+        {"symbol":"3333","exchange":"TPEx"},
+    ]
+    out=build_historical_universe_audit(
+        official_payload=p,
+        current_universe=current,
+        audit_dates=["2026-10-24"],
+    )
+    assert "6898" not in out["current_membership_alignment"]["TPEx"]["extraneous_open_symbols"]
