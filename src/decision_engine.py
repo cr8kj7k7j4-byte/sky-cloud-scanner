@@ -3,8 +3,40 @@ from __future__ import annotations
 from dataclasses import dataclass, asdict
 from typing import Any, Dict, List
 
+from .config import MAX_PRICE, MIN_VOLUME, MIN_TRADE_VALUE
+
 
 DECISION_SCHEMA_VERSION = "1.0"
+
+
+def spread_pct(row):
+    row = row or {}
+    bid = row.get("bid")
+    ask = row.get("ask")
+    if not bid or not ask or ask < bid:
+        return None
+    mid = (bid + ask) / 2
+    return (ask - bid) / mid * 100 if mid else None
+
+
+def first_gate(row):
+    """Canonical P0-C first eligibility gate.
+
+    This gate filters obvious non-tradable candidates before ranking.
+    It does not create a buy signal and does not replace downstream P0-R.
+    """
+    row = row or {}
+    reasons = []
+    if row.get("last") is None or row["last"] > MAX_PRICE:
+        reasons.append(f"股價>{MAX_PRICE:g}或無有效成交價")
+    if row.get("volume", 0) < MIN_VOLUME:
+        reasons.append(f"量<{MIN_VOLUME}張")
+    if row.get("trade_value", 0) < MIN_TRADE_VALUE:
+        reasons.append(f"成交值<{MIN_TRADE_VALUE:,.0f}")
+    sp = spread_pct(row)
+    if sp is not None and sp > 0.8:
+        reasons.append(f"價差過大({sp:.2f}%)")
+    return not reasons, reasons
 
 
 @dataclass(frozen=True)
