@@ -63,8 +63,8 @@ def test_market_context_passes_only_with_pit_coverage_and_explicit_benchmark():
         {"symbol":"2222","timestamp":"2026-01-05T09:05:00+08:00","open":19.9,"close":20.1},
     ])
     pit=[
-        {"symbol":"1111","exchange":"TWSE","listed_from":"2020-01-01","listed_to":None},
-        {"symbol":"2222","exchange":"TWSE","listed_from":"2020-01-01","listed_to":None},
+        {"symbol":"1111","exchange":"TWSE","name":"A","listed_from":"2020-01-01","listed_to":None},
+        {"symbol":"2222","exchange":"TWSE","name":"B","listed_from":"2020-01-01","listed_to":None},
     ]
     benchmark=pd.DataFrame([{
         "timestamp":"2026-01-05T09:05:00+08:00","market_return":0.001,
@@ -84,7 +84,7 @@ def test_market_context_does_not_substitute_equal_weight_for_missing_benchmark()
     bars=pd.DataFrame([
         {"symbol":"1111","timestamp":"2026-01-05T09:00:00+08:00","open":10,"close":10.1},
     ])
-    pit=[{"symbol":"1111","exchange":"TWSE","listed_from":"2020-01-01","listed_to":None}]
+    pit=[{"symbol":"1111","exchange":"TWSE","name":"A","listed_from":"2020-01-01","listed_to":None}]
     frame,report=build_market_context(decisions,bars,pit,None)
     assert report["status"]=="BLOCKED"
     assert pd.isna(frame.loc[0,"market_return"])
