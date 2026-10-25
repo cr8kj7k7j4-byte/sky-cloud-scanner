@@ -6,7 +6,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from research.build_universe_sample import fetch_universe
-from src.official_universe_events import collect_official_events
+from src.official_universe_events import collect_official_events, reconcile_cross_exchange_migrations
 from src.point_in_time_universe import (
     survivorship_audit,
     universe_as_of,
@@ -139,8 +139,11 @@ def build_windowed_intervals(events: list[dict], window_start: str = WINDOW_STAR
                 "notes":"windowed_membership",
             })
 
+    reconciled=reconcile_cross_exchange_migrations(intervals)
+    for item in reconciled["migration_notes"]:
+        annotations.append({"type":"CROSS_EXCHANGE_MIGRATION",**item})
     return {
-        "intervals":sorted(intervals,key=lambda x:(x["exchange"],x["symbol"],x["listed_from"])),
+        "intervals":sorted(reconciled["intervals"],key=lambda x:(x["exchange"],x["symbol"],x["listed_from"])),
         "unresolved":unresolved,
         "annotations":annotations,
         "window_start":window_start,
