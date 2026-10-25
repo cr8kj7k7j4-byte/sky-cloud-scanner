@@ -74,3 +74,12 @@ PAPER_GCS_BUCKET = os.getenv("PAPER_GCS_BUCKET", "").strip()
 
 # Rejected P0-S 5m breakout is disabled in live scanner by default.
 P0S_5M_BREAKOUT_ENABLED = _b("P0S_5M_BREAKOUT_ENABLED", "0")
+
+
+# P0-A Alert Delivery Reliability
+ALERT_MAX_ATTEMPTS = int(os.getenv("ALERT_MAX_ATTEMPTS", "3"))
+ALERT_RETRY_BASE_SECONDS = float(os.getenv("ALERT_RETRY_BASE_SECONDS", "1"))
+ALERT_COOLDOWN_SECONDS = int(os.getenv("ALERT_COOLDOWN_SECONDS", "300"))
+ALERT_DELIVERY_LOG = os.getenv(
+    "ALERT_DELIVERY_LOG", "output/alert_delivery.jsonl"
+).strip()
