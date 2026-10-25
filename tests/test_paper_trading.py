@@ -59,3 +59,31 @@ def test_write_paper_file(tmp_path):
     p = write_paper_run_file(tmp_path / "paper.json", [{"symbol": "2409"}])
     data = json.loads(p.read_text(encoding="utf-8"))
     assert data["records"][0]["symbol"] == "2409"
+
+
+def test_snapshot_preserves_forward_version_lineage():
+    gate = evaluate_paper_gate("shadow", "RESEARCH_ONLY")
+    snap = build_paper_snapshot(
+        run_id="r2",
+        observed_at="2026-10-27T09:05:00+08:00",
+        item={
+            "symbol":"2330",
+            "strategy_id":"Sky Day Trading",
+            "strategy_version":"v1.4 Dynamic Capital Rotation / P0-C MVP",
+            "system_version":"Sky V2.1",
+            "scanner_version":"0.5",
+            "historical_full_rule_replay_status":"HISTORICAL_V14_FULL_RULE_REPLAY_UNAVAILABLE",
+            "risk":{"status":"RISK_INPUT_REQUIRED"},
+            "monitor":{"state":"OBSERVE"},
+        },
+        gate=gate,
+    )
+    assert snap["strategy_id"]=="Sky Day Trading"
+    assert snap["strategy_version"]=="v1.4 Dynamic Capital Rotation / P0-C MVP"
+    assert snap["system_version"]=="Sky V2.1"
+    assert snap["scanner_version"]=="0.5"
+    assert (
+        snap["historical_full_rule_replay_status"]
+        =="HISTORICAL_V14_FULL_RULE_REPLAY_UNAVAILABLE"
+    )
+    assert snap["research_context"]["scanner_version"]=="0.5"
