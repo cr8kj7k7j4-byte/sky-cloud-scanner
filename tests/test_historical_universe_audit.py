@@ -4,7 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from research.audit_historical_universe import build_historical_universe_audit
+from research.audit_historical_universe import build_historical_universe_audit, build_windowed_intervals
 
 
 def _payload():
@@ -89,6 +89,10 @@ def _payload():
                 "source": "official",
                 "source_as_of": "2026-10-25",
             },
+        ],
+        "current_membership": [
+            {"symbol":"2222","exchange":"TWSE","name":"New","listed_from":"2025-01-01","source":"basic","source_as_of":"2026-10-25"},
+            {"symbol":"3333","exchange":"TPEx","name":"Always","listed_from":"2020-01-01","source":"basic","source_as_of":"2026-10-25"},
         ],
         "unresolved": [],
     }
@@ -251,12 +255,12 @@ def test_missing_delisting_evidence_blocks_gate():
     assert out["historical_universe_gate_pass"] is False
 
 
-def test_extraneous_open_interval_blocks_gate():
+def test_stale_prewindow_list_without_window_evidence_is_excluded():
     p=_payload()
     p["events"].append({
-        "symbol":"9998","exchange":"TPEx","name":"StaleManaged",
+        "symbol":"9998","exchange":"TPEx","name":"StaleOld",
         "event_type":"LIST","event_date":"2020-01-01",
-        "source":"official_basic_data","source_url":"u",
+        "source":"official_listing_api","source_url":"u",
         "source_as_of":"2026-10-25","notes":"",
     })
     current=[
@@ -268,10 +272,9 @@ def test_extraneous_open_interval_blocks_gate():
         current_universe=current,
         audit_dates=["2025-12-31"],
     )
-    assert out["current_open_interval_alignment_ok"] is False
-    assert out["current_membership_alignment"]["TPEx"]["extraneous_open_symbol_count"] == 1
-    assert "9998" in out["current_membership_alignment"]["TPEx"]["extraneous_open_symbols"]
-    assert out["historical_universe_gate_pass"] is False
+    assert out["current_open_interval_alignment_ok"] is True
+    assert out["current_membership_alignment"]["TPEx"]["extraneous_open_symbol_count"] == 0
+    assert out["historical_universe_gate_pass"] is True
 
 
 def test_windowed_cross_exchange_migration_closes_prior_market():
@@ -288,6 +291,9 @@ def test_windowed_cross_exchange_migration_closes_prior_market():
             "source":"official","source_url":"u","source_as_of":"2026-10-25","notes":"",
         },
     ])
+    p["current_membership"].append(
+        {"symbol":"4444","exchange":"TWSE","name":"Mover","listed_from":"2025-02-03","source":"basic","source_as_of":"2026-10-25"}
+    )
     current=[
         {"symbol":"2222","exchange":"TWSE"},
         {"symbol":"3333","exchange":"TPEx"},
@@ -316,6 +322,9 @@ def test_prewindow_cross_exchange_latest_list_wins_before_clipping():
             "source":"official","source_url":"u","source_as_of":"2026-10-25","notes":"",
         },
     ])
+    p["current_membership"].append(
+        {"symbol":"5555","exchange":"TWSE","name":"Mover","listed_from":"2022-06-01","source":"basic","source_as_of":"2026-10-25"}
+    )
     current=[
         {"symbol":"2222","exchange":"TWSE"},
         {"symbol":"3333","exchange":"TPEx"},
@@ -335,10 +344,10 @@ def test_prewindow_cross_exchange_latest_list_wins_before_clipping():
         x.get("type")=="PREWINDOW_CROSS_EXCHANGE_MIGRATION_RESOLUTION"
         and x.get("symbol")=="5555"
         and x.get("active_exchange")=="TWSE"
-        for x in (
-            __import__("research.audit_historical_universe",fromlist=["build_windowed_intervals"])
-            .build_windowed_intervals(p["events"])["annotations"]
-        )
+        for x in build_windowed_intervals(
+            p["events"],
+            current_membership=p["current_membership"],
+        )["annotations"]
     )
 
 
