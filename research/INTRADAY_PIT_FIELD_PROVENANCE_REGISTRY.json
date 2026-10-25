@@ -29,14 +29,15 @@
       "reason": "No registered frozen v1.4 historical decision stream/provider for all canonical rule outputs."
     },
     "pit_universe": {
-      "status": "PASS",
+      "status": "BLOCKED",
       "fields": [
         "pit_universe_member",
         "universe_source",
         "universe_effective_from",
         "universe_effective_to"
       ],
-      "required_source": "GOVERNED_OFFICIAL_MEMBERSHIP_INTERVALS"
+      "required_source": "GOVERNED_OFFICIAL_MEMBERSHIP_INTERVALS_WITH_CURRENT_OPEN_INTERVAL_ALIGNMENT",
+      "reason": "Prior PASS invalidated by stale open-interval evidence from real whole-universe shard; PR #110 live revalidation pending."
     },
     "market_raw": {
       "status": "PENDING_SOURCE_COVERAGE",
