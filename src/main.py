@@ -59,6 +59,12 @@ TZ = ZoneInfo("Asia/Taipei")
 OUT = Path("output")
 MONITOR_STATE_FILE = OUT / "monitor_state.json"
 
+SYSTEM_VERSION = "Sky V2.1"
+SCANNER_VERSION = "0.5"
+PRODUCTION_STRATEGY_ID = "Sky Day Trading"
+PRODUCTION_STRATEGY_VERSION = "v1.4 Dynamic Capital Rotation / P0-C MVP"
+HISTORICAL_REPLAY_STATUS = "HISTORICAL_V14_FULL_RULE_REPLAY_UNAVAILABLE"
+
 RISK_STATUS_ZH = {
     "ALLOW": "允許進場",
     "BLOCK": "禁止進場",
@@ -163,7 +169,14 @@ def run():
 
     st = {
         "run_time": now.isoformat(),
-        "version": "0.4",
+        "version": SCANNER_VERSION,
+        "system_version": SYSTEM_VERSION,
+        "production_baseline": {
+            "strategy_id": PRODUCTION_STRATEGY_ID,
+            "strategy_version": PRODUCTION_STRATEGY_VERSION,
+            "status": "ACTIVE",
+            "historical_full_rule_replay_status": HISTORICAL_REPLAY_STATUS,
+        },
         "full_market_scan": False,
         "strict_official_mode": STRICT_OFFICIAL_MODE,
         "warnings": [],
@@ -335,6 +348,11 @@ def run():
                     get_quote(row["symbol"]),
                     ks,
                 )
+                item["strategy_id"] = PRODUCTION_STRATEGY_ID
+                item["strategy_version"] = PRODUCTION_STRATEGY_VERSION
+                item["system_version"] = SYSTEM_VERSION
+                item["scanner_version"] = SCANNER_VERSION
+                item["historical_full_rule_replay_status"] = HISTORICAL_REPLAY_STATUS
                 item["classification_cap"] = (
                     "A"
                     if not st["full_market_scan"]
@@ -464,7 +482,7 @@ def run():
                 )
 
         lines = [
-            f"Sky Cloud Scanner v0.4｜{now:%Y-%m-%d %H:%M}",
+            f"Sky Cloud Scanner v{SCANNER_VERSION}｜{now:%Y-%m-%d %H:%M}",
             (
                 f"官方母池 TWSE {ust['twse']}｜TPEx {ust['tpex']}｜"
                 f"MIS有效報價 {len(rows)}｜第一層通過 {len(passed)}"
@@ -659,7 +677,7 @@ def run():
 
     except Exception as e:
         err = (
-            f"Sky Cloud Scanner v0.4 執行失敗｜{now:%Y-%m-%d %H:%M}\n"
+            f"Sky Cloud Scanner v{SCANNER_VERSION} 執行失敗｜{now:%Y-%m-%d %H:%M}\n"
             f"{type(e).__name__}: {e}\n不產生交易建議。"
         )
         st["warnings"].append(err)

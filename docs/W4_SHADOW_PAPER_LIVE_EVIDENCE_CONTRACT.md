@@ -12,6 +12,30 @@
 
 GitHub remains the Single Source of Truth.
 
+
+## Forward evidence version lineage
+
+Every new forward Shadow/Paper record must preserve separate identities for:
+
+- `strategy_id`: Production strategy identity.
+- `strategy_version`: W0/P0-G governed Production baseline.
+- `system_version`: Sky operating-system architecture version.
+- `scanner_version`: forward collector/scanner implementation version.
+- `historical_full_rule_replay_status`: historical provenance status.
+
+Current governed values:
+- strategy_id: `Sky Day Trading`
+- strategy_version: `v1.4 Dynamic Capital Rotation / P0-C MVP`
+- system_version: `Sky V2.1`
+- scanner_version: `0.5`
+- historical_full_rule_replay_status: `HISTORICAL_V14_FULL_RULE_REPLAY_UNAVAILABLE`
+
+The strategy version identifies the current formal Production baseline. It does **not**
+mean the missing historical v1.4 full-rule implementation has been reconstructed.
+
+The scanner version identifies the software collector producing forward evidence and
+must never replace or be confused with the Production strategy version.
+
 ## Required Shadow / Paper evidence
 
 Each observation should preserve, when available:

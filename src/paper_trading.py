@@ -87,6 +87,11 @@ def build_paper_snapshot(*, run_id: str, observed_at: str, item: dict, gate: Pap
         "observation_timestamp": str(observed_at),
         "strategy_id": item.get("strategy_id"),
         "strategy_version": item.get("strategy_version"),
+        "system_version": item.get("system_version"),
+        "scanner_version": item.get("scanner_version"),
+        "historical_full_rule_replay_status": item.get(
+            "historical_full_rule_replay_status"
+        ),
         "symbol": str(item.get("symbol") or ""),
         "name": str(item.get("name") or ""),
         "exchange": item.get("exchange"),
@@ -156,6 +161,11 @@ def build_paper_snapshot(*, run_id: str, observed_at: str, item: dict, gate: Pap
             "model_version": item.get("model_version"),
             "feature_schema_version": item.get("feature_schema_version"),
             "rule_config_version": item.get("rule_config_version"),
+            "system_version": item.get("system_version"),
+            "scanner_version": item.get("scanner_version"),
+            "historical_full_rule_replay_status": item.get(
+                "historical_full_rule_replay_status"
+            ),
         },
         "outcome": dict(item.get("outcome") or {}),
         "classification_cap": item.get("classification_cap"),
