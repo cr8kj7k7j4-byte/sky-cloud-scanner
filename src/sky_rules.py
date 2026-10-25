@@ -1,3 +1,4 @@
+from .ranking_engine import screening_rank_score
 from .config import MAX_PRICE, MIN_VOLUME, MIN_TRADE_VALUE
 
 def spread_pct(row):
@@ -15,13 +16,8 @@ def first_gate(row):
     if sp is not None and sp>0.8: reasons.append(f"價差過大({sp:.2f}%)")
     return not reasons,reasons
 
-def score_for_ranking(row):
-    # 排序分數只是候選排序，不是勝率/EES/SSS。
-    cp=max(-20,min(20,float(row.get("change_pct") or 0)))
-    tv=max(0,float(row.get("trade_value") or 0))
-    vol=max(0,float(row.get("volume") or 0))
-    import math
-    return cp*4 + math.log10(tv+1)*3 + math.log10(vol+1)
+# Legacy compatibility alias. Canonical ranking lives in P0-O / ranking_engine.py.
+score_for_ranking = screening_rank_score
 
 def enrich(row,ticker,quote,candles):
     o=dict(row)
