@@ -22,7 +22,7 @@ Research namespaces:
 
 | Candidate | Status | Priority | Current evidence |
 |---|---|---:|---|
-| Top100 Velocity Baseline | PREREGISTERED / HISTORICAL_RUN_QUEUED | 1 | Original intraday hypothesis restored as a frozen dynamic Top100 acceleration baseline. Uses corrected whole-universe PIT 5m source; first historical run queued. Production unchanged. |\n| Swing 5D 3-factor top-decile challenger | HOLD | 3 | Existing 100-symbol artifact is current-universe backward and fails artifact-level PIT/survivorship promotion gate; 0.65% stress-cost stability is inconsistent; portfolio/risk and Shadow/Paper gates incomplete. Do not result-select longer horizons from observed data. |
+| Swing 5D 3-factor top-decile challenger | HOLD | 3 | Existing 100-symbol artifact is current-universe backward and fails artifact-level PIT/survivorship promotion gate; 0.65% stress-cost stability is inconsistent; portfolio/risk and Shadow/Paper gates incomplete. Do not result-select longer horizons from observed data. |
 | Revenue MoM 5D | PRE_PIT_CANDIDATE | 1 | Robustness gates passed, but 2023–2026 historical PIT audit found 0 / 87,588 company-months with verified MOPS filing timestamps (0.0000%). Promotion blocked until historical PIT coverage is resolved or the research window is redefined prospectively. |
 | Revenue YoY 5D | HOLD_CONCENTRATION_FAIL | 4 | Primary/stress return gates passed, but top-5-symbol concentration exceeded threshold across splits. Do not promote. |
 | Revenue YoY Acceleration 5D | PRE_PIT_CANDIDATE | 2 | Robustness gates passed, but 2023–2026 historical PIT coverage is 0.0000% (0 / 87,588 company-months). Remains pre-promotion research only; statutory-deadline proxies do not satisfy PIT. |
@@ -34,7 +34,7 @@ Research namespaces:
 |---|---|---|
 | vol20 market-residual relationship | FEATURE_ONLY | P0-F contextual feature; not a standalone long-only trigger. |
 | drawdown20 residual evidence | FEATURE_ONLY | Research evidence only. |
-| market breadth / relative strength | FEATURE_ONLY / CONTEXT | Market and ranking context; not standalone production alpha. |
+| market breadth / relative strength | FEATURE_ONLY / CONTEXT | Market and ranking context; not standalone production alpha. |\n| Top100 gainers universe | FEATURE_ONLY / CANDIDATE_POOL | Candidate-universe context only. Frozen Baseline A velocity selector was rejected; Top100 membership alone is not a trade signal. |
 
 ## Rejected candidate families
 
@@ -47,7 +47,7 @@ Research namespaces:
 | Transparent intraday ML feature ensemble | REJECTED | Negative post-cost Train/Valid/Test performance. |
 | Low-vol market-residual long-only | REJECTED_AS_STRATEGY | Stable IC did not convert into robust tradable long-only edge. |
 | Stage 7A Broader Market Alpha | REJECTED | Pre-registered A1–A5 hypotheses failed stable-positive and cost gates; archived and no further local retuning allowed. |
-| VNext Residual Ranking Baseline v1 | REJECTED | All preregistered 3D/5D/10D × Top3/5/10 variants had negative Validation and Research-Test expectancy after 0.45% cost with PF < 1; do not retune or escalate to nonlinear ML. |
+| VNext Residual Ranking Baseline v1 | REJECTED | All preregistered 3D/5D/10D × Top3/5/10 variants had negative Validation and Research-Test expectancy after 0.45% cost with PF < 1; do not retune or escalate to nonlinear ML. |\n| Top100 Velocity Baseline A | REJECTED_STANDALONE | n=9,934; gross expectancy -0.0388%, gross PF 0.953; 0.45% expectancy -0.4888%, PF 0.556; all folds and 2023-2026 slices negative. Top100 universe retained as FEATURE_ONLY candidate-pool context. |
 
 ## Historical Universe / Survivorship audit
 

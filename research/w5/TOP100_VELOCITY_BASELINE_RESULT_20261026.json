@@ -1,0 +1,69 @@
+{
+  "schema_version": "TOP100_VELOCITY_BASELINE_RESULT_V1_0",
+  "date": "2026-10-26",
+  "status": "REJECTED_STANDALONE",
+  "source": {
+    "github_source_run_id": 40221377923,
+    "corrected_whole_universe_pit_5m": true,
+    "input_rows": 2883178,
+    "input_symbols": 2007,
+    "input_dates": 831,
+    "trade_count": 9934,
+    "first_date": "2023-05-24",
+    "last_date": "2026-10-22"
+  },
+  "frozen_spec": {
+    "scan_times": ["09:15", "09:30", "09:50", "10:15"],
+    "bar_minutes": 5,
+    "top_pool": 100,
+    "select_n": 3,
+    "price_velocity_lookback_minutes": 5,
+    "rank_velocity_lookback_minutes": 5,
+    "volume_acceleration": "latest_completed_5m_volume / prior_5m_volume - 1",
+    "entry": "open of 5m bar beginning at decision timestamp",
+    "exit": "close after 60 minutes",
+    "same_symbol_max_per_day": 1,
+    "primary_round_trip_cost": 0.0045,
+    "stress_round_trip_cost": 0.0065
+  },
+  "gross": {
+    "expectancy": -0.00038760802326242135,
+    "win_rate": 0.4053754781558285,
+    "pf": 0.9526899317888734
+  },
+  "primary_045": {
+    "expectancy": -0.004887608023262408,
+    "win_rate": 0.33239379907388766,
+    "pf": 0.555666865411536,
+    "mean_95ci": [-0.005312408433868479, -0.004462807612656338]
+  },
+  "stress_065": {
+    "expectancy": -0.006887608023262406,
+    "win_rate": 0.29927521642842764,
+    "pf": 0.4431733460660935,
+    "mean_95ci": [-0.007312408433868476, -0.0064628076126563355]
+  },
+  "folds_primary_expectancy": [
+    -0.004312478599620713,
+    -0.004872996432886235,
+    -0.0054784778283063496
+  ],
+  "year_primary_expectancy": {
+    "2023": -0.0044427169275004464,
+    "2024": -0.004109093510325638,
+    "2025": -0.005074793579385167,
+    "2026": -0.005983001651458471
+  },
+  "decision": {
+    "standalone_alpha": "REJECT",
+    "top100_candidate_pool_feature": "RETAIN_AS_FEATURE_ONLY",
+    "parameter_retuning": "PROHIBITED",
+    "production_change": false,
+    "reason": "Gross PF < 1 and primary/stress after-cost expectancy are materially negative across all folds and all calendar years."
+  },
+  "limitations": [
+    "This rejects the frozen Baseline A implementation, not every conceivable discretionary interpretation of 'Top100 find fastest'.",
+    "Full historical comparison versus Production v1.4 is unavailable because authoritative frozen v1.4 rule provenance is incomplete.",
+    "Portfolio-level Max Drawdown is not promotion-valid from this signal-level replay and is not used for the rejection decision."
+  ]
+}
