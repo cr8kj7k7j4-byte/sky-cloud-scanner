@@ -19,7 +19,7 @@ def main():
     out.mkdir(parents=True,exist_ok=True)
     report={}
     for year in (2005,2010,2020,2023,2026):
-        url=f"{BASE}/zh-tw/company/applicantStatDl?type=list&date={year}"
+        url=f"{BASE}/www/zh-tw/company/applicantStatDl?type=list&date={year}"
         r=requests.get(
             url,
             timeout=30,
