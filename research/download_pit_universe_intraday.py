@@ -50,12 +50,26 @@ def load_pit_union(interval_json: str, from_date: str, to_date: str) -> list[dic
         b_raw = row.get("listed_to")
         b = date.fromisoformat(str(b_raw)[:10]) if b_raw else date.max
         if a <= end and b >= start:
-            out[(exchange, symbol)] = {
-                "symbol": symbol,
-                "exchange": exchange,
-                "listed_from": row.get("listed_from"),
-                "listed_to": row.get("listed_to"),
-            }
+            key=(exchange,symbol)
+            clipped_from=max(a,start)
+            clipped_to=min(b,end)
+            prev=out.get(key)
+            if prev is None:
+                out[key] = {
+                    "symbol": symbol,
+                    "exchange": exchange,
+                    "listed_from": row.get("listed_from"),
+                    "listed_to": row.get("listed_to"),
+                    "history_required_from": clipped_from.isoformat(),
+                    "history_required_to": clipped_to.isoformat(),
+                }
+            else:
+                prev["history_required_from"]=min(
+                    str(prev["history_required_from"]),clipped_from.isoformat()
+                )
+                prev["history_required_to"]=max(
+                    str(prev["history_required_to"]),clipped_to.isoformat()
+                )
     return [out[k] for k in sorted(out)]
 
 
@@ -201,7 +215,9 @@ def main():
     summary = []
     for i, item in enumerate(items, 1):
         try:
-            row = download_symbol(item, start, end, out)
+            symbol_start=max(start,date.fromisoformat(item.get("history_required_from",start.isoformat())))
+            symbol_end=min(end,date.fromisoformat(item.get("history_required_to",end.isoformat())))
+            row = download_symbol(item, symbol_start, symbol_end, out)
             print(f"[{i}/{len(items)}] {item['exchange']} {item['symbol']}: {row['bars']} bars")
             summary.append(row)
         except Exception as e:
