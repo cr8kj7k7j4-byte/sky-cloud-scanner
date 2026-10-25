@@ -3,6 +3,7 @@ from research.collect_swing_pit_daily import (
     _build_adjustment_events,
     _contains,
     _event_ratio,
+    _group_events_by_symbol,
     _interval_for_day,
     _symbol_intervals,
 )
@@ -55,3 +56,13 @@ def test_same_day_multiple_corporate_actions_fail_closed():
     assert events == []
     assert len(conflicts) == 1
     assert invalid == []
+
+
+def test_global_event_table_is_partitioned_by_stock_id():
+    grouped = _group_events_by_symbol([
+        {"stock_id": "1111", "date": "2025-01-01"},
+        {"stock_id": "2222", "date": "2025-02-01"},
+        {"stock_id": "1111", "date": "2025-03-01"},
+    ])
+    assert [x["date"] for x in grouped["1111"]] == ["2025-01-01", "2025-03-01"]
+    assert [x["date"] for x in grouped["2222"]] == ["2025-02-01"]
