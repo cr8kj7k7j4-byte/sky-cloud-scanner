@@ -41,6 +41,15 @@ def _existing_5m_audit(base: Path) -> dict:
     except Exception:
         return {"status":"UNKNOWN"}
 
+def _source_evidence(base: Path) -> dict:
+    p=base/"research/INTRADAY_PIT_SOURCE_EVIDENCE_20261025.json"
+    if not p.exists():
+        return {}
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
 def inspect(root: str=".") -> dict:
     base=Path(root)
     inputs={}
@@ -53,9 +62,14 @@ def inspect(root: str=".") -> dict:
         }
 
     pit_status=_historical_universe_status(base)
+    source_evidence=_source_evidence(base)
     existing_5m=_existing_5m_audit(base)
     capabilities={
         "historical_universe_2023_plus":pit_status,
+        "taiex_benchmark":source_evidence.get("taiex_benchmark",{}),
+        "current_sector_anchor":source_evidence.get("current_sector_anchor",{}),
+        "whole_universe_intraday":source_evidence.get("whole_universe_intraday",{}),
+        "frozen_v14_alpha":source_evidence.get("frozen_v14_alpha",{}),
         "historical_5m_export_tooling":(
             (base/"research/download_intraday.py").exists()
             and (base/".github/workflows/export-history-5m.yml").exists()
@@ -79,7 +93,7 @@ def inspect(root: str=".") -> dict:
     if not inputs["outcomes"]["exists"]:
         blockers.append("EXTERNAL_DATA_REQUIRED:CANONICAL_OUTCOME_JOIN")
     if not inputs["execution_context"]["exists"]:
-        blockers.append("EXTERNAL_DATA_REQUIRED:EMPIRICAL_EXECUTION_EVIDENCE")
+        blockers.append("FROZEN_ALPHA_INPUT_REQUIRED:PLANNED_EXECUTION_CONTEXT")
     for key in ("market_context","feature_context","ranking_context"):
         if not inputs[key]["exists"]:
             blockers.append(f"MISSING_CANONICAL_INPUT:{key}")
@@ -116,6 +130,7 @@ def inspect(root: str=".") -> dict:
             "w2_efficacy_allowed":not blockers,
             "fail_closed":True,
             "proxy_substitution_allowed":False,
+            "empirical_spread_slippage_required_only_when_genuinely_available":True,
         },
         "note":"Missing promotion-grade external historical evidence keeps row-level audits NOT_EVALUABLE and W2 DATA_BLOCKED. Existing 100-symbol current-universe 5m history is diagnostic only and cannot satisfy whole-universe PIT coverage.",
     }
