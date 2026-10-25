@@ -10,7 +10,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 TZ = ZoneInfo("Asia/Taipei")
-MOPS_HOME = "https://mops.twse.com.tw/"
+MOPS_HOME = "https://mops.twse.com.tw/mops"
 SUBJECT_RE = re.compile(r"(?P<roc_year>\d{3})(?P<month>\d{2})-營業收入資訊")
 DATE_RE = re.compile(r"最後更新時間\s*(?P<roc_date>\d{3}/\d{1,2}/\d{1,2})")
 TIME_RE = re.compile(r"^(?:[01]?\d|2[0-3]):[0-5]\d$")
