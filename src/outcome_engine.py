@@ -94,6 +94,8 @@ def evaluate_shadow_long_path(
     fee_rate=None,
     tax_rate=None,
     slippage_rate=None,
+    entry_impact_rate=None,
+    exit_impact_rate=None,
 ):
     """Conservative counterfactual long outcome for Shadow research.
 
@@ -178,8 +180,14 @@ def evaluate_shadow_long_path(
     mfe_r = (max_high - entry) / risk if risk > 0 else None
     mae_r = (entry - min_low) / risk if risk > 0 else None
 
+    if entry_impact_rate is None and slippage_rate is not None:
+        entry_impact_rate = slippage_rate
+    if exit_impact_rate is None and slippage_rate is not None:
+        exit_impact_rate = slippage_rate
+
     costs_complete = all(
-        x is not None for x in (fee_rate, tax_rate, slippage_rate)
+        x is not None
+        for x in (fee_rate, tax_rate, entry_impact_rate, exit_impact_rate)
     )
     net_pnl_per_share = None
     net_r = None
@@ -187,12 +195,13 @@ def evaluate_shadow_long_path(
     if costs_complete:
         fee_rate = float(fee_rate)
         tax_rate = float(tax_rate)
-        slippage_rate = float(slippage_rate)
+        entry_impact_rate = float(entry_impact_rate)
+        exit_impact_rate = float(exit_impact_rate)
         total_cost_per_share = (
             entry * fee_rate
             + exit_price * (fee_rate + tax_rate)
-            + entry * slippage_rate
-            + exit_price * slippage_rate
+            + entry * entry_impact_rate
+            + exit_price * exit_impact_rate
         )
         net_pnl_per_share = gross_pnl_per_share - total_cost_per_share
         net_r = net_pnl_per_share / risk if risk > 0 else None
@@ -226,7 +235,8 @@ def evaluate_shadow_long_path(
         "cost_assumptions": {
             "fee_rate_per_side": fee_rate,
             "sell_tax_rate": tax_rate,
-            "slippage_rate_per_side": slippage_rate,
+            "entry_impact_rate": entry_impact_rate,
+            "exit_impact_rate": exit_impact_rate,
         },
         "research_only": True,
     }
