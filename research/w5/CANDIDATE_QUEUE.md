@@ -14,11 +14,21 @@
 
 目前 **無 W5 新 Alpha Candidate 被授權為 active research**。
 
-| Candidate | W5 Status | Reason | Next step |
-|---|---|---|---|
-| Overnight-to-First-30m Reversal for Taiwan | HOLD | 有新 target/timing 結構差異，但 canonical intraday PIT replay dataset 尚未完成，target/label 尚未預註冊 | W3A 完成 PIT replay dataset 後重新檢查 fresh OOS 與 preregistration readiness |
-| Taiwan Dynamic Futures/ETF/Spot Lead-Lag State | HOLD | 新 cross-market PIT data family，但同步 timestamp、session、roll data contract 尚未成立 | W3A/W6 驗證同步資料、timestamp causality、roll/session architecture |
-| Taiwan Broker-Identity / Skill-Conditioned Flow | HOLD | 新 identity-tagged data family，但歷史 PIT、授權、vendor 可得性皆未確認 | W7/W3A 做 vendor/data feasibility；資料不可得則 ARCHIVE |
+| Candidate | W5 Status | Duplicate / Low-value | PIT feasibility | Pre-registration | Next step |
+|---|---|---|---|---|---|
+| Overnight-to-First-30m Reversal for Taiwan | HOLD | PASS structural novelty | PARTIAL；Fugle minute history + PIT universe 可用，但 canonical intraday PIT replay 仍 DATA_BLOCKED | NOT YET | W3A replay PASS 後優先重審 |
+| Taiwan Dynamic Futures/ETF/Spot Lead-Lag State | HOLD | PASS structural novelty | PARTIAL；minute data 可得，但 synchronized timestamp / session / roll contract 尚缺 | NOT YET | W3A/W6 建立 cross-market timestamp contract |
+| Taiwan Broker-Identity / Skill-Conditioned Flow | HOLD | PASS structural novelty | UNKNOWN / HARD DATA GATE；官方日頻資料存在，但 sample/schema/branch lifecycle/PIT mapping 未驗證 | NOT YET | DO_NOT_BUY NOW；先驗證 sample/schema/branch continuity |
+
+## Current formal disposition
+- `ACCEPT_FOR_PREREGISTRATION`: 0
+- `HOLD`: 3
+- `REJECT_DUPLICATE`: 0
+- `REJECT_LOW_VALUE`: 0
+- `ARCHIVE`: 0
+
+Formal adjudication:
+- `research/w5/W7_INBOUND_ADJUDICATION_20261025.md`
 
 ## Inherited blocked research context
 
