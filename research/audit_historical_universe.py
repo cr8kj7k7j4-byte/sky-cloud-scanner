@@ -240,6 +240,19 @@ def build_historical_universe_audit(
         if symbol and exchange:
             current_by_exchange[exchange].add(symbol)
 
+    membership_by_exchange = defaultdict(set)
+    membership_rows = list(official_payload.get("current_membership") or [])
+    if membership_rows:
+        for row in membership_rows:
+            symbol=str(row.get("symbol") or "")
+            exchange=str(row.get("exchange") or "")
+            if symbol and exchange:
+                membership_by_exchange[exchange].add(symbol)
+    else:
+        # Backward-compatible fallback for synthetic tests only.
+        for exchange,symbols in current_by_exchange.items():
+            membership_by_exchange[exchange].update(symbols)
+
     interval_by_exchange = defaultdict(set)
     for row in intervals:
         symbol = str(row.get("symbol") or "")
@@ -253,21 +266,42 @@ def build_historical_universe_audit(
             open_by_exchange[str(row.get("exchange") or "")].add(str(row.get("symbol") or ""))
 
     current_coverage = {}
-    for exchange in sorted(set(current_by_exchange) | set(interval_by_exchange) | set(open_by_exchange)):
+    membership_alignment = {}
+    exchanges=sorted(
+        set(current_by_exchange)
+        | set(membership_by_exchange)
+        | set(interval_by_exchange)
+        | set(open_by_exchange)
+    )
+    for exchange in exchanges:
         current = current_by_exchange.get(exchange, set())
+        membership = membership_by_exchange.get(exchange, set())
         known = interval_by_exchange.get(exchange, set())
         open_now = open_by_exchange.get(exchange, set())
+
+        # Quote/trade-active coverage is diagnostic only. Suspended securities
+        # may legitimately remain listed while absent from current quote data.
         covered = current & known
         missing = sorted(current - known)
-        extraneous_open = sorted(open_now - current)
         current_coverage[exchange] = {
             "current_symbols": len(current),
             "symbols_with_listing_interval": len(covered),
             "coverage_pct": round((len(covered) / len(current) * 100.0), 4) if current else 0.0,
             "missing_current_symbols": missing[:200],
-            "open_interval_symbols": len(open_now),
-            "extraneous_open_symbol_count": len(extraneous_open),
-            "extraneous_open_symbols": extraneous_open[:200],
+        }
+
+        missing_open=sorted(membership-open_now)
+        extraneous_open=sorted(open_now-membership)
+        membership_alignment[exchange]={
+            "current_membership_symbols":len(membership),
+            "open_interval_symbols":len(open_now),
+            "membership_open_coverage_pct":round(
+                len(membership & open_now)/len(membership)*100.0,4
+            ) if membership else 0.0,
+            "missing_open_symbol_count":len(missing_open),
+            "missing_open_symbols":missing_open[:200],
+            "extraneous_open_symbol_count":len(extraneous_open),
+            "extraneous_open_symbols":extraneous_open[:200],
         }
 
     dates = {}
@@ -326,7 +360,8 @@ def build_historical_universe_audit(
     )
     open_interval_alignment_ok = all(
         int(x.get("extraneous_open_symbol_count") or 0) == 0
-        for x in current_coverage.values()
+        and int(x.get("missing_open_symbol_count") or 0) == 0
+        for x in membership_alignment.values()
     )
     unresolved_ok = len(unresolved) == 0
     historical_dates_nonempty = bool(dates) and all(
@@ -338,7 +373,6 @@ def build_historical_universe_audit(
         sources_ok
         and historical_source_coverage_ok
         and validation.get("valid")
-        and current_coverage_ok
         and open_interval_alignment_ok
         and unresolved_ok
         and historical_dates_nonempty
@@ -355,8 +389,10 @@ def build_historical_universe_audit(
         if str(err).startswith("overlap:"):
             _, symbol, exchange = str(err).split(":", 2)
             diagnostic_symbols.add((symbol, exchange))
-    for exchange, x in current_coverage.items():
+    for exchange, x in membership_alignment.items():
         for symbol in x.get("extraneous_open_symbols") or []:
+            diagnostic_symbols.add((str(symbol), str(exchange)))
+        for symbol in x.get("missing_open_symbols") or []:
             diagnostic_symbols.add((str(symbol), str(exchange)))
 
     timelines = {}
@@ -406,6 +442,7 @@ def build_historical_universe_audit(
         "diagnostic_event_timelines": timelines,
         "interval_validation": validation,
         "current_interval_coverage": current_coverage,
+        "current_membership_alignment": membership_alignment,
         "historical_dates": dates,
         "historical_source_coverage_ok": historical_source_coverage_ok,
         "current_open_interval_alignment_ok": open_interval_alignment_ok,
@@ -425,8 +462,11 @@ def build_historical_universe_audit(
             "all_audit_dates_must_have_nonzero_pit_membership": True,
             "window_start": WINDOW_START,
             "strict_pre_window_unresolved_do_not_block_window_gate": True,
-            "current_open_intervals_must_match_production_universe": True,
+            "current_open_intervals_must_match_official_listing_membership": True,
+            "quote_universe_is_diagnostic_not_membership": True,
+            "managed_stocks_are_excluded_from_tpex_mainboard_membership": True,
             "extraneous_open_intervals_allowed": 0,
+            "missing_open_intervals_allowed": 0,
             "window_unresolved_events_allowed": 0,
             "rule": (
                 "Current-universe-only historical studies must not be promoted "
@@ -465,6 +505,20 @@ def write_markdown(report: dict, path: Path):
             f"| {exchange} | {x['current_symbols']:,} | "
             f"{x['symbols_with_listing_interval']:,} | {x['coverage_pct']:.4f}% | "
             f"{x.get('open_interval_symbols',0):,} | {x.get('extraneous_open_symbol_count',0):,} |"
+        )
+
+    lines += [
+        "",
+        "## Current listing-membership alignment",
+        "",
+        "| Exchange | Official membership | Open intervals | Membership coverage | Missing open | Extraneous open |",
+        "|---|---:|---:|---:|---:|---:|",
+    ]
+    for exchange,x in report.get("current_membership_alignment",{}).items():
+        lines.append(
+            f"| {exchange} | {x['current_membership_symbols']:,} | "
+            f"{x['open_interval_symbols']:,} | {x['membership_open_coverage_pct']:.4f}% | "
+            f"{x['missing_open_symbol_count']:,} | {x['extraneous_open_symbol_count']:,} |"
         )
 
     for d, item in report["historical_dates"].items():
