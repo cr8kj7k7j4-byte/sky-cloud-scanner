@@ -131,13 +131,24 @@ class W6L1ExecutionSample:
 
 
 def aggregate_fill_rates(rows: list[W6L1ExecutionSample]) -> dict:
-    n = len(rows)
+    evaluable = [
+        r for r in rows
+        if r.fill_status in {"FILLED", "PARTIAL", "MISSED", "CANCELLED", "REJECTED"}
+    ]
+    n = len(evaluable)
     if n == 0:
-        return {"sample": 0, "fill_rate": None, "missed_trade_rate": None, "status": "INSUFFICIENT_DATA"}
-    filled = sum(r.fill_status in {"FILLED", "PARTIAL"} for r in rows)
-    missed = sum(r.fill_status == "MISSED" for r in rows)
+        return {
+            "sample": 0,
+            "unknown_sample": len(rows),
+            "fill_rate": None,
+            "missed_trade_rate": None,
+            "status": "INSUFFICIENT_DATA",
+        }
+    filled = sum(r.fill_status in {"FILLED", "PARTIAL"} for r in evaluable)
+    missed = sum(r.fill_status == "MISSED" for r in evaluable)
     return {
         "sample": n,
+        "unknown_sample": len(rows) - n,
         "fill_rate": filled / n,
         "missed_trade_rate": missed / n,
         "status": "EARLY_SAMPLE" if n < 20 else "BASELINE_READY",
