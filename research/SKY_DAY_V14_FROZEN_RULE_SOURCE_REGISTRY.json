@@ -90,5 +90,10 @@
     "archived_logic_may_substitute": false,
     "threshold_reconstruction_by_w3a": false,
     "missing_provider_blocks_deterministic_replay": true
+  },
+  "retained_snapshot_audit": {
+    "status": "INSUFFICIENT_HISTORICAL_SNAPSHOT",
+    "evidence": "research/SCHEDULED_SCANNER_SNAPSHOT_AUDIT_20261025.json",
+    "note": "Retained scheduled scanner artifacts are version 0.4, full_market_scan=false, Top100 + Deep shortlist only; they do not contain canonical 10-rule outputs or complete v1.4 decision context."
   }
 }

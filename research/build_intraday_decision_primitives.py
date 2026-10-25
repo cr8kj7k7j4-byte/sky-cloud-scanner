@@ -37,13 +37,17 @@ def load_history_dir(path: str) -> pd.DataFrame:
     return df
 
 
-def _cumulative_vwap(part: pd.DataFrame):
-    vol=part["volume"].fillna(0.0)
-    px=part["average"].where(part["average"].notna(),part["close"])
-    den=float(vol.sum())
-    if den<=0 or px.notna().sum()==0:
+def _bar_available_at(ts):
+    return pd.to_datetime(ts,errors="coerce",utc=True) + pd.Timedelta(minutes=5)
+
+
+def _cumulative_vwap_from_fugle(part: pd.DataFrame):
+    # Fugle historical minute-candle "average" is already the cumulative
+    # transaction average from market open. Do not volume-weight it again.
+    if part.empty or "average" not in part.columns:
         return None
-    return float((vol*px).sum()/den)
+    s=pd.to_numeric(part["average"],errors="coerce").dropna()
+    return float(s.iloc[-1]) if not s.empty else None
 
 
 def build_primitives(decisions: pd.DataFrame,bars: pd.DataFrame) -> tuple[pd.DataFrame,dict]:
@@ -77,7 +81,7 @@ def build_primitives(decisions: pd.DataFrame,bars: pd.DataFrame) -> tuple[pd.Dat
             missing+=1
             continue
 
-        used=session[session["timestamp"]<=ts].copy()
+        used=session[_bar_available_at(session["timestamp"])<=ts].copy()
         if used.empty:
             out.append({"decision_id":did,"primitive_status":"MISSING"})
             missing+=1
@@ -85,13 +89,13 @@ def build_primitives(decisions: pd.DataFrame,bars: pd.DataFrame) -> tuple[pd.Dat
 
         last=used.iloc[-1]
         first=used.iloc[0]
-        vwap=_cumulative_vwap(used)
+        vwap=_cumulative_vwap_from_fugle(used)
         price=float(last["close"]) if pd.notna(last["close"]) else None
         session_low=float(used["low"].min()) if used["low"].notna().any() else None
         session_high=float(used["high"].max()) if used["high"].notna().any() else None
         session_open=float(first["open"]) if pd.notna(first["open"]) else None
-        price_vs_vwap=((price-vwap)/vwap) if price is not None and vwap not in (None,0) else None
-        day_return=((price/session_open)-1.0) if price is not None and session_open not in (None,0) else None
+        price_vs_vwap=((price/vwap)-1.0)*100.0 if price is not None and vwap not in (None,0) else None
+        day_return=((price/session_open)-1.0)*100.0 if price is not None and session_open not in (None,0) else None
         session_position=(
             (price-session_low)/(session_high-session_low)
             if price is not None and session_low is not None and session_high is not None and session_high>session_low
@@ -105,20 +109,21 @@ def build_primitives(decisions: pd.DataFrame,bars: pd.DataFrame) -> tuple[pd.Dat
             s=prev["close"].dropna()
             if not s.empty:
                 prev_close=float(s.iloc[-1])
-        gap=((session_open/prev_close)-1.0) if session_open not in (None,0) and prev_close not in (None,0) else None
+        gap=((session_open/prev_close)-1.0)*100.0 if session_open not in (None,0) and prev_close not in (None,0) else None
 
         # VWAP slope is intentionally derived only from cumulative VWAP snapshots.
         # It is a raw primitive, not a Production gate.
         vwap_slope=None
         if len(used)>=2:
             prev_used=used.iloc[:-1]
-            prev_vwap=_cumulative_vwap(prev_used)
+            prev_vwap=_cumulative_vwap_from_fugle(prev_used)
             if prev_vwap not in (None,0) and vwap is not None:
                 vwap_slope=(vwap/prev_vwap)-1.0
 
         out.append({
             "decision_id":did,
-            "feature_cutoff_timestamp":last["timestamp"].isoformat(),
+            "feature_cutoff_timestamp":_bar_available_at(last["timestamp"]).isoformat(),
+            "source_bar_start_timestamp":last["timestamp"].isoformat(),
             "entry_reference_price":price,
             "price":price,
             "volume":float(last["volume"]) if pd.notna(last["volume"]) else None,
@@ -168,6 +173,8 @@ def build_primitives(decisions: pd.DataFrame,bars: pd.DataFrame) -> tuple[pd.Dat
         ],
         "governance":{
             "bars_after_decision_used":False,
+            "only_completed_5m_bars_used":True,
+            "fugle_average_semantics":"CUMULATIVE_FROM_OPEN",
             "alpha_thresholds_invented":False,
             "research_only_strategy_substituted_for_v14":False,
         },

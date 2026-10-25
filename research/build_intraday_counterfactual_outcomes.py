@@ -42,7 +42,10 @@ def _future_same_session(df: pd.DataFrame, decision_ts) -> pd.DataFrame:
         return pd.DataFrame()
     session=ts.tz_convert("Asia/Taipei").date()
     local=df["timestamp"].dt.tz_convert("Asia/Taipei")
-    return df[(df["timestamp"]>ts) & (local.dt.date==session)].copy()
+    # Historical 5m timestamps denote bar starts. A bar that starts exactly at
+    # decision time is entirely post-decision and is eligible; bars that start
+    # before the decision are excluded to avoid pre-decision high/low leakage.
+    return df[(df["timestamp"]>=ts) & (local.dt.date==session)].copy()
 
 
 def build_outcomes(
@@ -148,7 +151,8 @@ def build_outcomes(
         "status":"PASS" if complete>=0.95 else "BLOCKED",
         "governance":{
             "outcome_type":"COUNTERFACTUAL",
-            "bars_strictly_after_decision":True,
+            "bars_start_at_or_after_decision":True,
+            "bars_starting_before_decision_excluded":True,
             "same_session_only":True,
             "same_bar_ambiguity":"STOP_FIRST",
             "empirical_execution_costs_invented":False,

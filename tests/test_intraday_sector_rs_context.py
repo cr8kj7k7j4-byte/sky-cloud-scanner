@@ -9,7 +9,7 @@ from research.build_intraday_sector_rs_context import build_sector_rs_context
 def test_stock_return_snapshots_use_pit_full_cross_section():
     decisions=pd.DataFrame([{
         "decision_id":"d1",
-        "decision_timestamp":"2026-01-05T09:05:00+08:00",
+        "decision_timestamp":"2026-01-05T09:10:00+08:00",
         "session_date":"2026-01-05",
         "symbol":"1111",
     }])
@@ -21,8 +21,8 @@ def test_stock_return_snapshots_use_pit_full_cross_section():
         {"symbol":"3333","timestamp":"2026-01-05T09:05:00+08:00","session_date":"2026-01-05","open":30.0,"close":99.0},
     ])
     pit=[
-        {"symbol":"1111","exchange":"TWSE","listed_from":"2020-01-01","listed_to":None},
-        {"symbol":"2222","exchange":"TWSE","listed_from":"2020-01-01","listed_to":None},
+        {"symbol":"1111","exchange":"TWSE","name":"A","listed_from":"2020-01-01","listed_to":None},
+        {"symbol":"2222","exchange":"TWSE","name":"B","listed_from":"2020-01-01","listed_to":None},
     ]
     frame,report=build_stock_return_snapshots(decisions,bars,pit)
     assert report["status"]=="PASS"
@@ -74,3 +74,21 @@ def test_sector_rs_blocks_incomplete_mapping():
     _,report=build_sector_rs_context(decisions,returns,mapping,market)
     assert report["status"]=="BLOCKED"
     assert report["cross_section_mapping_coverage"]==0.5
+
+
+def test_stock_return_snapshot_excludes_incomplete_same_start_bar():
+    decisions=pd.DataFrame([{
+        "decision_id":"d1",
+        "decision_timestamp":"2026-01-05T09:05:00+08:00",
+        "session_date":"2026-01-05",
+        "symbol":"1111",
+    }])
+    bars=pd.DataFrame([
+        {"symbol":"1111","timestamp":"2026-01-05T09:00:00+08:00","session_date":"2026-01-05","open":10.0,"close":10.0},
+        {"symbol":"1111","timestamp":"2026-01-05T09:05:00+08:00","session_date":"2026-01-05","open":10.0,"close":99.0},
+    ])
+    pit=[{"symbol":"1111","exchange":"TWSE","name":"A","listed_from":"2020-01-01","listed_to":None}]
+    frame,report=build_stock_return_snapshots(decisions,bars,pit)
+    assert report["status"]=="PASS"
+    assert round(float(frame.iloc[0]["stock_return"]),6)==0.0
+    assert str(frame.iloc[0]["source_cutoff_timestamp"]).startswith("2026-01-05T01:05:00")
