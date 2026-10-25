@@ -6,6 +6,8 @@ on:
       - w3a/sector-pit-source-audit
     paths:
       - ".github/workflows/w3a-sector-anchor-source-audit.yml"
+      - "research/collect_current_sector_anchor.py"
+      - "src/industry_codes.py"
   workflow_dispatch:
 
 permissions:
