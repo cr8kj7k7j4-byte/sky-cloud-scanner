@@ -58,11 +58,13 @@ Research Candidate 不得自動覆蓋上述正式版本。
 
 ## 目前優先 Research Candidate
 
-1. Revenue MoM 5D
-2. Revenue YoY 5D
-3. Revenue YoY Acceleration 5D
-4. Revenue YoY 20D
-5. Stage 7A Broader Market Alpha
+> 2026-10-25 更新：P0-S 5m Breakout 已完成 100 檔 OOS，OOS n=9,111、PF=0.2033、Expectancy=-0.8018R，正式標記 REJECTED_OOS，不進 Paper Trading。
+
+1. Revenue MoM 5D — PRE_PIT_CANDIDATE
+2. Revenue YoY Acceleration 5D — PRE_PIT_CANDIDATE
+3. Stage 7A Broader Market Alpha — RESEARCH
+4. Revenue YoY 5D — HOLD_CONCENTRATION_FAIL
+5. Revenue YoY 20D — HOLD_CONCENTRATION_FAIL
 
 詳細狀態以 /SKY_SYSTEM_REGISTRY_V2_1.md 為準。
 
