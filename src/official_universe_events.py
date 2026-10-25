@@ -485,13 +485,13 @@ def collect_official_events() -> Dict[str, Any]:
                 parsed=parse_basic_records(payload if isinstance(payload,list) else [],exchange,url,as_of)
             elif kind=="custom" and name=="TWSE_NEW":
                 parsed=fetch_twse_newlisting_events(
-                    start_year=1962,
+                    start_year=2000,
                     end_year=datetime.now().year,
                     source_as_of=as_of,
                 )
             elif kind=="custom" and name=="TPEX_NEW":
                 parsed=fetch_tpex_newlisting_events(
-                    start_year=1994,
+                    start_year=2005,
                     end_year=datetime.now().year,
                     source_as_of=as_of,
                 )
