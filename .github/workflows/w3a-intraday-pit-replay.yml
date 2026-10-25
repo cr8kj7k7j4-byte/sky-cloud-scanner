@@ -1,0 +1,53 @@
+name: W3A Intraday PIT Replay Readiness
+
+on:
+  pull_request:
+    paths:
+      - "research/intraday_pit_replay_*.py"
+      - "tests/test_intraday_pit_replay_pipeline.py"
+      - "docs/W3A_ISSUE81_INTRADAY_PIT_REPLAY_STATUS_20261025.md"
+      - ".github/workflows/w3a-intraday-pit-replay.yml"
+  push:
+    branches:
+      - "w3a/**"
+    paths:
+      - "research/intraday_pit_replay_*.py"
+      - "tests/test_intraday_pit_replay_pipeline.py"
+      - "docs/W3A_ISSUE81_INTRADAY_PIT_REPLAY_STATUS_20261025.md"
+      - ".github/workflows/w3a-intraday-pit-replay.yml"
+  workflow_dispatch:
+
+jobs:
+  validate-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install pandas pytest
+      - name: Run replay pipeline tests
+        env:
+          PYTHONPATH: .
+        run: python -m pytest -q tests/test_intraday_pit_replay_pipeline.py tests/test_w2_intraday_validation.py
+      - name: Run repository readiness inventory
+        env:
+          PYTHONPATH: .
+        run: |
+          python research/intraday_pit_replay_readiness.py \
+            --out research_output/intraday_pit_replay/readiness.json
+      - name: Publish readiness summary
+        if: always()
+        run: |
+          echo "## W3A Issue #81 Intraday PIT Replay Readiness" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          cat research_output/intraday_pit_replay/readiness.json >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload readiness artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: w3a-issue81-readiness
+          path: research_output/intraday_pit_replay/readiness.json
+          if-no-files-found: error
+          retention-days: 30
