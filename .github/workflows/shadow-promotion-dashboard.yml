@@ -13,6 +13,19 @@ on:
       - "tests/test_w4_scan_artifact_eligibility.py"
   pull_request:
     branches: [main]
+    paths:
+      - ".github/workflows/shadow-promotion-dashboard.yml"
+      - "research/shadow_outcome_backfill.py"
+      - "research/shadow_promotion_dashboard.py"
+      - "research/w4_scan_artifact_eligibility.py"
+      - "src/outcome_engine.py"
+      - "src/paper_trading.py"
+      - "src/shadow_evidence.py"
+      - "src/model_registry.py"
+      - "tests/test_shadow_outcome_backfill.py"
+      - "tests/test_shadow_promotion_dashboard.py"
+      - "tests/test_shadow_evidence.py"
+      - "tests/test_w4_scan_artifact_eligibility.py"
   workflow_dispatch:
   schedule:
     - cron: "30 16 * * 1-5"
