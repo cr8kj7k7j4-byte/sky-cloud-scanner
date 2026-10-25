@@ -69,7 +69,8 @@ def test_market_context_passes_only_with_pit_coverage_and_explicit_benchmark():
     benchmark=pd.DataFrame([{
         "timestamp":"2026-01-05T09:05:00+08:00","market_return":0.001,
     }])
-    frame,report=build_market_context(decisions,bars,pit,benchmark)
+    regime=pd.DataFrame([{"decision_id":"d1","market_regime":"FROZEN_TEST"}])
+    frame,report=build_market_context(decisions,bars,pit,benchmark,regime)
     assert report["status"]=="PASS"
     assert report["min_member_coverage"]==1.0
     assert float(frame.loc[0,"market_return"])==0.001
@@ -88,3 +89,23 @@ def test_market_context_does_not_substitute_equal_weight_for_missing_benchmark()
     assert report["status"]=="BLOCKED"
     assert pd.isna(frame.loc[0,"market_return"])
     assert frame.loc[0,"market_equal_weight_return"] is not None
+
+
+def test_market_regime_is_never_inferred_by_w3a():
+    decisions=pd.DataFrame([{
+        "decision_id":"d1","decision_timestamp":"2026-01-05T09:05:00+08:00",
+        "session_date":"2026-01-05",
+    }])
+    bars=pd.DataFrame([
+        {"symbol":"1111","timestamp":"2026-01-05T09:00:00+08:00","open":10,"close":10.1},
+        {"symbol":"1111","timestamp":"2026-01-05T09:05:00+08:00","open":10.1,"close":10.2},
+    ])
+    pit=[{"symbol":"1111","exchange":"TWSE","listed_from":"2020-01-01","listed_to":None}]
+    benchmark=pd.DataFrame([{
+        "timestamp":"2026-01-05T09:05:00+08:00","market_return":0.001,
+    }])
+    frame,report=build_market_context(decisions,bars,pit,benchmark,None)
+    assert report["status"]=="BLOCKED"
+    assert report["benchmark_available"] is True
+    assert report["frozen_regime_available"] is False
+    assert pd.isna(frame.loc[0,"market_regime"])
