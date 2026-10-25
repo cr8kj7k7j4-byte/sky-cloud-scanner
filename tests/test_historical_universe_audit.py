@@ -125,17 +125,30 @@ def test_gate_passes_with_complete_current_interval_coverage():
 
 def test_window_unresolved_event_blocks_gate():
     p = _payload()
-    p["events"].append({
-        "symbol": "9999",
-        "exchange": "TWSE",
-        "name": "Unknown",
-        "event_type": "DELIST",
-        "event_date": "2025-06-30",
-        "source": "official_delisting_page",
-        "source_url": "u",
-        "source_as_of": "2026-10-25",
-        "notes": "",
-    })
+    p["events"].extend([
+        {
+            "symbol": "9999",
+            "exchange": "TWSE",
+            "name": "Unknown",
+            "event_type": "DELIST",
+            "event_date": "2024-06-30",
+            "source": "official_delisting_page",
+            "source_url": "u",
+            "source_as_of": "2026-10-25",
+            "notes": "",
+        },
+        {
+            "symbol": "9999",
+            "exchange": "TWSE",
+            "name": "Unknown",
+            "event_type": "DELIST",
+            "event_date": "2025-06-30",
+            "source": "official_delisting_page",
+            "source_url": "u",
+            "source_as_of": "2026-10-25",
+            "notes": "",
+        },
+    ])
     current = [
         {"symbol": "2222", "exchange": "TWSE"},
         {"symbol": "3333", "exchange": "TPEx"},
