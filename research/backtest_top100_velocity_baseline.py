@@ -211,11 +211,22 @@ def build_snapshot_db(history_root: str, db_path: str) -> dict:
 
 
 def percentile_map(rows: list[dict], key: str) -> dict[str, float]:
+    """Average-rank percentile for ties; frozen before outcome inspection."""
     ordered = sorted((float(r[key]), str(r["symbol"])) for r in rows)
     n = len(ordered)
     if n == 1:
-        return {ordered[0][1]:1.0}
-    return {sym:i/(n-1) for i,(_,sym) in enumerate(ordered)}
+        return {ordered[0][1]: 1.0}
+    out = {}
+    pos = 0
+    while pos < n:
+        j = pos + 1
+        while j < n and ordered[j][0] == ordered[pos][0]:
+            j += 1
+        avg_rank = (pos + j - 1) / 2.0 / (n - 1)
+        for k in range(pos, j):
+            out[ordered[k][1]] = avg_rank
+        pos = j
+    return out
 
 
 def select_trades(db_path: str) -> tuple[list[dict], dict]:
@@ -280,7 +291,7 @@ def select_trades(db_path: str) -> tuple[list[dict], dict]:
                     d["gross_return"] = None
                     d["net_return_045"] = None
                     d["net_return_065"] = None
-                    d["outcome_status"] = "MISSING"
+                    d["outcome_status"] = "NO_ENTRY_BAR"
                 selected.append(d)
     conn.close()
     return selected, {
