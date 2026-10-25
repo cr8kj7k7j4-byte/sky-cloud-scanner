@@ -1,0 +1,205 @@
+{
+  "schema_version": "INTRADAY_PIT_FIELD_PROVENANCE_V1_0",
+  "updated_at": "2026-10-25",
+  "production_change": false,
+  "domains": {
+    "identity_decision_stream": {
+      "status": "BLOCKED",
+      "fields": [
+        "decision_id",
+        "run_id",
+        "strategy_id",
+        "strategy_version",
+        "observation_timestamp",
+        "feature_cutoff_timestamp",
+        "decision_timestamp",
+        "research_split",
+        "market_gate",
+        "sector_rs_gate",
+        "multi_timeframe_gate",
+        "phase_gate",
+        "setup_gate",
+        "trigger_gate",
+        "anti_chase_gate",
+        "rr_gate",
+        "opportunity_ranking_gate",
+        "execution_adjustment_gate"
+      ],
+      "required_source": "HISTORICAL_SNAPSHOT_OR_FROZEN_V14_REPLAY_PROVIDER",
+      "reason": "No registered frozen v1.4 historical decision stream/provider for all canonical rule outputs."
+    },
+    "pit_universe": {
+      "status": "BLOCKED",
+      "fields": [
+        "pit_universe_member",
+        "universe_source",
+        "universe_effective_from",
+        "universe_effective_to"
+      ],
+      "required_source": "GOVERNED_OFFICIAL_MEMBERSHIP_INTERVALS_WITH_CURRENT_OPEN_INTERVAL_ALIGNMENT",
+      "reason": "Prior PASS invalidated by stale open-interval evidence from real whole-universe shard; PR #110 live revalidation pending."
+    },
+    "market_raw": {
+      "status": "PENDING_SOURCE_COVERAGE",
+      "fields": [
+        "market_breadth",
+        "market_volatility"
+      ],
+      "required_source": "SYNCHRONIZED_PIT_WHOLE_UNIVERSE_5M",
+      "reason": "Builder exists; whole-universe Fugle export/coverage audit is currently required."
+    },
+    "market_benchmark": {
+      "status": "PASS",
+      "fields": [
+        "market_return"
+      ],
+      "required_source": "FUGLE_IX0001_5M",
+      "evidence": "research/MARKET_BENCHMARK_SOURCE_AUDIT_20261025.json"
+    },
+    "market_regime": {
+      "status": "BLOCKED",
+      "fields": [
+        "market_regime"
+      ],
+      "required_source": "FROZEN_CANONICAL_REGIME_PROVIDER_OR_HISTORICAL_SNAPSHOT",
+      "reason": "W3A is prohibited from inventing Bull/Neutral/Bear thresholds."
+    },
+    "sector_mapping": {
+      "status": "BLOCKED",
+      "fields": [
+        "sector",
+        "sector_effective_from",
+        "sector_effective_to"
+      ],
+      "required_source": "OFFICIAL_CURRENT_ANCHOR_PLUS_COMPLETE_EFFECTIVE_DATED_CHANGE_LEDGER",
+      "reason": "TWSE annual source coverage for governed years is incomplete."
+    },
+    "sector_rs": {
+      "status": "BLOCKED",
+      "fields": [
+        "sector_return",
+        "sector_rs_vs_market",
+        "stock_rs_vs_sector"
+      ],
+      "required_source": "VALID_SECTOR_MAPPING_PLUS_SYNCHRONIZED_PRICES_PLUS_FROZEN_RS_LOOKBACK_SEMANTICS",
+      "reason": "Sector mapping incomplete and canonical v1.4 RS lookback semantics/provider not registered."
+    },
+    "raw_entry_location": {
+      "status": "PARTIAL_RECONSTRUCTABLE",
+      "fields": [
+        "entry_reference_price",
+        "cumulative_vwap",
+        "price_vs_vwap_pct",
+        "day_return_pct",
+        "gap_pct",
+        "session_low_at_decision",
+        "session_high_at_decision",
+        "session_position",
+        "price",
+        "volume",
+        "turnover_twd"
+      ],
+      "required_source": "PIT_5M_OHLCV_AVERAGE_PLUS_DECISION_REFERENCE",
+      "reason": "Raw causal values are reconstructable when source coverage passes, but exact production formulas must remain versioned."
+    },
+    "composite_feature_semantics": {
+      "status": "BLOCKED",
+      "fields": [
+        "vwap_slope",
+        "atr14",
+        "price_extension_atr",
+        "breakout_bar_atr",
+        "rvol",
+        "volume_zscore",
+        "resistance_distance_pct",
+        "stop_distance_atr",
+        "mtf_short_state",
+        "mtf_mid_state",
+        "mtf_long_state",
+        "phase",
+        "setup_id",
+        "trigger_id",
+        "trigger_quality"
+      ],
+      "required_source": "FROZEN_V14_FEATURE_FORMULA_PROVIDER_OR_HISTORICAL_SNAPSHOT",
+      "reason": "Lookbacks/timeframes/threshold semantics are not fully registered; W3A cannot invent them."
+    },
+    "ranking": {
+      "status": "BLOCKED",
+      "fields": [
+        "candidate_pool_id",
+        "candidate_pool_size",
+        "rank_score",
+        "ranking_position",
+        "ranking_decile",
+        "ranking_model_version"
+      ],
+      "required_source": "FULL_HISTORICAL_CANDIDATE_POOL_PLUS_FROZEN_V14_RANKING_PROVIDER",
+      "reason": "Winner-only evidence is invalid; full historical v1.4 candidate pool is not registered."
+    },
+    "planned_execution_geometry": {
+      "status": "BLOCKED",
+      "fields": [
+        "planned_entry",
+        "planned_stop",
+        "planned_target_1",
+        "planned_target_2",
+        "gross_rr",
+        "fee_tax_adjusted_rr",
+        "execution_adjusted_rr"
+      ],
+      "required_source": "FROZEN_V14_DECISION_EXECUTION_SNAPSHOT_OR_PROVIDER",
+      "reason": "Engines exist but historical v1.4 planned levels/gate outputs are not registered."
+    },
+    "empirical_execution": {
+      "status": "BLOCKED",
+      "fields": [
+        "spread_bps",
+        "fill_probability",
+        "expected_entry_slippage_bps",
+        "expected_exit_slippage_bps",
+        "expected_spread_bps",
+        "liquidity_penalty_bps",
+        "actual_entry_slippage_bps",
+        "actual_exit_slippage_bps"
+      ],
+      "required_source": "HISTORICAL_L1_OR_EMPIRICAL_EXECUTION_LEDGER",
+      "reason": "Historical L1/spread/fill evidence is not available at canonical coverage; UNKNOWN must remain NULL."
+    },
+    "counterfactual_outcome": {
+      "status": "ENGINE_READY_INPUT_BLOCKED",
+      "fields": [
+        "outcome_status",
+        "outcome_exit_price",
+        "gross_r_multiple",
+        "r_multiple",
+        "mae_r",
+        "mfe_r",
+        "holding_minutes",
+        "exit_reason",
+        "outcome_type",
+        "outcome_timestamp"
+      ],
+      "required_source": "FROZEN_PLANNED_LEVELS_PLUS_FUTURE_SAME_SESSION_5M",
+      "reason": "Causal outcome builder exists; blocked until decision/execution inputs and source history are available."
+    },
+    "labels_requiring_frozen_definition": {
+      "status": "BLOCKED",
+      "fields": [
+        "false_breakout",
+        "missed_entry"
+      ],
+      "required_source": "FROZEN_LABEL_DEFINITION_VERSION",
+      "reason": "No label definition may be invented by W3A."
+    },
+    "fixed_cost_scenarios": {
+      "status": "ENGINE_READY_INPUT_BLOCKED",
+      "fields": [
+        "net_r_045",
+        "net_r_065"
+      ],
+      "required_source": "GROSS_R_PLUS_PLANNED_RISK",
+      "reason": "Deterministic 0.45%/0.65% layer exists; requires valid gross outcome and planned entry/stop."
+    }
+  }
+}
