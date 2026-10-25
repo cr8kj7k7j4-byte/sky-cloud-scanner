@@ -1,0 +1,78 @@
+name: W2 Top100 Velocity Baseline A
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - w2/top100-velocity-baseline-a-20261026
+    paths:
+      - "research/backtest_top100_velocity_baseline.py"
+      - "tests/test_top100_velocity_baseline.py"
+      - ".github/workflows/w2-top100-velocity-baseline-a.yml"
+      - "research/W2_TOP100_VELOCITY_BASELINE_A_STATUS_20261026.md"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Unit tests
+        run: python tests/test_top100_velocity_baseline.py
+
+      - name: Download corrected PIT whole-universe shards
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: 40221377923
+          pattern: corrected-pit-cache-shard-*-40221377923
+          path: pit_history
+          merge-multiple: false
+
+      - name: Inspect downloaded history
+        run: |
+          echo "json files:"
+          find pit_history -type f -name '*_5m.json' | wc -l
+          du -sh pit_history
+
+      - name: Run preregistered Baseline A
+        run: |
+          python research/backtest_top100_velocity_baseline.py \
+            --history-root pit_history \
+            --out-dir research_output/top100_velocity_baseline_a
+
+      - name: Publish result summary
+        if: always()
+        run: |
+          if [ -f research_output/top100_velocity_baseline_a/top100_velocity_baseline_a_report.md ]; then
+            cat research_output/top100_velocity_baseline_a/top100_velocity_baseline_a_report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Remove working database
+        if: always()
+        run: rm -f research_output/top100_velocity_baseline_a/top100_velocity_snapshots.sqlite*
+
+      - name: Upload research result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: w2-top100-velocity-baseline-a-${{ github.run_id }}
+          path: |
+            research_output/top100_velocity_baseline_a/top100_velocity_baseline_a_report.json
+            research_output/top100_velocity_baseline_a/top100_velocity_baseline_a_report.md
+            research_output/top100_velocity_baseline_a/top100_velocity_selected_trades.csv
+          if-no-files-found: warn
+          retention-days: 30
