@@ -197,3 +197,47 @@ W3 must build a canonical point-in-time historical decision replay dataset that 
 - No new Stable Production Rule has been authorized.
 - No Small Live authorization exists.
 - New alpha expansion is lower priority than evidence/data completion.
+
+## M. W3A Coverage Blocker / W5-W7 Adjudication — 2026-10-25
+
+### Verified latest evidence
+- W3A status: **ENGINEERING COMPLETE / DATA_BLOCKED**.
+- Existing historical 5m artifact: 100 symbols, 2,704,785 bars, period approximately 2023-05-23 through 2026-10-22, export validation PASS.
+- Maximum possible symbol coverage versus governed PIT Universe:
+  - 2023-12-31: 100 / 1,904 = 5.2521%
+  - 2024-12-31: 100 / 1,960 = 5.1020%
+  - 2025-12-31: 100 / 2,028 = 4.9310%
+  - 2026-09-30: 100 / 2,069 = 4.8333%
+- Governance requirement remains >=95%; current artifact is therefore engineering/regression evidence only, not promotion-grade PIT replay evidence.
+
+### W5 / W7 candidate adjudication
+PR #93 `W5: refresh W7 inbound adjudication with latest PIT evidence` — **MERGED**.
+Merge commit: `efae134bda8318bb018a251e0c679726e0af3e44`.
+
+Formal queue state:
+- ACCEPT_FOR_PREREGISTRATION: **0**
+- HOLD: **3**
+
+Candidate priority if blockers clear:
+1. Overnight-to-First-30m Reversal — HOLD; lowest data threshold among the three, but Gate 0 still fails.
+2. Dynamic Futures/ETF/Spot Lead-Lag — HOLD; requires synchronized timestamp/session/stale-index/roll causality contract plus downstream replay data.
+3. Broker-Identity / Skill-Conditioned Flow — HOLD; HARD DATA GATE, DO_NOT_BUY NOW until sample/schema/branch lifecycle/PIT mapping/licensing reproducibility are verified.
+
+### Governance decision
+- Do **not** promote any of the three candidates to formal Pre-registration yet.
+- Do **not** use completed builders/validators/audits as a substitute for >=95% PIT coverage.
+- Do **not** buy Broker Flow data now.
+- Production remains unchanged.
+- W2 remains HOLD / DATA_BLOCKED.
+
+### Updated bottleneck
+The system bottleneck is no longer engineering implementation of the W3A replay framework. The bottleneck is **promotion-grade whole-universe synchronized historical intraday data coverage and causal context reconstruction**.
+
+### Updated execution priority
+1. **W3A — Resolve promotion-grade whole-universe intraday history / PIT coverage blocker**; produce an evidence-backed source/acquisition/build plan rather than more framework code.
+2. **W6 — Define and validate synchronized execution/cross-market timestamp/session/roll causality requirements** needed by Lead-Lag and W2 replay.
+3. **W4 — Continue Shadow/Paper prospective evidence accumulation**, because forward evidence can accumulate while historical PIT remains blocked.
+4. **W3B — Keep the data/validation pipeline reproducible and ready for larger datasets; avoid unrelated platform expansion.**
+5. **W2 — Remain HOLD until the replay dataset passes the fail-closed Gate; no rule efficacy claims.**
+6. **W5/W7 — Keep all three candidates HOLD; re-review Overnight first only when data Gate 0 materially improves.**
+7. **W1 — HOLD; reuse future PIT infrastructure rather than duplicating data work.**
