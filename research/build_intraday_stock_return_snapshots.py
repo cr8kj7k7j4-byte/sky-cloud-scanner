@@ -43,7 +43,7 @@ def build_stock_return_snapshots(
         part=b[
             (b["session_date"]==day)
             & b["symbol"].astype(str).isin(expected)
-            & (b["timestamp"]<=ts)
+            & ((b["timestamp"] + pd.Timedelta(minutes=5))<=ts)
         ].copy()
         if part.empty:
             audits.append({
@@ -72,7 +72,8 @@ def build_stock_return_snapshots(
                 "session_date":day,
                 "symbol":str(r["symbol"]),
                 "stock_return":float(r["stock_return"]),
-                "source_cutoff_timestamp":r["timestamp"].isoformat(),
+                "source_bar_start_timestamp":r["timestamp"].isoformat(),
+                "source_cutoff_timestamp":(r["timestamp"] + pd.Timedelta(minutes=5)).isoformat(),
             })
         audits.append({
             "observation_timestamp":ts.isoformat(),
@@ -94,6 +95,7 @@ def build_stock_return_snapshots(
         "governance":{
             "pit_universe_required":True,
             "future_bars_used":False,
+            "only_completed_5m_bars_used":True,
             "full_cross_section_required":True,
         },
     }
