@@ -1,0 +1,86 @@
+name: W3A Full PIT Intraday History Export
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - w3a/intraday-pit-replay-pipeline-v2
+    paths:
+      - ".github/workflows/w3a-full-pit-history-export.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install requests beautifulsoup4 pandas
+
+      - name: Build governed 2023+ PIT universe
+        run: |
+          python research/audit_historical_universe.py             --out output/historical_universe_audit
+
+      - name: Require PIT universe gate PASS
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("output/historical_universe_audit/audit.json")
+          x=json.loads(p.read_text(encoding="utf-8"))
+          if not x.get("historical_universe_gate_pass"):
+              raise SystemExit("PIT historical universe gate is not PASS")
+          print("PIT universe PASS", x.get("intervals"))
+          PY
+
+      - name: Build full PIT history manifest
+        run: |
+          python research/build_pit_history_manifest.py             --pit-universe output/historical_universe_audit/pit_intervals.json             --from-date 2023-01-01             --to-date 2026-10-24             --out research_data/pit_history_manifest.json
+
+      - name: Download full PIT 5m history with controlled API pacing
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+        run: |
+          python research/download_pit_history.py             --manifest research_data/pit_history_manifest.json             --out research_data/pit_history
+
+      - name: Audit PIT intraday source coverage
+        run: |
+          python research/audit_pit_intraday_history.py             --manifest research_data/pit_history_manifest.json             --history-dir research_data/pit_history             --download-summary research_data/pit_history_download_summary.json             --out research_output/pit_history_coverage_audit.json
+
+      - name: Build compressed history artifact
+        if: always()
+        run: |
+          tar -czf w3a-pit-history-5m-${{ github.run_id }}.tar.gz             research_data/pit_history             research_data/pit_history_manifest.json             research_data/pit_history_download_summary.json             output/historical_universe_audit/pit_intervals.json             output/historical_universe_audit/audit.json             research_output/pit_history_coverage_audit.json
+
+      - name: Publish coverage summary
+        if: always()
+        run: |
+          echo "## W3A Full PIT Intraday History" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f research_output/pit_history_coverage_audit.json ]; then
+            cat research_output/pit_history_coverage_audit.json >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload PIT history artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: w3a-pit-history-5m-${{ github.run_id }}
+          path: |
+            w3a-pit-history-5m-${{ github.run_id }}.tar.gz
+            research_data/pit_history_manifest.json
+            research_data/pit_history_download_summary.json
+            research_output/pit_history_coverage_audit.json
+            output/historical_universe_audit/audit.json
+          if-no-files-found: warn
+          retention-days: 14
