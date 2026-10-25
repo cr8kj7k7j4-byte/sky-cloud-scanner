@@ -1,6 +1,7 @@
 from src.official_universe_events import (
     normalize_roc_date, parse_basic_records, parse_listing_html,
-    parse_delisting_html, parse_tpex_delisting_payload, build_intervals
+    parse_delisting_html, parse_tpex_delisting_payload,
+    parse_twse_newlisting_payload, parse_tpex_newlisting_csv, build_intervals
 )
 
 def test_roc_dates():
@@ -86,3 +87,49 @@ def test_tpex_delisting_json_payload():
     assert out[0].exchange == "TPEx"
     assert out[0].event_date == "2023-12-22"
     assert out[0].event_type == "DELIST"
+
+
+def test_twse_newlisting_json_payload():
+    payload = {
+        "stat": "OK",
+        "fields": [
+            "公司代號",
+            "公司簡稱",
+            "股票上市買賣日期",
+            "備註",
+        ],
+        "data": [[
+            "4736",
+            "泰博",
+            "112.12.22",
+            "櫃轉市",
+        ]],
+    }
+    out = parse_twse_newlisting_payload(
+        payload,
+        "https://www.twse.com.tw/rwd/zh/company/newlisting",
+        "2026-10-25T00:00:00+08:00",
+    )
+    assert len(out) == 1
+    assert out[0].symbol == "4736"
+    assert out[0].exchange == "TWSE"
+    assert out[0].event_date == "2023-12-22"
+    assert out[0].event_type == "LIST"
+
+
+def test_tpex_newlisting_csv_payload():
+    text = """112年截至12月底新上櫃公司一覽表
+月份,公司代號,公司名稱,上櫃日期
+"1","6865","偉康科技","2023/01/11"
+"12","2949","欣新網","2023/12/15"
+"""
+    out = parse_tpex_newlisting_csv(
+        text,
+        "https://www.tpex.org.tw/www/zh-tw/company/applicantStatDl",
+        "2026-10-25T00:00:00+08:00",
+    )
+    assert len(out) == 2
+    assert out[0].symbol == "6865"
+    assert out[0].exchange == "TPEx"
+    assert out[0].event_date == "2023-01-11"
+    assert out[1].event_date == "2023-12-15"
