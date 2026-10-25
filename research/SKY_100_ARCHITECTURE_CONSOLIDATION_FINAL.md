@@ -76,7 +76,7 @@
 | risk_engine.py | P0-R | KEEP | 核心風控 |
 | sector_rs_replay.py | P0-LAB / P0-D | MOVE_TO_RESEARCH | replay/point-in-time 驗證工具，不應放 production src |
 | decision_engine.py | P0-C | KEEP_AS_CANONICAL | PR #44 建立唯一 Decision Contract；不排序、不重算風控、不自動下單 |
-| sky_rules.py | Shared legacy helpers | DECOMPOSE_NEXT | first_gate / score_for_ranking / enrich 仍需分拆回 Decision/Data/P0-O，避免混合責任 |
+| sky_rules.py | Shared compatibility layer | COMPATIBILITY_ADAPTER | PR #51 已完成拆分；first_gate→P0-C、enrich→P0-F、ranking→P0-O |
 | state_store.py | P0-A | KEEP | 監控狀態持久化 |
 | strategy_builder.py | P0-S | KEEP | Setup / Trigger / Stop / Target 建構 |
 | trade_log.py | P0-L | COMPATIBILITY_ADAPTER | 舊研究相容入口；不再維護獨立 schema |
@@ -98,8 +98,9 @@
 3. **真實 Shadow / Paper Trading Evidence**
    - Infrastructure 已完成；目前缺的是足夠真實樣本與成本後實證，而不是更多 Paper Trading 模組。
 
-4. **PR #23～#28 的研究／治理去重**
-   - 必須逐一抽取仍有價值的 validation / benchmark / ablation / registry 內容後關閉平行 Production 模組。
+4. **Evidence / Promotion maturity**
+   - PR #23～#28 已由 PR #50 完成抽取並關閉。
+   - 架構缺口已不是主要瓶頸，下一階段重點是 Shadow 樣本、OOS/Walk-forward、成本、Regime、Promotion evidence。
 
 ## 三之一、已完成基線
 
@@ -111,6 +112,9 @@
 - **P0-C Canonical Decision Contract**：PR #44 已合併；Decision 不再由 Risk/Monitor/Agent 各自代表，且 TRIGGERED 仍不是自動買進。
 - **PMS Canonical Position Manager**：PR #45 已合併；P0-A 的持倉分支已委派 PMS，禁止向下攤平與停損放寬。
 - **P0-O Single Runtime Ranking Entry**：PR #47 已合併；盤中廣域排序改由 ranking_engine.py 統一負責，sky_rules 僅保留相容 alias；Ranking 分數不是機率。
+- **P0-D / P0-G Consolidation**：PR #50 已合併；Validation robustness、Rule Registry、Champion Config 已折回 canonical owner；#23～#28 已關閉。
+- **sky_rules Decomposition**：PR #51 已合併；Production runtime 已直接使用 canonical P0-C / P0-F / P0-O。
+- **Evidence & Promotion Governance**：PR #53 已合併；新增 Shadow Sample Sufficiency Gate 與 Ranking/Model Promotion Scorecard；100 分只代表證據成熟度，不是勝率。
 
 ## 四、PR #23～#33 收斂決策
 
@@ -131,11 +135,11 @@
 ## 五、立即執行優先級
 
 ### P0 — 現在就做
-1. 盤 PR #23～#28，逐一抽取必要研究內容後關閉重複 Production 路線
-2. 分拆 sky_rules.py 剩餘混合責任：enrich → DATA/F；first_gate → canonical owner；ranking 已由 PR #47 移至 P0-O
-3. 更新 Readiness Gate，將 P0-K / P0-C / P0-O / PMS canonical checks 納入
-4. 將 PR #28 的 Rule Registry 有價值部分折入既有 P0-G，不建立第二套 registry
-5. 開始累積可用於 Ranking / ML Promotion 的真實 Shadow 樣本
+1. 累積可用於 Ranking / ML Promotion 的真實 Shadow 樣本
+2. 依 Shadow Sample Sufficiency Gate 檢查樣本量、交易日、Regime、Outcome 完整率與標的集中度
+3. 對仍存 Candidate 執行 Walk-forward / OOS / Cost Stress / Leakage / Survivorship / Regime Stability
+4. 建立 Ranking / Model Promotion Scorecard 的實際證據輸入，不以 Accuracy 或單次回測升版
+5. 完成 Point-in-Time historical backfill / coverage audit 與 TPEx 嚴格官方盤中資料鏈
 
 ### P1 — 接著做
 1. 以已 merge 的 P0-S 5 分 K Setup 完成正式 OOS / costs / MFE / MAE / PF / Expectancy promotion evidence
