@@ -1,3 +1,4 @@
+from datetime import datetime
 from src.decision_engine import evaluate_decision
 from src.paper_trading import evaluate_paper_gate, build_paper_snapshot
 from src.trade_logger import build_trade_decision_record
@@ -49,7 +50,7 @@ def test_decision_is_consistent_across_runtime_ledgers():
     gate = evaluate_paper_gate("shadow", "RESEARCH_ONLY")
     snap = build_paper_snapshot(
         run_id="r1",
-        observed_at="2026-10-25T09:30:00+08:00",
+        observed_at=datetime.fromisoformat("2026-10-25T09:30:00+08:00"),
         item=c,
         gate=gate,
     )
@@ -59,7 +60,7 @@ def test_decision_is_consistent_across_runtime_ledgers():
     rec = build_trade_decision_record(
         item=c,
         run_id="r1",
-        observed_at="2026-10-25T09:30:00+08:00",
+        observed_at=datetime.fromisoformat("2026-10-25T09:30:00+08:00"),
     )
     assert rec.decision == "WAIT"
 
@@ -71,6 +72,6 @@ def test_canonical_decision_overrides_legacy_risk_status_in_ledger():
     rec = build_trade_decision_record(
         item=c,
         run_id="r2",
-        observed_at="2026-10-25T09:30:00+08:00",
+        observed_at=datetime.fromisoformat("2026-10-25T09:30:00+08:00"),
     )
     assert rec.decision == "WAIT"
