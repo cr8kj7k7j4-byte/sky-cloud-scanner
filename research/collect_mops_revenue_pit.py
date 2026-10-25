@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 
 TZ = ZoneInfo("Asia/Taipei")
 MOPS_HOME = "https://mops.twse.com.tw/mops"
+MOPS_LATEST_FINANCE_API = "https://mops.twse.com.tw/mops/api/home_page/t51sb10"
 SUBJECT_RE = re.compile(r"(?P<roc_year>\d{3})(?P<month>\d{2})-營業收入資訊")
 DATE_RE = re.compile(r"最後更新時間\s*(?P<roc_date>\d{3}/\d{1,2}/\d{1,2})")
 TIME_RE = re.compile(r"^(?:[01]?\d|2[0-3]):[0-5]\d$")
@@ -24,6 +25,23 @@ def _text(fragment: str) -> str:
     s = TAG_RE.sub(" ", fragment)
     s = html.unescape(s)
     return re.sub(r"\s+", " ", s).strip()
+
+
+def fetch_json_post(url: str, payload: dict, timeout: int = 20) -> dict:
+    body = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=body,
+        headers={
+            "User-Agent": "Mozilla/5.0 SkyResearchBot/1.0",
+            "Accept-Language": "zh-TW,zh;q=0.9",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        raw = resp.read()
+    return json.loads(raw.decode("utf-8", errors="strict"))
 
 
 def fetch_url(url: str, timeout: int = 20) -> str:
@@ -193,6 +211,17 @@ def main():
     raw_path.parent.mkdir(parents=True, exist_ok=True)
     raw_path.write_text(page, encoding="utf-8")
     preserve_frontend_assets(page)
+
+    api_payload = {"count": 100, "marketKind": "all"}
+    api_data = fetch_json_post(MOPS_LATEST_FINANCE_API, api_payload)
+    api_raw_path = Path("output/mops_t51sb10_raw.json")
+    api_raw_path.write_text(
+        json.dumps(api_data, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+    # Parser will move to the official API after the live response schema is
+    # verified. Until then, keep the PIT gate fail-closed.
     observed_at = datetime.now(TZ).isoformat()
     rows = parse_revenue_filings(page, observed_at=observed_at)
 
