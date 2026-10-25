@@ -1,140 +1,253 @@
 from __future__ import annotations
-import argparse,json,statistics
-from collections import defaultdict
-from datetime import datetime
+
+import argparse
+import json
+import math
+import statistics
+from collections import Counter, defaultdict
 from pathlib import Path
 
-HORIZONS=[1,3,5,10]
-COSTS=[0.00,0.20,0.45]
-FEATURES=["vol20","drawdown20"]
+from research.audit_residual_return_labels import (
+    FEATURES,
+    HORIZONS,
+    build_rows,
+    load_daily,
+    spearman,
+)
 
-def fnum(x):
-    try:
-        if x in (None,""): return None
-        return float(str(x).replace(",",""))
-    except Exception:return None
+COSTS=[0.45,0.65]
+TOPNS=[3,5,10]
+
 
 def metrics(vals):
-    if not vals:return {"n":0}
-    gp=sum(v for v in vals if v>0); gl=-sum(v for v in vals if v<0)
-    return {"n":len(vals),"expectancy_pct":statistics.mean(vals),
-            "pf":gp/gl if gl>0 else None,
-            "win_rate":sum(v>0 for v in vals)/len(vals),
-            "median_pct":statistics.median(vals)}
+    if not vals:
+        return {"n":0}
+    gp=sum(v for v in vals if v>0)
+    gl=-sum(v for v in vals if v<0)
+    equity=1.0
+    peak=1.0
+    max_dd=0.0
+    for v in vals:
+        equity*=1.0+v/100.0
+        peak=max(peak,equity)
+        if peak>0:
+            max_dd=min(max_dd,equity/peak-1.0)
+    return {
+        "n":len(vals),
+        "expectancy_pct":statistics.mean(vals),
+        "median_pct":statistics.median(vals),
+        "pf":gp/gl if gl>0 else None,
+        "win_rate":sum(v>0 for v in vals)/len(vals),
+        "max_drawdown_pct":max_dd*100.0,
+        "total_return_pct":(equity-1.0)*100.0,
+    }
 
-def load_daily(history_dir):
-    bysym={}
-    for p in sorted(Path(history_dir).glob("*_5.json")):
-        o=json.loads(p.read_text(encoding="utf-8"));sym=str(o["symbol"]);by=defaultdict(list)
-        for b in o.get("data",[]):
-            ds=str(b.get("date",""))
-            if ds:by[datetime.fromisoformat(ds).date().isoformat()].append(b)
-        days=[]
-        for d,bars in sorted(by.items()):
-            bars.sort(key=lambda x:x["date"])
-            op=fnum(bars[0].get("open"));cl=fnum(bars[-1].get("close"))
-            hs=[fnum(x.get("high")) for x in bars if fnum(x.get("high")) is not None]
-            if op is None or cl is None or not hs:continue
-            days.append({"date":d,"open":op,"close":cl,"high":max(hs)})
-        bysym[sym]=days
-    return bysym
 
-def stdev_rets(xs):
-    rs=[xs[i]/xs[i-1]-1 for i in range(1,len(xs)) if xs[i-1]]
-    return statistics.pstdev(rs)*100 if rs else None
-
-def build_rows(bysym):
-    raw=[]
-    for sym,days in bysym.items():
-        closes=[x["close"] for x in days]
-        for i in range(20,len(days)-11):
-            entry=days[i+1]["open"]
-            if entry is None or entry>100:continue
-            high20=max(x["high"] for x in days[i-19:i+1])
-            vol20=stdev_rets(closes[i-19:i+1])
-            if vol20 is None:continue
-            rec={"symbol":sym,"date":days[i]["date"],
-                 "vol20":vol20,
-                 "drawdown20":(closes[i]/high20-1)*100 if high20 else None}
-            for h in HORIZONS:
-                rec[f"raw_{h}d"]=(days[i+h]["close"]/entry-1)*100
-            raw.append(rec)
-    bydate=defaultdict(list)
-    for r in raw:bydate[r["date"]].append(r)
-    out=[]
-    for d,arr in bydate.items():
-        valid=[r for r in arr if r["vol20"] is not None and r["drawdown20"] is not None]
-        if len(valid)<30:continue
-        for h in HORIZONS:
-            m=statistics.mean(r[f"raw_{h}d"] for r in valid)
-            for r in valid:r[f"res_{h}d"]=r[f"raw_{h}d"]-m
-        out.extend(valid)
-    return out
-
-def decile_stats(arr,feature,target,cost):
-    xs=sorted([r for r in arr if r.get(feature) is not None and r.get(target) is not None], key=lambda r:r[feature])
-    n=len(xs)
-    if n<100:return {}
+def percentile_map(arr,feature,direction):
+    valid=[r for r in arr if r.get(feature) is not None]
+    ordered=sorted(valid,key=lambda r:r[feature])
+    n=len(ordered)
     out={}
-    for d in range(10):
-        lo=d*n//10;hi=(d+1)*n//10
-        vals=[r[target]-cost for r in xs[lo:hi]]
-        out[str(d+1)]=metrics(vals)
+    if n<=1:
+        return out
+    for rank,row in enumerate(ordered):
+        pct=rank/(n-1)
+        if direction<0:
+            pct=1.0-pct
+        out[id(row)]=pct
     return out
 
-def daily_cross_section(rows,feature,target,cost,long_low=True):
+
+def fit_train_directions(train,horizon):
+    target=f"market_resid_{horizon}d"
+    selected=[]
+    for feature in FEATURES:
+        rows=[r for r in train if r.get(feature) is not None and r.get(target) is not None]
+        ic=spearman([r[feature] for r in rows],[r[target] for r in rows])
+        if ic is not None and abs(ic)>=0.02:
+            selected.append({
+                "feature":feature,
+                "direction":1 if ic>0 else -1,
+                "train_rank_ic":ic,
+            })
+    return selected
+
+
+def score_rows(rows,selected):
     bydate=defaultdict(list)
     for r in rows:
-        if r.get(feature) is not None and r.get(target) is not None:bydate[r["date"]].append(r)
-    long_vals=[];short_vals=[];spreads=[]
-    for d,arr in bydate.items():
-        if len(arr)<30:continue
-        s=sorted(arr,key=lambda r:r[feature]);k=max(1,len(s)//10)
-        low=s[:k];high=s[-k:]
-        if long_low:
-            L=statistics.mean(r[target] for r in low)-cost
-            S=statistics.mean(r[target] for r in high)-cost
-        else:
-            L=statistics.mean(r[target] for r in high)-cost
-            S=statistics.mean(r[target] for r in low)-cost
-        long_vals.append(L);short_vals.append(S)
-        # diagnostic spread: no transaction-cost doubling beyond each leg cost
-        spreads.append(L-S)
-    return {"long_decile":metrics(long_vals),
-            "opposite_decile":metrics(short_vals),
-            "spread":metrics(spreads)}
+        bydate[r["date"]].append(r)
+
+    scored=[]
+    for date,arr in bydate.items():
+        maps={
+            x["feature"]:percentile_map(arr,x["feature"],x["direction"])
+            for x in selected
+        }
+        for r in arr:
+            vals=[]
+            for x in selected:
+                v=maps[x["feature"]].get(id(r))
+                if v is not None:
+                    vals.append(v)
+            if len(vals)!=len(selected) or not vals:
+                continue
+            rr=dict(r)
+            rr["vnext_score"]=statistics.mean(vals)
+            scored.append(rr)
+    return scored
+
+
+def select_daily(rows,topn):
+    bydate=defaultdict(list)
+    for r in rows:
+        bydate[r["date"]].append(r)
+    selected=[]
+    for date,arr in bydate.items():
+        ranked=sorted(
+            arr,
+            key=lambda r:(r["vnext_score"],r["symbol"]),
+            reverse=True,
+        )
+        for rank,row in enumerate(ranked[:topn],1):
+            x=dict(row)
+            x["selection_rank"]=rank
+            selected.append(x)
+    return selected
+
+
+def evaluate_selection(rows,horizon,cost):
+    target=f"market_resid_{horizon}d"
+    bydate=defaultdict(list)
+    symbols=Counter()
+    for r in rows:
+        if r.get(target) is None:
+            continue
+        bydate[r["date"]].append(r)
+        symbols[r["symbol"]]+=1
+
+    daily=[]
+    position_returns=[]
+    for date,arr in sorted(bydate.items()):
+        vals=[r[target]-cost for r in arr]
+        if not vals:
+            continue
+        daily.append(statistics.mean(vals))
+        position_returns.extend(vals)
+
+    total_positions=sum(symbols.values())
+    top_symbol_share=(
+        max(symbols.values())/total_positions if total_positions else 0.0
+    )
+    return {
+        "daily_portfolio":metrics(daily),
+        "position_level":metrics(position_returns),
+        "days":len(daily),
+        "positions":total_positions,
+        "unique_symbols":len(symbols),
+        "top_symbol_share":top_symbol_share,
+        "top_symbols":symbols.most_common(10),
+    }
+
 
 def main():
-    ap=argparse.ArgumentParser();ap.add_argument("--history-dir",required=True);ap.add_argument("--out",default="research_output_residual_spread")
-    args=ap.parse_args();out=Path(args.out);out.mkdir(parents=True,exist_ok=True)
+    ap=argparse.ArgumentParser()
+    ap.add_argument("--history-dir",required=True)
+    ap.add_argument("--out",default="research_output_residual_spread")
+    args=ap.parse_args()
+    out=Path(args.out)
+    out.mkdir(parents=True,exist_ok=True)
+
     rows=build_rows(load_daily(args.history_dir))
-    splits={"train":[r for r in rows if int(r["date"][:4])<=2024],
-            "valid":[r for r in rows if int(r["date"][:4])==2025],
-            "test":[r for r in rows if int(r["date"][:4])==2026]}
-    report={"method":"Market-Residual Cross-Sectional Spread Audit",
-            "horizons":HORIZONS,"costs":COSTS,"split_counts":{k:len(v) for k,v in splits.items()},
-            "results":{},"production_eligible":False,
-            "note":"Market-neutral spread is research-only; formal Sky Swing remains long-only.",
-            "limitations":["Current-universe survivorship bias.","Fixed 100-stock sample.","2026 previously observed; not fresh untouched OOS."]}
+    splits={
+        "train":[r for r in rows if int(r["date"][:4])<=2024],
+        "validation":[r for r in rows if int(r["date"][:4])==2025],
+        "research_test":[r for r in rows if int(r["date"][:4])==2026],
+    }
+
+    report={
+        "method":"VNext Residual / Market-Neutral Cross-sectional Ranking Baseline v1",
+        "preregistration":"research/VNEXT_RESIDUAL_RANKING_PREREGISTRATION.md",
+        "horizons":HORIZONS,
+        "features":FEATURES,
+        "topns":TOPNS,
+        "costs_pct":COSTS,
+        "split_counts":{k:len(v) for k,v in splits.items()},
+        "horizons_results":{},
+        "production_eligible":False,
+        "fresh_oos":False,
+        "promotion_allowed":False,
+        "limitations":[
+            "2026 is Research Test, not fresh untouched OOS.",
+            "Historical universe may still contain survivorship bias until PIT coverage is complete.",
+            "Industry residual is disabled until PIT sector mapping is verified.",
+            "Capacity cannot be declared fully passed without point-in-time liquidity/capacity evidence.",
+        ],
+    }
+
     for h in HORIZONS:
-        t=f"res_{h}d"
-        for f in FEATURES:
-            if f=="drawdown20" and h!=1:continue
-            key=f"{f}_{h}d";report["results"][key]={}
-            for c in COSTS:
-                ck=f"{c:.2f}";report["results"][key][ck]={}
-                for sp,arr in splits.items():
-                    report["results"][key][ck][sp]={
-                        "cross_section":daily_cross_section(arr,f,t,c,long_low=(f=="vol20")),
-                        "global_deciles":decile_stats(arr,f,t,c)}
-    (out/"residual_spread_report.json").write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8")
-    lines=["# Sky Market-Residual Cross-Sectional Spread Audit",f"- Split counts: {report['split_counts']}"]
-    for key,v in report["results"].items():
-        lines.append(f"\n## {key} @0.20%")
-        for sp in ("train","valid","test"):
-            x=v["0.20"][sp]["cross_section"]
-            lines.append(f"- {sp}: long={x['long_decile']} spread={x['spread']}")
-    (out/"residual_spread_summary.md").write_text("\n".join(lines),encoding="utf-8")
+        selected=fit_train_directions(splits["train"],h)
+        hres={
+            "train_selected_features":selected,
+            "variants":{},
+        }
+        for sp,arr in splits.items():
+            scored=score_rows(arr,selected) if selected else []
+            hres.setdefault("scored_rows",{})[sp]=len(scored)
+            for topn in TOPNS:
+                chosen=select_daily(scored,topn)
+                key=f"TOP{topn}"
+                hres["variants"].setdefault(key,{})
+                for cost in COSTS:
+                    ck=f"{cost:.2f}"
+                    hres["variants"][key].setdefault(ck,{})
+                    hres["variants"][key][ck][sp]=evaluate_selection(
+                        chosen,h,cost
+                    )
+        report["horizons_results"][str(h)]=hres
+
+    # No result-based winner selection in v1. All preregistered Top-N variants
+    # are reported side by side. Promotion remains impossible without fresh OOS.
+    (out/"vnext_residual_ranking_baseline.json").write_text(
+        json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8"
+    )
+
+    lines=[
+        "# Sky VNext Residual Ranking Baseline v1",
+        f"- Split counts: {report['split_counts']}",
+        "- Costs: 0.45% primary / 0.65% stress",
+        "- 2026: Research Test, not fresh OOS",
+        "- Winner selection: disabled in baseline v1",
+        "- Production eligible: False",
+    ]
+    for h in HORIZONS:
+        hr=report["horizons_results"][str(h)]
+        feats=hr["train_selected_features"]
+        lines.append(f"\n## {h}D")
+        lines.append(
+            "- Train-selected features: "
+            + (", ".join(
+                f"{x['feature']}({x['direction']:+d})" for x in feats
+            ) if feats else "None")
+        )
+        for topn in TOPNS:
+            v=hr["variants"][f"TOP{topn}"]["0.45"]
+            lines.append(f"### Top{topn} @0.45%")
+            for sp in ("train","validation","research_test"):
+                m=v[sp]["daily_portfolio"]
+                conc=v[sp]["top_symbol_share"]
+                lines.append(
+                    f"- {sp}: days={v[sp]['days']} "
+                    f"EV={m.get('expectancy_pct')} PF={m.get('pf')} "
+                    f"MDD={m.get('max_drawdown_pct')} "
+                    f"top_symbol_share={conc:.4f}"
+                )
+
+    (out/"vnext_residual_ranking_baseline.md").write_text(
+        "\n".join(lines),encoding="utf-8"
+    )
     print("\n".join(lines))
 
-if __name__=="__main__":main()
+
+if __name__=="__main__":
+    main()
