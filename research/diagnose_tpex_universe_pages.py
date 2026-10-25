@@ -148,7 +148,7 @@ def probe_tpex_api(outdir):
                     data_rows = tables[0].get("data") if tables else []
                     link = data_rows[0][1] if data_rows else None
                     if link:
-                        dl_url = urljoin("https://www.tpex.org.tw", link)
+                        dl_url = urljoin("https://www.tpex.org.tw", "/www" + link)
                         dl = requests.get(dl_url, timeout=30, headers={"User-Agent":"Mozilla/5.0"})
                         rec["new_list_download_probe"] = {
                             "url": dl_url,
