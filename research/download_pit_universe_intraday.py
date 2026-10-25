@@ -50,12 +50,26 @@ def load_pit_union(interval_json: str, from_date: str, to_date: str) -> list[dic
         b_raw = row.get("listed_to")
         b = date.fromisoformat(str(b_raw)[:10]) if b_raw else date.max
         if a <= end and b >= start:
-            out[(exchange, symbol)] = {
-                "symbol": symbol,
-                "exchange": exchange,
-                "listed_from": row.get("listed_from"),
-                "listed_to": row.get("listed_to"),
-            }
+            key=(exchange,symbol)
+            clipped_from=max(a,start)
+            clipped_to=min(b,end)
+            prev=out.get(key)
+            if prev is None:
+                out[key] = {
+                    "symbol": symbol,
+                    "exchange": exchange,
+                    "listed_from": row.get("listed_from"),
+                    "listed_to": row.get("listed_to"),
+                    "history_required_from": clipped_from.isoformat(),
+                    "history_required_to": clipped_to.isoformat(),
+                }
+            else:
+                prev["history_required_from"]=min(
+                    str(prev["history_required_from"]),clipped_from.isoformat()
+                )
+                prev["history_required_to"]=max(
+                    str(prev["history_required_to"]),clipped_to.isoformat()
+                )
     return [out[k] for k in sorted(out)]
 
 
@@ -162,6 +176,31 @@ def build_manifest(items: Iterable[dict], from_date: str, to_date: str) -> dict:
     }
 
 
+
+def build_download_report(items: list[dict], summary: list[dict]) -> dict:
+    successful = [x for x in summary if x.get("ok")]
+    with_data = [x for x in successful if int(x.get("bars") or 0) > 0]
+    transport_coverage = len(successful) / len(items) if items else 0.0
+    data_symbol_coverage = len(with_data) / len(items) if items else 0.0
+    return {
+        "schema_version": "1.1.0",
+        "expected_symbols": len(items),
+        "successful_symbols": len(successful),
+        "failed_symbols": len(items) - len(successful),
+        "symbols_with_data": len(with_data),
+        "zero_bar_symbols": [
+            x["symbol"] for x in successful if int(x.get("bars") or 0) == 0
+        ],
+        "total_5m_bars": sum(int(x.get("bars") or 0) for x in successful),
+        "transport_coverage_pct": round(transport_coverage * 100.0, 4),
+        "data_symbol_coverage_pct": round(data_symbol_coverage * 100.0, 4),
+        "coverage_pct": round(data_symbol_coverage * 100.0, 4),
+        "promotion_gate_95pct": bool(items) and data_symbol_coverage >= 0.95,
+        "note": "HTTP/request success with zero bars does not count as data coverage.",
+        "summary": summary,
+    }
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--pit-intervals", required=True)
@@ -201,7 +240,9 @@ def main():
     summary = []
     for i, item in enumerate(items, 1):
         try:
-            row = download_symbol(item, start, end, out)
+            symbol_start=max(start,date.fromisoformat(item.get("history_required_from",start.isoformat())))
+            symbol_end=min(end,date.fromisoformat(item.get("history_required_to",end.isoformat())))
+            row = download_symbol(item, symbol_start, symbol_end, out)
             print(f"[{i}/{len(items)}] {item['exchange']} {item['symbol']}: {row['bars']} bars")
             summary.append(row)
         except Exception as e:
@@ -213,17 +254,7 @@ def main():
                 "error": f"{type(e).__name__}: {e}",
             })
 
-    successful = [x for x in summary if x.get("ok")]
-    report = {
-        "schema_version": "1.0.0",
-        "expected_symbols": len(items),
-        "successful_symbols": len(successful),
-        "failed_symbols": len(items) - len(successful),
-        "total_5m_bars": sum(int(x.get("bars") or 0) for x in successful),
-        "coverage_pct": round((len(successful) / len(items) * 100.0), 4) if items else 0.0,
-        "promotion_gate_95pct": bool(items) and len(successful) / len(items) >= 0.95,
-        "summary": summary,
-    }
+    report = build_download_report(items, summary)
     (out / "download_summary.json").write_text(
         json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
     )
