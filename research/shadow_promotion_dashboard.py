@@ -68,60 +68,88 @@ def load_json(path):
     return json.loads(p.read_text(encoding="utf-8"))
 
 
-def render_markdown(dashboard):
-    s = dashboard.get("summary", {})
-    gaps = dashboard.get("sample_gaps", {})
-    blockers = dashboard.get("blocking_items", [])
-    source = dashboard.get("source", {})
-    pipeline = dashboard.get("pipeline_readiness", {})
-    portfolio = dashboard.get("portfolio_cost_capacity", {})
-    lines = [
-        "# Sky Shadow Promotion Dashboard",
-        "",
-        f"**Stage:** {dashboard.get('stage')}",
-        "",
-        "| 指標 | 現況 |",
-        "|---|---:|",
-        f"| Shadow/Paper 樣本 | {s.get('samples', 0)} |",
-        f"| 交易日 | {s.get('trading_days', 0)} |",
-        f"| Regime 數 | {s.get('regime_count', 0)} |",
-        f"| Outcome 完整率 | {float(s.get('outcome_complete_ratio', 0))*100:.1f}% |",
-        f"| 單一股票最高占比 | {float(s.get('top_symbol_share', 0))*100:.1f}% |",
-        f"| Promotion Evidence Score | {s.get('promotion_score', 0)} / 100 |",
-        "",
-        "## Shadow Pipeline Readiness",
-        f"- 狀態：{pipeline.get('status', 'UNKNOWN')}",
-        f"- 合格成功掃描 runs：{pipeline.get('eligible_successful_scan_runs', 0)}",
-        f"- Paper files：{pipeline.get('paper_files', 0)}",
-        f"- Records loaded：{pipeline.get('records_loaded', 0)}",
-        "",
-        "## Portfolio / Cost / Capacity Evidence",
-        f"- 狀態：{portfolio.get('status', 'NOT_EVALUABLE')}",
-        f"- 完整策略 outcomes：{portfolio.get('observed', {}).get('complete_strategy_outcomes', 0)}",
-        f"- 成本完整率：{float(portfolio.get('observed', {}).get('cost_complete_ratio', 0))*100:.1f}%",
-        f"- 單股最高占比：{float(portfolio.get('observed', {}).get('top_symbol_share', 0))*100:.1f}%",
-        f"- Capacity observations：{portfolio.get('observed', {}).get('capacity_observations', 0)}",
-        "",
-        "## 樣本缺口",
-        f"- 尚缺樣本：{gaps.get('samples_remaining', 0)}",
-        f"- 尚缺交易日：{gaps.get('trading_days_remaining', 0)}",
-        f"- 尚缺 Regime：{gaps.get('regimes_remaining', 0)}",
-        f"- Outcome 完整率缺口：{float(gaps.get('outcome_completeness_gap', 0))*100:.1f} 個百分點",
-        f"- 集中度超標：{float(gaps.get('symbol_concentration_excess', 0))*100:.1f} 個百分點",
-        "",
-        "## 阻塞項目",
-    ]
-    lines.extend([f"- {x}" for x in blockers] or ["- 無"])
-    lines += [
-        "",
-        "## 資料來源",
-        f"- 掃描 artifact 檔案數：{source.get('files_scanned', 0)}",
-        f"- 載入 records：{source.get('records_loaded', 0)}",
-        "",
-        "> 此分數是升版證據成熟度，不是勝率、獲利機率或自動 Production 授權。",
-    ]
-    return "\n".join(lines) + "\n"
+def build_w4_report_sections(dashboard):
+    """Canonical W4 report surface. Descriptive evidence only."""
+    s = dict(dashboard.get("summary") or {})
+    gaps = dict(dashboard.get("sample_gaps") or {})
+    portfolio = dict(dashboard.get("portfolio_cost_capacity") or {})
+    observed = dict(portfolio.get("observed") or {})
+    pipeline = dict(dashboard.get("pipeline_readiness") or {})
+    sample_suff = dict(dashboard.get("sample_sufficiency") or {})
 
+    stage = dashboard.get("stage") or "WAITING_FOR_FUTURE_SAMPLE"
+    drift_status = (
+        "WAITING_FOR_FUTURE_SAMPLE"
+        if stage == "WAITING_FOR_FUTURE_SAMPLE"
+        else "NOT_YET_BREACHED"
+    )
+    return {
+        "Sample Progress": {
+            "status": stage,
+            "samples": s.get("samples", 0),
+            "trading_days": s.get("trading_days", 0),
+            "regime_count": s.get("regime_count", 0),
+        },
+        "Data Completeness": {
+            "pipeline_status": pipeline.get("status", "UNKNOWN"),
+            "outcome_complete_ratio": s.get("outcome_complete_ratio", 0),
+            "sample_gate_sufficient": bool(sample_suff.get("sufficient", False)),
+        },
+        "Strategy Performance": {
+            "expectancy_r": observed.get("expectancy_r"),
+            "profit_factor": observed.get("profit_factor"),
+            "max_drawdown_r": observed.get("max_drawdown_r"),
+            "note": "Counterfactual/Shadow evidence only; not realized trading PnL.",
+        },
+        "Risk": {
+            "portfolio_status": portfolio.get("status", "NOT_EVALUABLE"),
+            "top_symbol_share": s.get("top_symbol_share", 0),
+            "cost_complete_ratio": observed.get("cost_complete_ratio", 0),
+            "production_eligible": False,
+        },
+        "Drift": {
+            "status": drift_status,
+            "note": (
+                "Requires sufficient forward evidence before Backtest vs Shadow/"
+                "Paper/Live deterioration can be interpreted."
+            ),
+        },
+        "Promotion Readiness": {
+            "status": stage,
+            "promotable_to_governance_review": bool(
+                s.get("promotable_to_governance_review", False)
+            ),
+            "production_eligible": False,
+            "blocking_items": list(dashboard.get("blocking_items") or []),
+        },
+        "Outstanding Days / Samples": {
+            "samples_remaining": gaps.get("samples_remaining", 0),
+            "trading_days_remaining": gaps.get("trading_days_remaining", 0),
+            "regimes_remaining": gaps.get("regimes_remaining", 0),
+            "outcome_completeness_gap": gaps.get("outcome_completeness_gap", 0),
+            "symbol_concentration_excess": gaps.get("symbol_concentration_excess", 0),
+        },
+    }
+
+
+def render_markdown(dashboard):
+    report = build_w4_report_sections(dashboard)
+    lines = [
+        "# W4｜Sky Shadow / Paper / Live Evidence",
+        "",
+        f"**Status:** {dashboard.get('stage')}",
+        "",
+    ]
+    for title, values in report.items():
+        lines.append(f"## {title}")
+        for key, value in values.items():
+            lines.append(f"- {key}: {value}")
+        lines.append("")
+    lines.append(
+        "> Shadow/Paper 結果屬 forward/counterfactual evidence，不代表實際成交、"
+        "真實損益、勝率或 Production 授權。"
+    )
+    return "\n".join(lines) + "\n"
 
 def main():
     ap = argparse.ArgumentParser()
@@ -184,6 +212,7 @@ def main():
     }
     dashboard["pipeline_readiness"] = pipeline
     dashboard["portfolio_cost_capacity"] = portfolio
+    dashboard["w4_report"] = build_w4_report_sections(dashboard)
 
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)

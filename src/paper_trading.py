@@ -71,13 +71,47 @@ def build_paper_snapshot(*, run_id: str, observed_at: str, item: dict, gate: Pap
     decision = dict(item.get("decision") or {})
     plan = dict(item.get("strategy_plan") or {})
 
+    trigger = plan.get("trigger")
+    stop = plan.get("stop")
+    risk_per_share = None
+    try:
+        if trigger is not None and stop is not None:
+            risk_per_share = abs(float(trigger) - float(stop))
+    except (TypeError, ValueError):
+        risk_per_share = None
+
     return {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "run_id": str(run_id),
         "observed_at": str(observed_at),
+        "observation_timestamp": str(observed_at),
+        "strategy_id": item.get("strategy_id"),
+        "strategy_version": item.get("strategy_version"),
         "symbol": str(item.get("symbol") or ""),
         "name": str(item.get("name") or ""),
         "exchange": item.get("exchange"),
+        "market_regime": (
+            ((item.get("ml") or {}).get("regime") or {}).get("label")
+            if isinstance((item.get("ml") or {}).get("regime"), dict)
+            else (item.get("ml") or {}).get("regime")
+        ),
+        "sector": item.get("sector"),
+        "ranking_position": item.get("ranking_position"),
+        "rank_score": item.get("rank_score"),
+        "phase": plan.get("phase") or item.get("phase"),
+        "setup": plan.get("setup"),
+        "trigger": plan.get("trigger"),
+        "trigger_price": plan.get("trigger"),
+        "assumed_entry": plan.get("entry") or plan.get("trigger"),
+        "max_acceptable_price": plan.get("max_entry"),
+        "stop": plan.get("stop"),
+        "target_1": plan.get("target"),
+        "target_2": plan.get("target_2"),
+        "p0_r_decision": risk.get("status"),
+        "risk_per_share": risk_per_share,
+        "data_quality": dict(item.get("data_quality") or {}),
+        "missing_data": list(item.get("missing_data") or []),
+        "outcome_completeness": item.get("outcome_completeness"),
         "market": {
             "last": item.get("last"),
             "change_pct": item.get("change_pct"),
@@ -97,6 +131,7 @@ def build_paper_snapshot(*, run_id: str, observed_at: str, item: dict, gate: Pap
             "max_entry": plan.get("max_entry"),
             "stop": plan.get("stop"),
             "target": plan.get("target"),
+            "target_2": plan.get("target_2"),
             "rr": plan.get("rr"),
             "production_eligible": bool(plan.get("production_eligible", False)),
         },
@@ -130,7 +165,7 @@ def write_paper_run_file(path, snapshots):
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
     payload = {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "records": list(snapshots or []),
     }
     p.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
