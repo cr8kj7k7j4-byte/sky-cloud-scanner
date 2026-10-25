@@ -138,7 +138,7 @@ def inspect(root: str=".") -> dict:
     if whole_status!="PASS":
         blockers.append(
             "PENDING_OR_BLOCKED:SYNCHRONIZED_WHOLE_UNIVERSE_INTRADAY_HISTORY"
-            if whole_status in {"IN_PROGRESS","UNKNOWN"}
+            if whole_status in {"IN_PROGRESS","UNKNOWN","RERUN_REQUIRED_CORRECTED_PIT","PENDING","DATA_BLOCKED"}
             else "EXTERNAL_DATA_REQUIRED:SYNCHRONIZED_WHOLE_UNIVERSE_INTRADAY_HISTORY"
         )
 
