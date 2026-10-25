@@ -15,7 +15,7 @@ TPEX_BASIC_URL = "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap03_O"
 TWSE_NEW_URL = "https://www.twse.com.tw/zh/listed/listed/new-listing.html"
 TWSE_DELIST_URL = "https://www.twse.com.tw/company/suspendListingCsvAndHtml?lang=zh&type=html"
 TPEX_NEW_URL = "https://www.tpex.org.tw/zh-tw/mainboard/applying/status/new-listed.html"
-TPEX_DELIST_URL = "https://www.tpex.org.tw/zh-tw/mainboard/listed/delisted.html"
+TPEX_DELIST_URL = "https://www.tpex.org.tw/www/zh-tw/company/deListed"
 
 ROC_DATE_RE = re.compile(r"^\s*(\d{2,3})[./-](\d{1,2})[./-](\d{1,2})\s*$")
 ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -166,6 +166,76 @@ def parse_delisting_html(html: str, exchange: str, source_url: str, source_as_of
         ))
     return out
 
+def parse_tpex_delisting_payload(payload: Dict[str, Any], source_url: str, source_as_of: str) -> List[UniverseEvent]:
+    if not isinstance(payload, dict) or payload.get("stat") != "ok":
+        return []
+    out=[]
+    for table in payload.get("tables") or []:
+        fields=list(table.get("fields") or [])
+        data=list(table.get("data") or [])
+        if not fields or not data:
+            continue
+        for row in data:
+            if not isinstance(row, list) or len(row) != len(fields):
+                continue
+            item=dict(zip(fields,row))
+            symbol=str(item.get("股票代號") or "").strip()
+            if not (len(symbol)==4 and symbol.isdigit()):
+                continue
+            d=normalize_roc_date(item.get("終止上櫃日期"))
+            if not d:
+                continue
+            out.append(UniverseEvent(
+                symbol=symbol,
+                exchange="TPEx",
+                name=str(item.get("公司名稱") or "").strip(),
+                event_type="DELIST",
+                event_date=d,
+                source="official_delisting_api",
+                source_url=source_url,
+                source_as_of=source_as_of,
+                notes=str(item.get("終止上櫃原因") or "").strip(),
+            ))
+    return out
+
+
+def fetch_tpex_delisting_events(
+    *,
+    start_year: int = 2021,
+    end_year: Optional[int] = None,
+    timeout: int = 30,
+    source_as_of: Optional[str] = None,
+) -> List[UniverseEvent]:
+    end_year=end_year or datetime.now().year
+    source_as_of=source_as_of or datetime.now().astimezone().isoformat()
+    events=[]
+    for year in range(int(start_year), int(end_year)+1):
+        payload={
+            "code":"",
+            "date":str(year),
+            "reason":"-1",
+            "response":"json",
+            "paging-offset":"0",
+            "paging-size":"1000",
+        }
+        r=requests.post(
+            TPEX_DELIST_URL,
+            data=payload,
+            timeout=timeout,
+            headers={
+                "User-Agent":"sky-cloud-scanner/1.0",
+                "Referer":"https://www.tpex.org.tw/zh-tw/mainboard/listed/delisted.html",
+                "Accept":"application/json,text/javascript,*/*;q=0.01",
+                "X-Requested-With":"XMLHttpRequest",
+            },
+        )
+        r.raise_for_status()
+        events.extend(
+            parse_tpex_delisting_payload(r.json(),TPEX_DELIST_URL,source_as_of)
+        )
+    return dedupe_events(events)
+
+
 def fetch_json(url: str, timeout=30) -> Any:
     r=requests.get(url,timeout=timeout,headers={"User-Agent":"sky-cloud-scanner/1.0"})
     r.raise_for_status()
@@ -221,13 +291,19 @@ def collect_official_events() -> Dict[str, Any]:
         ("TWSE_NEW",TWSE_NEW_URL,"html","TWSE","list"),
         ("TWSE_DELIST",TWSE_DELIST_URL,"html","TWSE","delist"),
         ("TPEX_NEW",TPEX_NEW_URL,"html","TPEx","list"),
-        ("TPEX_DELIST",TPEX_DELIST_URL,"html","TPEx","delist"),
+        ("TPEX_DELIST",TPEX_DELIST_URL,"custom","TPEx","delist"),
     ]
     for name,url,kind,exchange,parser in sources:
         try:
             if kind=="json":
                 payload=fetch_json(url)
                 parsed=parse_basic_records(payload if isinstance(payload,list) else [],exchange,url,as_of)
+            elif kind=="custom" and name=="TPEX_DELIST":
+                parsed=fetch_tpex_delisting_events(
+                    start_year=2021,
+                    end_year=datetime.now().year,
+                    source_as_of=as_of,
+                )
             else:
                 html=fetch_text(url)
                 parsed=parse_listing_html(html,exchange,url,as_of) if parser=="list" else parse_delisting_html(html,exchange,url,as_of)
