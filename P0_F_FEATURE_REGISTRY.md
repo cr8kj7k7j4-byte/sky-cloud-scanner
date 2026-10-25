@@ -18,6 +18,11 @@ missing-value policy, or leakage characteristics.
 - timestamp semantics
 - missing policy
 - leakage risk
+- online / offline parity contract
+- freshness SLA
+- data quality rule
+- lineage
+- deprecation status
 - production status
 
 ## Version rule
@@ -45,3 +50,20 @@ and timestamp-misaligned market/stock inputs must never enter production feature
 - Store validation: src/feature_store.py
 - Tests: tests/test_feature_registry.py
 - CI: .github/workflows/test-feature-registry.yml
+
+
+## Snapshot / envelope metadata
+Each materialized feature snapshot must retain:
+- symbol
+- as_of decision boundary
+- calculation timestamp
+- available-at timestamp
+- ingestion timestamp
+- source
+- feature schema version
+- feature registry version
+- per-feature version
+- per-feature lineage
+- timestamp causality validation result
+
+`available_at` must never be later than the decision `as_of` boundary. A causality violation invalidates the feature payload for governed use.
