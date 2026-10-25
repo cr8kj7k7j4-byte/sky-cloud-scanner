@@ -47,6 +47,22 @@ Research namespaces:
 | Transparent intraday ML feature ensemble | REJECTED | Negative post-cost Train/Valid/Test performance. |
 | Low-vol market-residual long-only | REJECTED_AS_STRATEGY | Stable IC did not convert into robust tradable long-only edge. |
 
+## Historical Universe / Survivorship audit
+
+- Live audit run: GitHub Actions #40176306214 (2026-10-25)
+- Governed research window: 2023-01-01 onward
+- Official sources healthy: TWSE_BASIC / TPEX_BASIC / TWSE_NEW / TPEX_NEW / TWSE_DELIST / TPEX_DELIST
+- Official events: 2,499
+- Windowed intervals: 2,116
+- Window unresolved events: 0
+- Interval validation: PASS
+- Historical source coverage: PASS
+- Current interval coverage: TPEx 100.0000%; TWSE 99.9081%
+- PIT membership: 2023-12-31 = 1,904; 2024-12-31 = 1,960; 2025-12-31 = 2,028; 2026-09-30 = 2,069
+- Historical Universe Gate: **PASS for the governed 2023+ research window**
+- Survivorship bias is materially present when today's listing universe is used backward; historical studies in the 2023+ window must use the PIT universe.
+- Full-history strict ledger still contains 163 pre-window unresolved events. This does not invalidate the 2023+ window gate and must not be described as complete all-history coverage.
+
 ## Historical Revenue PIT coverage audit
 
 - Audit run: GitHub Actions #40168078271 (2026-10-25)
