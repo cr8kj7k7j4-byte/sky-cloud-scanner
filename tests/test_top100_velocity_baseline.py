@@ -1,91 +1,61 @@
-import csv
-import json
+from datetime import datetime, timedelta, timezone
 
-from research.top100_velocity_baseline import (
-    aggregate_and_select,
-    build_shard_rows,
+from research.backtest_top100_velocity_baseline import (
+    extract_symbol_snapshots,
+    metrics,
+    adjudicate,
 )
 
+TZ = timezone(timedelta(hours=8))
 
-def test_build_and_aggregate_top100_velocity(tmp_path):
-    root = tmp_path / "hist" / "TWSE" / "0001"
-    root.mkdir(parents=True)
 
-    bars = []
+def _bar(ts, o, h, l, c, v):
+    return {
+        "date": ts.isoformat(),
+        "open": o,
+        "high": h,
+        "low": l,
+        "close": c,
+        "volume": v,
+        "average": c,
+    }
 
-    def add(ts, o, c, v):
-        bars.append({
-            "date": ts,
-            "open": o,
-            "high": max(o, c),
-            "low": min(o, c),
-            "close": c,
-            "volume": v,
-        })
 
-    add("2026-01-02T13:25:00+08:00", 10, 10, 100)
+def test_extract_uses_only_completed_feature_bar_and_next_bar_entry():
+    rows = []
+    day1 = datetime(2026, 1, 5, 9, 0, tzinfo=TZ)
+    for i in range(54):
+        ts = day1 + timedelta(minutes=5*i)
+        px = 50 + 0.01*i
+        rows.append(_bar(ts, px, px+0.1, px-0.1, px+0.02, 10+i))
+    day2 = datetime(2026, 1, 6, 9, 0, tzinfo=TZ)
+    for i in range(54):
+        ts = day2 + timedelta(minutes=5*i)
+        px = 51 + 0.02*i
+        rows.append(_bar(ts, px, px+0.1, px-0.1, px+0.03, 20+i))
 
-    h, m = 9, 0
-    for i in range(16):
-        total = h * 60 + m + i * 5
-        hh = total // 60
-        mm = total % 60
-        ts = f"2026-01-05T{hh:02d}:{mm:02d}:00+08:00"
-        o = 10 + 0.01 * i
-        c = o + 0.01
-        v = 100 + i * 10
-        add(ts, o, c, v)
+    payload = {"symbol":"1111","exchange":"TWSE","data":rows}
+    snaps = extract_symbol_snapshots(payload)
+    s915 = [x for x in snaps if x[2]=="2026-01-06" and x[3]=="09:15"][0]
 
-    (root / "x_5m.json").write_text(
-        json.dumps({
-            "symbol": "0001",
-            "exchange": "TWSE",
-            "data": bars,
-        }),
-        encoding="utf-8",
-    )
+    # tuple: symbol,exchange,day,obs,price,...,entry,exit,mfe,mae,...
+    feature_price = s915[4]
+    entry = s915[7]
+    assert round(feature_price, 6) == round(51 + 0.02*2 + 0.03, 6)  # 09:10 close
+    assert round(entry, 6) == round(51 + 0.02*3, 6)  # 09:15 open
 
-    out = tmp_path / "s.csv"
-    assert build_shard_rows(str(tmp_path / "hist"), str(out)) >= 1
 
-    rows = list(csv.DictReader(out.open(encoding="utf-8")))
-    base = rows[0]
-    shard = tmp_path / "agg.csv"
-    fields = list(base.keys())
+def test_metrics_and_adjudication_reject_negative_after_cost():
+    trades = [
+        {"session_date":"2026-01-01","obs":"09:15","net_return_045":-0.01,"mfe":0.01,"mae":-0.01},
+        {"session_date":"2026-01-01","obs":"09:30","net_return_045":0.002,"mfe":0.01,"mae":-0.01},
+    ]
+    m = metrics(trades, "net_return_045")
+    assert m["expectancy"] < 0
+    assert adjudicate(m, {}, {}) == "HOLD_INSUFFICIENT_SAMPLE"
 
-    with shard.open("w", encoding="utf-8", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=fields)
-        w.writeheader()
 
-        for i in range(120):
-            r = dict(base)
-            r["symbol"] = f"{i:04d}"
-
-            if i == 0:
-                r["current_return"] = "0.08"
-                r["prior_return"] = "0.01"
-                r["price_velocity"] = "0.03"
-                r["volume_accel"] = "2.0"
-            else:
-                r["current_return"] = str(0.079 - i * 0.0005)
-                r["prior_return"] = str(0.079 - i * 0.0001)
-                r["price_velocity"] = "0.001"
-                r["volume_accel"] = "0.1"
-
-            r["current_price"] = "50"
-            r["gross_return_60m"] = "0.02"
-            w.writerow(r)
-
-    trades = tmp_path / "trades.csv"
-    report = tmp_path / "report.json"
-
-    rep = aggregate_and_select(
-        [str(shard)],
-        str(trades),
-        str(report),
-    )
-
-    assert rep["trade_count"] >= 1
-    assert rep["frozen_spec"]["top_pool"] == 100
-    assert rep["frozen_spec"]["primary_round_trip_cost"] == 0.0045
-    assert rep["frozen_spec"]["exit"] == "close after 60 minutes (12 x 5m bars)"
+if __name__ == "__main__":
+    test_extract_uses_only_completed_feature_bar_and_next_bar_entry()
+    test_metrics_and_adjudication_reject_negative_after_cost()
+    print("ok")
