@@ -119,3 +119,20 @@ def test_repository_readiness_fails_closed_without_inputs(tmp_path):
     assert report["w2_readiness_gate"]=="DATA_BLOCKED"
     assert "EXTERNAL_DATA_REQUIRED:EFFECTIVE_DATED_HISTORICAL_SECTOR_MEMBERSHIP" in report["blockers"]
     assert report["audits"]["coverage_audit"]["status"]=="NOT_EVALUABLE"
+
+
+def test_expired_sector_mapping_blocks():
+    df=make_complete_frame()
+    df["sector_effective_to"]="2025-12-31"
+    report,_=audit_frame(df)
+    assert report["gate"]=="DATA_BLOCKED"
+    assert "EXPIRED_SECTOR_MAPPING" in report["leakage_audit"]["reasons"]
+
+
+def test_candidate_pool_must_preserve_every_ranked_candidate():
+    df=make_complete_frame()
+    df.loc[0,"candidate_pool_size"]=999
+    report,_=audit_frame(df)
+    assert report["gate"]=="DATA_BLOCKED"
+    assert report["candidate_pool_audit"]["status"]=="FAIL"
+    assert "CANDIDATE_POOL_INTEGRITY_FAIL" in report["blockers"]
