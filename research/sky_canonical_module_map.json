@@ -43,7 +43,7 @@
     ],
     "P0-C": [
       "decision_engine.py (canonical)",
-      "sky_rules.py (decompose legacy mixed helpers)"
+      "sky_rules.py (compatibility adapter only)"
     ],
     "P0-O": [
       "ranking_engine.py (canonical runtime + research ranking contracts)",
@@ -92,11 +92,11 @@
     ]
   },
   "immediate_priorities": [
-    "PR 23-28 research extraction and closure",
-    "decompose remaining sky_rules enrich/first_gate responsibilities",
-    "update readiness checks for canonical P0-K/P0-C/P0-O/PMS",
-    "fold PR28 rule registry ideas into existing P0-G",
-    "accumulate real Shadow evidence for Ranking/ML promotion"
+    "accumulate real Shadow evidence for Ranking/ML promotion",
+    "evaluate Shadow Sample Sufficiency Gate",
+    "run OOS/Walk-forward/cost/leakage/survivorship/regime validation for surviving candidates",
+    "populate Ranking/Model Promotion Scorecards",
+    "complete PIT historical backfill/coverage audit and strict TPEx intraday source"
   ],
   "paused": [
     "new phases beyond consolidation",
@@ -112,6 +112,9 @@
     "P0-K canonical evidence merged via PR43",
     "P0-C canonical decision contract merged via PR44",
     "PMS canonical position manager merged via PR45",
-    "P0-O single runtime ranking entry merged via PR47"
+    "P0-O single runtime ranking entry merged via PR47",
+    "P0-D/P0-G validation and rule-governance consolidation merged via PR50",
+    "sky_rules decomposition merged via PR51",
+    "Evidence Promotion Gate and Shadow Sample Sufficiency merged via PR53"
   ]
 }
