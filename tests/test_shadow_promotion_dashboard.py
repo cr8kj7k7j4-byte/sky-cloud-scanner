@@ -86,12 +86,19 @@ def test_runner_loads_multiple_paper_files():
         p2=root/"run2"/"output"/"paper"
         p1.mkdir(parents=True)
         p2.mkdir(parents=True)
+        rows1 = _records(n=2, days=2, symbols=2)
+        rows2 = _records(n=3, days=3, symbols=3)
+        for row in rows1:
+            row["run_id"] = "run1"
+        for row in rows2:
+            row["run_id"] = "run2"
+
         (p1/"a.json").write_text(
-            json.dumps({"records": _records(n=2, days=2, symbols=2)}),
+            json.dumps({"records": rows1}),
             encoding="utf-8",
         )
         (p2/"b.json").write_text(
-            json.dumps({"records": _records(n=3, days=3, symbols=3)}),
+            json.dumps({"records": rows2}),
             encoding="utf-8",
         )
         (root/"unrelated.json").write_text(
