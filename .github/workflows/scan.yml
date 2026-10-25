@@ -28,12 +28,29 @@ jobs:
           python-version: "3.12"
       - name: Install dependencies
         run: pip install -r requirements.txt
+      - name: Check TWSE trading calendar
+        id: calendar
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m src.trading_calendar --out output/trading_calendar_status.json
+          SHOULD_SCAN="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path("output/trading_calendar_status.json").read_text(encoding="utf-8"))
+          print("true" if x.get("should_scan") else "false")
+          PY
+          )"
+          echo "should_scan=$SHOULD_SCAN" >> "$GITHUB_OUTPUT"
+
       - name: Diagnose data sources
+        if: steps.calendar.outputs.should_scan == 'true'
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
         run: python -m src.diagnose_sources | tee source-diagnostics.json
         continue-on-error: true
       - name: Run scanner
+        if: steps.calendar.outputs.should_scan == 'true'
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -75,5 +92,6 @@ jobs:
           path: |
             output/
             source-diagnostics.json
+            output/trading_calendar_status.json
           if-no-files-found: warn
           retention-days: 90
