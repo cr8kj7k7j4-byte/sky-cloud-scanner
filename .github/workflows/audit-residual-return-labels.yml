@@ -27,6 +27,16 @@ jobs:
           search_artifacts: true
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Prepare history dataset
+        id: data
+        run: |
+          mkdir -p _hist_unpacked
+          HIST_TAR=$(find _hist -name 'sky-history-5m-*.tar.gz' | head -1)
+          test -n "$HIST_TAR"
+          tar -xzf "$HIST_TAR" -C _hist_unpacked
+          HIST_DIR=$(find _hist_unpacked -type d -path '*/research_data/history' | head -1)
+          test -n "$HIST_DIR"
+          echo "history_dir=$HIST_DIR" >> "$GITHUB_OUTPUT"
 
       - name: Run residual return label audit
         run: |
@@ -45,7 +55,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sky-residual-label-${{ github.run_id }}
+          name: sky-vnext-residual-label-${{ github.run_id }}
           path: research_output_residual_label
           if-no-files-found: warn
           retention-days: 14
