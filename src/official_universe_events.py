@@ -298,25 +298,68 @@ def build_intervals(events: Iterable[UniverseEvent]) -> Dict[str, Any]:
         grouped.setdefault((e.symbol,e.exchange),[]).append(e)
     intervals=[]
     unresolved=[]
+    continuity_notes=[]
     for (symbol,exchange), arr in grouped.items():
-        lists=sorted([e for e in arr if e.event_type=="LIST"],key=lambda e:e.event_date)
-        dels=sorted([e for e in arr if e.event_type=="DELIST"],key=lambda e:e.event_date)
-        if not lists:
-            for d in dels:
-                unresolved.append({"symbol":symbol,"exchange":exchange,"reason":"DELIST_WITHOUT_CONFIRMED_LIST_DATE","event":d.to_dict()})
-            continue
-        for i,lst in enumerate(lists):
-            next_list=lists[i+1].event_date if i+1<len(lists) else None
-            eligible_dels=[d for d in dels if d.event_date>=lst.event_date and (next_list is None or d.event_date<next_list)]
-            end=eligible_dels[0].event_date if eligible_dels else None
+        arr=sorted(arr,key=lambda e:(e.event_date, 0 if e.event_type=="LIST" else 1))
+        active=None
+        duplicate_lists=[]
+        for e in arr:
+            if e.event_type=="LIST":
+                if active is None:
+                    active=e
+                    duplicate_lists=[]
+                else:
+                    # Same-exchange LIST without an intervening DELIST is a
+                    # continuous membership/status transition, not a new interval.
+                    duplicate_lists.append(e)
+            elif e.event_type=="DELIST":
+                if active is None:
+                    unresolved.append({
+                        "symbol":symbol,"exchange":exchange,
+                        "reason":"DELIST_WITHOUT_CONFIRMED_LIST_DATE",
+                        "event":e.to_dict()
+                    })
+                else:
+                    intervals.append({
+                        "symbol":symbol,"exchange":exchange,"name":active.name,
+                        "listed_from":active.event_date,"listed_to":e.event_date,
+                        "source":"official_event_ledger",
+                        "source_as_of":max(x.source_as_of for x in arr if x.source_as_of),
+                        "notes":(
+                            f"continuous_list_events_ignored={len(duplicate_lists)}"
+                            if duplicate_lists else ""
+                        )
+                    })
+                    if duplicate_lists:
+                        continuity_notes.append({
+                            "symbol":symbol,"exchange":exchange,
+                            "kept_list_date":active.event_date,
+                            "ignored_list_dates":[x.event_date for x in duplicate_lists],
+                        })
+                    active=None
+                    duplicate_lists=[]
+        if active is not None:
             intervals.append({
-                "symbol":symbol,"exchange":exchange,"name":lst.name,
-                "listed_from":lst.event_date,"listed_to":end,
+                "symbol":symbol,"exchange":exchange,"name":active.name,
+                "listed_from":active.event_date,"listed_to":None,
                 "source":"official_event_ledger",
-                "source_as_of":max(e.source_as_of for e in arr if e.source_as_of),
-                "notes":""
+                "source_as_of":max(x.source_as_of for x in arr if x.source_as_of),
+                "notes":(
+                    f"continuous_list_events_ignored={len(duplicate_lists)}"
+                    if duplicate_lists else ""
+                )
             })
-    return {"intervals":intervals,"unresolved":unresolved}
+            if duplicate_lists:
+                continuity_notes.append({
+                    "symbol":symbol,"exchange":exchange,
+                    "kept_list_date":active.event_date,
+                    "ignored_list_dates":[x.event_date for x in duplicate_lists],
+                })
+    return {
+        "intervals":intervals,
+        "unresolved":unresolved,
+        "continuity_notes":continuity_notes,
+    }
 
 def assess_source_health(name: str, parsed_events: int, *, transport_ok: bool, error: str | None = None) -> dict:
     expectation = SOURCE_EXPECTATIONS.get(name, {"min_events": 1, "role": "UNKNOWN"})
