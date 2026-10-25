@@ -74,3 +74,52 @@ def build_features(candidate, candles=None, market_return_pct=None):
         volatility_5=volatility_5,
         relative_strength=relative_strength,
     )
+
+
+
+def enrich_candidate_context(row, ticker, quote, candles):
+    """Canonical P0-F/Data enrichment for deep-dive candidate context."""
+    o = dict(row or {})
+    ticker = ticker or {}
+    quote = quote or {}
+    candles = candles or {}
+
+    o["can_day_trade"] = bool(ticker.get("canDayTrade"))
+    o["can_buy_day_trade"] = bool(ticker.get("canBuyDayTrade"))
+    o["limit_up"] = ticker.get("limitUpPrice")
+    o["industry"] = ticker.get("industry")
+    o["avg_price"] = quote.get("avgPrice")
+    o["fugle_close"] = quote.get("closePrice")
+    o["fugle_high"] = quote.get("highPrice")
+    o["fugle_low"] = quote.get("lowPrice")
+    total = quote.get("total")
+    o["fugle_volume"] = total.get("tradeVolume") if isinstance(total, dict) else None
+    o["is_limit_up"] = bool(
+        o.get("limit_up") is not None
+        and o.get("fugle_close") is not None
+        and float(o["fugle_close"]) >= float(o["limit_up"])
+    )
+
+    ks = candles.get("data", []) if isinstance(candles, dict) else []
+    o["k_count"] = len(ks)
+    if len(ks) >= 2:
+        o["last_k_close"] = ks[-1].get("close")
+        o["prev_k_close"] = ks[-2].get("close")
+        o["last_k_volume"] = ks[-1].get("volume")
+        o["prev_k_volume"] = ks[-2].get("volume")
+
+    flags = []
+    if o["is_limit_up"]:
+        flags.append("X:漲停")
+    if not o["can_day_trade"]:
+        flags.append("X:不可當沖")
+    if o.get("avg_price") and o.get("fugle_close"):
+        flags.append("站上均價" if o["fugle_close"] >= o["avg_price"] else "低於均價")
+    if (
+        o.get("last_k_volume")
+        and o.get("prev_k_volume")
+        and o["last_k_volume"] > o["prev_k_volume"] * 1.5
+    ):
+        flags.append("5分K量增")
+    o["flags"] = flags
+    return o
