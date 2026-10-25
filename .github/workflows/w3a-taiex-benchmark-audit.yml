@@ -15,7 +15,7 @@ permissions:
 jobs:
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       PYTHONPATH: .
       FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
@@ -26,10 +26,10 @@ jobs:
           python-version: "3.12"
       - name: Install dependencies
         run: pip install requests pandas
-      - name: Download TAIEX IX0001 5m benchmark sample
+      - name: Download full governed TAIEX IX0001 5m benchmark
         run: |
           python research/download_taiex_benchmark.py \
-            --from-date 2026-10-01 \
+            --from-date 2023-05-23 \
             --to-date 2026-10-22 \
             --out-dir research_output/taiex_benchmark
       - name: Publish audit
