@@ -6,6 +6,8 @@ import requests
 from bs4 import BeautifulSoup
 
 URLS={
+ "TWSE_NEW":"https://www.twse.com.tw/company/newlisting?response=html",
+ "TWSE_DELIST":"https://www.twse.com.tw/company/suspendListingCsvAndHtml?response=html",
  "TPEX_NEW":"https://www.tpex.org.tw/zh-tw/mainboard/applying/status/new-listed.html",
  "TPEX_DELIST":"https://www.tpex.org.tw/zh-tw/mainboard/listed/delisted.html",
 }
@@ -46,12 +48,21 @@ def diagnose(name,url,outdir):
                 script_hits[s]=hits[:100]
         except Exception as e:
             script_hits[s]=[f"ERROR:{type(e).__name__}:{e}"]
+    table_samples=[]
+    for ti,table in enumerate(soup.find_all("table")[:5]):
+        trs=table.find_all("tr")
+        sample=[]
+        for tr in trs[:6]:
+            sample.append([x.get_text(" ",strip=True) for x in tr.find_all(["th","td"])])
+        table_samples.append({"table_index":ti,"rows":sample})
     payload={
       "name":name,"url":url,"status":r.status_code,"content_type":r.headers.get("content-type"),
       "html_len":len(html),"tables":len(soup.find_all("table")),
       "scripts":scripts,"candidates":sorted(candidates)[:300],"script_hits":script_hits,
       "contains_6288":"6288" in html,
       "title":soup.title.get_text(" ",strip=True) if soup.title else None,
+      "table_samples":table_samples,
+      "body_prefix":soup.get_text("\n",strip=True)[:5000],
     }
     (outdir/f"{name.lower()}.json").write_text(json.dumps(payload,ensure_ascii=False,indent=2),encoding="utf-8")
     return payload
