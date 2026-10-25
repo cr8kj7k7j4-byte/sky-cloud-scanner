@@ -6,6 +6,8 @@ on:
       - "research/SKY_DAY_V14_FROZEN_RULE_SOURCE_REGISTRY.json"
       - "research/audit_frozen_v14_rule_sources.py"
       - "tests/test_frozen_v14_rule_sources.py"
+      - "research/frozen_v14_evidence_replay_adapter.py"
+      - "tests/test_frozen_v14_evidence_replay_adapter.py"
       - ".github/workflows/w3a-frozen-v14-source-audit.yml"
   workflow_dispatch:
 
@@ -23,7 +25,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install pytest
-      - run: python -m pytest -q tests/test_frozen_v14_rule_sources.py
+      - run: python -m pytest -q tests/test_frozen_v14_rule_sources.py tests/test_frozen_v14_evidence_replay_adapter.py
       - run: |
           python research/audit_frozen_v14_rule_sources.py             --registry research/SKY_DAY_V14_FROZEN_RULE_SOURCE_REGISTRY.json             --out research_output/frozen_v14_rule_source_audit.json
       - if: always()
