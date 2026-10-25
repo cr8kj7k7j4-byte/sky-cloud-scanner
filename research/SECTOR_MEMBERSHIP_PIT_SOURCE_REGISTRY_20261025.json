@@ -1,0 +1,75 @@
+{
+  "schema_version": "1.0.0",
+  "as_of": "2026-10-25",
+  "purpose": "Official-source registry for reconstructing effective-dated TWSE/TPEx sector membership. Missing years fail closed.",
+  "current_snapshots": [
+    {
+      "exchange": "TWSE",
+      "url": "https://openapi.twse.com.tw/v1/opendata/t187ap03_L",
+      "role": "CURRENT_SECTOR_SNAPSHOT",
+      "status": "KNOWN"
+    },
+    {
+      "exchange": "TPEx",
+      "url": "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap03_O",
+      "role": "CURRENT_SECTOR_SNAPSHOT",
+      "status": "KNOWN"
+    }
+  ],
+  "change_event_sources": [
+    {
+      "exchange": "TWSE",
+      "year": 2023,
+      "effective_date": "2023-07-03",
+      "url": "https://www.twse.com.tw/staticFiles/news/news/tsecnews/ff80808187bbc39d018842e461fe0189.pdf",
+      "status": "VERIFIED_OFFICIAL"
+    },
+    {
+      "exchange": "TPEx",
+      "year": 2023,
+      "effective_date": "2023-07-03",
+      "url": "https://www.tpex.org.tw/storage/eb_data/11205/11202011201.html",
+      "status": "VERIFIED_OFFICIAL"
+    },
+    {
+      "exchange": "TPEx",
+      "year": 2024,
+      "effective_date": "2024-06-03",
+      "url": "https://www.tpex.org.tw/storage/eb_data/11305/11302010341.html",
+      "status": "VERIFIED_OFFICIAL"
+    },
+    {
+      "exchange": "TPEx",
+      "year": 2025,
+      "effective_date": "2025-06-02",
+      "url": "https://dsp.tpex.org.tw/web/announcement/announcement_detail.php?content_file=MTE0MDIwMTA1NDEuaHRtbA%3D%3D&content_number=MTE0MDIwMTA1NDE%3D",
+      "status": "VERIFIED_OFFICIAL"
+    },
+    {
+      "exchange": "TPEx",
+      "year": 2026,
+      "effective_date": "2026-06-01",
+      "url": "https://www.tpex.org.tw/storage/eb_data/11505/11502011171.html",
+      "status": "VERIFIED_OFFICIAL"
+    }
+  ],
+  "required_but_unverified": [
+    {
+      "exchange": "TWSE",
+      "year": 2024,
+      "role": "ANNUAL_SECTOR_ADJUSTMENT_OR_EXPLICIT_NO_CHANGE_EVIDENCE"
+    },
+    {
+      "exchange": "TWSE",
+      "year": 2025,
+      "role": "ANNUAL_SECTOR_ADJUSTMENT_OR_EXPLICIT_NO_CHANGE_EVIDENCE"
+    },
+    {
+      "exchange": "TWSE",
+      "year": 2026,
+      "role": "ANNUAL_SECTOR_ADJUSTMENT_OR_EXPLICIT_NO_CHANGE_EVIDENCE"
+    }
+  ],
+  "gate": "DATA_BLOCKED",
+  "reason": "Event-sourced reconstruction is technically viable, but annual TWSE change-event coverage for 2024-2026 is not yet verified. Current-only sector snapshots must not be backfilled into history."
+}
