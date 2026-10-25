@@ -17,8 +17,16 @@ def _contains(interval: dict, day: str) -> bool:
 
 
 def load_price_ranges(history_dir: str) -> dict[str, dict]:
+    """Load canonical daily or legacy 5-minute per-symbol JSON files.
+
+    Canonical W3 handoff should prefer *_D.json. Legacy *_5.json remains
+    supported only so the readiness report can quantify the pre-handoff gap.
+    If both exist for a symbol, daily data takes precedence.
+    """
     out = {}
-    paths = list(Path(history_dir).glob("*_D.json")) or list(Path(history_dir).glob("*_5.json"))\n    for p in sorted(paths):
+    paths = list(Path(history_dir).glob("*_5.json")) + list(Path(history_dir).glob("*_D.json"))
+    paths = sorted(paths, key=lambda p: (p.name.endswith("_D.json"), p.name))
+    for p in paths:
         try:
             obj = json.loads(p.read_text(encoding="utf-8"))
             sym = str(obj.get("symbol") or p.name.split("_", 1)[0])
@@ -87,7 +95,7 @@ def main():
 
     status = "READY_FOR_CANONICAL_SWING_REPLAY" if all_pass else "BLOCKED_PRICE_HISTORY_COVERAGE"
     report = {
-        "schema_version": "1.1",
+        "schema_version": "1.0",
         "status": status,
         "historical_universe_gate_pass": pit_gate,
         "interval_validation_pass": interval_valid,
@@ -96,7 +104,7 @@ def main():
         "minimum_required_coverage_pct": MIN_PIT_PRICE_COVERAGE_PCT,
         "audit_dates": rows,
         "governance": {
-            "rule": "Do not run promotion-grade Swing replay on a current-universe subset. Canonical daily *_D.json is preferred; legacy *_5.json remains read-compatible only.",
+            "rule": "Do not run promotion-grade Swing replay on a current-universe subset.",
             "blocked_means": "Acquire historical OHLC for the canonical PIT membership before proceeding.",
         },
     }
