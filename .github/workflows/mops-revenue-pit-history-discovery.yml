@@ -1,0 +1,31 @@
+name: MOPS Revenue PIT Historical Discovery
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'research/mops-revenue-pit-backfill'
+    paths:
+      - 'research/discover_mops_revenue_history.py'
+      - '.github/workflows/mops-revenue-pit-history-discovery.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Discover MOPS history endpoints
+        run: python research/discover_mops_revenue_history.py
+      - name: Upload discovery artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mops-revenue-pit-history-discovery-${{ github.run_id }}
+          path: output/mops_backfill_discovery/
+          retention-days: 30
