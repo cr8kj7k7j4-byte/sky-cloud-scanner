@@ -90,8 +90,7 @@
 ## 三、目前真正缺的 Production 能力
 
 1. **Production Ranking Champion**
-   - P0-O 仍存在 runtime 舊排序入口與 ranking_engine research baseline 並行。
-   - 需要先收斂成單一 Ranking Entry，再完成 OOS / Walk-forward / costs / Shadow 驗證。
+   - PR #47 已完成 P0-O 單一 runtime Ranking Entry；目前缺的是 OOS / Walk-forward / costs / Shadow 驗證後的正式 Champion，而不是架構入口。
 
 2. **Production ML Champion**
    - RF / XGBoost / LightGBM 訓練能力已存在，但沒有任何模型完成正式 Promotion Gate。
@@ -111,6 +110,7 @@
 - **P0-K Canonical Evidence**：PR #43 已合併；knowledge_engine.py 為唯一證據核心，evidence_ledger/news_evidence 為相容 adapter。
 - **P0-C Canonical Decision Contract**：PR #44 已合併；Decision 不再由 Risk/Monitor/Agent 各自代表，且 TRIGGERED 仍不是自動買進。
 - **PMS Canonical Position Manager**：PR #45 已合併；P0-A 的持倉分支已委派 PMS，禁止向下攤平與停損放寬。
+- **P0-O Single Runtime Ranking Entry**：PR #47 已合併；盤中廣域排序改由 ranking_engine.py 統一負責，sky_rules 僅保留相容 alias；Ranking 分數不是機率。
 
 ## 四、PR #23～#33 收斂決策
 
@@ -131,11 +131,11 @@
 ## 五、立即執行優先級
 
 ### P0 — 現在就做
-1. 關閉已被 PR #38 取代的 PR #29
-2. 盤 PR #23～#28，逐一抽取必要內容後關閉重複 Production 路線
-3. 收斂 P0-O：Production Ranking 只保留一套入口
-4. 分拆 sky_rules.py 的混合責任：ranking → P0-O；enrich → DATA/F；Gate → canonical owner
-5. 更新 Readiness Gate，將 P0-K / P0-C / PMS canonical checks 納入
+1. 盤 PR #23～#28，逐一抽取必要研究內容後關閉重複 Production 路線
+2. 分拆 sky_rules.py 剩餘混合責任：enrich → DATA/F；first_gate → canonical owner；ranking 已由 PR #47 移至 P0-O
+3. 更新 Readiness Gate，將 P0-K / P0-C / P0-O / PMS canonical checks 納入
+4. 將 PR #28 的 Rule Registry 有價值部分折入既有 P0-G，不建立第二套 registry
+5. 開始累積可用於 Ranking / ML Promotion 的真實 Shadow 樣本
 
 ### P1 — 接著做
 1. 以已 merge 的 P0-S 5 分 K Setup 完成正式 OOS / costs / MFE / MAE / PF / Expectancy promotion evidence
