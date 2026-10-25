@@ -1,0 +1,28 @@
+{
+  "schema_version": "MARKET_BENCHMARK_SOURCE_AUDIT_V1_0",
+  "audit_date": "2026-10-25",
+  "benchmark": {
+    "symbol": "IX0001",
+    "name": "TAIEX / 發行量加權股價指數",
+    "source": "FUGLE_HISTORICAL_CANDLES",
+    "timeframe_minutes": 5,
+    "requested_from": "2023-05-23",
+    "requested_to": "2026-10-24",
+    "observed_first_bar": "2023-05-23T09:00:00.000+08:00",
+    "observed_last_bar": "2026-10-22T13:30:00.000+08:00",
+    "bar_count": 45760,
+    "workflow_run_id": 40199785690,
+    "artifact_id": 12600986725,
+    "artifact_name": "w3a-taiex-ix0001-5m",
+    "artifact_digest": "sha256:123b3eba8d0454ee63308a48cdeb6215ec299ad646329c66f295e71f2707f8ec",
+    "artifact_size_bytes": 1178025,
+    "status": "PASS"
+  },
+  "governance": {
+    "explicit_benchmark_available": true,
+    "equal_weight_proxy_required": false,
+    "market_regime_provided_by_w3a": false,
+    "market_regime_status": "FROZEN_PROVIDER_REQUIRED",
+    "production_change": false
+  }
+}
