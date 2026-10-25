@@ -77,19 +77,35 @@ Research namespaces:
 
 ## Promotion gate
 
-A Research Candidate may become Production only after ALL of the following:
-1. Point-in-time data alignment verified.
-2. Leakage and survivorship checks pass.
-3. Fixed, pre-registered rules.
-4. Walk-forward validation passes.
-5. OOS validation passes.
-6. 0.45% primary and 0.65% stress-cost tests pass.
-7. Portfolio-level PF / Expectancy / Max Drawdown are acceptable.
-8. No catastrophic single-year or market-regime failure.
-9. No single-stock or single-industry dependency.
-10. Paper / shadow trading sample passes.
-11. P0-R risk controls pass.
-12. P0-G records Champion / Challenger promotion decision.
+A Research Candidate may become Production only after ALL of the following 18 gates pass:
+1. Point-in-Time Data Alignment.
+2. Leakage Check.
+3. Survivorship Bias Check.
+4. Pre-registration.
+5. Train / Validation Separation.
+6. OOS.
+7. Walk-forward.
+8. Market Regime Stability.
+9. 0.45% primary round-trip cost test.
+10. 0.65% stress round-trip cost test.
+11. Portfolio Validation.
+12. Concentration Validation.
+13. Correlation Validation.
+14. Capacity / Liquidity Validation.
+15. Max Drawdown.
+16. Shadow / Paper Trading.
+17. P0-R Risk Gate.
+18. P0-G Promotion Review.
+
+Any material gate failure blocks Promotion. No chat window, notebook, branch, or researcher may override this by subjective confidence or local retuning.
+
+## W0 governance authority
+
+- W0｜Sky 總控與版本治理 is the only control workstream authorized to consolidate W1–W5 outcomes into formal Strategy Registry / Research Freeze / Champion-Challenger decisions.
+- GitHub remains the Single Source of Truth; a chat-only conclusion is not a formal version change.
+- W1/W2 may validate and report candidates but may not self-promote Production.
+- Major governance changes must be written back to GitHub.
+- W0 does not absorb bulk repetitive backtesting; that remains delegated to W1 / W2.
 
 ## Hard governance rules
 - Research cannot bypass P0-C or P0-R.
