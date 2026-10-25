@@ -1,0 +1,109 @@
+{
+  "schema_version": "SKY_SCHEDULED_SCANNER_SNAPSHOT_AUDIT_V1_0",
+  "audited_at": "2026-10-25",
+  "purpose": "Assess whether retained scheduled scanner artifacts qualify as frozen Sky Day Trading v1.4 historical replay snapshots.",
+  "inspected_runs": [
+    {
+      "run_id": 39905113103,
+      "artifact_id": 12479659396,
+      "created_at": "2026-10-23T05:20:58Z",
+      "artifact_digest": "sha256:33490d93032f39dac2ef9dda7ac1a21a4695dbcd533507eecf72403b48e39abd"
+    },
+    {
+      "run_id": 39901149727,
+      "artifact_id": 12479032259,
+      "created_at": "2026-10-23T04:36:51Z",
+      "artifact_digest": "sha256:474f13c5832fde6a10d42e59df66ab53080b74a8860e4a1aa5021df8d1e5014e"
+    },
+    {
+      "run_id": 39896301029,
+      "artifact_id": 12477215375,
+      "created_at": "2026-10-23T03:41:48Z",
+      "artifact_digest": "sha256:76c1d62c0200281178dd3171627b89d4e847fa80c2f24bd656ae7db7beddc4f2"
+    },
+    {
+      "run_id": 39890498185,
+      "artifact_id": 12474268521,
+      "created_at": "2026-10-23T02:37:25Z",
+      "artifact_digest": "sha256:a5f941b46865e7148e9d29075c87ffab392caa28343420c86b08a4b3b415ea75"
+    }
+  ],
+  "inspected_payload": {
+    "representative_run_id": 39905113103,
+    "run_time": "2026-10-23T13:19:42.904653+08:00",
+    "version": "0.4",
+    "full_market_scan": false,
+    "universe_count": 1980,
+    "quote_count": 1761,
+    "top100_rows": 100,
+    "deep_rows": 12,
+    "deep_rejected_rows": 12,
+    "top100_fields": [
+      "symbol",
+      "name",
+      "exchange",
+      "market",
+      "universe_source",
+      "last",
+      "previous_close",
+      "change_pct",
+      "volume",
+      "trade_value",
+      "high",
+      "low",
+      "open",
+      "bid",
+      "ask",
+      "quote_time",
+      "quote_source",
+      "gate_reasons",
+      "rank_score"
+    ],
+    "deep_additional_fields": [
+      "can_day_trade",
+      "can_buy_day_trade",
+      "limit_up",
+      "industry",
+      "avg_price",
+      "fugle_close",
+      "fugle_high",
+      "fugle_low",
+      "fugle_volume",
+      "is_limit_up",
+      "k_count",
+      "last_k_close",
+      "prev_k_close",
+      "last_k_volume",
+      "prev_k_volume",
+      "flags",
+      "classification_cap"
+    ]
+  },
+  "canonical_contract_check": {
+    "complete_candidate_pool": false,
+    "decision_id": false,
+    "strategy_version_v14": false,
+    "feature_cutoff_timestamp": false,
+    "canonical_10_rule_outputs": false,
+    "mtf_phase_antichase_outputs": false,
+    "full_ranking_pool": false,
+    "planned_entry_stop_targets": false,
+    "execution_adjustment_inputs": false,
+    "outcome_join": false,
+    "cost_fields_045_065": false
+  },
+  "verdict": "INSUFFICIENT_HISTORICAL_SNAPSHOT",
+  "frozen_source_eligible": false,
+  "allowed_use": [
+    "diagnostic evidence for scanner behavior on 2026-10-23",
+    "partial quote/ranking snapshot research",
+    "schema archaeology"
+  ],
+  "prohibited_use": [
+    "W2 canonical v1.4 historical replay",
+    "10-rule ablation",
+    "full candidate-pool ranking validation",
+    "claiming Production v1.4 rule provenance"
+  ],
+  "production_change": false
+}
