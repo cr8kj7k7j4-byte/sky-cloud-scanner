@@ -5,7 +5,7 @@ import io
 import json
 import re
 from dataclasses import dataclass, asdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
@@ -14,6 +14,7 @@ from bs4 import BeautifulSoup
 
 TWSE_BASIC_URL = "https://openapi.twse.com.tw/v1/opendata/t187ap03_L"
 TPEX_BASIC_URL = "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap03_O"
+TPEX_ACTIVE_URL = "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_quotes"
 TWSE_NEW_URL = "https://openapi.twse.com.tw/v1/company/newlisting"
 TWSE_DELIST_URL = "https://openapi.twse.com.tw/v1/company/suspendListingCsvAndHtml"
 TPEX_NEW_URL = "https://www.tpex.org.tw/zh-tw/mainboard/applying/status/new-listed.html"
@@ -24,6 +25,7 @@ TPEX_DELIST_API = "https://www.tpex.org.tw/www/zh-tw/company/deListed"
 SOURCE_EXPECTATIONS = {
     "TWSE_BASIC": {"min_events": 100, "role": "CURRENT_BASE"},
     "TPEX_BASIC": {"min_events": 100, "role": "CURRENT_BASE"},
+    "TPEX_ACTIVE": {"min_events": 100, "role": "CURRENT_ACTIVE_SET"},
     "TWSE_NEW": {"min_events": 1, "role": "HISTORICAL_EVENT"},
     "TWSE_DELIST": {"min_events": 1, "role": "HISTORICAL_EVENT"},
     "TPEX_NEW": {"min_events": 1, "role": "HISTORICAL_EVENT"},
@@ -92,18 +94,27 @@ def _code(row):
 def _name(row):
     return str(_pick(row, ["公司名稱","公司簡稱","證券名稱","Name","CompanyName"]) or "").strip()
 
-def parse_basic_records(rows: Iterable[Dict[str, Any]], exchange: str, source_url: str, source_as_of: str) -> List[UniverseEvent]:
+def _is_managed_security(name: str) -> bool:
+    s=str(name or "")
+    return "管理股票" in s
+
+def parse_basic_records(rows: Iterable[Dict[str, Any]], exchange: str, source_url: str, source_as_of: str, allowed_symbols: set[str] | None = None) -> List[UniverseEvent]:
     out=[]
     date_keys = ["上市日期","股票上市買賣日期","上櫃日期","掛牌日期","ListingDate","DateOfListing"]
     for row in rows or []:
         symbol=_code(row)
         if not (len(symbol)==4 and symbol.isdigit()):
             continue
+        if allowed_symbols is not None and symbol not in allowed_symbols:
+            continue
+        name=_name(row)
+        if exchange=="TPEx" and _is_managed_security(name):
+            continue
         listed=normalize_roc_date(_pick(row,date_keys))
         if not listed:
             continue
         out.append(UniverseEvent(
-            symbol=symbol, exchange=exchange, name=_name(row),
+            symbol=symbol, exchange=exchange, name=name,
             event_type="LIST", event_date=listed,
             source="official_basic_data", source_url=source_url,
             source_as_of=source_as_of
@@ -249,12 +260,15 @@ def fetch_tpex_new_events(source_as_of: str, start_year: int = 2005, end_year: O
             symbol=str(row.get("公司代號") or "").strip()
             if not (len(symbol)==4 and symbol.isdigit()):
                 continue
+            name=str(row.get("公司名稱") or "").strip()
+            if _is_managed_security(name):
+                continue
             d=normalize_roc_date(row.get("上櫃日期"))
             if not d:
                 continue
             out.append(UniverseEvent(
                 symbol=symbol, exchange="TPEx",
-                name=str(row.get("公司名稱") or "").strip(),
+                name=name,
                 event_type="LIST", event_date=d,
                 source="TPEX_OFFICIAL_NEWLIST_CSV", source_url=url,
                 source_as_of=source_as_of,
@@ -262,7 +276,7 @@ def fetch_tpex_new_events(source_as_of: str, start_year: int = 2005, end_year: O
             ))
     return out
 
-def fetch_tpex_delist_events(source_as_of: str, start_year: int = 2021, end_year: Optional[int] = None) -> List[UniverseEvent]:
+def fetch_tpex_delist_events(source_as_of: str, start_year: int = 2005, end_year: Optional[int] = None) -> List[UniverseEvent]:
     end_year = end_year or datetime.now().year
     out=[]
     for year in range(int(start_year), int(end_year)+1):
@@ -283,6 +297,53 @@ def fetch_tpex_delist_events(source_as_of: str, start_year: int = 2021, end_year
                 notes=str(row.get("終止上櫃原因") or "").strip(),
             ))
     return out
+
+
+def reconcile_cross_exchange_migrations(intervals: Iterable[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Close stale open intervals when the same stock code later has an official
+    LIST interval on the other production exchange.
+
+    Taiwan common-stock production membership is exclusive between TWSE and
+    TPEx. A later official LIST on the other exchange is affirmative migration
+    evidence; the prior open interval ends on the previous calendar day.
+    Explicit listed_to values are never overwritten.
+    """
+    rows=[dict(x) for x in (intervals or [])]
+    by_symbol={}
+    for i,row in enumerate(rows):
+        by_symbol.setdefault(str(row.get("symbol") or ""),[]).append(i)
+
+    notes=[]
+    for symbol,idxs in by_symbol.items():
+        idxs=sorted(idxs,key=lambda i:str(rows[i].get("listed_from") or ""))
+        for pos,i in enumerate(idxs):
+            current=rows[i]
+            if current.get("listed_to") not in (None,""):
+                continue
+            start=str(current.get("listed_from") or "")
+            exchange=str(current.get("exchange") or "")
+            for j in idxs[pos+1:]:
+                nxt=rows[j]
+                nxt_start=str(nxt.get("listed_from") or "")
+                nxt_exchange=str(nxt.get("exchange") or "")
+                if not nxt_start or nxt_start <= start or nxt_exchange == exchange:
+                    continue
+                end=(datetime.fromisoformat(nxt_start).date()-timedelta(days=1)).isoformat()
+                current["listed_to"]=end
+                old_notes=str(current.get("notes") or "")
+                tag=f"closed_by_cross_exchange_list:{nxt_exchange}:{nxt_start}"
+                current["notes"]=";".join(x for x in (old_notes,tag) if x)
+                notes.append({
+                    "symbol":symbol,
+                    "from_exchange":exchange,
+                    "to_exchange":nxt_exchange,
+                    "new_exchange_listed_from":nxt_start,
+                    "inferred_prior_listed_to":end,
+                    "evidence":"OFFICIAL_CROSS_EXCHANGE_LIST",
+                })
+                break
+    return {"intervals":rows,"migration_notes":notes}
 
 def dedupe_events(events: Iterable[UniverseEvent]) -> List[UniverseEvent]:
     seen={}
@@ -355,10 +416,12 @@ def build_intervals(events: Iterable[UniverseEvent]) -> Dict[str, Any]:
                     "kept_list_date":active.event_date,
                     "ignored_list_dates":[x.event_date for x in duplicate_lists],
                 })
+    reconciled=reconcile_cross_exchange_migrations(intervals)
     return {
-        "intervals":intervals,
+        "intervals":reconciled["intervals"],
         "unresolved":unresolved,
         "continuity_notes":continuity_notes,
+        "migration_notes":reconciled["migration_notes"],
     }
 
 def assess_source_health(name: str, parsed_events: int, *, transport_ok: bool, error: str | None = None) -> dict:
@@ -390,6 +453,33 @@ def collect_official_events() -> Dict[str, Any]:
     as_of=datetime.now().astimezone().isoformat()
     events=[]
     health=[]
+    current_membership=[]
+
+    # Production TPEx universe semantics use tpex_mainboard_quotes. The MOPS
+    # company-basic endpoint also contains non-mainboard/managed securities,
+    # which must not seed open historical intervals as if they were current
+    # Production-universe members.
+    tpex_active_symbols=None
+    try:
+        active_payload=fetch_json(TPEX_ACTIVE_URL)
+        active_rows=active_payload if isinstance(active_payload,list) else []
+        tpex_active_symbols={
+            str(x.get("SecuritiesCompanyCode") or x.get("Code") or "").strip()
+            for x in active_rows
+            if len(str(x.get("SecuritiesCompanyCode") or x.get("Code") or "").strip())==4
+            and str(x.get("SecuritiesCompanyCode") or x.get("Code") or "").strip().isdigit()
+        }
+        h=assess_source_health("TPEX_ACTIVE",len(tpex_active_symbols),transport_ok=True)
+        h["url"]=TPEX_ACTIVE_URL
+        health.append(h)
+    except Exception as e:
+        h=assess_source_health(
+            "TPEX_ACTIVE",0,transport_ok=False,
+            error=f"{type(e).__name__}: {e}"
+        )
+        h["url"]=TPEX_ACTIVE_URL
+        health.append(h)
+
     sources=[
         ("TWSE_BASIC",TWSE_BASIC_URL,"json","TWSE","basic"),
         ("TPEX_BASIC",TPEX_BASIC_URL,"json","TPEx","basic"),
@@ -417,6 +507,18 @@ def collect_official_events() -> Dict[str, Any]:
                 html=fetch_text(url)
                 parsed=parse_listing_html(html,exchange,url,as_of) if parser=="list" else parse_delisting_html(html,exchange,url,as_of)
             events.extend(parsed)
+            if name in {"TWSE_BASIC","TPEX_BASIC"}:
+                current_membership.extend(
+                    {
+                        "symbol":e.symbol,
+                        "exchange":e.exchange,
+                        "name":e.name,
+                        "listed_from":e.event_date,
+                        "source":e.source,
+                        "source_as_of":e.source_as_of,
+                    }
+                    for e in parsed
+                )
             h = assess_source_health(name, len(parsed), transport_ok=True)
             h["url"] = url
             health.append(h)
@@ -433,6 +535,10 @@ def collect_official_events() -> Dict[str, Any]:
         "schema_version":"1.0.0",
         "source_as_of":as_of,
         "health":health,
+        "current_membership":sorted(
+            current_membership,
+            key=lambda x:(x["exchange"],x["symbol"]),
+        ),
         "events":[e.to_dict() for e in events],
         **built,
         "production_eligible": all(x["healthy"] for x in health) and not built["unresolved"],

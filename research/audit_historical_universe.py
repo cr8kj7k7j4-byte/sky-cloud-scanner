@@ -6,7 +6,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from research.build_universe_sample import fetch_universe
-from src.official_universe_events import collect_official_events
+from src.official_universe_events import collect_official_events, reconcile_cross_exchange_migrations
 from src.point_in_time_universe import (
     survivorship_audit,
     universe_as_of,
@@ -27,7 +27,11 @@ DEFAULT_DATES = [
 
 
 
-def build_windowed_intervals(events: list[dict], window_start: str = WINDOW_START) -> dict:
+def build_windowed_intervals(
+    events: list[dict],
+    window_start: str = WINDOW_START,
+    current_membership: list[dict] | None = None,
+) -> dict:
     """Build membership intervals only for the governed research window."""
     grouped=defaultdict(list)
     for raw in events or []:
@@ -41,6 +45,69 @@ def build_windowed_intervals(events: list[dict], window_start: str = WINDOW_STAR
     intervals=[]
     unresolved=[]
     annotations=[]
+
+    membership_rows=list(current_membership or [])
+    membership_lookup={
+        (str(x.get("symbol") or ""),str(x.get("exchange") or "")):x
+        for x in membership_rows
+        if x.get("symbol") and x.get("exchange")
+    }
+    membership_keys=set(membership_lookup)
+
+    # Resolve market membership at the governed-window start BEFORE clipping
+    # dates to window_start. If the same symbol appears active on both exchanges
+    # because one market's termination event is absent, the later official LIST
+    # on the other exchange is affirmative migration evidence.
+    prewindow_state={}
+    for (symbol,exchange), arr in grouped.items():
+        arr_sorted=sorted(
+            arr,
+            key=lambda x: (
+                str(x.get("event_date")),
+                0 if x.get("event_type")=="DELIST" else 1,
+            ),
+        )
+        listed=False
+        last_list=None
+        for e in arr_sorted:
+            d=str(e.get("event_date"))
+            if d >= window_start:
+                break
+            if e.get("event_type")=="LIST":
+                listed=True
+                last_list=d
+            elif e.get("event_type")=="DELIST":
+                listed=False
+        prewindow_state[(symbol,exchange)]={"listed":listed,"last_list":last_list}
+
+    by_symbol_prewindow=defaultdict(list)
+    for (symbol,exchange), state in prewindow_state.items():
+        if state["listed"]:
+            by_symbol_prewindow[symbol].append((exchange,state.get("last_list")))
+
+    prewindow_winner={}
+    ambiguous_prewindow=set()
+    for symbol, rows in by_symbol_prewindow.items():
+        if len(rows)<=1:
+            if rows:
+                prewindow_winner[symbol]=rows[0][0]
+            continue
+        ranked=sorted(rows,key=lambda x:str(x[1] or ""),reverse=True)
+        if len(ranked)>=2 and str(ranked[0][1] or "")==str(ranked[1][1] or ""):
+            ambiguous_prewindow.add(symbol)
+            continue
+        prewindow_winner[symbol]=ranked[0][0]
+        annotations.append({
+            "symbol":symbol,
+            "type":"PREWINDOW_CROSS_EXCHANGE_MIGRATION_RESOLUTION",
+            "window_start":window_start,
+            "active_exchange":ranked[0][0],
+            "active_exchange_last_list":ranked[0][1],
+            "suppressed_exchanges":[
+                {"exchange":ex,"last_list":d} for ex,d in ranked[1:]
+            ],
+            "evidence":"LATEST_OFFICIAL_LIST_BEFORE_WINDOW_START",
+        })
 
     for (symbol,exchange), arr in grouped.items():
         arr=sorted(
@@ -63,8 +130,60 @@ def build_windowed_intervals(events: list[dict], window_start: str = WINDOW_STAR
             elif e.get("event_type")=="DELIST":
                 listed=False
 
-        current_start=window_start if listed else None
         future=[e for e in arr if str(e.get("event_date")) >= window_start]
+        future_delists=[e for e in future if e.get("event_type")=="DELIST"]
+        current_member=(symbol,exchange) in membership_keys
+        membership_anchor=membership_lookup.get((symbol,exchange)) or {}
+        anchor_from=str(membership_anchor.get("listed_from") or "")
+
+        if symbol in ambiguous_prewindow and listed:
+            unresolved.append({
+                "symbol":symbol,
+                "exchange":exchange,
+                "reason":"AMBIGUOUS_CROSS_EXCHANGE_MEMBERSHIP_AT_WINDOW_START",
+                "window_start":window_start,
+            })
+            listed=False
+        elif listed and prewindow_winner.get(symbol) and prewindow_winner[symbol] != exchange:
+            listed=False
+
+        # A pre-window LIST must not be projected indefinitely into the governed
+        # window merely because the older delisting source is incomplete.
+        # It is admitted at window_start only when current official membership
+        # confirms it, or a future DELIST proves it survived into the window.
+        if listed and not current_member and not future_delists:
+            annotations.append({
+                "symbol":symbol,
+                "exchange":exchange,
+                "type":"PREWINDOW_MEMBERSHIP_NOT_CONFIRMED_IN_GOVERNED_WINDOW",
+                "window_start":window_start,
+                "last_pre_window_list":prewindow_state.get((symbol,exchange),{}).get("last_list"),
+                "note":"Excluded from 2023+ PIT intervals; no current membership or in-window DELIST proves survival into the governed window.",
+            })
+            listed=False
+
+        # Current official membership is affirmative evidence that the symbol is
+        # listed now. If the event chain was broken before the governed window
+        # but the official membership anchor says listed_from predates the
+        # window, left-censor from window_start rather than treating it missing.
+        if (
+            not listed
+            and current_member
+            and anchor_from
+            and anchor_from <= window_start
+            and not any(e.get("event_type")=="LIST" for e in future)
+        ):
+            listed=True
+            annotations.append({
+                "symbol":symbol,
+                "exchange":exchange,
+                "type":"CURRENT_MEMBERSHIP_REASSERTED_AT_WINDOW_START",
+                "window_start":window_start,
+                "membership_listed_from":anchor_from,
+                "note":"Current official listing-membership anchor bridges a pre-window event-chain conflict; interval is asserted only from governed window start.",
+            })
+
+        current_start=window_start if listed else None
 
         if (
             not listed
@@ -139,8 +258,11 @@ def build_windowed_intervals(events: list[dict], window_start: str = WINDOW_STAR
                 "notes":"windowed_membership",
             })
 
+    reconciled=reconcile_cross_exchange_migrations(intervals)
+    for item in reconciled["migration_notes"]:
+        annotations.append({"type":"CROSS_EXCHANGE_MIGRATION",**item})
     return {
-        "intervals":sorted(intervals,key=lambda x:(x["exchange"],x["symbol"],x["listed_from"])),
+        "intervals":sorted(reconciled["intervals"],key=lambda x:(x["exchange"],x["symbol"],x["listed_from"])),
         "unresolved":unresolved,
         "annotations":annotations,
         "window_start":window_start,
@@ -156,9 +278,11 @@ def build_historical_universe_audit(
     strict_unresolved = list(official_payload.get("unresolved") or [])
     source_health = list(official_payload.get("health") or [])
 
+    membership_rows=list(official_payload.get("current_membership") or [])
     windowed = build_windowed_intervals(
         list(official_payload.get("events") or []),
         window_start=WINDOW_START,
+        current_membership=membership_rows,
     )
     intervals = list(windowed.get("intervals") or [])
     unresolved = list(windowed.get("unresolved") or [])
@@ -171,6 +295,35 @@ def build_historical_universe_audit(
         if symbol and exchange:
             current_by_exchange[exchange].add(symbol)
 
+    membership_by_exchange = defaultdict(set)
+    membership_rows = list(official_payload.get("current_membership") or [])
+    if membership_rows:
+        for row in membership_rows:
+            symbol=str(row.get("symbol") or "")
+            exchange=str(row.get("exchange") or "")
+            if symbol and exchange:
+                membership_by_exchange[exchange].add(symbol)
+
+        # Official LIST events in the governed window can lead the basic-data
+        # snapshot by a few days. If the latest in-window event is LIST with no
+        # later DELIST, treat it as current listing membership evidence.
+        latest_by_key={}
+        for e in list(official_payload.get("events") or []):
+            d=str(e.get("event_date") or "")
+            if d < WINDOW_START:
+                continue
+            key=(str(e.get("symbol") or ""),str(e.get("exchange") or ""))
+            prev=latest_by_key.get(key)
+            if prev is None or str(prev.get("event_date") or "") < d:
+                latest_by_key[key]=e
+        for (symbol,exchange),e in latest_by_key.items():
+            if e.get("event_type")=="LIST" and symbol and exchange:
+                membership_by_exchange[exchange].add(symbol)
+    else:
+        # Backward-compatible fallback for synthetic tests only.
+        for exchange,symbols in current_by_exchange.items():
+            membership_by_exchange[exchange].update(symbols)
+
     interval_by_exchange = defaultdict(set)
     for row in intervals:
         symbol = str(row.get("symbol") or "")
@@ -178,10 +331,27 @@ def build_historical_universe_audit(
         if symbol and exchange:
             interval_by_exchange[exchange].add(symbol)
 
+    open_by_exchange = defaultdict(set)
+    for row in intervals:
+        if row.get("listed_to") in (None, ""):
+            open_by_exchange[str(row.get("exchange") or "")].add(str(row.get("symbol") or ""))
+
     current_coverage = {}
-    for exchange in sorted(set(current_by_exchange) | set(interval_by_exchange)):
+    membership_alignment = {}
+    exchanges=sorted(
+        set(current_by_exchange)
+        | set(membership_by_exchange)
+        | set(interval_by_exchange)
+        | set(open_by_exchange)
+    )
+    for exchange in exchanges:
         current = current_by_exchange.get(exchange, set())
+        membership = membership_by_exchange.get(exchange, set())
         known = interval_by_exchange.get(exchange, set())
+        open_now = open_by_exchange.get(exchange, set())
+
+        # Quote/trade-active coverage is diagnostic only. Suspended securities
+        # may legitimately remain listed while absent from current quote data.
         covered = current & known
         missing = sorted(current - known)
         current_coverage[exchange] = {
@@ -189,6 +359,20 @@ def build_historical_universe_audit(
             "symbols_with_listing_interval": len(covered),
             "coverage_pct": round((len(covered) / len(current) * 100.0), 4) if current else 0.0,
             "missing_current_symbols": missing[:200],
+        }
+
+        missing_open=sorted(membership-open_now)
+        extraneous_open=sorted(open_now-membership)
+        membership_alignment[exchange]={
+            "current_membership_symbols":len(membership),
+            "open_interval_symbols":len(open_now),
+            "membership_open_coverage_pct":round(
+                len(membership & open_now)/len(membership)*100.0,4
+            ) if membership else 0.0,
+            "missing_open_symbol_count":len(missing_open),
+            "missing_open_symbols":missing_open[:200],
+            "extraneous_open_symbol_count":len(extraneous_open),
+            "extraneous_open_symbols":extraneous_open[:200],
         }
 
     dates = {}
@@ -245,6 +429,11 @@ def build_historical_universe_audit(
         for x in current_coverage.values()
         if x["current_symbols"] > 0
     )
+    open_interval_alignment_ok = all(
+        int(x.get("extraneous_open_symbol_count") or 0) == 0
+        and int(x.get("missing_open_symbol_count") or 0) == 0
+        for x in membership_alignment.values()
+    )
     unresolved_ok = len(unresolved) == 0
     historical_dates_nonempty = bool(dates) and all(
         int(item.get("pit_symbols_total") or 0) > 0
@@ -255,7 +444,7 @@ def build_historical_universe_audit(
         sources_ok
         and historical_source_coverage_ok
         and validation.get("valid")
-        and current_coverage_ok
+        and open_interval_alignment_ok
         and unresolved_ok
         and historical_dates_nonempty
     )
@@ -271,6 +460,11 @@ def build_historical_universe_audit(
         if str(err).startswith("overlap:"):
             _, symbol, exchange = str(err).split(":", 2)
             diagnostic_symbols.add((symbol, exchange))
+    for exchange, x in membership_alignment.items():
+        for symbol in x.get("extraneous_open_symbols") or []:
+            diagnostic_symbols.add((str(symbol), str(exchange)))
+        for symbol in x.get("missing_open_symbols") or []:
+            diagnostic_symbols.add((str(symbol), str(exchange)))
 
     timelines = {}
     for symbol, exchange in sorted(diagnostic_symbols):
@@ -319,8 +513,10 @@ def build_historical_universe_audit(
         "diagnostic_event_timelines": timelines,
         "interval_validation": validation,
         "current_interval_coverage": current_coverage,
+        "current_membership_alignment": membership_alignment,
         "historical_dates": dates,
         "historical_source_coverage_ok": historical_source_coverage_ok,
+        "current_open_interval_alignment_ok": open_interval_alignment_ok,
         "historical_dates_nonempty": historical_dates_nonempty,
         "historical_universe_gate_pass": gate_pass,
         "production_eligible": gate_pass,
@@ -337,6 +533,11 @@ def build_historical_universe_audit(
             "all_audit_dates_must_have_nonzero_pit_membership": True,
             "window_start": WINDOW_START,
             "strict_pre_window_unresolved_do_not_block_window_gate": True,
+            "current_open_intervals_must_match_official_listing_membership": True,
+            "quote_universe_is_diagnostic_not_membership": True,
+            "managed_stocks_are_excluded_from_tpex_mainboard_membership": True,
+            "extraneous_open_intervals_allowed": 0,
+            "missing_open_intervals_allowed": 0,
             "window_unresolved_events_allowed": 0,
             "rule": (
                 "Current-universe-only historical studies must not be promoted "
@@ -362,17 +563,33 @@ def write_markdown(report: dict, path: Path):
         f"- Interval validation: {'PASS' if report['interval_validation']['valid'] else 'FAIL'}",
         f"- Historical source coverage: {'PASS' if report['historical_source_coverage_ok'] else 'FAIL'}",
         f"- Historical dates non-empty: {'PASS' if report['historical_dates_nonempty'] else 'FAIL'}",
+        f"- Current open-interval alignment: {'PASS' if report.get('current_open_interval_alignment_ok') else 'FAIL'}",
         f"- Historical Universe Gate: {'PASS' if report['historical_universe_gate_pass'] else 'FAIL'}",
         "",
         "## Current-universe interval coverage",
         "",
-        "| Exchange | Current | Covered by interval | Coverage |",
-        "|---|---:|---:|---:|",
+        "| Exchange | Current | Covered by interval | Coverage | Open intervals | Extraneous open |",
+        "|---|---:|---:|---:|---:|---:|",
     ]
     for exchange, x in report["current_interval_coverage"].items():
         lines.append(
             f"| {exchange} | {x['current_symbols']:,} | "
-            f"{x['symbols_with_listing_interval']:,} | {x['coverage_pct']:.4f}% |"
+            f"{x['symbols_with_listing_interval']:,} | {x['coverage_pct']:.4f}% | "
+            f"{x.get('open_interval_symbols',0):,} | {x.get('extraneous_open_symbol_count',0):,} |"
+        )
+
+    lines += [
+        "",
+        "## Current listing-membership alignment",
+        "",
+        "| Exchange | Official membership | Open intervals | Membership coverage | Missing open | Extraneous open |",
+        "|---|---:|---:|---:|---:|---:|",
+    ]
+    for exchange,x in report.get("current_membership_alignment",{}).items():
+        lines.append(
+            f"| {exchange} | {x['current_membership_symbols']:,} | "
+            f"{x['open_interval_symbols']:,} | {x['membership_open_coverage_pct']:.4f}% | "
+            f"{x['missing_open_symbol_count']:,} | {x['extraneous_open_symbol_count']:,} |"
         )
 
     for d, item in report["historical_dates"].items():

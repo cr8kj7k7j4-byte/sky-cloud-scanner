@@ -1,6 +1,7 @@
 from src.official_universe_events import (
     normalize_roc_date, parse_basic_records, parse_listing_html,
-    parse_delisting_html, build_intervals, assess_source_health
+    parse_delisting_html, build_intervals, assess_source_health,
+    reconcile_cross_exchange_migrations
 )
 
 def test_roc_dates():
@@ -58,3 +59,44 @@ def test_transport_failure_is_never_healthy():
     out = assess_source_health("TPEX_DELIST", 0, transport_ok=False, error="boom")
     assert out["parse_status"] == "TRANSPORT_FAIL"
     assert out["healthy"] is False
+
+
+def test_basic_parser_can_filter_to_production_active_symbols():
+    rows=[
+        {"公司代號":"1111","公司名稱":"Active","上櫃日期":"100.01.01"},
+        {"公司代號":"1107","公司名稱":"建台水泥(管理股票)","上櫃日期":"96.10.20"},
+    ]
+    out=parse_basic_records(
+        rows,"TPEx","u","2026-10-25T00:00:00+08:00",
+        allowed_symbols={"1111"},
+    )
+    assert [x.symbol for x in out] == ["1111"]
+
+
+def test_cross_exchange_list_closes_prior_open_interval():
+    rows=[
+        {
+            "symbol":"1256","exchange":"TPEx","name":"A",
+            "listed_from":"2020-01-01","listed_to":None,
+            "source":"official","source_as_of":"2026-10-25","notes":"",
+        },
+        {
+            "symbol":"1256","exchange":"TWSE","name":"A",
+            "listed_from":"2024-01-15","listed_to":None,
+            "source":"official","source_as_of":"2026-10-25","notes":"",
+        },
+    ]
+    out=reconcile_cross_exchange_migrations(rows)
+    old=next(x for x in out["intervals"] if x["exchange"]=="TPEx")
+    assert old["listed_to"]=="2024-01-14"
+    assert "closed_by_cross_exchange_list:TWSE:2024-01-15" in old["notes"]
+    assert out["migration_notes"][0]["evidence"]=="OFFICIAL_CROSS_EXCHANGE_LIST"
+
+
+def test_basic_parser_excludes_tpex_managed_stocks():
+    rows=[
+        {"公司代號":"1111","公司名稱":"Mainboard","上櫃日期":"100.01.01"},
+        {"公司代號":"1807","公司名稱":"羅馬磁磚(管理股票)","上櫃日期":"95.08.08"},
+    ]
+    out=parse_basic_records(rows,"TPEx","u","2026-10-25T00:00:00+08:00")
+    assert [x.symbol for x in out] == ["1111"]
