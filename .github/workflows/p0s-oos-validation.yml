@@ -99,3 +99,5 @@ jobs:
             research_data/export_validation.json
           if-no-files-found: warn
           retention-days: 14
+
+# sky-oos-trigger: 2026-10-25
