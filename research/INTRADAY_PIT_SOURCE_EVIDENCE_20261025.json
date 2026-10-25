@@ -30,14 +30,34 @@
     "note": "Current anchor only; not historical PIT evidence by itself."
   },
   "whole_universe_intraday": {
-    "status": "RERUN_REQUIRED_CORRECTED_PIT",
-    "invalidated_runs": [
-      40197918327,
-      40198835143
-    ],
-    "required_gate": 0.95,
-    "reason": "Existing downloads were seeded from pre-fix PIT intervals. They remain diagnostic only even if transport/coverage succeeds.",
-    "next_source": "W3A Whole-Universe PIT Intraday History using post-PR110 intervals"
+    "status": "PASS",
+    "source_type": "RECONCILED_LEGACY_RAW_FUGLE_CACHE",
+    "workflow_run_id": 40221377923,
+    "artifact_id": 12609920886,
+    "artifact_digest": "sha256:37b4ceeaff83ff158bb80aa71ca9edc1d5a36a711ef604fd4c1b0222e348a280",
+    "source_run_id": 40198835143,
+    "new_external_download_performed": false,
+    "period_start": "2023-05-23",
+    "period_end": "2026-10-22",
+    "timeframe": "5m",
+    "expected_symbols": 2025,
+    "symbols_with_bars": 2022,
+    "symbol_coverage": 0.998519,
+    "expected_symbol_days": 1578625,
+    "observed_symbol_days": 1561374,
+    "symbol_day_coverage": 0.989071,
+    "minimum_daily_coverage": 0.973726,
+    "trading_dates_observed": 832,
+    "bars_seen": 59006614,
+    "bars_kept": 54187242,
+    "bars_dropped_outside_corrected_membership": 4819372,
+    "stale_source_files_dropped": 352,
+    "duplicate_bar_count": 0,
+    "conflicting_duplicate_count": 0,
+    "out_of_membership_bar_count": 0,
+    "parse_errors": [],
+    "gate_threshold": 0.95,
+    "lineage_note": "Legacy run 40198835143 is used only as raw market-data cache. All bars were re-filtered against the corrected post-PR110 PIT interval artifact; no legacy membership decisions were reused."
   },
   "frozen_v14_alpha": {
     "status": "FROZEN_ALPHA_INPUT_REQUIRED",
@@ -46,9 +66,9 @@
   },
   "historical_universe": {
     "status": "PASS",
-    "workflow_run_id": 40219381843,
-    "artifact_id": 12608387465,
-    "artifact_digest": "sha256:0f57c6b7b50d09ad92fb838e5c7df48ba4c02ab06afff6094b8c72780f676c59",
+    "workflow_run_id": 40221377923,
+    "artifact_id": 12609635815,
+    "artifact_digest": "sha256:d229c3c882737f0e2e52d57b5aad58728c726fc0b1b07c2bb2a6a8f146be0e8d",
     "status_text": "HISTORICAL_UNIVERSE_PASS",
     "current_membership_alignment": {
       "TWSE": {
@@ -72,6 +92,9 @@
       "2025-12-31": 1941,
       "2026-09-30": 1982
     },
-    "note": "Listing membership is governed separately from quote-active universe; TPEx managed stocks excluded and snapshot-lag LIST events reconciled."
+    "note": "Corrected listing-membership live audit and persisted pit_intervals.json use the same current-membership evidence; audit interval count equals persisted interval count.",
+    "persisted_intervals": 2029,
+    "overlap_keys_20230523_20261022": 2025,
+    "persistence_consistency": "PASS"
   }
 }

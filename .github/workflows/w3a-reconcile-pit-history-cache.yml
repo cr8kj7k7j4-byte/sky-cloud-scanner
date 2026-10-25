@@ -1,0 +1,239 @@
+name: W3A Corrected PIT Cache Reconciliation
+
+on:
+  push:
+    branches:
+      - w3a/pit-cache-reconcile
+    paths:
+      - "research/reconcile_pit_history_cache.py"
+      - "tests/test_pit_history_cache_reconcile.py"
+      - ".github/workflows/w3a-reconcile-pit-history-cache.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  LEGACY_RUN_ID: "40198835143"
+  FROM_DATE: "2023-05-23"
+  TO_DATE: "2026-10-22"
+  PYTHONPATH: .
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4 pytest pandas
+      - name: Run reconciliation unit tests
+        run: python -m pytest -q tests/test_pit_history_cache_reconcile.py
+      - name: Build corrected governed PIT intervals
+        run: python research/audit_historical_universe.py --out output/historical_universe_audit
+      - name: Require corrected PIT gate PASS
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("output/historical_universe_audit/audit.json").read_text(encoding="utf-8"))
+          intervals=json.loads(Path("output/historical_universe_audit/pit_intervals.json").read_text(encoding="utf-8"))
+          assert p["historical_universe_gate_pass"], p
+          assert p["current_open_interval_alignment_ok"], p
+          assert len(intervals.get("intervals") or []) == int(p["intervals"]), {
+              "persisted_intervals":len(intervals.get("intervals") or []),
+              "audited_intervals":p["intervals"],
+          }
+          for ex,row in p["current_membership_alignment"].items():
+              assert row["missing_open_symbol_count"] == 0, (ex,row)
+              assert row["extraneous_open_symbol_count"] == 0, (ex,row)
+          print({
+              "status":p["status"],
+              "intervals":p["intervals"],
+              "membership_alignment":p["current_membership_alignment"],
+          })
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: corrected-pit-universe-${{ github.run_id }}
+          path: |
+            output/historical_universe_audit/pit_intervals.json
+            output/historical_universe_audit/audit.json
+          retention-days: 14
+
+  reconcile:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - { shard: 0, artifact_id: 12601337624 }
+          - { shard: 1, artifact_id: 12601333121 }
+          - { shard: 2, artifact_id: 12602755478 }
+          - { shard: 3, artifact_id: 12602885829 }
+          - { shard: 4, artifact_id: 12603340579 }
+          - { shard: 5, artifact_id: 12603179437 }
+          - { shard: 6, artifact_id: 12603433824 }
+          - { shard: 7, artifact_id: 12604011712 }
+          - { shard: 8, artifact_id: 12605031618 }
+          - { shard: 9, artifact_id: 12604903623 }
+          - { shard: 10, artifact_id: 12605595798 }
+          - { shard: 11, artifact_id: 12605283151 }
+          - { shard: 12, artifact_id: 12605579441 }
+          - { shard: 13, artifact_id: 12606434023 }
+          - { shard: 14, artifact_id: 12606907680 }
+          - { shard: 15, artifact_id: 12607381436 }
+          - { shard: 16, artifact_id: 12607407604 }
+          - { shard: 17, artifact_id: 12607439022 }
+          - { shard: 18, artifact_id: 12608515674 }
+          - { shard: 19, artifact_id: 12609552233 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: corrected-pit-universe-${{ github.run_id }}
+          path: corrected_pit
+      - name: Download legacy raw-cache shard
+        uses: actions/download-artifact@v4
+        with:
+          name: pit-history-shard-${{ matrix.shard }}-${{ env.LEGACY_RUN_ID }}
+          path: legacy_artifact
+          github-token: ${{ github.token }}
+          run-id: ${{ env.LEGACY_RUN_ID }}
+      - name: Extract legacy shard archive
+        run: |
+          mkdir -p legacy_extract
+          TAR="$(find legacy_artifact -type f -name '*.tar.gz' | head -1)"
+          test -n "$TAR"
+          tar -xzf "$TAR" -C legacy_extract
+          echo "legacy_files=$(find legacy_extract -type f -name '*_5m.json' | wc -l)"
+      - name: Reconcile raw cache against corrected PIT
+        run: |
+          python research/reconcile_pit_history_cache.py             --pit-intervals corrected_pit/pit_intervals.json             --legacy-root legacy_extract             --out-root corrected_shard             --from-date "${FROM_DATE}"             --to-date "${TO_DATE}"             --source-run-id "${LEGACY_RUN_ID}"             --source-artifact-id "${{ matrix.artifact_id }}"
+      - name: Package corrected shard
+        run: |
+          tar -czf "corrected-pit-cache-shard-${{ matrix.shard }}-${{ github.run_id }}.tar.gz" corrected_shard
+      - uses: actions/upload-artifact@v4
+        with:
+          name: corrected-pit-cache-shard-${{ matrix.shard }}-${{ github.run_id }}
+          path: |
+            corrected-pit-cache-shard-${{ matrix.shard }}-${{ github.run_id }}.tar.gz
+            corrected_shard/reconciliation_manifest.json
+          if-no-files-found: error
+          retention-days: 14
+
+  aggregate:
+    needs: [prepare, reconcile]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: corrected-pit-universe-${{ github.run_id }}
+          path: corrected_pit
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: corrected-pit-cache-shard-*-${{ github.run_id }}
+          path: corrected_artifacts
+      - name: Extract all corrected shards
+        run: |
+          mkdir -p corrected_merged
+          COUNT=0
+          while IFS= read -r TAR; do
+            DEST="corrected_merged/shard_${COUNT}"
+            mkdir -p "$DEST"
+            tar -xzf "$TAR" -C "$DEST"
+            COUNT=$((COUNT+1))
+          done < <(find corrected_artifacts -type f -name 'corrected-pit-cache-shard-*.tar.gz' | sort)
+          echo "corrected_shard_archives=$COUNT"
+          test "$COUNT" -eq 20
+      - name: Run corrected symbol-day PIT coverage audit
+        run: |
+          python research/audit_sharded_pit_intraday_history.py             --pit-intervals corrected_pit/pit_intervals.json             --history-root corrected_merged             --from-date "${FROM_DATE}"             --to-date "${TO_DATE}"             --out research_output/corrected_pit_history_coverage.json
+      - name: Build cache-reconciliation lineage
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          manifests=[]
+          for p in sorted(Path("corrected_merged").rglob("reconciliation_manifest.json")):
+              manifests.append(json.loads(p.read_text(encoding="utf-8")))
+          coverage=json.loads(Path("research_output/corrected_pit_history_coverage.json").read_text(encoding="utf-8"))
+          pit=Path("corrected_pit/pit_intervals.json")
+          h=hashlib.sha256(pit.read_bytes()).hexdigest()
+          report={
+              "schema_version":"PIT_CACHE_RECONCILIATION_LINEAGE_V1_0",
+              "source_run_id":40198835143,
+              "source_type":"LEGACY_RAW_FUGLE_CACHE",
+              "new_external_download_performed":False,
+              "corrected_pit_sha256":h,
+              "shard_count":len(manifests),
+              "source_artifact_ids":sorted({
+                  m.get("source_artifact_id") for m in manifests
+                  if m.get("source_artifact_id") is not None
+              }),
+              "bars_seen":sum(int(m.get("bars_seen") or 0) for m in manifests),
+              "bars_kept":sum(int(m.get("bars_kept") or 0) for m in manifests),
+              "bars_dropped_outside_corrected_membership":sum(
+                  int(m.get("bars_dropped_outside_corrected_membership") or 0)
+                  for m in manifests
+              ),
+              "stale_source_files_dropped":sum(
+                  int(m.get("stale_source_files_dropped") or 0) for m in manifests
+              ),
+              "duplicate_bar_count":sum(int(m.get("duplicate_bar_count") or 0) for m in manifests),
+              "conflicting_duplicate_count":sum(int(m.get("conflicting_duplicate_count") or 0) for m in manifests),
+              "coverage":coverage,
+              "status":"PASS" if coverage.get("status")=="PASS" else "DATA_BLOCKED",
+              "production_change":False,
+          }
+          Path("research_output/corrected_pit_cache_lineage.json").write_text(
+              json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8"
+          )
+          print(json.dumps(report,ensure_ascii=False,indent=2))
+          PY
+      - name: Require promotion-grade source gate
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path("research_output/corrected_pit_history_coverage.json").read_text(encoding="utf-8"))
+          assert x["status"]=="PASS", x
+          assert x["symbol_coverage"] >= 0.95, x
+          assert x["symbol_day_coverage"] >= 0.95, x
+          assert x["duplicate_bar_count"] == 0, x
+          assert x["out_of_membership_bar_count"] == 0, x
+          assert not x["parse_errors"], x
+          PY
+      - name: Publish corrected source gate
+        if: always()
+        run: |
+          echo "## Corrected PIT Raw-Cache Reconciliation" >> "$GITHUB_STEP_SUMMARY"
+          cat research_output/corrected_pit_history_coverage.json >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          cat research_output/corrected_pit_cache_lineage.json >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: corrected-pit-history-coverage-${{ github.run_id }}
+          path: |
+            research_output/corrected_pit_history_coverage.json
+            research_output/corrected_pit_cache_lineage.json
+            corrected_pit/pit_intervals.json
+            corrected_pit/audit.json
+          if-no-files-found: error
+          retention-days: 30
