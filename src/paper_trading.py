@@ -81,7 +81,7 @@ def build_paper_snapshot(*, run_id: str, observed_at: str, item: dict, gate: Pap
         risk_per_share = None
 
     return {
-        "schema_version": "1.1",
+        "schema_version": "1.2",
         "run_id": str(run_id),
         "observed_at": str(observed_at),
         "observation_timestamp": str(observed_at),
@@ -119,6 +119,13 @@ def build_paper_snapshot(*, run_id: str, observed_at: str, item: dict, gate: Pap
             "trade_value": item.get("trade_value"),
             "quote_time": item.get("quote_time"),
             "quote_source": item.get("quote_source"),
+            "bid": item.get("l1_bid"),
+            "ask": item.get("l1_ask"),
+            "bid_size": item.get("l1_bid_size"),
+            "ask_size": item.get("l1_ask_size"),
+            "l1_quote_time": item.get("l1_quote_time"),
+            "l1_quote_serial": item.get("l1_quote_serial"),
+            "l1_quote_source": item.get("l1_quote_source"),
         },
         "ranking": {
             "position": item.get("ranking_position"),
@@ -165,7 +172,7 @@ def write_paper_run_file(path, snapshots):
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
     payload = {
-        "schema_version": "1.1",
+        "schema_version": "1.2",
         "records": list(snapshots or []),
     }
     p.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
