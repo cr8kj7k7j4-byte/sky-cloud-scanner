@@ -1,0 +1,38 @@
+name: Shadow Promotion Dashboard
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: "30 9 * * 1-5"
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test/runtime dependencies
+        run: pip install -r requirements.txt pytest
+      - name: Compile
+        run: python -m compileall -q src tests research
+      - name: Dashboard tests
+        run: PYTHONPATH=. pytest -q tests/test_shadow_promotion_dashboard.py tests/test_evidence_promotion_gates.py
+      - name: Build dashboard from available local Shadow records
+        run: |
+          PYTHONPATH=. python research/shadow_promotion_dashboard.py             --paper-dir output/paper             --out research_output/shadow_promotion_dashboard.json
+      - name: Upload dashboard artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shadow-promotion-dashboard
+          path: research_output/shadow_promotion_dashboard.json
+          if-no-files-found: error
+      - name: Production E2E
+        run: PYTHONPATH=. pytest -q tests/test_production_e2e_acceptance.py
