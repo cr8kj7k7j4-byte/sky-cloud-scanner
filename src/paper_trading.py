@@ -98,6 +98,19 @@ def build_paper_snapshot(*, run_id: str, observed_at: str, item: dict, gate: Pap
         "risk": risk,
         "monitor": monitor,
         "decision": decision,
+        "research_context": {
+            "regime": (
+                ((item.get("ml") or {}).get("regime") or {}).get("label")
+                if isinstance((item.get("ml") or {}).get("regime"), dict)
+                else (item.get("ml") or {}).get("regime")
+            ),
+            "setup": plan.get("setup"),
+            "strategy_version": item.get("strategy_version"),
+            "model_version": item.get("model_version"),
+            "feature_schema_version": item.get("feature_schema_version"),
+            "rule_config_version": item.get("rule_config_version"),
+        },
+        "outcome": dict(item.get("outcome") or {}),
         "classification_cap": item.get("classification_cap"),
         "paper_gate": gate.to_dict(),
         "action": (

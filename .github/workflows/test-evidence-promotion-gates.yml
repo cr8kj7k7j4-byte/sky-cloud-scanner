@@ -1,0 +1,26 @@
+name: Evidence Promotion Gate Tests
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test/runtime dependencies
+        run: pip install -r requirements.txt pytest
+      - name: Compile
+        run: python -m compileall -q src tests
+      - name: Evidence promotion tests
+        run: PYTHONPATH=. pytest -q tests/test_evidence_promotion_gates.py tests/test_p0g_validation_consolidation.py tests/test_sky100_core.py
+      - name: Production E2E
+        run: PYTHONPATH=. pytest -q tests/test_production_e2e_acceptance.py
