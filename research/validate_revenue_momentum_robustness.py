@@ -148,7 +148,9 @@ def main():
     }
     report={"method":"Frozen Revenue Momentum Candidate Robustness",
             "candidates":[],"split_counts":{k:len(v) for k,v in splits.items()},
-            "costs":COSTS,"quantiles":QUANTILES,"production_eligible":False,
+            "costs":COSTS,"quantiles":QUANTILES,"point_in_time_verified":False,
+            "promotion_blocked_reason":"Actual company filing timestamp not yet aligned.",
+            "production_eligible":False,
             "limitations":["Current-universe survivorship bias from price sample.","Knowledge-date uses conservative statutory deadline proxy.","No company-level filing timestamp yet.","2026 is not globally untouched OOS."]}
 
     for feature,h,sign in CANDIDATES:
@@ -178,11 +180,14 @@ def main():
                               "pass":bool(primary_pass and stress_pass and concentration_pass)}
         report["candidates"].append(c)
 
-    report["passing_candidates"]=[c["name"] for c in report["candidates"] if c["robustness_gate"]["pass"]]
+    report["pre_pit_candidates"]=[c["name"] for c in report["candidates"] if c["robustness_gate"]["pass"]]
+    report["passing_candidates"]=[]
     (out/"revenue_robustness_report.json").write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8")
     lines=["# Sky Revenue Momentum Candidate Robustness",
            f"- Split counts: {report['split_counts']}",
-           f"- Passing candidates: {report['passing_candidates']}"]
+           f"- Pre-PIT candidates: {report['pre_pit_candidates']}",
+           f"- Point-in-time verified: {report['point_in_time_verified']}",
+           f"- Promotion candidates: {report['passing_candidates']}"]
     for c in report["candidates"]:
         lines.append(f"\n## {c['name']}")
         lines.append(f"- Gate: {c['robustness_gate']}")
