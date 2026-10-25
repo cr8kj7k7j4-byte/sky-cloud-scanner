@@ -123,9 +123,19 @@ def test_gate_passes_with_complete_current_interval_coverage():
     assert out["historical_universe_gate_pass"] is True
 
 
-def test_unresolved_event_blocks_gate():
+def test_window_unresolved_event_blocks_gate():
     p = _payload()
-    p["unresolved"] = [{"symbol": "9999"}]
+    p["events"].append({
+        "symbol": "9999",
+        "exchange": "TWSE",
+        "name": "Unknown",
+        "event_type": "DELIST",
+        "event_date": "2025-06-30",
+        "source": "official_delisting_page",
+        "source_url": "u",
+        "source_as_of": "2026-10-25",
+        "notes": "",
+    })
     current = [
         {"symbol": "2222", "exchange": "TWSE"},
         {"symbol": "3333", "exchange": "TPEx"},
@@ -135,7 +145,25 @@ def test_unresolved_event_blocks_gate():
         current_universe=current,
         audit_dates=["2025-12-31"],
     )
+    assert out["unresolved"] == 1
     assert out["historical_universe_gate_pass"] is False
+
+
+def test_strict_pre_window_unresolved_does_not_block_window_gate():
+    p = _payload()
+    p["unresolved"] = [{"symbol": "9999", "reason": "PRE_WINDOW"}]
+    current = [
+        {"symbol": "2222", "exchange": "TWSE"},
+        {"symbol": "3333", "exchange": "TPEx"},
+    ]
+    out = build_historical_universe_audit(
+        official_payload=p,
+        current_universe=current,
+        audit_dates=["2025-12-31"],
+    )
+    assert out["strict_unresolved"] == 1
+    assert out["unresolved"] == 0
+    assert out["historical_universe_gate_pass"] is True
 
 
 def test_source_failure_blocks_gate():
@@ -155,26 +183,31 @@ def test_source_failure_blocks_gate():
 
 def test_empty_historical_membership_blocks_gate():
     p = _payload()
-    p["intervals"] = [
+    p["events"] = [
         {
             "symbol": "2222",
             "exchange": "TWSE",
             "name": "FutureOnly",
-            "listed_from": "2026-10-01",
-            "listed_to": None,
-            "source": "official",
+            "event_type": "LIST",
+            "event_date": "2026-10-01",
+            "source": "official_listing_api",
+            "source_url": "u",
             "source_as_of": "2026-10-25",
+            "notes": "",
         },
         {
             "symbol": "3333",
             "exchange": "TPEx",
             "name": "FutureOnly2",
-            "listed_from": "2026-10-01",
-            "listed_to": None,
-            "source": "official",
+            "event_type": "LIST",
+            "event_date": "2026-10-01",
+            "source": "official_listing_csv",
+            "source_url": "u",
             "source_as_of": "2026-10-25",
+            "notes": "",
         },
     ]
+    p["intervals"] = []
     current = [
         {"symbol": "2222", "exchange": "TWSE"},
         {"symbol": "3333", "exchange": "TPEx"},
@@ -186,7 +219,6 @@ def test_empty_historical_membership_blocks_gate():
     )
     assert out["historical_dates_nonempty"] is False
     assert out["historical_universe_gate_pass"] is False
-
 
 def test_missing_delisting_evidence_blocks_gate():
     p = _payload()
