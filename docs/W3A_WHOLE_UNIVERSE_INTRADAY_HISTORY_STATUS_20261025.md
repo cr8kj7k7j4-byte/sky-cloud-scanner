@@ -1,74 +1,46 @@
 # W3A｜Whole-Universe PIT Intraday History Pipeline — 2026-10-25
 
 ## Current status
-**ENGINEERING READY / DATA DOWNLOAD NOT YET EXECUTED**
+**PASS / CANONICAL WHOLE-UNIVERSE 5M RAW SOURCE READY**
 
-This work addresses:
+This resolves:
 `EXTERNAL_DATA_REQUIRED:SYNCHRONIZED_WHOLE_UNIVERSE_INTRADAY_HISTORY`
 
-## Completed engineering
-1. Canonical PIT intervals already produced by:
-   - `research/audit_historical_universe.py`
-   - output: `pit_intervals.json`
-2. New whole-universe downloader:
-   - `research/download_pit_universe_intraday.py`
-3. Downloader behavior:
-   - selects every TWSE/TPEx symbol active at any time in the requested PIT window;
-   - never derives the universe from today's listing list;
-   - splits history into <1-year API chunks;
-   - handles 404 as no-bars-for-period, not symbol failure;
-   - handles 429 with bounded backoff;
-   - supports deterministic 20-shard execution;
-   - supports cached/resume behavior by chunk file;
-   - outputs per-shard manifest + download summary;
-   - computes successful-symbol coverage and 95% gate flag.
-4. Manual whole-universe workflow:
-   - `.github/workflows/w3a-whole-universe-intraday-history.yml`
-   - 20 deterministic shards
-   - `max-parallel: 1` to protect the Fugle rate limit
-   - each shard uploads its own compressed artifact
-5. Unit-test workflow:
-   - `.github/workflows/test-w3a-pit-universe-download.yml`
+## Canonical evidence
+Corrected PIT cache reconciliation:
+- raw source workflow: `40198835143`
+- corrected reconciliation workflow: `40221377923`
+- PIT artifact: `12609635815`
+- coverage artifact: `12609920886`
 
-## Why this replaces the 100-symbol diagnostic approach
+Verified:
+- persisted intervals = audited intervals = 2,029
+- overlap keys = 2,025
+- symbols with bars = 2,022
+- symbol coverage = **99.8519%**
+- symbol-day coverage = **98.9071%**
+- minimum daily coverage = **97.3726%**
+- retained 5m bars = **54,187,242**
+- bars removed outside corrected membership = **4,819,372**
+- stale legacy source files dropped = 352
+- duplicate bars = 0
+- conflicting duplicates = 0
+- out-of-membership bars after reconciliation = 0
+- parse errors = 0
+- new external downloads during reconciliation = 0
 
-The existing 100-symbol 5m artifact covers only about 4.8%–5.3% of the governed PIT universe at audited dates.
-It remains valid for engineering diagnostics only.
+The source gate requires >=95% coverage. It is therefore **PASS**.
 
-The new pipeline consumes the union of PIT membership intervals, including symbols that later delisted, and therefore avoids using a current-only universe as the download manifest.
+## Governance
+This PASS applies to the canonical whole-universe 5-minute raw market-data source only.
 
-## Download gate
+It does **not** by itself authorize W2 rule-efficacy analysis. Remaining replay requirements still include:
+- frozen Production-v1.4 canonical decision/rule evidence
+- untruncated contemporaneous candidate-pool evidence
+- missing Alpha states such as MTF / Phase / Setup / Trigger / Anti-Chase
+- canonical outcome / execution context where required
 
-A whole-universe export is not accepted merely because the workflow completes.
-
-Minimum first-stage source gate:
-- expected symbols > 0
-- successful symbol downloads / expected symbols >= 95%
-- no unexplained shard loss
-- PIT manifest provenance retained
-- failed symbols explicitly listed
-- empty historical periods remain distinguishable from transport/API failure
-
-This source gate still does **not** by itself make the canonical replay PASS.
-Market/sector/decision/outcome/execution context must still be joined and audited.
-
-## Operational note
-
-The current repository already references `secrets.FUGLE_API_KEY` in the existing historical-export workflow.
-No new secret name is introduced.
-
-The whole-universe workflow is manual-only because it can be long-running and data-heavy.
-
-## Next machine-executable step
-
-Run:
-`W3A Whole-Universe PIT Intraday History`
-
-with the governed period:
-- from: 2023-05-23
-- to: latest intended research cutoff
-
-After all 20 shard artifacts finish, aggregate shard summaries and verify the >=95% source-coverage gate.
+Current-universe backward sampling remains prohibited.
 
 ## Production impact
 NONE.
