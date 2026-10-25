@@ -133,3 +133,34 @@ def test_tpex_newlisting_csv_payload():
     assert out[0].exchange == "TPEx"
     assert out[0].event_date == "2023-01-11"
     assert out[1].event_date == "2023-12-15"
+
+
+def test_multiple_list_records_without_delist_are_coalesced():
+    from src.official_universe_events import UniverseEvent
+    events = [
+        UniverseEvent("2465","TWSE","麗臺","LIST","2001-09-17","a","u","t"),
+        UniverseEvent("2465","TWSE","麗臺科技","LIST","2001-09-19","b","u","t"),
+    ]
+    out = build_intervals(events)
+    assert out["unresolved"] == []
+    assert len(out["intervals"]) == 1
+    interval = out["intervals"][0]
+    assert interval["listed_from"] == "2001-09-17"
+    assert interval["listed_to"] is None
+    assert "coalesced_list_records=2" in interval["notes"]
+
+
+def test_delist_then_relist_creates_separate_membership_intervals():
+    from src.official_universe_events import UniverseEvent
+    events = [
+        UniverseEvent("1111","TPEx","A","LIST","2000-01-01","a","u","t"),
+        UniverseEvent("1111","TPEx","A","DELIST","2005-01-01","b","u","t"),
+        UniverseEvent("1111","TPEx","A2","LIST","2010-01-01","c","u","t"),
+    ]
+    out = build_intervals(events)
+    assert out["unresolved"] == []
+    assert len(out["intervals"]) == 2
+    assert out["intervals"][0]["listed_from"] == "2000-01-01"
+    assert out["intervals"][0]["listed_to"] == "2005-01-01"
+    assert out["intervals"][1]["listed_from"] == "2010-01-01"
+    assert out["intervals"][1]["listed_to"] is None
