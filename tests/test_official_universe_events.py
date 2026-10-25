@@ -1,6 +1,6 @@
 from src.official_universe_events import (
     normalize_roc_date, parse_basic_records, parse_listing_html,
-    parse_delisting_html, build_intervals
+    parse_delisting_html, parse_tpex_delisting_payload, build_intervals
 )
 
 def test_roc_dates():
@@ -52,3 +52,37 @@ def test_twse_delisting_title_row_shape():
     out = parse_delisting_html(html, "TWSE", "u", "2026-10-25T00:00:00+08:00")
     assert [x.symbol for x in out] == ["2867", "6288"]
     assert out[0].event_date == "2026-09-01"
+
+
+def test_tpex_delisting_json_payload():
+    payload = {
+        "stat": "ok",
+        "date": "2023",
+        "tables": [{
+            "fields": [
+                "股票代號",
+                "公司名稱",
+                "終止上櫃日期",
+                "終止上櫃原因",
+                "公司資料網址",
+            ],
+            "data": [[
+                "4736",
+                "泰博科技股份有限公司",
+                "112-12-22",
+                "測試原因",
+                "https://mops.twse.com.tw/mops/#/web/t05st03",
+            ]],
+            "totalCount": 1,
+        }],
+    }
+    out = parse_tpex_delisting_payload(
+        payload,
+        "https://www.tpex.org.tw/www/zh-tw/company/deListed",
+        "2026-10-25T00:00:00+08:00",
+    )
+    assert len(out) == 1
+    assert out[0].symbol == "4736"
+    assert out[0].exchange == "TPEx"
+    assert out[0].event_date == "2023-12-22"
+    assert out[0].event_type == "DELIST"
