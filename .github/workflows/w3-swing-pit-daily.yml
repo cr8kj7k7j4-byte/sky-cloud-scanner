@@ -95,9 +95,9 @@ jobs:
     needs: canonical-pit
     strategy:
       fail-fast: false
-      max-parallel: 16
+      max-parallel: 8
       matrix:
-        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39]
     runs-on: ubuntu-latest
     timeout-minutes: 55
     steps:
@@ -123,7 +123,7 @@ jobs:
           --start 2023-01-01
           --end 2026-10-25
           --shard-index ${{ matrix.shard }}
-          --shard-count 16
+          --shard-count 40
       - name: Upload shard
         if: always()
         uses: actions/upload-artifact@v4
@@ -161,7 +161,7 @@ jobs:
           find canonical_history -type f -name 'shard_report_*.json' -exec cp {} canonical_history_flat/ \;
           echo "Daily JSON files: $(find canonical_history_flat/history -name '*_D.json' | wc -l)"
           echo "Shard reports: $(find canonical_history_flat -name 'shard_report_*.json' | wc -l)"
-          test "$(find canonical_history_flat -name 'shard_report_*.json' | wc -l)" -eq 16
+          test "$(find canonical_history_flat -name 'shard_report_*.json' | wc -l)" -eq 40
           test "$(find canonical_history_flat/history -name '*_D.json' | wc -l)" -gt 0
       - name: Run coverage / missingness audit
         env:
