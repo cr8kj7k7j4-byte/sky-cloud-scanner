@@ -112,10 +112,22 @@ def _table_rows(html: str) -> List[Dict[str,str]]:
         trs=table.find_all("tr")
         if not trs:
             continue
-        headers=[x.get_text(" ",strip=True) for x in trs[0].find_all(["th","td"])]
-        if not headers:
+
+        # Some official pages place a one-cell title row before the actual
+        # column headers (e.g. TWSE delisting page). Pick the first row with
+        # at least two cells as the header row.
+        header_idx = None
+        headers = []
+        for i, tr in enumerate(trs):
+            cells=[x.get_text(" ",strip=True) for x in tr.find_all(["th","td"])]
+            if len(cells) >= 2:
+                header_idx = i
+                headers = cells
+                break
+        if header_idx is None or not headers:
             continue
-        for tr in trs[1:]:
+
+        for tr in trs[header_idx+1:]:
             vals=[x.get_text(" ",strip=True) for x in tr.find_all(["th","td"])]
             if len(vals) != len(headers):
                 continue
