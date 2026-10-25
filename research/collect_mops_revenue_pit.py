@@ -26,9 +26,9 @@ def _text(fragment: str) -> str:
     return re.sub(r"\s+", " ", s).strip()
 
 
-def fetch_homepage(timeout: int = 20) -> str:
+def fetch_url(url: str, timeout: int = 20) -> str:
     req = urllib.request.Request(
-        MOPS_HOME,
+        url,
         headers={
             "User-Agent": "Mozilla/5.0 SkyResearchBot/1.0",
             "Accept-Language": "zh-TW,zh;q=0.9",
@@ -37,6 +37,29 @@ def fetch_homepage(timeout: int = 20) -> str:
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         raw = resp.read()
     return raw.decode("utf-8", errors="ignore")
+
+
+def fetch_homepage(timeout: int = 20) -> str:
+    return fetch_url(MOPS_HOME, timeout=timeout)
+
+
+def preserve_frontend_assets(page: str) -> list[str]:
+    assets = re.findall(r'<script[^>]+src="([^"]+)"', page, flags=re.I)
+    saved = []
+    for src in assets:
+        if not src.startswith("/mops/"):
+            continue
+        url = "https://mops.twse.com.tw" + src
+        try:
+            body = fetch_url(url)
+        except Exception:
+            continue
+        name = src.rsplit("/", 1)[-1]
+        path = Path("output") / f"mops_asset_{name}"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(body, encoding="utf-8")
+        saved.append(str(path))
+    return saved
 
 
 def roc_date_to_iso_date(roc_date: str) -> str:
@@ -169,6 +192,7 @@ def main():
     raw_path = Path("output/mops_home_raw.html")
     raw_path.parent.mkdir(parents=True, exist_ok=True)
     raw_path.write_text(page, encoding="utf-8")
+    preserve_frontend_assets(page)
     observed_at = datetime.now(TZ).isoformat()
     rows = parse_revenue_filings(page, observed_at=observed_at)
 
