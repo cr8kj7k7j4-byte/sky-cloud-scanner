@@ -1,0 +1,65 @@
+name: W3A Fugle PIT Coverage Probe
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "research/probe_fugle_pit_intraday_coverage.py"
+      - ".github/workflows/w3a-fugle-pit-coverage-probe.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4
+      - name: Build current official PIT universe snapshot
+        env:
+          PYTHONPATH: .
+        run: |
+          python research/build_official_pit_universe.py \
+            --out research_output_pit/official_universe_snapshot.json
+      - name: Probe Fugle historical 5m coverage
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+        run: |
+          python research/probe_fugle_pit_intraday_coverage.py \
+            --pit-snapshot research_output_pit/official_universe_snapshot.json \
+            --as-of 2026-09-30 \
+            --from-date 2026-09-01 \
+            --to-date 2026-09-30 \
+            --per-exchange 20 \
+            --historical-closed-n 10 \
+            --out research_output_pit/fugle_pit_coverage_probe.json
+      - name: Publish summary
+        if: always()
+        run: |
+          if [ -f research_output_pit/fugle_pit_coverage_probe.json ]; then
+            python - <<'PY'
+          import json
+          p=json.load(open("research_output_pit/fugle_pit_coverage_probe.json",encoding="utf-8"))
+          print("## W3A Fugle PIT Coverage Probe")
+          print(f"- Sample: {p['sample_n']}")
+          print(f"- Active OK share: {p['active_ok_share']:.1%}")
+          print(f"- Historical-closed OK share: {p['historical_closed_ok_share']:.1%}")
+          print(f"- Status counts: {p['status_counts']}")
+          print("- Feasibility probe only; not promotion-grade coverage evidence.")
+          PY
+          fi
+      - name: Upload probe artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: w3a-fugle-pit-coverage-probe
+          path: research_output_pit/
+          if-no-files-found: warn
+          retention-days: 14
