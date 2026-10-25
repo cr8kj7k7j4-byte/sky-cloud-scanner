@@ -158,3 +158,42 @@ None.
 
 Sky Day Trading v1.4 and Sky Swing V1.0 remain the formal production baselines
 until the entire promotion funnel is passed.
+
+
+## Baseline algorithm v1 (frozen before first VNext run)
+
+The first deterministic VNext baseline is fixed as follows before observing any
+new VNext output:
+
+1. Horizons: **3D / 5D / 10D only**.
+2. Primary target: market-residual forward return only.
+3. Industry residual target is disabled until historical point-in-time sector
+   mapping is verified.
+4. Initial feature set:
+   - trend_ma20
+   - trend_ma60
+   - vol20
+   - drawdown20
+   - ret20_rank
+   - market_breadth20
+5. For each horizon, use **Train only** to calculate each feature's Spearman
+   Rank IC with the market-residual target.
+6. A feature enters baseline v1 only when Train |Rank IC| >= 0.02.
+7. Direction is fixed from Train IC sign:
+   - positive IC -> higher percentile is better
+   - negative IC -> lower percentile is better
+8. Daily score = equal-weight mean of the selected direction-adjusted
+   cross-sectional percentile ranks. No fitted nonlinear weights.
+9. Portfolio selections: **Top3 / Top5 / Top10** each day.
+10. Split names:
+    - Train = <= 2024
+    - Validation = 2025
+    - Research Test = 2026
+11. 2026 is explicitly **not** fresh untouched OOS.
+12. Costs: **0.45% primary** and **0.65% stress** deducted once per selected
+    long position's forward return.
+13. No threshold, feature direction, feature inclusion, Top-N, or cost setting
+    may be changed after seeing Validation or Research Test results in this
+    baseline version.
+14. Baseline v1 can be archived/rejected after the run; any structural change
+    requires a new preregistration version.

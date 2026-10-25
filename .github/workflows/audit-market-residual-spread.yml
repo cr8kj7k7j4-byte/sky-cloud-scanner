@@ -1,4 +1,4 @@
-name: Sky Market Residual Spread Audit
+name: Sky VNext Residual Ranking Baseline
 
 on:
   workflow_dispatch:
@@ -38,22 +38,24 @@ jobs:
           test -n "$HIST_DIR"
           echo "history_dir=$HIST_DIR" >> "$GITHUB_OUTPUT"
 
-      - name: Run market residual spread audit
+      - name: Run VNext residual ranking baseline
         run: |
-          python research/audit_market_residual_spread.py             --history-dir "${{ steps.data.outputs.history_dir }}"             --out research_output_residual_spread
+          python research/audit_market_residual_spread.py \
+            --history-dir "${{ steps.data.outputs.history_dir }}" \
+            --out research_output_residual_spread
 
       - name: Publish summary
         if: always()
         run: |
-          if [ -f research_output_residual_spread/residual_spread_summary.md ]; then
-            cat research_output_residual_spread/residual_spread_summary.md >> "$GITHUB_STEP_SUMMARY"
+          if [ -f research_output_residual_spread/vnext_residual_ranking_baseline.md ]; then
+            cat research_output_residual_spread/vnext_residual_ranking_baseline.md >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Upload results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sky-market-residual-spread-${{ github.run_id }}
+          name: sky-vnext-residual-ranking-${{ github.run_id }}
           path: research_output_residual_spread
           if-no-files-found: warn
           retention-days: 14
