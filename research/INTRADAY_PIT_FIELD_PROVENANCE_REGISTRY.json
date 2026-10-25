@@ -29,7 +29,7 @@
       "reason": "No registered frozen v1.4 historical decision stream/provider for all canonical rule outputs."
     },
     "pit_universe": {
-      "status": "BLOCKED",
+      "status": "PASS",
       "fields": [
         "pit_universe_member",
         "universe_source",
@@ -37,7 +37,12 @@
         "universe_effective_to"
       ],
       "required_source": "GOVERNED_OFFICIAL_MEMBERSHIP_INTERVALS_WITH_CURRENT_OPEN_INTERVAL_ALIGNMENT",
-      "reason": "Prior PASS invalidated by stale open-interval evidence from real whole-universe shard; PR #110 live revalidation pending."
+      "reason": "Corrected listing-membership live audit PASS: TWSE 1091/1091, TPEx 896/896 open-interval alignment; no missing or extraneous open intervals.",
+      "evidence": {
+        "workflow_run_id": 40219381843,
+        "artifact_id": 12608387465,
+        "artifact_digest": "sha256:0f57c6b7b50d09ad92fb838e5c7df48ba4c02ab06afff6094b8c72780f676c59"
+      }
     },
     "market_raw": {
       "status": "PENDING_SOURCE_COVERAGE",
@@ -46,7 +51,7 @@
         "market_volatility"
       ],
       "required_source": "SYNCHRONIZED_PIT_WHOLE_UNIVERSE_5M",
-      "reason": "Builder exists; whole-universe Fugle export/coverage audit is currently required."
+      "reason": "Corrected PIT Universe now PASS; whole-universe 5m history must be rerun because prior downloads used invalidated pre-fix intervals."
     },
     "market_benchmark": {
       "status": "PASS",
