@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "audit_date": "2026-10-25",
+  "source": {
+    "workflow_run_id": 39963770301,
+    "artifact_id": 12506631305,
+    "artifact_name": "sky-history-5m-39963770301",
+    "artifact_digest": "sha256:3e3c820987242db7119ddc104b777916fa5cf63908afeff8c440091a1da99cd1",
+    "date_from": "2023-05-23",
+    "date_to": "2026-10-22",
+    "timeframe_minutes": 5,
+    "symbols": 100,
+    "total_bars": 2704785,
+    "successful_downloads": 100,
+    "failed_downloads": 0,
+    "validation_pass": true,
+    "universe_method": "deterministic SHA256 sample from current official TWSE/TPEx universe",
+    "survivorship_bias_warning": "Uses current listing universe to look backward; delisted names are absent."
+  },
+  "pit_universe_reference": {
+    "2023-12-31": 1904,
+    "2024-12-31": 1960,
+    "2025-12-31": 2028,
+    "2026-09-30": 2069
+  },
+  "maximum_symbol_coverage_upper_bound": {
+    "2023-12-31": 0.052521,
+    "2024-12-31": 0.05102,
+    "2025-12-31": 0.04931,
+    "2026-09-30": 0.048333
+  },
+  "formal_gate": {
+    "required": 0.95,
+    "status": "FAIL",
+    "reason": "Existing artifact is a 100-symbol current-universe sample, not synchronized whole-universe PIT history."
+  },
+  "governance": {
+    "promotion_grade": false,
+    "use": "engineering/regression/diagnostic only",
+    "w2_canonical_replay_eligible": false
+  }
+}
