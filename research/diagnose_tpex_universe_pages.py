@@ -142,6 +142,25 @@ def probe_tpex_api(outdir):
                 rec["json"] = r.json()
             except Exception:
                 rec["json"] = None
+            if name == "TPEX_NEW_API" and isinstance(rec.get("json"), dict):
+                try:
+                    tables = rec["json"].get("tables") or []
+                    data_rows = tables[0].get("data") if tables else []
+                    link = data_rows[0][1] if data_rows else None
+                    if link:
+                        dl_url = urljoin("https://www.tpex.org.tw", link)
+                        dl = requests.get(dl_url, timeout=30, headers={"User-Agent":"Mozilla/5.0"})
+                        rec["new_list_download_probe"] = {
+                            "url": dl_url,
+                            "status": dl.status_code,
+                            "content_type": dl.headers.get("content-type"),
+                            "content_disposition": dl.headers.get("content-disposition"),
+                            "text_prefix": dl.text[:12000] if "text" in (dl.headers.get("content-type") or "") else None,
+                            "bytes_prefix_hex": dl.content[:200].hex(),
+                            "size_bytes": len(dl.content),
+                        }
+                except Exception as e:
+                    rec["new_list_download_probe"] = {"error": f"{type(e).__name__}: {e}"}
             out[name] = rec
             (outdir/f"{name.lower()}.json").write_text(
                 json.dumps(rec, ensure_ascii=False, indent=2), encoding="utf-8"
