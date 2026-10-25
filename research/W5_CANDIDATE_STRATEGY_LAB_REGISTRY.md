@@ -4,6 +4,18 @@
 >
 > GitHub 為 Single Source of Truth。W5 只負責 Intake、去重、價值篩選、研究預註冊前治理與候選淘汰，不具 Production 升版權限。
 
+## 0. W5 Operating Files
+
+W5 正式操作檔案：
+- `research/w5/CANDIDATE_INTAKE_TEMPLATE.md` — 新 Candidate 標準 Intake。
+- `research/w5/DUPLICATE_LOW_VALUE_GATE.md` — Duplicate / Low-value Gate。
+- `research/w5/PREREGISTRATION_TEMPLATE.md` — 通過 Intake 後的預註冊模板。
+- `research/w5/CANDIDATE_QUEUE.md` — W5 候選佇列。
+- `research/w5/HANDOFF_PROTOCOL.md` — W5 → W0 → W1/W2 交接規則。
+
+執行順序固定：
+`Intake → Duplicate/Low-value Gate → ACCEPT/HOLD/REJECT/ARCHIVE → Pre-registration（僅 ACCEPT）→ W0 Handoff`
+
 ## 1. Purpose
 
 核心問題：
