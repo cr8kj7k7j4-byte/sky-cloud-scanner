@@ -18,7 +18,7 @@ def _contains(interval: dict, day: str) -> bool:
 
 def load_price_ranges(history_dir: str) -> dict[str, dict]:
     out = {}
-    for p in sorted(Path(history_dir).glob("*_5.json")):
+    paths = list(Path(history_dir).glob("*_D.json")) or list(Path(history_dir).glob("*_5.json"))\n    for p in sorted(paths):
         try:
             obj = json.loads(p.read_text(encoding="utf-8"))
             sym = str(obj.get("symbol") or p.name.split("_", 1)[0])
@@ -87,7 +87,7 @@ def main():
 
     status = "READY_FOR_CANONICAL_SWING_REPLAY" if all_pass else "BLOCKED_PRICE_HISTORY_COVERAGE"
     report = {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "status": status,
         "historical_universe_gate_pass": pit_gate,
         "interval_validation_pass": interval_valid,
@@ -96,7 +96,7 @@ def main():
         "minimum_required_coverage_pct": MIN_PIT_PRICE_COVERAGE_PCT,
         "audit_dates": rows,
         "governance": {
-            "rule": "Do not run promotion-grade Swing replay on a current-universe subset.",
+            "rule": "Do not run promotion-grade Swing replay on a current-universe subset. Canonical daily *_D.json is preferred; legacy *_5.json remains read-compatible only.",
             "blocked_means": "Acquire historical OHLC for the canonical PIT membership before proceeding.",
         },
     }
