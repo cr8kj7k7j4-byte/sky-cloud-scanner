@@ -1,0 +1,32 @@
+name: Universe Overlap Event Probe
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'feature/historical-universe-audit'
+    paths:
+      - 'research/probe_universe_overlap_events.py'
+      - '.github/workflows/probe-universe-overlap-events.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install requests beautifulsoup4
+      - run: python research/probe_universe_overlap_events.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: universe-overlap-probe-${{ github.run_id }}
+          path: output/universe_overlap_probe/
+          retention-days: 30
