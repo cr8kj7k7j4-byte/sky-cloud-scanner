@@ -32,19 +32,9 @@ def load_history_dir(path: str) -> pd.DataFrame:
         df=df[df['timestamp'].notna()].sort_values(['symbol','timestamp'])
     return df
 
-def _regime(breadth,median_return):
-    if pd.isna(breadth) or pd.isna(median_return):
-        return None
-    if breadth>=0.60 and median_return>0:
-        return 'Bull'
-    if breadth<=0.40 and median_return<0:
-        return 'Bear'
-    return 'Neutral'
-
-def build_market_context(decisions, bars, pit_intervals, benchmark=None):
+def build_market_context(decisions, bars, pit_intervals, benchmark=None, regime_context=None):
     """Build contemporaneous breadth/volatility from synchronized PIT members.
-    market_return is populated only from an explicit benchmark series.
-    Equal-weight return is retained separately and is never substituted."""
+    Raw market data only. market_return requires an explicit benchmark.\n    market_regime is never inferred by W3A; a frozen provider/snapshot is required."""
     d=decisions.copy()
     d['decision_timestamp']=pd.to_datetime(d['decision_timestamp'],errors='coerce',utc=True)
     if 'session_date' not in d.columns:
@@ -63,6 +53,12 @@ def build_market_context(decisions, bars, pit_intervals, benchmark=None):
         benchmark['timestamp']=pd.to_datetime(benchmark['timestamp'],errors='coerce',utc=True)
         benchmark['market_return']=pd.to_numeric(benchmark['market_return'],errors='coerce')
         benchmark_series=benchmark.dropna(subset=['timestamp']).sort_values('timestamp')
+
+    regime_lookup={}
+    if regime_context is not None and not regime_context.empty:
+        r=regime_context.copy()
+        if "decision_id" in r.columns and "market_regime" in r.columns:
+            regime_lookup=dict(zip(r["decision_id"].astype(str),r["market_regime"]))
 
     out=[]; detail=[]
     for ts,part in d.groupby('decision_timestamp',dropna=False):
@@ -90,7 +86,7 @@ def build_market_context(decisions, bars, pit_intervals, benchmark=None):
             z=benchmark_series[benchmark_series['timestamp']<=ts]
             if not z.empty: market_return=float(z.iloc[-1]['market_return'])
         record={
-            'market_regime':_regime(breadth,med),'market_return':market_return,
+            'market_return':market_return,
             'market_breadth':breadth,'market_volatility':vol,
             'market_equal_weight_return':ew,'market_median_return':med,
             'market_member_expected':expected,'market_member_observed':observed,
@@ -98,20 +94,31 @@ def build_market_context(decisions, bars, pit_intervals, benchmark=None):
             'market_context_source':'PIT_SYNCHRONIZED_5M_CROSS_SECTION',
             'market_benchmark_source':'EXPLICIT' if market_return is not None else 'MISSING',
         }
-        for _,row in part.iterrows(): out.append({'decision_id':row['decision_id'],**record})
-        detail.append({'timestamp':ts.isoformat(),'session_date':session,**record})
+        for _,row in part.iterrows():
+            decision_id=str(row["decision_id"])
+            item={
+                "decision_id":row["decision_id"],
+                "market_regime":regime_lookup.get(decision_id),
+                "market_regime_source":"FROZEN_PROVIDER" if decision_id in regime_lookup else "MISSING",
+                **record,
+            }
+            out.append(item)
+            detail.append({"timestamp":ts.isoformat(),"session_date":session,**item})
 
     result=pd.DataFrame(out)
     cov=[x['market_member_coverage'] for x in detail]
     benchmark_ok=bool(not result.empty and 'market_return' in result.columns and result['market_return'].notna().all())
+    regime_ok=bool(not result.empty and 'market_regime' in result.columns and result['market_regime'].notna().all())
     report={
         'schema_version':SCHEMA_VERSION,'decision_rows':int(len(result)),'timestamps':len(detail),
         'mean_member_coverage':round(sum(cov)/len(cov),6) if cov else 0.0,
         'min_member_coverage':round(min(cov),6) if cov else 0.0,
         'benchmark_available':benchmark_ok,
-        'status':'PASS' if cov and min(cov)>=0.95 and benchmark_ok else 'BLOCKED',
+        'frozen_regime_available':regime_ok,
+        'status':'PASS' if cov and min(cov)>=0.95 and benchmark_ok and regime_ok else 'BLOCKED',
         'governance':{
             'equal_weight_return_not_substituted_for_market_return':True,
+            'market_regime_not_inferred_by_w3a':True,
             'pit_membership_required':True,'future_bars_allowed':False,
         },
     }
@@ -123,6 +130,7 @@ def main():
     ap.add_argument('--history-dir',required=True)
     ap.add_argument('--pit-universe',required=True)
     ap.add_argument('--benchmark')
+    ap.add_argument('--regime-context')
     ap.add_argument('--out-dir',default='research_output/intraday_market_context')
     args=ap.parse_args()
     decisions=pd.read_csv(args.decisions)
@@ -130,7 +138,8 @@ def main():
     obj=json.loads(Path(args.pit_universe).read_text(encoding='utf-8'))
     intervals=obj if isinstance(obj,list) else obj.get('intervals',[])
     benchmark=pd.read_csv(args.benchmark) if args.benchmark else None
-    frame,report=build_market_context(decisions,bars,intervals,benchmark)
+    regime=pd.read_csv(args.regime_context) if args.regime_context else None
+    frame,report=build_market_context(decisions,bars,intervals,benchmark,regime)
     out=Path(args.out_dir);out.mkdir(parents=True,exist_ok=True)
     frame.to_csv(out/'market_context.csv',index=False)
     (out/'market_context_audit.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
