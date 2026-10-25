@@ -123,30 +123,33 @@ Any material gate failure blocks Promotion. No chat window, notebook, branch, or
 - W5 Candidate Lab: no active VNext Alpha candidate is currently authorized.
 - Production baseline remains unchanged until all 18 Promotion Gates pass.
 
-## W2 intraday validation infrastructure — 2026-10-25
+## W2 intraday validation infrastructure — updated 2026-10-26
 
-- PR #79 research infrastructure is merged and accepted by W0/P0-G.
+- PR #79 research infrastructure remains accepted by W0/P0-G.
 - Accepted components: canonical Intraday PIT Replay Contract, fail-closed validator, 10-Rule ablation, walk-forward/regime stability, 0.45%/0.65% cost stress, W2 validation runner, CI tests.
 - Sky Day Trading v1.4 / P0-C MVP remains the Production baseline and its behavior is unchanged.
 - No Day Trading rule is newly promoted to Production Stable Rule.
-- W2 formal status: **HOLD**.
-- Main blocker: canonical Intraday PIT Historical Replay Dataset is not yet complete.
-- Highest-priority unblock owner: **W3A｜Sky Data & Feature Engineering**.
+- Corrected whole-universe 5m PIT market source now **PASS**.
+- W0 governance decision: historical full-rule replay for Production v1.4 is **NOT FULLY RECONSTRUCTABLE from the current SSOT**.
+- Formal W2 status: **HOLD / HISTORICAL_V14_FULL_RULE_REPLAY_UNAVAILABLE**.
+- W2 must not report historical 10-rule efficacy for v1.4 from reconstructed/proxy rules.
+- W2 remains available for future challengers and any strategy whose frozen implementation + PIT evidence are complete.
+- Canonical decision: `docs/W0_V14_HISTORICAL_REPLAY_GOVERNANCE_DECISION_20261026.md`.
 
 ## Workstream operating state — 2026-10-25
 
 - W0: Master Control / P0-G — ACTIVE.
 - W1: Swing Validation — HOLD.
-- W2: Intraday Validation — HOLD / DATA_BLOCKED pending canonical intraday PIT replay data.
-- W3A: Data & Feature Engineering — **P0 HIGHEST PRIORITY**, engineering framework complete; owner of resolving promotion-grade whole-universe intraday PIT coverage/data-source blocker.
-- W3B: Cloud & Production Engineering — ACTIVE / P1, supporting reproducible W3A→W2 pipeline and Production hardening.
-- W4: Shadow/Paper/Live Evidence — WAITING_FOR_SUFFICIENCY / active accumulation.
+- W2: Intraday Validation — **HOLD / HISTORICAL_V14_FULL_RULE_REPLAY_UNAVAILABLE**; future challenger validation remains available.
+- W3A: Data & Feature Engineering — canonical PIT / whole-universe market data source ready; maintain data provenance and do not synthesize missing v1.4 Alpha rules.
+- W3B: Cloud & Production Engineering — ACTIVE / P1, supporting reproducible forward evidence pipeline and Production hardening.
+- W4: Shadow/Paper/Live Evidence — **P0 HIGHEST PRIORITY / WAITING_FOR_SUFFICIENCY**; active forward evidence accumulation.
 - W5: Candidate Strategy Lab — INTAKE ONLY.
 - W6: Execution & Market Microstructure Lab — ACTIVE / P2, execution evidence only.
 - W7: Global Trading Intelligence & Vendor Lab — ACTIVE / P4, low-intensity intelligence/vendor research.
 - Legacy W3: DEPRECATED FOR NEW WORK.
 
-Current critical path: **W3A → W2 → W4 → W0**.
+Current critical path: **W4 → P0-R / W6 execution evidence → W0 / P0-G**.
 
 ## W3A historical intraday coverage status — 2026-10-25
 
