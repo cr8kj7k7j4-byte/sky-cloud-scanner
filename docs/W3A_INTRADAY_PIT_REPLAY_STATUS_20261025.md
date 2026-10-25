@@ -1,143 +1,169 @@
 # W3A｜Intraday PIT Historical Replay Dataset — Build & Audit Status 2026-10-25
 
 ## Current status
-**ENGINEERING COMPLETE / DATA_BLOCKED**
 
-Issue #81 engineering scope has been implemented without changing Production trading logic.
+**DATA ENGINEERING ACTIVE / W2 DATA_BLOCKED**
 
-## Completed engineering
-1. Canonical W2 replay contract:
-   - research/INTRADAY_PIT_REPLAY_CONTRACT_V1.md
-2. W2 fail-closed validator:
-   - research/intraday_replay_validator.py
-3. W2 validation runner:
-   - research/w2_intraday_validation_runner.py
-4. 2023+ PIT historical universe gate:
-   - PASS
-5. Canonical replay builder:
-   - research/build_intraday_pit_replay.py
-6. Formal replay auditor:
-   - research/audit_intraday_pit_replay.py
-7. Source readiness gate:
-   - research/intraday_pit_replay_readiness.py
-8. Existing 5m source coverage audit:
-   - research/INTRADAY_5M_SOURCE_COVERAGE_AUDIT_20261025.json
-9. CI:
-   - .github/workflows/test-w3a-intraday-pit-replay.yml
+Production impact: **NONE**
 
-## Formal audits implemented
+Production baseline remains: Sky Day Trading v1.4 Dynamic Capital Rotation / P0-C MVP.
 
-### Coverage audit
-Required:
-- PIT Universe >= 95%
-- Market Context >= 95%
-- Sector Mapping >= 95%
-- Sector RS / price context >= 95%
-- Phase / Anti-Chase >= 95%
-- Outcome completeness >= 95%
-- net_r_045 completeness = 100%
-- net_r_065 completeness = 100%
+## DATA STATUS
 
-### Leakage audit
-Fail conditions include:
-- feature cutoff later than decision timestamp
-- outcome timestamp earlier than decision timestamp
-- outcome fields referenced by decision-time features
-- future-dated sector mapping
-- UNKNOWN / MISSING spread imputed as zero
+### PIT Universe
+- 2023+ Historical Universe gate: **PASS**
+- Current-universe backward sampling remains prohibited.
+- Canonical whole-universe downloads use PIT membership intervals.
 
-### Timestamp causality audit
-Required:
-- feature_cutoff_timestamp <= decision_timestamp
-- zero violations
+### Whole-Universe Intraday History
+Two real GitHub Actions paths are executing:
+- monolithic controlled-pacing export: run `40197918327`
+- canonical 20-shard export: run `40198835143`
 
-### W2 readiness gate
-Requires all formal coverage thresholds, leakage PASS, timestamp causality PASS,
-explicit OOS rows, and W2 fail-closed replay contract PASS.
+The sharded pipeline:
+- max-parallel = 1
+- clamps each symbol to actual PIT membership window
+- aggregates exactly 20 shard artifacts
+- runs symbol-day coverage audit
+- requires >=95% symbol and symbol-day coverage
+- rejects duplicates and out-of-membership bars
 
-## Existing 5m artifact audit
+Final source coverage is not declared PASS until the aggregate audit finishes.
 
-Verified GitHub Actions evidence:
-- workflow run: 39963770301
-- artifact ID: 12506631305
-- artifact: sky-history-5m-39963770301
-- artifact digest: sha256:3e3c820987242db7119ddc104b777916fa5cf63908afeff8c440091a1da99cd1
-- period: 2023-05-23 to 2026-10-22
-- symbols: 100
-- total 5m bars: 2,704,785
-- successful downloads: 100 / 100
-- export validation: PASS
-- universe method: deterministic SHA256 sample from the current official TWSE/TPEx universe
-- artifact manifest warning: current-universe backward sampling has survivorship bias
+### TAIEX Benchmark
+**PASS**
 
-Maximum possible symbol coverage versus governed PIT Universe:
-- 2023-12-31: 100 / 1,904 = 5.2521%
-- 2024-12-31: 100 / 1,960 = 5.1020%
-- 2025-12-31: 100 / 2,028 = 4.9310%
-- 2026-09-30: 100 / 2,069 = 4.8333%
+Verified Fugle IX0001 5-minute history:
+- start: 2023-05-23 09:00 +08:00
+- end: 2026-10-22 13:30 +08:00
+- bars: 45,760
+- Actions run: `40199386467`
+- artifact: `12601415748`
+- digest: `sha256:9ff95cc99580716c0200dc1838b530459ebe0cab105ec555bdfbd0abe78dfde3`
 
-The required gate is >=95%. Therefore this artifact is valid for engineering/regression/diagnostic use only and is **not promotion-grade canonical replay evidence**.
+This resolves the explicit intraday market benchmark source.
+Equal-weight cross-sectional return remains diagnostic and is not substituted for TAIEX.
 
-## Current real-data audit result
+## SECTOR STATUS
 
-The code path is complete, but the repository / authorized artifacts do not yet contain a promotion-grade canonical historical replay dataset.
+### Current Official Anchor
+Latest normalized official anchor:
+- TWSE mapped: 1,087
+- TPEx mapped: 894
+- total mapped: 1,981
+- unresolved TWSE TDR symbols: 9103, 9105, 9110, 9136
 
-Therefore:
-- 2023+ PIT Universe governance: PASS
-- Existing 100-symbol 5m export integrity: PASS
-- Whole-universe 5m source coverage: FAIL
-- Coverage audit on a real canonical replay dataset: NOT_EVALUABLE
-- Leakage audit on a real canonical replay dataset: NOT_EVALUABLE
-- Timestamp causality audit on a real canonical replay dataset: NOT_EVALUABLE
-- W2 readiness: DATA_BLOCKED
-- W2 efficacy / 10-rule contribution analysis: NOT AUTHORIZED
+Canonical namespace:
+- sector_code
+- Chinese sector display name
+- raw source value
+- source URL / source_as_of
 
-## External-data blockers
+Current anchor is **not historical PIT by itself**.
 
-### Sector membership blocker narrowed
-`EXTERNAL_DATA_REQUIRED:EFFECTIVE_DATED_HISTORICAL_SECTOR_MEMBERSHIP`
+### Effective-Dated History
+Event-sourced reconstruction is implemented.
 
-Engineering method is now defined:
-- current official sector snapshot + official sector-change events
-- reverse event-sourced reconstruction into effective-dated intervals
-- fail closed on event-chain mismatch
-- source registry: `research/SECTOR_MEMBERSHIP_PIT_SOURCE_REGISTRY_20261025.json`
-- implementation: `src/sector_membership_events.py`
+Important parser correction:
+- ROC date regex fixed
+- symbol regex fixed
+- source provenance retained
+- old_sector unknown is allowed only as a fail-closed boundary:
+  verified post-change interval is preserved; pre-change history remains `PRE_CHANGE_SECTOR_UNKNOWN`.
 
-Verified official event-source coverage currently includes:
-- TWSE 2023
-- TPEx 2023, 2024, 2025, 2026
+Sector history still requires complete official event-source coverage for the governed research window.
 
-Remaining source gap:
-- TWSE 2024, 2025, 2026 annual adjustment/no-change evidence
+## FEATURE STATUS
 
-Therefore sector membership remains DATA_BLOCKED, but the blocker is now **source coverage**, not missing engineering architecture.
+Decision-time objective primitives can now be reconstructed causally from 5-minute bars using only bars at or before decision time:
+- feature_cutoff_timestamp
+- entry_reference_price / price
+- volume
+- cumulative VWAP
+- price_vs_vwap_pct
+- VWAP slope
+- day return
+- gap
+- session low/high at decision
+- session position
 
-### Remaining blockers
-1. EXTERNAL_DATA_REQUIRED:SYNCHRONIZED_WHOLE_UNIVERSE_INTRADAY_HISTORY
-2. EXTERNAL_DATA_REQUIRED:HISTORICAL_DECISION_STREAM_OR_DETERMINISTIC_ALL_CANDIDATE_REPLAY
-3. EXTERNAL_DATA_REQUIRED:CANONICAL_OUTCOME_JOIN
-4. EXTERNAL_DATA_REQUIRED:EMPIRICAL_EXECUTION_EVIDENCE
+The following are intentionally **not invented**:
+- MTF short/mid/long state
+- Phase
+- ATR14
+- extension ATR
+- breakout-bar ATR
+- RVOL / volume z-score
+- resistance distance
+- stop-distance logic
 
-Additional missing canonical inputs:
-- market context snapshots
-- feature / Phase / Anti-Chase snapshots
-- complete ranking candidate-pool context
+Their status remains: `FROZEN_ALPHA_INPUT_REQUIRED`.
 
-No proxy may be substituted for promotion-grade evidence.
+## FROZEN v1.4 REPLAY STATUS
 
-## Machine-executable flow
+Machine audit scans Production `src/*.py`.
 
-Build:
-python research/build_intraday_pit_replay.py --decisions <decision_snapshot.csv> --pit-universe <pit_universe_intervals.json> --out-dir research_output/w3a_intraday_pit
+Current result: `FROZEN_ALPHA_INPUT_REQUIRED`.
 
-Audit:
-python research/audit_intraday_pit_replay.py --dataset research_output/w3a_intraday_pit/intraday_pit_replay.csv --out research_output/w3a_intraday_pit/audit.json --audited-dataset-out research_output/w3a_intraday_pit/intraday_pit_replay_audited.csv
+Observed facts:
+- registry metadata is not executable rule logic
+- no complete executable frozen v1.4 historical replay adapter exists
+- current CORE_RULE_IDS does not cover all W2 10-rule columns
+- historical canonical decision stream is absent
+- current scanner stores Top-N truncated candidate snapshots
+- research-only strategy builder is not an acceptable v1.4 substitute
 
-W2 only if audit gate = PASS:
-python research/w2_intraday_validation_runner.py --dataset research_output/w3a_intraday_pit/intraday_pit_replay_audited.csv
+Therefore W3A will not reconstruct missing Alpha thresholds or rules.
 
-## Production impact
-NONE.
+## COST STATUS
 
-Sky Day Trading v1.4 / P0-C MVP remains the Production baseline.
+Fixed research stress scenarios are implemented:
+- primary: 0.45% round-trip
+- stress: 0.65% round-trip
+
+Cost drag is converted to R using planned risk.
+
+Existing supplied `net_r_045` / `net_r_065` values are consistency-checked.
+Mismatch => `CONFLICT` => fail closed.
+
+These cost scenarios are not empirical spread/slippage evidence.
+
+## AUDIT STATUS
+
+Implemented:
+- coverage audit
+- leakage audit
+- timestamp causality audit
+- sector interval validity
+- candidate pool completeness
+- cost conflict detection
+- survivorship control
+- full source SHA256 lineage
+- versioned manifest
+- W2 runner handoff
+
+W2 efficacy executes only when all fail-closed gates PASS.
+
+## CURRENT W2 READINESS
+
+**DATA_BLOCKED / HOLD**
+
+The remaining hard dependency is not a missing research formula. It is the absence of a canonical frozen Production-v1.4 historical decision source / executable replay adapter capable of producing:
+- full 10-rule gate outputs
+- full untruncated contemporaneous candidate pool
+- MTF / Phase / Setup / Trigger / Anti-Chase states
+- planned entry / stop / targets
+- gross RR / execution-adjusted RR
+
+Without that evidence, Candidate Pool / Ranking, Execution Context and Outcome Join cannot be represented as canonical Production-v1.4 replay evidence.
+
+## Governance
+
+- No Alpha logic changed.
+- No Production Rule changed.
+- No rejected research strategy substituted.
+- No current universe used for historical backfill.
+- No current sector snapshot treated as historical PIT without event evidence.
+- No future bars used in features.
+- No missing spread/slippage imputed to zero.
+- No W2 Rule Contribution may run while readiness is DATA_BLOCKED.

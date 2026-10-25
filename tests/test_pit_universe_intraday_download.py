@@ -3,6 +3,7 @@ from pathlib import Path
 
 from research.download_pit_universe_intraday import (
     build_manifest,
+    build_download_report,
     load_pit_union,
 )
 
@@ -34,3 +35,22 @@ def test_manifest_counts_exchanges():
     assert out["twse_count"] == 2
     assert out["tpex_count"] == 1
     assert out["universe_method"] == "PIT_INTERVAL_UNION"
+
+
+def test_zero_bar_transport_success_does_not_count_as_data_coverage():
+    items=[
+        {"symbol":"1111","exchange":"TWSE"},
+        {"symbol":"2222","exchange":"TWSE"},
+    ]
+    summary=[
+        {"symbol":"1111","exchange":"TWSE","ok":True,"bars":100},
+        {"symbol":"2222","exchange":"TWSE","ok":True,"bars":0},
+    ]
+    out=build_download_report(items,summary)
+    assert out["successful_symbols"]==2
+    assert out["transport_coverage_pct"]==100.0
+    assert out["symbols_with_data"]==1
+    assert out["data_symbol_coverage_pct"]==50.0
+    assert out["coverage_pct"]==50.0
+    assert out["promotion_gate_95pct"] is False
+    assert out["zero_bar_symbols"]==["2222"]

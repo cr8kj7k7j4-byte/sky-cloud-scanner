@@ -11,6 +11,11 @@ on:
         description: "End date"
         required: true
         default: "2026-10-22"
+  push:
+    branches:
+      - w3a/pit-feature-primitives
+    paths:
+      - ".github/workflows/w3a-whole-universe-intraday-history.yml"
 
 permissions:
   contents: read
@@ -70,8 +75,8 @@ jobs:
         run: |
           python research/download_pit_universe_intraday.py \
             --pit-intervals input/pit_intervals.json \
-            --from-date "${{ inputs.from_date }}" \
-            --to-date "${{ inputs.to_date }}" \
+            --from-date "${{ inputs.from_date || '2023-05-23' }}" \
+            --to-date "${{ inputs.to_date || '2026-10-22' }}" \
             --shard-count "20" \
             --shard-index "${{ matrix.shard_index }}" \
             --out "research_data/pit_history_shard_${{ matrix.shard_index }}"
@@ -90,3 +95,56 @@ jobs:
             research_data/pit_history_shard_${{ matrix.shard_index }}/download_summary.json
           if-no-files-found: error
           retention-days: 7
+
+  aggregate:
+    needs: [prepare, download]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: w3a-pit-universe-${{ github.run_id }}
+          path: input
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: pit-history-shard-*-${{ github.run_id }}
+          path: _shards
+      - name: Extract every shard archive
+        run: |
+          mkdir -p _merged
+          COUNT=0
+          while IFS= read -r TAR; do
+            tar -xzf "$TAR" -C _merged
+            COUNT=$((COUNT+1))
+          done < <(find _shards -name 'pit-history-shard-*.tar.gz' -type f | sort)
+          echo "shard_archives=$COUNT"
+          test "$COUNT" -eq 20
+      - name: Run symbol-day PIT coverage audit
+        run: |
+          python research/audit_sharded_pit_intraday_history.py \
+            --pit-intervals input/pit_intervals.json \
+            --history-root _merged/research_data \
+            --from-date "${{ inputs.from_date || '2023-05-23' }}" \
+            --to-date "${{ inputs.to_date || '2026-10-22' }}" \
+            --out research_output/sharded_pit_history_coverage.json
+      - name: Publish audit
+        if: always()
+        run: |
+          echo "## Whole-Universe PIT Intraday Source Gate" >> "$GITHUB_STEP_SUMMARY"
+          cat research_output/sharded_pit_history_coverage.json >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: w3a-pit-history-coverage-${{ github.run_id }}
+          path: |
+            research_output/sharded_pit_history_coverage.json
+            input/pit_intervals.json
+          if-no-files-found: error
+          retention-days: 14

@@ -7,6 +7,10 @@ on:
       - "research/audit_intraday_pit_replay.py"
       - "research/intraday_pit_costs.py"
       - "research/run_intraday_pit_replay_pipeline.py"
+      - "research/build_intraday_decision_primitives.py"
+      - "research/build_intraday_stock_return_snapshots.py"
+      - "research/build_intraday_sector_rs_context.py"
+      - "research/audit_frozen_v14_replay_readiness.py"
       - "research/build_intraday_market_context.py"
       - "research/collect_current_sector_anchor.py"
       - "research/build_effective_sector_mapping.py"
@@ -23,6 +27,8 @@ on:
       - "tests/test_intraday_pit_pipeline_v2.py"
       - "tests/test_intraday_counterfactual_outcomes.py"
       - "tests/test_intraday_pit_source_builders.py"
+      - "tests/test_intraday_decision_primitives.py"
+      - "tests/test_intraday_sector_rs_context.py"
       - ".github/workflows/test-w3a-intraday-pit-replay.yml"
   workflow_dispatch:
 
@@ -48,6 +54,11 @@ jobs:
         run: |
           python -m pytest -q             tests/test_intraday_pit_replay_builder.py             tests/test_intraday_pit_replay_audit.py             tests/test_w2_intraday_validation.py
 
+      - name: Audit frozen v1.4 replay readiness
+        run: |
+          python research/audit_frozen_v14_replay_readiness.py \
+            --out research_output/w3a_intraday_pit/frozen_v14_replay_readiness.json
+
       - name: Run source-readiness gate
         run: |
           python research/intraday_pit_replay_readiness.py             --out research_output/w3a_intraday_pit/readiness.json
@@ -57,12 +68,16 @@ jobs:
         run: |
           echo "## W3A Issue #81 Readiness" >> "$GITHUB_STEP_SUMMARY"
           cat research_output/w3a_intraday_pit/readiness.json >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          cat research_output/w3a_intraday_pit/frozen_v14_replay_readiness.json >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload readiness report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: w3a-issue81-readiness
-          path: research_output/w3a_intraday_pit/readiness.json
+          path: |
+            research_output/w3a_intraday_pit/readiness.json
+            research_output/w3a_intraday_pit/frozen_v14_replay_readiness.json
           if-no-files-found: error
           retention-days: 30
