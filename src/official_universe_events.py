@@ -382,29 +382,88 @@ def dedupe_events(events: Iterable[UniverseEvent]) -> List[UniverseEvent]:
     return sorted(seen.values(),key=lambda e:(e.exchange,e.symbol,e.event_date,e.event_type))
 
 def build_intervals(events: Iterable[UniverseEvent]) -> Dict[str, Any]:
+    """
+    Build exchange-membership intervals.
+
+    Multiple LIST records for the same symbol/exchange without an intervening
+    DELIST are corroborating or board-transition records inside one continuous
+    exchange-membership episode. They must not create overlapping intervals.
+    A new interval starts only after a DELIST has ended the previous episode.
+    """
     grouped={}
     for e in dedupe_events(events):
         grouped.setdefault((e.symbol,e.exchange),[]).append(e)
+
     intervals=[]
     unresolved=[]
+
     for (symbol,exchange), arr in grouped.items():
-        lists=sorted([e for e in arr if e.event_type=="LIST"],key=lambda e:e.event_date)
-        dels=sorted([e for e in arr if e.event_type=="DELIST"],key=lambda e:e.event_date)
-        if not lists:
-            for d in dels:
-                unresolved.append({"symbol":symbol,"exchange":exchange,"reason":"DELIST_WITHOUT_CONFIRMED_LIST_DATE","event":d.to_dict()})
-            continue
-        for i,lst in enumerate(lists):
-            next_list=lists[i+1].event_date if i+1<len(lists) else None
-            eligible_dels=[d for d in dels if d.event_date>=lst.event_date and (next_list is None or d.event_date<next_list)]
-            end=eligible_dels[0].event_date if eligible_dels else None
+        ordered=sorted(
+            arr,
+            key=lambda e:(e.event_date, 0 if e.event_type=="LIST" else 1),
+        )
+
+        current_start=None
+        current_list_event=None
+        corroborating_lists=[]
+
+        for event in ordered:
+            if event.event_type=="LIST":
+                if current_start is None:
+                    current_start=event.event_date
+                    current_list_event=event
+                    corroborating_lists=[event]
+                else:
+                    # Same exchange membership is already active. Keep the
+                    # earliest confirmed start and record later LIST evidence
+                    # as corroboration / board transition, not a new interval.
+                    corroborating_lists.append(event)
+                continue
+
+            if event.event_type!="DELIST":
+                continue
+
+            if current_start is None:
+                unresolved.append({
+                    "symbol":symbol,
+                    "exchange":exchange,
+                    "reason":"DELIST_WITHOUT_CONFIRMED_LIST_DATE",
+                    "event":event.to_dict(),
+                })
+                continue
+
             intervals.append({
-                "symbol":symbol,"exchange":exchange,"name":lst.name,
-                "listed_from":lst.event_date,"listed_to":end,
+                "symbol":symbol,
+                "exchange":exchange,
+                "name":current_list_event.name if current_list_event else event.name,
+                "listed_from":current_start,
+                "listed_to":event.event_date,
                 "source":"official_event_ledger",
                 "source_as_of":max(e.source_as_of for e in arr if e.source_as_of),
-                "notes":""
+                "notes":(
+                    f"coalesced_list_records={len(corroborating_lists)}"
+                    if len(corroborating_lists)>1 else ""
+                ),
             })
+            current_start=None
+            current_list_event=None
+            corroborating_lists=[]
+
+        if current_start is not None:
+            intervals.append({
+                "symbol":symbol,
+                "exchange":exchange,
+                "name":current_list_event.name if current_list_event else "",
+                "listed_from":current_start,
+                "listed_to":None,
+                "source":"official_event_ledger",
+                "source_as_of":max(e.source_as_of for e in arr if e.source_as_of),
+                "notes":(
+                    f"coalesced_list_records={len(corroborating_lists)}"
+                    if len(corroborating_lists)>1 else ""
+                ),
+            })
+
     return {"intervals":intervals,"unresolved":unresolved}
 
 def collect_official_events() -> Dict[str, Any]:
@@ -426,13 +485,13 @@ def collect_official_events() -> Dict[str, Any]:
                 parsed=parse_basic_records(payload if isinstance(payload,list) else [],exchange,url,as_of)
             elif kind=="custom" and name=="TWSE_NEW":
                 parsed=fetch_twse_newlisting_events(
-                    start_year=2000,
+                    start_year=1962,
                     end_year=datetime.now().year,
                     source_as_of=as_of,
                 )
             elif kind=="custom" and name=="TPEX_NEW":
                 parsed=fetch_tpex_newlisting_events(
-                    start_year=2005,
+                    start_year=1994,
                     end_year=datetime.now().year,
                     source_as_of=as_of,
                 )
