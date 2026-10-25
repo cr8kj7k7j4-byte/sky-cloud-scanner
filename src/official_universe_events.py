@@ -14,6 +14,7 @@ from bs4 import BeautifulSoup
 
 TWSE_BASIC_URL = "https://openapi.twse.com.tw/v1/opendata/t187ap03_L"
 TPEX_BASIC_URL = "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap03_O"
+TPEX_ACTIVE_URL = "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_quotes"
 TWSE_NEW_URL = "https://openapi.twse.com.tw/v1/company/newlisting"
 TWSE_DELIST_URL = "https://openapi.twse.com.tw/v1/company/suspendListingCsvAndHtml"
 TPEX_NEW_URL = "https://www.tpex.org.tw/zh-tw/mainboard/applying/status/new-listed.html"
@@ -24,6 +25,7 @@ TPEX_DELIST_API = "https://www.tpex.org.tw/www/zh-tw/company/deListed"
 SOURCE_EXPECTATIONS = {
     "TWSE_BASIC": {"min_events": 100, "role": "CURRENT_BASE"},
     "TPEX_BASIC": {"min_events": 100, "role": "CURRENT_BASE"},
+    "TPEX_ACTIVE": {"min_events": 100, "role": "CURRENT_ACTIVE_SET"},
     "TWSE_NEW": {"min_events": 1, "role": "HISTORICAL_EVENT"},
     "TWSE_DELIST": {"min_events": 1, "role": "HISTORICAL_EVENT"},
     "TPEX_NEW": {"min_events": 1, "role": "HISTORICAL_EVENT"},
@@ -92,12 +94,14 @@ def _code(row):
 def _name(row):
     return str(_pick(row, ["公司名稱","公司簡稱","證券名稱","Name","CompanyName"]) or "").strip()
 
-def parse_basic_records(rows: Iterable[Dict[str, Any]], exchange: str, source_url: str, source_as_of: str) -> List[UniverseEvent]:
+def parse_basic_records(rows: Iterable[Dict[str, Any]], exchange: str, source_url: str, source_as_of: str, allowed_symbols: set[str] | None = None) -> List[UniverseEvent]:
     out=[]
     date_keys = ["上市日期","股票上市買賣日期","上櫃日期","掛牌日期","ListingDate","DateOfListing"]
     for row in rows or []:
         symbol=_code(row)
         if not (len(symbol)==4 and symbol.isdigit()):
+            continue
+        if allowed_symbols is not None and symbol not in allowed_symbols:
             continue
         listed=normalize_roc_date(_pick(row,date_keys))
         if not listed:
@@ -262,7 +266,7 @@ def fetch_tpex_new_events(source_as_of: str, start_year: int = 2005, end_year: O
             ))
     return out
 
-def fetch_tpex_delist_events(source_as_of: str, start_year: int = 2021, end_year: Optional[int] = None) -> List[UniverseEvent]:
+def fetch_tpex_delist_events(source_as_of: str, start_year: int = 2005, end_year: Optional[int] = None) -> List[UniverseEvent]:
     end_year = end_year or datetime.now().year
     out=[]
     for year in range(int(start_year), int(end_year)+1):
@@ -390,6 +394,32 @@ def collect_official_events() -> Dict[str, Any]:
     as_of=datetime.now().astimezone().isoformat()
     events=[]
     health=[]
+
+    # Production TPEx universe semantics use tpex_mainboard_quotes. The MOPS
+    # company-basic endpoint also contains non-mainboard/managed securities,
+    # which must not seed open historical intervals as if they were current
+    # Production-universe members.
+    tpex_active_symbols=None
+    try:
+        active_payload=fetch_json(TPEX_ACTIVE_URL)
+        active_rows=active_payload if isinstance(active_payload,list) else []
+        tpex_active_symbols={
+            str(x.get("SecuritiesCompanyCode") or x.get("Code") or "").strip()
+            for x in active_rows
+            if len(str(x.get("SecuritiesCompanyCode") or x.get("Code") or "").strip())==4
+            and str(x.get("SecuritiesCompanyCode") or x.get("Code") or "").strip().isdigit()
+        }
+        h=assess_source_health("TPEX_ACTIVE",len(tpex_active_symbols),transport_ok=True)
+        h["url"]=TPEX_ACTIVE_URL
+        health.append(h)
+    except Exception as e:
+        h=assess_source_health(
+            "TPEX_ACTIVE",0,transport_ok=False,
+            error=f"{type(e).__name__}: {e}"
+        )
+        h["url"]=TPEX_ACTIVE_URL
+        health.append(h)
+
     sources=[
         ("TWSE_BASIC",TWSE_BASIC_URL,"json","TWSE","basic"),
         ("TPEX_BASIC",TPEX_BASIC_URL,"json","TPEx","basic"),
@@ -408,7 +438,10 @@ def collect_official_events() -> Dict[str, Any]:
                 elif parser=="twse_delist":
                     parsed=parse_twse_delist_records(rows,url,as_of)
                 else:
-                    parsed=parse_basic_records(rows,exchange,url,as_of)
+                    parsed=parse_basic_records(
+                        rows,exchange,url,as_of,
+                        allowed_symbols=(tpex_active_symbols if name=="TPEX_BASIC" else None),
+                    )
             elif kind=="tpex_new_api":
                 parsed=fetch_tpex_new_events(as_of)
             elif kind=="tpex_delist_api":
