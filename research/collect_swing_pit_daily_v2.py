@@ -13,17 +13,9 @@ from typing import Any
 import requests
 
 FINMIND_URL = "https://api.finmindtrade.com/api/v4/data"
-SCHEMA_VERSION = "SWING_PIT_DAILY_OHLCV_2.0"
+SCHEMA_VERSION = "SWING_PIT_DAILY_OHLCV_2.1"
 SOURCE = "FinMind TaiwanStockPrice + corporate-action reference datasets"
 START_DEFAULT = "2023-01-01"
-EVENT_DATASETS = (
-    "TaiwanStockDividendResult",
-    "TaiwanStockCapitalReductionReferencePrice",
-)
-RARE_EVENT_DATASETS = (
-    "TaiwanStockSplitPrice",
-    "TaiwanStockParValueChange",
-)
 
 
 def _num(v):
@@ -40,14 +32,11 @@ def _integer(v):
     return None if x is None else int(x)
 
 
-def _request(dataset: str, symbol: str, start: str, end: str, token: str = "", retries: int = 4):
-    params = {
-        "dataset": dataset,
-        "data_id": symbol,
-        "start_date": start,
-        "end_date": end,
-    }
-    headers = {"User-Agent": "Sky-W3-Swing-PIT/2.0"}
+def _get(dataset: str, *, symbol: str | None, start: str, end: str, token: str = "", retries: int = 4):
+    params = {"dataset": dataset, "start_date": start, "end_date": end}
+    if symbol is not None:
+        params["data_id"] = symbol
+    headers = {"User-Agent": "Sky-W3-Swing-PIT/2.1"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
 
@@ -56,7 +45,7 @@ def _request(dataset: str, symbol: str, start: str, end: str, token: str = "", r
         try:
             r = requests.get(FINMIND_URL, params=params, headers=headers, timeout=45)
             if 400 <= r.status_code < 500 and r.status_code != 429:
-                raise RuntimeError(f"HTTP_{r.status_code}:{r.text[:200]}")
+                raise RuntimeError(f"HTTP_{r.status_code}:{r.text[:250]}")
             if r.status_code == 429:
                 retry_after = r.headers.get("Retry-After")
                 wait = float(retry_after) if retry_after else min(5 * (2 ** attempt), 60)
@@ -67,23 +56,23 @@ def _request(dataset: str, symbol: str, start: str, end: str, token: str = "", r
             status = payload.get("status")
             if status not in (None, 200, "200"):
                 raise RuntimeError(f"FINMIND_STATUS_{status}:{payload.get('msg') or payload.get('detail')}")
-            data = payload.get("data")
-            if not isinstance(data, list):
+            rows = payload.get("data")
+            if not isinstance(rows, list):
                 raise RuntimeError("FINMIND_INVALID_PAYLOAD")
-            return data
+            return rows
         except Exception as exc:
             last = exc
             if "HTTP_4" in str(exc) and "HTTP_429" not in str(exc):
                 break
             if attempt + 1 < retries:
                 time.sleep(min(2 ** attempt, 8))
-    raise RuntimeError(f"{dataset}:{symbol}:{type(last).__name__}:{last}")
+    raise RuntimeError(f"{dataset}:{symbol or 'ALL'}:{type(last).__name__}:{last}")
 
 
 def _contains(interval: dict, day: str) -> bool:
-    start = str(interval.get("listed_from") or "")
-    end = interval.get("listed_to")
-    return bool(start and start <= day and (not end or day <= str(end)))
+    a = str(interval.get("listed_from") or "")
+    b = interval.get("listed_to")
+    return bool(a and a <= day and (not b or day <= str(b)))
 
 
 def _index_intervals(pit: dict) -> dict[str, list[dict]]:
@@ -110,52 +99,37 @@ def _parse_raw(rows: list[dict]):
         o, h, l, c = (_num(r.get(k)) for k in ("open", "max", "min", "close"))
         volume = _integer(r.get("Trading_Volume"))
         turnover = _integer(r.get("Trading_money"))
-        spread = _num(r.get("spread"))
         if not day or None in (o, h, l, c, volume):
             continue
+        # FinMind documents zero OHLC when there is no announced transaction price.
+        # Such rows are missing/no-trade observations, not bars and are not forward-filled.
         if min(o, h, l, c) <= 0 or volume < 0:
             continue
         if h < max(o, l, c) or l > min(o, h, c):
             continue
         out.append({
-            "date": day, "open_raw": o, "high_raw": h, "low_raw": l, "close_raw": c,
-            "volume": volume, "turnover": turnover, "spread": spread,
+            "date": day,
+            "open_raw": o,
+            "high_raw": h,
+            "low_raw": l,
+            "close_raw": c,
+            "volume": volume,
+            "turnover": turnover,
         })
-    out.sort(key=lambda x: x["date"])
-    return out
+    return sorted(out, key=lambda x: x["date"])
 
 
-def _candidate_event_dates(raw: list[dict], tolerance_pct: float = 0.0005):
-    dates = {}
-    prev = None
-    for row in raw:
-        if prev is not None and row["spread"] is not None:
-            implied_ref = row["close_raw"] - row["spread"]
-            prev_close = prev["close_raw"]
-            if prev_close > 0:
-                delta = abs(implied_ref / prev_close - 1.0)
-                if delta > tolerance_pct:
-                    dates[row["date"]] = {
-                        "implied_reference": implied_ref,
-                        "previous_available_close": prev_close,
-                        "reference_ratio": implied_ref / prev_close,
-                        "delta_pct": delta * 100,
-                    }
-        prev = row
-    return dates
-
-
-def _event_dates(dataset: str, rows: list[dict]):
-    return {str(r.get("date") or "") for r in rows if r.get("date")}
-
-
-def _event_fallback_factor(dataset: str, row: dict):
+def _factor(dataset: str, row: dict):
     if dataset == "TaiwanStockDividendResult":
         before = _num(row.get("before_price"))
         after = _num(row.get("reference_price")) or _num(row.get("after_price"))
     elif dataset == "TaiwanStockCapitalReductionReferencePrice":
         before = _num(row.get("ClosingPriceonTheLastTradingDay"))
-        after = _num(row.get("PostReductionReferencePrice")) or _num(row.get("OpeningReferencePrice"))
+        # For combined reduction + ex-right cases, ExrightReferencePrice is the
+        # final trading reference when populated.
+        after = _num(row.get("ExrightReferencePrice"))
+        if not after or after <= 0:
+            after = _num(row.get("PostReductionReferencePrice")) or _num(row.get("OpeningReferencePrice"))
     elif dataset == "TaiwanStockSplitPrice":
         before = _num(row.get("before_price"))
         after = _num(row.get("after_price")) or _num(row.get("open_price"))
@@ -165,79 +139,94 @@ def _event_fallback_factor(dataset: str, row: dict):
     else:
         return None
     if before and after and before > 0 and after > 0:
-        return after / before
+        ratio = after / before
+        if 0.01 <= ratio <= 100:
+            return ratio
     return None
 
 
-def _build_events(symbol: str, raw: list[dict], start: str, end: str, token: str):
-    candidates = _candidate_event_dates(raw)
-    datasets = {}
-    known = set()
-    request_errors = []
-
-    for ds in EVENT_DATASETS:
+def _global_rare_events(start: str, end: str, token: str):
+    by_symbol = defaultdict(list)
+    source_errors = []
+    for ds in ("TaiwanStockSplitPrice", "TaiwanStockParValueChange"):
         try:
-            rows = _request(ds, symbol, start, end, token)
-            datasets[ds] = rows
-            known |= _event_dates(ds, rows)
+            rows = _get(ds, symbol=None, start=start, end=end, token=token)
         except Exception as exc:
-            request_errors.append(f"{ds}:{exc}")
-            datasets[ds] = []
+            source_errors.append(f"{ds}:{exc}")
+            continue
+        for row in rows:
+            symbol = str(row.get("stock_id") or "")
+            day = str(row.get("date") or "")
+            f = _factor(ds, row)
+            if symbol and day and f:
+                by_symbol[symbol].append({
+                    "date": day, "factor": f, "source": ds, "row": row,
+                })
+    return dict(by_symbol), source_errors
 
-    unresolved = set(candidates) - known
-    if unresolved:
-        for ds in RARE_EVENT_DATASETS:
-            try:
-                rows = _request(ds, symbol, start, end, token)
-                datasets[ds] = rows
-                known |= _event_dates(ds, rows)
-            except Exception as exc:
-                request_errors.append(f"{ds}:{exc}")
-                datasets[ds] = []
 
-    event_rows = defaultdict(list)
-    for ds, rows in datasets.items():
-        for r in rows:
-            day = str(r.get("date") or "")
-            if day:
-                event_rows[day].append((ds, r))
+def _symbol_events(symbol: str, start: str, end: str, token: str, rare_events: dict[str, list[dict]]):
+    events = defaultdict(list)
+    errors = []
+    for ds in ("TaiwanStockDividendResult", "TaiwanStockCapitalReductionReferencePrice"):
+        try:
+            rows = _get(ds, symbol=symbol, start=start, end=end, token=token)
+        except Exception as exc:
+            errors.append(f"{ds}:{exc}")
+            continue
+        for row in rows:
+            day = str(row.get("date") or "")
+            f = _factor(ds, row)
+            if day and f:
+                events[day].append({"factor": f, "source": ds, "row": row})
+
+    for e in rare_events.get(symbol, []):
+        events[e["date"]].append(e)
 
     factors = {}
-    unresolved_details = []
-    for day, cand in sorted(candidates.items()):
-        if day not in known:
-            unresolved_details.append({"date": day, **cand, "reason": "UNRESOLVED_REFERENCE_DISCONTINUITY"})
-            continue
-        ratio = cand["reference_ratio"]
-        if not (0.05 <= ratio <= 20):
-            # fallback to published event reference if the raw-derived ratio is implausible
-            ratio = None
-            for ds, row in event_rows.get(day, []):
-                ratio = _event_fallback_factor(ds, row)
-                if ratio:
-                    break
-        if not ratio or not (0.05 <= ratio <= 20):
-            unresolved_details.append({"date": day, **cand, "reason": "INVALID_ADJUSTMENT_FACTOR"})
-            continue
-        factors[day] = {
-            "factor": ratio,
-            "sources": sorted({ds for ds, _ in event_rows.get(day, [])}),
-            "implied_reference": cand["implied_reference"],
-            "previous_available_close": cand["previous_available_close"],
+    conflicts = []
+    for day, rows in sorted(events.items()):
+        sources = {x["source"] for x in rows}
+        # Structural actions supersede a plain dividend row on the same date.
+        # Capital reduction explicitly exposes ExrightReferencePrice for combined cases.
+        priority = [
+            "TaiwanStockCapitalReductionReferencePrice",
+            "TaiwanStockParValueChange",
+            "TaiwanStockSplitPrice",
+            "TaiwanStockDividendResult",
+        ]
+        chosen = None
+        for ds in priority:
+            candidates = [x for x in rows if x["source"] == ds]
+            if candidates:
+                chosen = candidates[0]
+                break
+        structural = sources & {
+            "TaiwanStockCapitalReductionReferencePrice",
+            "TaiwanStockParValueChange",
+            "TaiwanStockSplitPrice",
         }
-
-    return factors, unresolved_details, request_errors
+        if len(structural) > 1:
+            conflicts.append({"date": day, "sources": sorted(sources), "reason": "MULTIPLE_STRUCTURAL_ACTIONS"})
+            continue
+        if chosen:
+            factors[day] = {
+                "factor": chosen["factor"],
+                "source": chosen["source"],
+                "sources_on_date": sorted(sources),
+            }
+    return factors, conflicts, errors
 
 
 def _adjust(raw: list[dict], factors: dict[str, dict]):
-    cumulative = 1.0
-    factor_by_date = {d: x["factor"] for d, x in factors.items()}
-    adjusted = []
-    # Walk backward: an event affects all bars strictly before its event date.
-    for row in reversed(raw):
-        day = row["date"]
-        scale = cumulative
-        adjusted.append({
+    event_days = sorted(factors)
+    out = []
+    for row in raw:
+        scale = 1.0
+        for day in event_days:
+            if day > row["date"]:
+                scale *= factors[day]["factor"]
+        out.append({
             **row,
             "open": row["open_raw"] * scale,
             "high": row["high_raw"] * scale,
@@ -245,10 +234,7 @@ def _adjust(raw: list[dict], factors: dict[str, dict]):
             "close": row["close_raw"] * scale,
             "price_adjustment_factor": scale,
         })
-        if day in factor_by_date:
-            cumulative *= factor_by_date[day]
-    adjusted.reverse()
-    return adjusted
+    return out
 
 
 def collect(*, pit_path: str, out_dir: str, start: str, end: str, shard_index: int, shard_count: int, token: str = ""):
@@ -261,6 +247,13 @@ def collect(*, pit_path: str, out_dir: str, start: str, end: str, shard_index: i
     intervals = _index_intervals(pit)
     symbols = sorted(intervals)
     selected = [s for i, s in enumerate(symbols) if i % shard_count == shard_index]
+
+    rare_events, rare_errors = _global_rare_events(start, end, token)
+    # These datasets are the only governed source for split/par-value adjustment.
+    # If either global dataset is structurally unavailable, fail the shard closed.
+    if rare_errors:
+        raise SystemExit("rare corporate-action source unavailable: " + " | ".join(rare_errors))
+
     out = Path(out_dir)
     hist = out / "history"
     hist.mkdir(parents=True, exist_ok=True)
@@ -286,32 +279,34 @@ def collect(*, pit_path: str, out_dir: str, start: str, end: str, shard_index: i
 
     for n, symbol in enumerate(selected, 1):
         try:
-            raw = _parse_raw(_request("TaiwanStockPrice", symbol, start, end, token))
+            raw = _parse_raw(_get("TaiwanStockPrice", symbol=symbol, start=start, end=end, token=token))
             if not raw:
                 report["symbols_empty"].append(symbol)
                 continue
-            factors, unresolved, event_errors = _build_events(symbol, raw, start, end, token)
-            if unresolved:
+
+            factors, conflicts, event_errors = _symbol_events(symbol, start, end, token, rare_events)
+            # Dividend/capital-reduction endpoints are Free per-symbol and are required
+            # for a governed adjusted series. A source error is not silently ignored.
+            if event_errors or conflicts:
                 report["symbols_quarantined"].append({
                     "symbol": symbol,
-                    "unresolved": unresolved,
+                    "conflicts": conflicts,
                     "event_request_errors": event_errors,
                 })
                 continue
+
             adjusted = _adjust(raw, factors)
             bars = []
-            continuity_conflict = False
             for row in adjusted:
-                day = row["date"]
-                interval = _interval_for_day(intervals[symbol], day)
+                interval = _interval_for_day(intervals[symbol], row["date"])
                 if interval is None:
                     report["outside_pit_rows_dropped"] += 1
                     continue
                 bars.append({
                     "symbol": symbol,
                     "exchange": interval.get("exchange"),
-                    "date": day,
-                    "trading_date": day,
+                    "date": row["date"],
+                    "trading_date": row["date"],
                     "open": round(row["open"], 8),
                     "high": round(row["high"], 8),
                     "low": round(row["low"], 8),
@@ -323,14 +318,15 @@ def collect(*, pit_path: str, out_dir: str, start: str, end: str, shard_index: i
                     "retrieved_at": retrieved,
                     "adjusted": True,
                     "volume_adjusted": False,
-                    "adjustment_method": "confirmed_event_reference_ratio_backward_v1",
+                    "adjustment_method": "governed_corporate_action_reference_backward_v2",
                     "price_adjustment_factor": round(row["price_adjustment_factor"], 12),
                     "listed_from": interval.get("listed_from"),
                     "listed_to": interval.get("listed_to"),
                 })
-            if continuity_conflict or not bars:
+            if not bars:
                 report["symbols_empty"].append(symbol)
                 continue
+
             payload = {
                 "schema_version": SCHEMA_VERSION,
                 "symbol": symbol,
@@ -338,7 +334,7 @@ def collect(*, pit_path: str, out_dir: str, start: str, end: str, shard_index: i
                 "retrieved_at": retrieved,
                 "adjusted": True,
                 "volume_adjusted": False,
-                "adjustment_method": "confirmed_event_reference_ratio_backward_v1",
+                "adjustment_method": "governed_corporate_action_reference_backward_v2",
                 "corporate_action_events": factors,
                 "data": bars,
             }
@@ -352,7 +348,8 @@ def collect(*, pit_path: str, out_dir: str, start: str, end: str, shard_index: i
 
         if n % 10 == 0:
             print(json.dumps({
-                "shard": shard_index, "progress": f"{n}/{len(selected)}",
+                "shard": shard_index,
+                "progress": f"{n}/{len(selected)}",
                 "written": report["symbols_written"],
                 "quarantined": len(report["symbols_quarantined"]),
                 "failed": len(report["symbols_failed"]),
@@ -361,8 +358,7 @@ def collect(*, pit_path: str, out_dir: str, start: str, end: str, shard_index: i
     (out / f"shard_report_{shard_index:02d}.json").write_text(
         json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
     )
-    print(json.dumps({k: v for k, v in report.items() if k not in {"symbols_failed","symbols_quarantined"}}, ensure_ascii=False))
-    # Fail closed when the source is structurally unavailable for the shard.
+    print(json.dumps({k: v for k, v in report.items() if k not in {"symbols_failed", "symbols_quarantined"}}, ensure_ascii=False))
     if selected and report["symbols_written"] == 0 and report["symbols_failed"]:
         raise SystemExit(4)
 
@@ -385,6 +381,7 @@ def main():
         shard_count=args.shard_count,
         token=os.getenv("FINMIND_TOKEN", "").strip(),
     )
+
 
 if __name__ == "__main__":
     main()
