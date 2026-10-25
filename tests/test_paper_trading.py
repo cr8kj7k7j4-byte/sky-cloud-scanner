@@ -87,3 +87,35 @@ def test_snapshot_preserves_forward_version_lineage():
         =="HISTORICAL_V14_FULL_RULE_REPLAY_UNAVAILABLE"
     )
     assert snap["research_context"]["scanner_version"]=="0.5"
+
+
+def test_paper_snapshot_preserves_gainer_rank_context():
+    from src.paper_trading import PaperTradingGate, build_paper_snapshot
+
+    gate = PaperTradingGate(
+        mode="shadow",
+        oos_verdict="RESEARCH_ONLY",
+        enabled=True,
+        simulation_allowed=False,
+        reason="test",
+    )
+    item = {
+        "symbol": "1234",
+        "name": "Test",
+        "gainer_rank": 37,
+        "top100_gainer_member": True,
+        "gainer_universe_size": 1980,
+        "gainer_rank_source": "current_snapshot_change_pct",
+    }
+    snap = build_paper_snapshot(
+        run_id="r1",
+        observed_at="2026-10-26T09:30:00+08:00",
+        item=item,
+        gate=gate,
+    )
+    assert snap["gainer_rank"] == 37
+    assert snap["top100_gainer_member"] is True
+    assert snap["gainer_universe_size"] == 1980
+    assert snap["gainer_rank_source"] == "current_snapshot_change_pct"
+    assert snap["research_context"]["gainer_rank"] == 37
+    assert snap["research_context"]["top100_gainer_member"] is True
