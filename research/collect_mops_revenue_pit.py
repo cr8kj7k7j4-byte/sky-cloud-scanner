@@ -44,6 +44,21 @@ def fetch_json_post(url: str, payload: dict, timeout: int = 20) -> dict:
     return json.loads(raw.decode("utf-8", errors="strict"))
 
 
+def probe_market_kinds(timeout: int = 20) -> dict:
+    candidates = ["0", "1", "2", "3", "4", "5", "all", "sii", "otc", "rotc", "pub", ""]
+    out = {}
+    for value in candidates:
+        try:
+            out[value] = fetch_json_post(
+                MOPS_LATEST_FINANCE_API,
+                {"count": 20, "marketKind": value},
+                timeout=timeout,
+            )
+        except Exception as exc:
+            out[value] = {"exception": f"{type(exc).__name__}: {exc}"}
+    return out
+
+
 def fetch_url(url: str, timeout: int = 20) -> str:
     req = urllib.request.Request(
         url,
@@ -212,7 +227,23 @@ def main():
     raw_path.write_text(page, encoding="utf-8")
     preserve_frontend_assets(page)
 
-    api_payload = {"count": 100, "marketKind": "all"}
+    probe = probe_market_kinds()
+    probe_path = Path("output/mops_t51sb10_probe.json")
+    probe_path.write_text(
+        json.dumps(probe, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+    accepted = [
+        key for key, value in probe.items()
+        if isinstance(value, dict)
+        and value.get("code") != 500
+        and value.get("result") is not None
+    ]
+    if not accepted:
+        raise RuntimeError("No accepted MOPS marketKind discovered")
+
+    api_payload = {"count": 100, "marketKind": accepted[0]}
     api_data = fetch_json_post(MOPS_LATEST_FINANCE_API, api_payload)
     api_raw_path = Path("output/mops_t51sb10_raw.json")
     api_raw_path.write_text(
