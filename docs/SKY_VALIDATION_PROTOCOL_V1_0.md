@@ -116,3 +116,27 @@ Win Rate 僅為輔助，不是單獨升版依據。
 
 ## 系統成功定義
 「穩定」不等於每天獲利；穩定代表 Edge 在合理樣本、不同時間與市場環境下仍可重複，且虧損與回撤可被 P0-R 約束。
+
+
+## Legacy Production Replay Limitation — 2026-10-26
+
+A historical Production baseline may be evaluated with full rule-ablation claims only when its historical rule implementation is provenance-verifiable.
+
+If a legacy baseline lacks authoritative frozen rule/config/decision sources:
+
+- do not reconstruct missing rule thresholds retrospectively;
+- do not substitute a research-only or archived strategy;
+- do not infer gate booleans from outcomes;
+- do not report historical rule contribution / ablation as validated evidence.
+
+Allowed fallback evidence path:
+
+`Current Production Observation → Forward Shadow/Paper → Outcome Completion → Cost/Execution Evidence → Portfolio/P0-R → P0-G`
+
+This fallback validates current forward behavior only. It does not retroactively prove the historical baseline's past expectancy or rule efficacy.
+
+For Sky Day Trading v1.4, the formal governance status is:
+`HISTORICAL_V14_FULL_RULE_REPLAY_UNAVAILABLE`
+
+See:
+`docs/W0_V14_HISTORICAL_REPLAY_GOVERNANCE_DECISION_20261026.md`
