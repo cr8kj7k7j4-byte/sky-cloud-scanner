@@ -12,8 +12,8 @@ from bs4 import BeautifulSoup
 
 TWSE_BASIC_URL = "https://openapi.twse.com.tw/v1/opendata/t187ap03_L"
 TPEX_BASIC_URL = "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap03_O"
-TWSE_NEW_URL = "https://www.twse.com.tw/company/newlisting?response=html"
-TWSE_DELIST_URL = "https://www.twse.com.tw/company/suspendListingCsvAndHtml?response=html"
+TWSE_NEW_URL = "https://openapi.twse.com.tw/v1/company/newlisting"
+TWSE_DELIST_URL = "https://openapi.twse.com.tw/v1/company/suspendListingCsvAndHtml"
 TPEX_NEW_URL = "https://www.tpex.org.tw/zh-tw/mainboard/applying/status/new-listed.html"
 TPEX_DELIST_URL = "https://www.tpex.org.tw/zh-tw/mainboard/listed/delisted.html"
 
@@ -98,6 +98,42 @@ def parse_basic_records(rows: Iterable[Dict[str, Any]], exchange: str, source_ur
             event_type="LIST", event_date=listed,
             source="official_basic_data", source_url=source_url,
             source_as_of=source_as_of
+        ))
+    return out
+
+
+def parse_twse_new_records(rows: Iterable[Dict[str, Any]], source_url: str, source_as_of: str) -> List[UniverseEvent]:
+    out=[]
+    for row in rows or []:
+        symbol=str(row.get("Code") or "").strip()
+        if not (len(symbol)==4 and symbol.isdigit()):
+            continue
+        listed=normalize_roc_date(
+            row.get("ApprovedListingDate") or row.get("ListingDate")
+        )
+        if not listed:
+            continue
+        out.append(UniverseEvent(
+            symbol=symbol, exchange="TWSE", name=str(row.get("Company") or "").strip(),
+            event_type="LIST", event_date=listed, source="TWSE_OPENAPI_NEWLISTING",
+            source_url=source_url, source_as_of=source_as_of,
+            notes=str(row.get("Note") or "").strip(),
+        ))
+    return out
+
+def parse_twse_delist_records(rows: Iterable[Dict[str, Any]], source_url: str, source_as_of: str) -> List[UniverseEvent]:
+    out=[]
+    for row in rows or []:
+        symbol=str(row.get("Code") or "").strip()
+        if not (len(symbol)==4 and symbol.isdigit()):
+            continue
+        d=normalize_roc_date(row.get("DelistingDate"))
+        if not d:
+            continue
+        out.append(UniverseEvent(
+            symbol=symbol, exchange="TWSE", name=str(row.get("Company") or "").strip(),
+            event_type="DELIST", event_date=d, source="TWSE_OPENAPI_DELIST",
+            source_url=source_url, source_as_of=source_as_of,
         ))
     return out
 
@@ -227,8 +263,8 @@ def collect_official_events() -> Dict[str, Any]:
     sources=[
         ("TWSE_BASIC",TWSE_BASIC_URL,"json","TWSE","basic"),
         ("TPEX_BASIC",TPEX_BASIC_URL,"json","TPEx","basic"),
-        ("TWSE_NEW",TWSE_NEW_URL,"html","TWSE","list"),
-        ("TWSE_DELIST",TWSE_DELIST_URL,"html","TWSE","delist"),
+        ("TWSE_NEW",TWSE_NEW_URL,"json","TWSE","twse_new"),
+        ("TWSE_DELIST",TWSE_DELIST_URL,"json","TWSE","twse_delist"),
         ("TPEX_NEW",TPEX_NEW_URL,"html","TPEx","list"),
         ("TPEX_DELIST",TPEX_DELIST_URL,"html","TPEx","delist"),
     ]
@@ -236,7 +272,13 @@ def collect_official_events() -> Dict[str, Any]:
         try:
             if kind=="json":
                 payload=fetch_json(url)
-                parsed=parse_basic_records(payload if isinstance(payload,list) else [],exchange,url,as_of)
+                rows=payload if isinstance(payload,list) else []
+                if parser=="twse_new":
+                    parsed=parse_twse_new_records(rows,url,as_of)
+                elif parser=="twse_delist":
+                    parsed=parse_twse_delist_records(rows,url,as_of)
+                else:
+                    parsed=parse_basic_records(rows,exchange,url,as_of)
             else:
                 html=fetch_text(url)
                 parsed=parse_listing_html(html,exchange,url,as_of) if parser=="list" else parse_delisting_html(html,exchange,url,as_of)
