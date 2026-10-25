@@ -37,21 +37,28 @@
         "universe_effective_to"
       ],
       "required_source": "GOVERNED_OFFICIAL_MEMBERSHIP_INTERVALS_WITH_CURRENT_OPEN_INTERVAL_ALIGNMENT",
-      "reason": "Corrected listing-membership live audit PASS: TWSE 1091/1091, TPEx 896/896 open-interval alignment; no missing or extraneous open intervals.",
+      "reason": "Corrected persisted PIT artifact is consistent with live audit: 2029 intervals and 2025 overlap keys for 2023-05-23..2026-10-22.",
       "evidence": {
-        "workflow_run_id": 40219381843,
-        "artifact_id": 12608387465,
-        "artifact_digest": "sha256:0f57c6b7b50d09ad92fb838e5c7df48ba4c02ab06afff6094b8c72780f676c59"
+        "workflow_run_id": 40221377923,
+        "artifact_id": 12609635815,
+        "artifact_digest": "sha256:d229c3c882737f0e2e52d57b5aad58728c726fc0b1b07c2bb2a6a8f146be0e8d"
       }
     },
     "market_raw": {
-      "status": "PENDING_SOURCE_COVERAGE",
+      "status": "PASS",
       "fields": [
         "market_breadth",
         "market_volatility"
       ],
       "required_source": "SYNCHRONIZED_PIT_WHOLE_UNIVERSE_5M",
-      "reason": "Corrected PIT Universe now PASS; whole-universe 5m history must be rerun because prior downloads used invalidated pre-fix intervals."
+      "reason": "Corrected-PIT raw-cache reconciliation PASS: symbol coverage 99.8519%, symbol-day coverage 98.9071%, minimum daily coverage 97.3726%, zero duplicate/out-of-membership/parse errors.",
+      "evidence": {
+        "workflow_run_id": 40221377923,
+        "artifact_id": 12609920886,
+        "artifact_digest": "sha256:37b4ceeaff83ff158bb80aa71ca9edc1d5a36a711ef604fd4c1b0222e348a280",
+        "source_run_id": 40198835143,
+        "new_external_download_performed": false
+      }
     },
     "market_benchmark": {
       "status": "PASS",
