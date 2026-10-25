@@ -14,14 +14,13 @@ from .config import (
     MONITOR_STATE_REDIS_KEY, PREMARKET_REDIS_KEY,
     EXEC_BUY_COMMISSION_RATE, EXEC_SELL_COMMISSION_RATE, EXEC_SELL_TAX_RATE,
     EXEC_ENTRY_SLIPPAGE_BPS, EXEC_EXIT_SLIPPAGE_BPS, EXEC_SPREAD_BPS,
-    EXEC_LIQUIDITY_PENALTY_BPS, EXEC_FILL_PROBABILITY,
-    EXEC_FINANCING_INTEREST_PER_SHARE, EXEC_COST_PROFILE, EXEC_MIN_RR,
+    EXEC_LIQUIDITY_PENALTY_BPS, EXEC_FILL_PROBABILITY, EXEC_MIN_RR,
     EXEC_ENFORCE_GATE, PAPER_TRADING_MODE, P0S_OOS_VERDICT, PAPER_GCS_BUCKET,
+    P0S_5M_BREAKOUT_ENABLED,
 )
 from .official import load_official_universe, fetch_mis_quotes
 from .fugle import get_ticker, get_quote, get_candles
-from .sky_rules import first_gate, enrich
-from .ranking_engine import rank_screening_candidates
+from .sky_rules import first_gate, score_for_ranking, enrich
 from .notifier import send_telegram
 from .risk_engine import RiskPolicy, evaluate_candidate, drawdown_state
 from .execution_engine import ExecutionCostPolicy
@@ -43,7 +42,6 @@ from .event_risk import assess_event_risk
 from .evidence_ledger import build_evidence_ledger as build_structured_evidence_ledger
 from .strategy_builder import build_breakout_plan, apply_plan
 from .monitor_engine import evaluate_monitor_state
-from .decision_engine import evaluate_decision
 from .state_store import MonitorStateStore
 from .premarket_state import load_premarket_event_snapshot
 from .paper_trading import (
@@ -300,9 +298,11 @@ def run():
             ok, reasons = first_gate(r)
             r["gate_reasons"] = reasons
             if ok:
+                r["rank_score"] = score_for_ranking(r)
                 passed.append(r)
 
-        top = rank_screening_candidates(passed)[:TOP_N]
+        passed.sort(key=lambda x: x["rank_score"], reverse=True)
+        top = passed[:TOP_N]
         st["top100"] = top
 
         # Deep-dive enough rows to fill DEEP_DIVE_N verified, non-rejected
@@ -359,8 +359,17 @@ def run():
                     item, now.isoformat()
                 )
 
-                strategy_plan = build_breakout_plan(item, ks)
+                strategy_plan = (
+                    build_breakout_plan(item, ks)
+                    if P0S_5M_BREAKOUT_ENABLED
+                    else None
+                )
                 item = apply_plan(item, strategy_plan)
+                item["p0s_5m_breakout"] = {
+                    "enabled": bool(P0S_5M_BREAKOUT_ENABLED),
+                    "verdict": P0S_OOS_VERDICT,
+                    "production_eligible": False,
+                }
 
                 risk = evaluate_candidate(item, portfolio_context, policy)
                 risk["status_zh"] = RISK_STATUS_ZH.get(risk["status"], risk["status"])
@@ -384,7 +393,6 @@ def run():
                 )
                 item["evidence_ledger"] = evidence_ledger
                 item["agent_orchestration"] = orchestrate(item, evidence_ledger)
-                item["decision"] = evaluate_decision(item).to_dict()
                 paper_snapshots.append(
                     build_paper_snapshot(
                         run_id=run_id,
@@ -609,7 +617,8 @@ def run():
             "P0-R 規則：任何 AI／策略訊號都不得繞過風控；缺少停損、目標價或帳戶資金時，風控一律標示「資料不足」，不得視為可進場。",
             "P0-K 規則：任何重要結論必須可追溯；過期、衝突或無來源資訊不得升級為主要交易依據。",
             "P0-AG 規則：任何單一 Agent 均不得直接產生可執行交易；必須再通過 P0-C 與 P0-R。",
-            "P0-ML 規則：目前僅為研究用 baseline；未通過 Walk-forward／OOS／成本壓力／資料洩漏檢查／Paper Trading 前，不得提升為正式交易依據。",
+            "P0-ML 規則：目前僅為研究用 baseline；未通過 Walk-forward／OOS／成本壓力／資料洩漏檢查／Paper Trading 前，不得提升為正式交易依據.",
+            "P0-S 5分K突破：OOS 已淘汰，主掃描預設停用；僅允許顯式研究模式重現。",
             "Paper Trading 規則：shadow 僅留痕；paper 仍須 OOS=PASS_TO_PAPER_TRADING 才可模擬成交，任何模式都不得送真實委託。",
             (
                 "A+ 必須再通過 Market Gate→Sector/RS→MTF→SSS→Phase→"
