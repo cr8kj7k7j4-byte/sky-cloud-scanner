@@ -166,6 +166,9 @@ def main():
     args = ap.parse_args()
 
     page = fetch_homepage()
+    raw_path = Path("output/mops_home_raw.html")
+    raw_path.parent.mkdir(parents=True, exist_ok=True)
+    raw_path.write_text(page, encoding="utf-8")
     observed_at = datetime.now(TZ).isoformat()
     rows = parse_revenue_filings(page, observed_at=observed_at)
 
