@@ -152,9 +152,16 @@ def build_historical_universe_audit(
     current_universe: list[dict],
     audit_dates: list[str],
 ) -> dict:
-    intervals = list(official_payload.get("intervals") or [])
-    unresolved = list(official_payload.get("unresolved") or [])
+    strict_intervals = list(official_payload.get("intervals") or [])
+    strict_unresolved = list(official_payload.get("unresolved") or [])
     source_health = list(official_payload.get("health") or [])
+
+    windowed = build_windowed_intervals(
+        list(official_payload.get("events") or []),
+        window_start=WINDOW_START,
+    )
+    intervals = list(windowed.get("intervals") or [])
+    unresolved = list(windowed.get("unresolved") or [])
     validation = validate_intervals(intervals)
 
     current_by_exchange = defaultdict(set)
@@ -288,8 +295,20 @@ def build_historical_universe_audit(
         "schema_version": "1.0",
         "source_health": source_health,
         "events": len(official_payload.get("events") or []),
+        "strict_intervals": len(strict_intervals),
+        "strict_unresolved": len(strict_unresolved),
+        "window_start": WINDOW_START,
         "intervals": len(intervals),
         "unresolved": len(unresolved),
+        "window_annotations": len(windowed.get("annotations") or []),
+        "left_censored_count": sum(
+            1 for x in (windowed.get("annotations") or [])
+            if x.get("type")=="LEFT_CENSORED_AT_WINDOW_START"
+        ),
+        "continuous_listing_annotations": sum(
+            1 for x in (windowed.get("annotations") or [])
+            if x.get("type")=="LIST_WHILE_ALREADY_LISTED"
+        ),
         "unresolved_by_exchange": dict(sorted(unresolved_by_exchange.items())),
         "unresolved_samples": unresolved_samples,
         "diagnostic_event_timelines": timelines,
@@ -311,7 +330,9 @@ def build_historical_universe_audit(
             "required_historical_sources": sorted(REQUIRED_HISTORICAL_SOURCES),
             "required_historical_sources_must_parse_events": True,
             "all_audit_dates_must_have_nonzero_pit_membership": True,
-            "unresolved_events_allowed": 0,
+            "window_start": WINDOW_START,
+            "strict_pre_window_unresolved_do_not_block_window_gate": True,
+            "window_unresolved_events_allowed": 0,
             "rule": (
                 "Current-universe-only historical studies must not be promoted "
                 "while the historical-universe gate is incomplete."
@@ -325,8 +346,13 @@ def write_markdown(report: dict, path: Path):
         "# Historical Universe / Survivorship Audit",
         "",
         f"- Events: {report['events']:,}",
-        f"- Intervals: {report['intervals']:,}",
-        f"- Unresolved events: {report['unresolved']:,}",
+        f"- Strict intervals: {report['strict_intervals']:,}",
+        f"- Strict unresolved (full history): {report['strict_unresolved']:,}",
+        f"- Research window start: {report['window_start']}",
+        f"- Windowed intervals: {report['intervals']:,}",
+        f"- Window unresolved: {report['unresolved']:,}",
+        f"- Left-censored at window start: {report['left_censored_count']:,}",
+        f"- Continuous-listing annotations: {report['continuous_listing_annotations']:,}",
         f"- Unresolved by exchange: {report.get('unresolved_by_exchange', {})}",
         f"- Interval validation: {'PASS' if report['interval_validation']['valid'] else 'FAIL'}",
         f"- Historical source coverage: {'PASS' if report['historical_source_coverage_ok'] else 'FAIL'}",
