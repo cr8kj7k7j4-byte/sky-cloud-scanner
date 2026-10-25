@@ -1,6 +1,6 @@
 from src.official_universe_events import (
     normalize_roc_date, parse_basic_records, parse_listing_html,
-    parse_delisting_html, build_intervals
+    parse_delisting_html, build_intervals, assess_source_health
 )
 
 def test_roc_dates():
@@ -38,3 +38,21 @@ def test_interval_build_and_fail_closed_unresolved():
     out=build_intervals(e)
     assert out["intervals"][0]["listed_to"]=="2025-06-30"
     assert out["unresolved"][0]["symbol"]=="2222"
+
+
+def test_historical_zero_event_source_is_parse_suspect():
+    out = assess_source_health("TWSE_DELIST", 0, transport_ok=True)
+    assert out["transport_ok"] is True
+    assert out["parse_status"] == "PARSE_SUSPECT"
+    assert out["healthy"] is False
+
+def test_current_basic_source_requires_plausible_count():
+    bad = assess_source_health("TWSE_BASIC", 10, transport_ok=True)
+    assert bad["healthy"] is False
+    ok = assess_source_health("TWSE_BASIC", 1000, transport_ok=True)
+    assert ok["healthy"] is True
+
+def test_transport_failure_is_never_healthy():
+    out = assess_source_health("TPEX_DELIST", 0, transport_ok=False, error="boom")
+    assert out["parse_status"] == "TRANSPORT_FAIL"
+    assert out["healthy"] is False
