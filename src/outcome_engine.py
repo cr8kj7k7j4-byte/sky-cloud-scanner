@@ -82,3 +82,151 @@ def evaluate_long_outcome(*, entry, stop, target, bars, exit_price=None, fee_rat
         hit_target=bool(hit_target),
         status="COMPLETE",
     )
+
+
+
+def evaluate_shadow_long_path(
+    *,
+    entry,
+    stop,
+    target,
+    bars,
+    fee_rate=None,
+    tax_rate=None,
+    slippage_rate=None,
+):
+    """Conservative counterfactual long outcome for Shadow research.
+
+    - Uses sequential bars after the observation/trigger time.
+    - If stop and target are both touched in the same bar, stop wins.
+    - Missing explicit cost assumptions never silently become zero.
+    - This is research evidence, not an actual fill record.
+    """
+    entry = _f(entry)
+    stop = _f(stop)
+    target = _f(target)
+    if (
+        entry is None or stop is None or target is None
+        or entry <= 0 or stop <= 0 or target <= 0
+        or stop >= entry or target <= entry
+    ):
+        return {
+            "status": "INVALID_INPUT",
+            "outcome_type": "COUNTERFACTUAL_SHADOW",
+            "entry": entry,
+            "stop": stop,
+            "target": target,
+        }
+
+    clean = []
+    for b in bars or []:
+        try:
+            high = float(b["high"])
+            low = float(b["low"])
+            close = float(b["close"])
+        except Exception:
+            continue
+        clean.append({"high": high, "low": low, "close": close})
+
+    if not clean:
+        return {
+            "status": "INSUFFICIENT_BARS",
+            "outcome_type": "COUNTERFACTUAL_SHADOW",
+            "entry": entry,
+            "stop": stop,
+            "target": target,
+        }
+
+    max_high = entry
+    min_low = entry
+    exit_price = clean[-1]["close"]
+    exit_reason = "HORIZON_CLOSE"
+    exit_bar_index = len(clean) - 1
+    ambiguous_same_bar = False
+
+    for i, b in enumerate(clean):
+        max_high = max(max_high, b["high"])
+        min_low = min(min_low, b["low"])
+        hit_stop = b["low"] <= stop
+        hit_target = b["high"] >= target
+
+        if hit_stop and hit_target:
+            exit_price = stop
+            exit_reason = "STOP"
+            exit_bar_index = i
+            ambiguous_same_bar = True
+            break
+        if hit_stop:
+            exit_price = stop
+            exit_reason = "STOP"
+            exit_bar_index = i
+            break
+        if hit_target:
+            exit_price = target
+            exit_reason = "TARGET"
+            exit_bar_index = i
+            break
+
+    used = clean[: exit_bar_index + 1]
+    if used:
+        max_high = max([entry] + [x["high"] for x in used])
+        min_low = min([entry] + [x["low"] for x in used])
+
+    risk = entry - stop
+    gross_pnl_per_share = exit_price - entry
+    gross_r = gross_pnl_per_share / risk if risk > 0 else None
+    mfe_r = (max_high - entry) / risk if risk > 0 else None
+    mae_r = (entry - min_low) / risk if risk > 0 else None
+
+    costs_complete = all(
+        x is not None for x in (fee_rate, tax_rate, slippage_rate)
+    )
+    net_pnl_per_share = None
+    net_r = None
+    total_cost_per_share = None
+    if costs_complete:
+        fee_rate = float(fee_rate)
+        tax_rate = float(tax_rate)
+        slippage_rate = float(slippage_rate)
+        total_cost_per_share = (
+            entry * fee_rate
+            + exit_price * (fee_rate + tax_rate)
+            + entry * slippage_rate
+            + exit_price * slippage_rate
+        )
+        net_pnl_per_share = gross_pnl_per_share - total_cost_per_share
+        net_r = net_pnl_per_share / risk if risk > 0 else None
+
+    return {
+        "status": "COMPLETE" if costs_complete else "COST_INPUT_REQUIRED",
+        "outcome_type": "COUNTERFACTUAL_SHADOW",
+        "fill_assumption": "TRIGGER_PRICE_COUNTERFACTUAL",
+        "entry": round(entry, 4),
+        "stop": round(stop, 4),
+        "target": round(target, 4),
+        "exit": round(exit_price, 4),
+        "exit_reason": exit_reason,
+        "holding_bars": exit_bar_index + 1,
+        "ambiguous_same_bar": ambiguous_same_bar,
+        "gross_pnl_per_share": round(gross_pnl_per_share, 6),
+        "gross_r_multiple": round(gross_r, 6) if gross_r is not None else None,
+        "net_pnl_per_share": (
+            round(net_pnl_per_share, 6)
+            if net_pnl_per_share is not None else None
+        ),
+        "r_multiple": round(net_r, 6) if net_r is not None else None,
+        "mfe_r": round(mfe_r, 6) if mfe_r is not None else None,
+        "mae_r": round(mae_r, 6) if mae_r is not None else None,
+        "max_price": round(max_high, 4),
+        "min_price": round(min_low, 4),
+        "total_cost_per_share": (
+            round(total_cost_per_share, 6)
+            if total_cost_per_share is not None else None
+        ),
+        "cost_assumptions": {
+            "fee_rate_per_side": fee_rate,
+            "sell_tax_rate": tax_rate,
+            "slippage_rate_per_side": slippage_rate,
+        },
+        "research_only": True,
+    }
