@@ -16,7 +16,9 @@
 
 | Candidate | W5 Status | Reason | Next step |
 |---|---|---|---|
-| — | — | 尚無新 Candidate 通過 Intake | 等待真正具有結構差異的新想法 |
+| Overnight-to-First-30m Reversal for Taiwan | W7_INBOUND | 新 target + 新 causal timing architecture；待 W5 Intake | Duplicate/Low-value Gate → PIT feasibility → preregistration decision |
+| Taiwan Dynamic Futures/ETF/Spot Lead-Lag State | W7_INBOUND | 新 cross-market PIT data family；待 W5 Intake | Data sync/PIT audit → W5 decision |
+| Taiwan Broker-Identity / Skill-Conditioned Flow | W7_INBOUND | 新 identity-tagged data family；資料取得為 hard gate | Vendor/data feasibility → W5 decision |
 
 ## Inherited blocked research context
 
