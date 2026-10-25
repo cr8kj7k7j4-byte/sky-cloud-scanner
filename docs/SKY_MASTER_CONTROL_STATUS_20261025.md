@@ -241,3 +241,59 @@ The system bottleneck is no longer engineering implementation of the W3A replay 
 5. **W2 — Remain HOLD until the replay dataset passes the fail-closed Gate; no rule efficacy claims.**
 6. **W5/W7 — Keep all three candidates HOLD; re-review Overnight first only when data Gate 0 materially improves.**
 7. **W1 — HOLD; reuse future PIT infrastructure rather than duplicating data work.**
+
+
+## N. W0 v1.4 Historical Replay Decision — 2026-10-26
+
+### Formal decision
+Historical full-rule replay for `Sky Day Trading v1.4 Dynamic Capital Rotation / P0-C MVP` is **NOT FULLY RECONSTRUCTABLE from the current GitHub SSOT**.
+
+This is a provenance limitation, not a profitability conclusion.
+
+### Evidence state now
+- 2023+ PIT Universe: PASS
+- corrected whole-universe 5m raw source: PASS
+- TAIEX 5m benchmark: PASS
+- objective PIT-safe primitives: available
+- canonical W2 10-rule frozen providers: incomplete / unresolved
+- historical canonical full decision stream: unavailable
+- retained historical scanner artifacts: Top-N / context-truncated
+- fail-closed v1.4 evidence adapter: merged
+
+### Governance action
+W3A is no longer instructed to synthesize missing v1.4 Alpha rules or wait for an undefined replay formula.
+
+Forbidden:
+- retrospective threshold reconstruction
+- research-only rule substitution
+- archived breakout substitution
+- outcome-driven inference of historical gate booleans
+- claiming historical v1.4 10-rule efficacy without authoritative frozen providers
+
+### W2
+Formal status:
+**HOLD / HISTORICAL_V14_FULL_RULE_REPLAY_UNAVAILABLE**
+
+W2 remains active for:
+- future preregistered challengers
+- fully frozen strategies with eligible PIT evidence
+- OOS / walk-forward / cost / regime / ablation validation when provenance gates pass
+
+### New P0 critical path
+1. **W4 — Forward Shadow/Paper evidence accumulation**
+2. **P0-R — Portfolio/risk validation**
+3. **W6 — Prospective execution/slippage/fill evidence**
+4. **W3B — Reproducible forward evidence pipeline / operational hardening**
+5. **W0/P0-G — Evidence review and governance**
+6. W2 — future challenger validation only when eligible
+7. W3A — PIT/data maintenance; no synthetic v1.4 Alpha reconstruction
+
+### Re-open condition
+Historical v1.4 full-rule replay may only be re-opened when an authoritative historical source is supplied and verified as:
+- `FROZEN_CANONICAL_IMPLEMENTATION`; or
+- `HISTORICAL_SNAPSHOT`.
+
+Canonical decision:
+`docs/W0_V14_HISTORICAL_REPLAY_GOVERNANCE_DECISION_20261026.md`
+
+Production baseline remains unchanged.
