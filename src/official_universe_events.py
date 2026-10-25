@@ -12,8 +12,8 @@ from bs4 import BeautifulSoup
 
 TWSE_BASIC_URL = "https://openapi.twse.com.tw/v1/opendata/t187ap03_L"
 TPEX_BASIC_URL = "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap03_O"
-TWSE_NEW_URL = "https://www.twse.com.tw/zh/listed/listed/new-listing.html"
-TWSE_DELIST_URL = "https://www.twse.com.tw/company/suspendListingCsvAndHtml?lang=zh&type=html"
+TWSE_NEW_URL = "https://www.twse.com.tw/company/newlisting?response=html"
+TWSE_DELIST_URL = "https://www.twse.com.tw/company/suspendListingCsvAndHtml?response=html"
 TPEX_NEW_URL = "https://www.tpex.org.tw/zh-tw/mainboard/applying/status/new-listed.html"
 TPEX_DELIST_URL = "https://www.tpex.org.tw/zh-tw/mainboard/listed/delisted.html"
 
