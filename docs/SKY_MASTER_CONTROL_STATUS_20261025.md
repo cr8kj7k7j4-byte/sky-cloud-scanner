@@ -321,3 +321,21 @@ Use the existing `FUGLE_API_KEY` GitHub Actions secret to probe active TWSE/TPEx
 
 ### Governance
 This probe is feasibility evidence only. It cannot authorize W2 validation, formal Pre-registration or Production changes. The >=95% PIT coverage gate remains unchanged.
+
+## O. GitHub Actions Runner Queue Blocker — 2026-10-26
+
+### Observed fact
+- W3A Fugle PIT Coverage Probe run #40228265013 remains `queued`.
+- Job exists but has `runner_id = 0`, empty runner name and no executed steps.
+- Repository currently has no `in_progress` workflow runs, while multiple unrelated workflows are also queued.
+- Therefore this is classified as **ACTIONS_EXECUTION_BLOCKED**, not a Fugle/data failure.
+
+### Governance consequence
+- Do not mark Fugle feasibility PASS or FAIL until the probe actually receives a runner and executes.
+- W3A remains ENGINEERING COMPLETE / DATA_BLOCKED.
+- W2 remains HOLD / DATA_BLOCKED.
+- No Pre-registration or Production status changes.
+
+### Prepared fallback
+- The probe script and acquisition plan are committed and can run unchanged on any environment with Python + requests + `FUGLE_API_KEY`.
+- If GitHub-hosted Actions remains unavailable, execution may be moved to an already-authorized runtime (e.g. existing Cloud/production environment) only if no new credential, paid service, or irreversible deployment is required.
