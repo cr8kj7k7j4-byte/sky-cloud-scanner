@@ -14,6 +14,9 @@ import requests
 
 FINMIND_URL = "https://api.finmindtrade.com/api/v4/data"
 SCHEMA_VERSION = "SWING_PIT_DAILY_OHLCV_1.0"
+
+class ProviderQuotaError(RuntimeError):
+    pass
 SOURCE_NAME = "FinMind TaiwanStockPriceAdj"
 DEFAULT_START = "2023-01-01"
 
@@ -62,7 +65,7 @@ def _request_symbol(symbol: str, start: str, end: str, token: str, retries: int 
                 headers={"User-Agent": "Sky-W3-Swing-PIT/1.0"},
             )
             if r.status_code in (402, 429):
-                raise RuntimeError(f"RATE_OR_QUOTA_{r.status_code}:{r.text[:200]}")
+                raise ProviderQuotaError(f"RATE_OR_QUOTA_{r.status_code}:{r.text[:200]}")
             r.raise_for_status()
             payload = r.json()
             status = payload.get("status")
@@ -74,6 +77,8 @@ def _request_symbol(symbol: str, start: str, end: str, token: str, retries: int 
             if not isinstance(data, list):
                 raise RuntimeError("FINMIND_INVALID_DATA_PAYLOAD")
             return data
+        except ProviderQuotaError:
+            raise
         except Exception as exc:
             last_error = exc
             if attempt >= retries:
@@ -225,6 +230,19 @@ def collect(
             )
             report["symbols_written"] += 1
             report["rows_written"] += len(bars)
+        except ProviderQuotaError as exc:
+            report["symbols_failed"].append({
+                "symbol": symbol,
+                "error": f"{type(exc).__name__}:{exc}",
+            })
+            report["provider_blocker"] = {
+                "type": "RATE_OR_QUOTA",
+                "symbol": symbol,
+                "error": str(exc),
+            }
+            report_path = out / f"shard_report_{shard_index:02d}.json"
+            report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+            raise SystemExit(4)
         except Exception as exc:
             report["symbols_failed"].append({
                 "symbol": symbol,
