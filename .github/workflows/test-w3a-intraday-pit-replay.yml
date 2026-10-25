@@ -8,6 +8,8 @@ on:
       - "research/intraday_pit_costs.py"
       - "research/run_intraday_pit_replay_pipeline.py"
       - "research/build_intraday_decision_primitives.py"
+      - "research/build_intraday_stock_return_snapshots.py"
+      - "research/build_intraday_sector_rs_context.py"
       - "research/audit_frozen_v14_replay_readiness.py"
       - "research/build_intraday_market_context.py"
       - "research/collect_current_sector_anchor.py"
@@ -21,6 +23,7 @@ on:
       - "tests/test_intraday_pit_pipeline_v2.py"
       - "tests/test_intraday_pit_source_builders.py"
       - "tests/test_intraday_decision_primitives.py"
+      - "tests/test_intraday_sector_rs_context.py"
       - ".github/workflows/test-w3a-intraday-pit-replay.yml"
   workflow_dispatch:
 
