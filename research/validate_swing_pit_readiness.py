@@ -17,8 +17,16 @@ def _contains(interval: dict, day: str) -> bool:
 
 
 def load_price_ranges(history_dir: str) -> dict[str, dict]:
+    """Load canonical daily or legacy 5-minute per-symbol JSON files.
+
+    Canonical W3 handoff should prefer *_D.json. Legacy *_5.json remains
+    supported only so the readiness report can quantify the pre-handoff gap.
+    If both exist for a symbol, daily data takes precedence.
+    """
     out = {}
-    for p in sorted(Path(history_dir).glob("*_5.json")):
+    paths = list(Path(history_dir).glob("*_5.json")) + list(Path(history_dir).glob("*_D.json"))
+    paths = sorted(paths, key=lambda p: (p.name.endswith("_D.json"), p.name))
+    for p in paths:
         try:
             obj = json.loads(p.read_text(encoding="utf-8"))
             sym = str(obj.get("symbol") or p.name.split("_", 1)[0])
