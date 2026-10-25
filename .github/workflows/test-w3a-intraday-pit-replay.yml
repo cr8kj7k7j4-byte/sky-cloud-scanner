@@ -11,6 +11,7 @@ on:
       - "research/collect_current_sector_anchor.py"
       - "research/build_effective_sector_mapping.py"
       - "research/intraday_pit_replay_readiness.py"
+      - "research/build_intraday_counterfactual_outcomes.py"
       - "tests/test_pit_history_sharding.py"
       - "research/merge_pit_history_shards.py"
       - "research/shard_pit_history_manifest.py"
@@ -20,6 +21,7 @@ on:
       - "tests/test_intraday_pit_replay_builder.py"
       - "tests/test_intraday_pit_replay_audit.py"
       - "tests/test_intraday_pit_pipeline_v2.py"
+      - "tests/test_intraday_counterfactual_outcomes.py"
       - "tests/test_intraday_pit_source_builders.py"
       - ".github/workflows/test-w3a-intraday-pit-replay.yml"
   workflow_dispatch:
