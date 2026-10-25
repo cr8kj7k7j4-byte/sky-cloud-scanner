@@ -1,0 +1,53 @@
+name: Official Historical Universe Ingestion
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/official_universe_events.py"
+      - "research/build_official_pit_universe.py"
+      - "tests/test_official_universe_events.py"
+      - ".github/workflows/official-pit-universe.yml"
+  workflow_dispatch:
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4 pytest
+      - name: Unit tests
+        env:
+          PYTHONPATH: .
+        run: python -m pytest -q tests/test_official_universe_events.py tests/test_point_in_time_universe.py
+      - name: Fetch official universe events
+        env:
+          PYTHONPATH: .
+        run: python research/build_official_pit_universe.py --out research_output_pit/official_universe_snapshot.json
+      - name: Publish source health
+        if: always()
+        run: |
+          if [ -f research_output_pit/official_universe_snapshot.json ]; then
+            python - <<'PY'
+          import json
+          p=json.load(open("research_output_pit/official_universe_snapshot.json",encoding="utf-8"))
+          print("## Official Point-in-Time Universe")
+          print(f"- Events: {len(p.get('events',[]))}")
+          print(f"- Intervals: {len(p.get('intervals',[]))}")
+          print(f"- Unresolved: {len(p.get('unresolved',[]))}")
+          print(f"- Production eligible: {p.get('production_eligible')}")
+          for x in p.get("health",[]):
+              print(f"- {x['source']}: {'OK' if x['ok'] else 'FAIL'} / events={x.get('parsed_events',0)}")
+          PY
+          fi
+      - name: Upload ingestion artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-pit-universe-${{ github.run_id }}
+          path: research_output_pit/
+          if-no-files-found: warn
