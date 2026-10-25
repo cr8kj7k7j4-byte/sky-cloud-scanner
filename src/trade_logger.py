@@ -76,8 +76,7 @@ def build_trade_decision_record(*, item, run_id, observed_at=None, mode="SCANNER
 
     symbol = str(item.get("symbol") or "")
     risk = dict(item.get("risk") or {})
-    canonical_decision = dict(item.get("decision") or {})
-    decision = canonical_decision.get("status") or risk.get("status") or "OBSERVE"
+    decision = risk.get("status") or "OBSERVE"
     raw_id = f"{run_id}|{symbol}|{mode}|{observed_at.isoformat()}"
     record_id = sha256(raw_id.encode("utf-8")).hexdigest()[:24]
 
