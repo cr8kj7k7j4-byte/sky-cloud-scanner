@@ -6,10 +6,16 @@
 
 | Date | Candidate | Category | Status | Structural difference | PIT | OOS | Priority | Reason | W0 handoff |
 |---|---|---|---|---|---|---|---|---|---|
+| 2026-10-25 | Overnight-to-First-30m Reversal for Taiwan | Intraday / Open reaction | HOLD | 新 target timing：overnight state → first-30m reaction；非 MA/Top-N 微調 | UNKNOWN / blocked by intraday PIT dataset readiness | 可設計；2026 不得稱 fresh OOS | Medium | 有結構差異，但 PIT replay dataset 與 preregistered label 尚未完成 | Not yet |
+| 2026-10-25 | Taiwan Dynamic Futures/ETF/Spot Lead-Lag State | Cross-market / Intraday | HOLD | 新 cross-market PIT data family + market-state architecture | UNKNOWN | 可設計 | Medium–High | timestamp causality、session、roll data contract 尚未驗證 | Not yet |
+| 2026-10-25 | Taiwan Broker-Identity / Skill-Conditioned Flow | Participant flow / Intraday-Swing | HOLD | 新 identity-tagged participant-flow data family | UNKNOWN / hard data gate | 理論可設計 | Medium | historical PIT、vendor、license、identity stability 未確認 | Not yet |
 
-## Initial state — 2026-10-25
+## Current conclusion
 
-目前沒有新 W5 Candidate 通過 Intake，因此 Ledger 保持空白。
+- 三個 W7 inbound Candidate 均未被判定為 frozen-family duplicate。
+- 三者也都尚未達到 `ACCEPT_FOR_PREREGISTRATION`。
+- 原因不是策略一定無效，而是 Gate 0 / Data Feasibility / PIT 證據不足。
+- 在 blocker 解除前不得先跑大量回測、調 threshold、選 horizon 或進 nonlinear ML。
 
 ## Recording rules
 - REJECT_DUPLICATE：必須記錄對應 frozen/rejected family。
