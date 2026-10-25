@@ -40,7 +40,7 @@
 | event_intelligence.py | P0-EVT | KEEP | 事件擷取與分類 |
 | event_risk.py | P0-EVT / P0-R | KEEP | 事件風險轉譯 |
 | event_scoring.py | P0-EVT | KEEP | 事件評分 |
-| evidence_ledger.py | P0-K | COMPATIBILITY_ADAPTER | PR #43 已收斂至 knowledge_engine；此檔僅保留相容入口 |
+| evidence_ledger.py | P0-K | MERGE | 與 knowledge_engine 的 ledger 重疊；保留相容入口，最終由 P0-K 統一 |
 | execution_calibration_ledger.py | P0-X / P0-L | KEEP | 實際成本校準證據 |
 | execution_engine.py | P0-X | KEEP | 成本後 RR / 執行 gate |
 | explainability.py | P0-K / P0-C | KEEP+EXTEND | 保留唯一 explainability 入口，不另建第二套 |
@@ -60,14 +60,13 @@
 | model_registry.py | P0-G | KEEP | Model registry |
 | model_training.py | P0-ML | KEEP | RF/XGBoost/LightGBM 訓練與比較 |
 | monitor_engine.py | P0-A | KEEP | 盤中狀態機 |
-| news_evidence.py | P0-K | COMPATIBILITY_ADAPTER | PR #43 已收斂至 knowledge_engine；此檔僅保留相容入口 |
+| news_evidence.py | P0-K | MERGE | 與 Knowledge/Evidence 管線整合，保留 adapter 即可 |
 | notifier.py | P0-A | KEEP | 通知輸出 |
 | official.py | P0-DATA | KEEP | TWSE/TPEx 官方資料鏈 |
 | outcome_engine.py | P0-L | KEEP | 交易結果/MFE/MAE/R 核心計算 |
 | premarket_pipeline.py | P0-AG / P0-M | KEEP | 盤前 pipeline |
 | premarket_ranking.py | P0-O | KEEP | 盤前候選排序 |
 | premarket_state.py | P0-A / P0-M | KEEP | 盤前狀態載入 |
-| position_manager.py | PMS | KEEP_AS_CANONICAL | PR #45 建立持倉管理唯一入口；禁止虧損加碼與停損放寬 |
 | ranking_engine.py | P0-O | KEEP | 正式唯一 Ranking Engine 候選；production model 尚待實證 |
 | readiness.py | P0-G | KEEP | 工程成熟度，不是交易績效 |
 | regime_engine.py | P0-M | KEEP | Production regime 定義 |
@@ -75,8 +74,7 @@
 | research_sources.py | P0-K | KEEP | 研究來源規格化 |
 | risk_engine.py | P0-R | KEEP | 核心風控 |
 | sector_rs_replay.py | P0-LAB / P0-D | MOVE_TO_RESEARCH | replay/point-in-time 驗證工具，不應放 production src |
-| decision_engine.py | P0-C | KEEP_AS_CANONICAL | PR #44 建立唯一 Decision Contract；不排序、不重算風控、不自動下單 |
-| sky_rules.py | Shared compatibility layer | COMPATIBILITY_ADAPTER | PR #51 已完成拆分；first_gate→P0-C、enrich→P0-F、ranking→P0-O |
+| sky_rules.py | P0-C | MERGE | first_gate 留 P0-C；ranking score 移除給 P0-O；enrich 拆回 DATA/F |
 | state_store.py | P0-A | KEEP | 監控狀態持久化 |
 | strategy_builder.py | P0-S | KEEP | Setup / Trigger / Stop / Target 建構 |
 | trade_log.py | P0-L | COMPATIBILITY_ADAPTER | 舊研究相容入口；不再維護獨立 schema |
@@ -87,20 +85,25 @@
 | walk_forward.py | P0-D | KEEP | 時間切分契約 |
 | walk_forward_eval.py | P0-D | KEEP+MERGE_API | 保留 evaluator，但和 walk_forward 統一 public API |
 
-## 三、目前真正缺的 Production 能力
+## 三、目前真正缺的 Production 模組
 
-1. **Production Ranking Champion**
-   - PR #47 已完成 P0-O 單一 runtime Ranking Entry；目前缺的是 OOS / Walk-forward / costs / Shadow 驗證後的正式 Champion，而不是架構入口。
+1. **P0-C Canonical Decision Engine**
+   - 現在 decision logic 分散在 sky_rules.py、main.py、strategy_builder.py、monitor_engine.py。
+   - 需要唯一 decision contract，但不是再新造一整套規則；應由既有規則收斂而成。
 
-2. **Production ML Champion**
-   - RF / XGBoost / LightGBM 訓練能力已存在，但沒有任何模型完成正式 Promotion Gate。
+2. **PMS Canonical Position Manager**
+   - 持倉續抱、加碼、減碼、移動停利、完全退出尚未形成單一正式模組。
 
-3. **真實 Shadow / Paper Trading Evidence**
-   - Infrastructure 已完成；目前缺的是足夠真實樣本與成本後實證，而不是更多 Paper Trading 模組。
+3. **Production Ranking Champion**
+   - ranking_engine.py 目前 baseline 仍 research-only。
+   - 尚未有經 OOS / Walk-forward / cost / paper trading 核准的 production ranking model。
 
-4. **Evidence / Promotion maturity**
-   - PR #23～#28 已由 PR #50 完成抽取並關閉。
-   - 架構缺口已不是主要瓶頸，下一階段重點是 Shadow 樣本、OOS/Walk-forward、成本、Regime、Promotion evidence。
+4. **Production ML Champion**
+   - RF / XGBoost / LightGBM 訓練能力已存在，但沒有正式 Champion。
+
+5. **真實 Shadow / Paper Trading Evidence**
+   - Shadow / Paper infrastructure 已由 PR #38 合併。
+   - 現在真正缺的是足夠真實樣本與正式 promotion evidence，不是再建立第二套 Paper Trading 框架。
 
 ## 三之一、已完成基線
 
@@ -108,13 +111,6 @@
 - **P0-L Canonical Trade Ledger**：PR #41 已合併；trade_logger.py 為唯一 canonical implementation，trade_log.py 僅保留 legacy adapter。
 - **Paper Trading / Shadow Ledger**：PR #38 已合併；預設 Shadow，未通過 OOS Gate 不允許 Paper Simulation，更不允許真實委託。
 - **P0-S OOS automation**：PR #34 / #35 已建立正式排程與自動 OOS workflow；是否 promotion 仍以實際驗證結果為準。
-- **P0-K Canonical Evidence**：PR #43 已合併；knowledge_engine.py 為唯一證據核心，evidence_ledger/news_evidence 為相容 adapter。
-- **P0-C Canonical Decision Contract**：PR #44 已合併；Decision 不再由 Risk/Monitor/Agent 各自代表，且 TRIGGERED 仍不是自動買進。
-- **PMS Canonical Position Manager**：PR #45 已合併；P0-A 的持倉分支已委派 PMS，禁止向下攤平與停損放寬。
-- **P0-O Single Runtime Ranking Entry**：PR #47 已合併；盤中廣域排序改由 ranking_engine.py 統一負責，sky_rules 僅保留相容 alias；Ranking 分數不是機率。
-- **P0-D / P0-G Consolidation**：PR #50 已合併；Validation robustness、Rule Registry、Champion Config 已折回 canonical owner；#23～#28 已關閉。
-- **sky_rules Decomposition**：PR #51 已合併；Production runtime 已直接使用 canonical P0-C / P0-F / P0-O。
-- **Evidence & Promotion Governance**：PR #53 已合併；新增 Shadow Sample Sufficiency Gate 與 Ranking/Model Promotion Scorecard；100 分只代表證據成熟度，不是勝率。
 
 ## 四、PR #23～#33 收斂決策
 
@@ -135,11 +131,11 @@
 ## 五、立即執行優先級
 
 ### P0 — 現在就做
-1. 累積可用於 Ranking / ML Promotion 的真實 Shadow 樣本
-2. 依 Shadow Sample Sufficiency Gate 檢查樣本量、交易日、Regime、Outcome 完整率與標的集中度
-3. 對仍存 Candidate 執行 Walk-forward / OOS / Cost Stress / Leakage / Survivorship / Regime Stability
-4. 建立 Ranking / Model Promotion Scorecard 的實際證據輸入，不以 Accuracy 或單次回測升版
-5. 完成 Point-in-Time historical backfill / coverage audit 與 TPEx 嚴格官方盤中資料鏈
+1. 收斂 P0-K：knowledge_engine 為主，evidence_ledger/news_evidence 改 adapter
+2. 收斂 P0-C：sky_rules 拆責任，建立唯一 Decision Contract
+3. 建立 PMS Canonical Position Manager
+4. 盤 PR #23～#29，逐一抽取必要內容後關閉重複 PR；#29 直接視為 PR #38 superseded
+5. Production Ranking 只保留一套入口
 
 ### P1 — 接著做
 1. 以已 merge 的 P0-S 5 分 K Setup 完成正式 OOS / costs / MFE / MAE / PF / Expectancy promotion evidence
