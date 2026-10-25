@@ -34,6 +34,7 @@ IDENTITY_COLUMNS = [
     "feature_schema_version",
     "rule_schema_version",
     "cost_model_version",
+    "research_split",
 ]
 
 GOVERNANCE_COLUMNS = [
@@ -218,6 +219,22 @@ def validate_replay_frame(
     if any(v < thresholds.cost for v in outcome_coverage.values()):
         reasons.append("COST_MODEL_COMPLETENESS_FAIL")
 
+    split_values = (
+        set(df["research_split"].astype(str).str.upper().dropna())
+        if "research_split" in df.columns
+        else set()
+    )
+    invalid_splits = sorted(split_values - {"TRAIN", "VALIDATION", "OOS"})
+    oos_count = (
+        int((df["research_split"].astype(str).str.upper() == "OOS").sum())
+        if "research_split" in df.columns
+        else 0
+    )
+    if invalid_splits:
+        reasons.append("INVALID_RESEARCH_SPLIT")
+    if oos_count == 0:
+        reasons.append("NO_OOS_ROWS")
+
     duplicated_decisions = (
         int(df["decision_id"].duplicated().sum())
         if "decision_id" in df.columns
@@ -255,6 +272,9 @@ def validate_replay_frame(
         "replay_coverage_ok_share": round(replay_status, 6),
         "context_coverage": {k: round(v, 6) for k, v in group_coverage.items()},
         "outcome_coverage": {k: round(v, 6) for k, v in outcome_coverage.items()},
+        "research_split_values": sorted(split_values),
+        "oos_row_count": oos_count,
+        "invalid_research_splits": invalid_splits,
         "duplicate_decision_ids": duplicated_decisions,
         "rule_validity": rule_validity,
         "reasons": unique_reasons,
