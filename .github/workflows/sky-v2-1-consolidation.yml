@@ -38,4 +38,5 @@ jobs:
             tests/test_execution_calibration_ledger.py \
             tests/test_governance_pit_gate.py \
             tests/test_revenue_pit.py \
-            tests/test_mops_revenue_pit_collector.py
+            tests/test_mops_revenue_pit_collector.py \
+            tests/test_revenue_pit_coverage.py
