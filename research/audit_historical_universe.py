@@ -649,6 +649,7 @@ def main():
     windowed = build_windowed_intervals(
         list(official.get("events") or []),
         window_start=WINDOW_START,
+        current_membership=list(official.get("current_membership") or []),
     )
     pit_snapshot = {
         "schema_version": "1.0",
