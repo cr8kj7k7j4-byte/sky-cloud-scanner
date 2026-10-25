@@ -6,57 +6,106 @@ sys.path.insert(0, str(ROOT))
 
 from research.collect_mops_revenue_pit import (
     append_dedup_jsonl,
-    parse_revenue_filings,
-    roc_date_to_iso_date,
+    parse_api_response,
+    roc_datetime_to_iso,
 )
 
 
-def _fixture():
-    return """
-    <html><body>
-      <div>最後更新時間 115/10/12 12:57:15</div>
-      <table>
-        <tr><th>公司代號</th><th>公司簡稱</th><th>發布時間</th><th>主旨</th></tr>
-        <tr><td>6111</td><td>光聚晶電</td><td>11:57</td><td>11509-營業收入資訊</td></tr>
-        <tr><td>6741</td><td>91APP*-KY</td><td>11:26</td><td>11509-營業收入資訊</td></tr>
-        <tr><td>2412</td><td>中華電</td><td>12:23</td><td>11402-IFRSs資產負債表</td></tr>
-      </table>
-    </body></html>
-    """
+def _payload(data):
+    return {
+        "code": 200,
+        "message": "查詢成功",
+        "result": {"data": data, "moreInfoUrl": "https://example.invalid"},
+        "datetime": "115/10/25 13:55:27",
+    }
 
 
-def test_roc_date_conversion():
-    assert roc_date_to_iso_date("115/10/12") == "2026-10-12"
-
-
-def test_parse_company_level_revenue_filing_times():
-    rows = parse_revenue_filings(
-        _fixture(),
-        observed_at="2026-10-12T13:00:00+08:00",
+def test_roc_datetime_conversion():
+    assert roc_datetime_to_iso("115/10/25 13:55:27") == (
+        "2026-10-25T13:55:27+08:00"
     )
-    assert len(rows) == 2
-    assert rows[0]["symbol"] == "6111"
-    assert rows[0]["revenue_year"] == 2026
-    assert rows[0]["revenue_month"] == 9
-    assert rows[0]["filing_published_at"] == "2026-10-12T11:57:00+08:00"
-    assert rows[0]["filing_timestamp_source"] == "MOPS_OFFICIAL"
-    assert rows[0]["point_in_time_verified"] is True
 
 
-def test_missing_page_date_is_rejected():
-    page = "<table><tr><td>6111</td><td>11:57</td><td>11509-營業收入資訊</td></tr></table>"
+def test_empty_official_response_is_valid_no_event():
+    assert parse_api_response(
+        _payload([]),
+        market_kind="sii",
+        observed_at="2026-10-25T13:56:00+08:00",
+    ) == []
+
+
+def test_parse_dict_shaped_revenue_row():
+    payload = _payload([
+        {
+            "companyId": "6111",
+            "companyName": "光聚晶電",
+            "releaseTime": "11:57",
+            "subject": "11509-營業收入資訊",
+        }
+    ])
+    rows = parse_api_response(
+        payload,
+        market_kind="otc",
+        observed_at="2026-10-25T13:56:00+08:00",
+    )
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["symbol"] == "6111"
+    assert row["name"] == "光聚晶電"
+    assert row["market"] == "TPEx"
+    assert row["revenue_year"] == 2026
+    assert row["revenue_month"] == 9
+    assert row["filing_published_at"] == "2026-10-25T11:57:00+08:00"
+    assert row["filing_timestamp_source"] == "MOPS_OFFICIAL"
+    assert row["point_in_time_verified"] is True
+
+
+def test_parse_nested_list_row():
+    payload = _payload({
+        "items": [
+            ["6741", "91APP*-KY", "11:26", "11509-營業收入資訊"]
+        ]
+    })
+    rows = parse_api_response(payload, market_kind="otc")
+    assert len(rows) == 1
+    assert rows[0]["symbol"] == "6741"
+    assert rows[0]["name"] == "91APP*-KY"
+
+
+def test_non_revenue_subject_is_ignored():
+    payload = _payload([
+        {
+            "companyId": "2412",
+            "companyName": "中華電",
+            "releaseTime": "12:23",
+            "subject": "11503-IFRSs資產負債表",
+        }
+    ])
+    assert parse_api_response(payload, market_kind="sii") == []
+
+
+def test_rejected_market_response_fails_closed():
+    payload = {
+        "code": 500,
+        "message": "市場別格式有誤",
+        "result": None,
+        "datetime": "115/10/25 13:55:27",
+    }
     try:
-        parse_revenue_filings(page)
+        parse_api_response(payload, market_kind="sii")
         assert False, "expected ValueError"
     except ValueError:
         pass
 
 
 def test_jsonl_dedup(tmp_path):
-    rows = parse_revenue_filings(_fixture(), observed_at="2026-10-12T13:00:00+08:00")
+    payload = _payload([
+        ["6111", "光聚晶電", "11:57", "11509-營業收入資訊"]
+    ])
+    rows = parse_api_response(payload, market_kind="otc")
     path = tmp_path / "ledger.jsonl"
     first = append_dedup_jsonl(path, rows)
     second = append_dedup_jsonl(path, rows)
-    assert first["added"] == 2
+    assert first["added"] == 1
     assert second["added"] == 0
-    assert second["total"] == 2
+    assert second["total"] == 1
