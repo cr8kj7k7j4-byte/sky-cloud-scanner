@@ -1,0 +1,68 @@
+{
+  "schema_version": "SECTOR_CHANGE_SOURCE_REGISTRY_V1_0",
+  "governed_window_start": "2023-01-01",
+  "exchanges": {
+    "TWSE": {
+      "annual_review_required": true,
+      "years": {
+        "2023": {
+          "status": "VERIFIED",
+          "effective_date": "2023-07-03",
+          "source_url": "https://www.twse.com.tw/rwd/zh/announcement/announcement_detail?id=346FAB95F87B11EDB2DA005056BE380E&response=html",
+          "attachment_url": "https://www.twse.com.tw/staticFiles/announcement/announcement/1121802250-1.pdf",
+          "notice_no": "臺證上一字第1121802250號",
+          "expected_changes": 47
+        },
+        "2024": {
+          "status": "UNRESOLVED",
+          "reason": "OFFICIAL_ANNUAL_CHANGE_NOTICE_NOT_YET_VERIFIED"
+        },
+        "2025": {
+          "status": "UNRESOLVED",
+          "reason": "OFFICIAL_ANNUAL_CHANGE_NOTICE_NOT_YET_VERIFIED"
+        },
+        "2026": {
+          "status": "UNRESOLVED",
+          "reason": "OFFICIAL_ANNUAL_CHANGE_NOTICE_NOT_YET_VERIFIED"
+        }
+      }
+    },
+    "TPEx": {
+      "annual_review_required": true,
+      "years": {
+        "2023": {
+          "status": "VERIFIED",
+          "effective_date": "2023-07-03",
+          "source_url": "https://www.tpex.org.tw/storage/eb_data/11205/11202011201.html",
+          "notice_no": "證櫃監字第11202011201號"
+        },
+        "2024": {
+          "status": "VERIFIED",
+          "effective_date": "2024-06-03",
+          "source_url": "https://www.tpex.org.tw/storage/eb_data/11305/11302010341.html",
+          "notice_no": "證櫃監字第11302010341號",
+          "expected_changes": 7
+        },
+        "2025": {
+          "status": "VERIFIED_SOURCE_URL_PENDING_PARSER",
+          "effective_date": "2025-06-02",
+          "source_url": "https://dsp.tpex.org.tw/web/announcement/announcement_detail.php?content_file=MTE0MDIwMTA1NDEuaHRtbA%3D%3D&content_number=MTE0MDIwMTA1NDE%3D",
+          "notice_no": "證櫃監字第11402010541號",
+          "expected_changes": 11
+        },
+        "2026": {
+          "status": "VERIFIED",
+          "effective_date": "2026-06-01",
+          "source_url": "https://www.tpex.org.tw/storage/eb_data/11505/11502011171.html",
+          "notice_no": "證櫃監字第11502011171號",
+          "expected_changes": 13
+        }
+      }
+    }
+  },
+  "governance": {
+    "missing_year_means_no_changes": false,
+    "unresolved_year_blocks_historical_pit": true,
+    "current_anchor_alone_is_not_pit": true
+  }
+}
