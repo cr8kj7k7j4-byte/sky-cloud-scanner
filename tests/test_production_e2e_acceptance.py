@@ -41,7 +41,7 @@ def _execution_policy(enforce=True):
     )
 
 
-def _base_candidate(last=10.25):
+# Happy-path fixture deliberately starts at the exact trigger (10.25),\n# so P0-A must classify it as TRIGGERED rather than NEAR_TRIGGER.\ndef _base_candidate(last=10.25):
     return {
         "symbol": "TEST",
         "name": "Sky E2E Fixture",
