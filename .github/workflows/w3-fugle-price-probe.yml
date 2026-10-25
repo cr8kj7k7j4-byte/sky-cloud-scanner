@@ -1,0 +1,26 @@
+name: W3 Fugle Adjusted Daily Probe
+
+on:
+  pull_request:
+    paths:
+      - "research/probe_fugle_adjusted_daily.py"
+      - ".github/workflows/w3-fugle-price-probe.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install requests
+      - name: Probe Fugle adjusted daily without exposing key
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+        run: python research/probe_fugle_adjusted_daily.py

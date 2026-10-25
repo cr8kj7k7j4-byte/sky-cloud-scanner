@@ -44,6 +44,11 @@ def load_price_ranges(history_dir: str) -> dict[str, dict]:
                     "min_date": min(dates),
                     "max_date": max(dates),
                     "bars": len(obj.get("data") or []),
+                    "adjustment_ready": bool(
+                        obj.get("adjusted") is True
+                        or obj.get("adjustment_capability") == "PIT_ASOF_EVENT_LEDGER"
+                    ),
+                    "adjustment_capability": obj.get("adjustment_capability"),
                 }
         except Exception:
             continue
@@ -78,6 +83,7 @@ def main():
         covered = sorted([
             s for s in eligible
             if s in prices
+            and prices[s].get("adjustment_ready")
             and prices[s]["min_date"] <= day
             and prices[s]["max_date"] >= day
         ])
@@ -101,6 +107,7 @@ def main():
         "interval_validation_pass": interval_valid,
         "pit_intervals": len(intervals),
         "history_symbols_available": len(prices),
+        "history_symbols_adjustment_ready": sum(1 for x in prices.values() if x.get("adjustment_ready")),
         "minimum_required_coverage_pct": MIN_PIT_PRICE_COVERAGE_PCT,
         "audit_dates": rows,
         "governance": {
@@ -121,6 +128,7 @@ def main():
         f"- Interval validation: {'PASS' if interval_valid else 'FAIL'}",
         f"- Canonical PIT intervals: {len(intervals):,}",
         f"- Historical price symbols available: {len(prices):,}",
+        f"- Adjustment-ready symbols: {sum(1 for x in prices.values() if x.get('adjustment_ready')):,}",
         "",
         "| Date | PIT symbols | Price-covered | Coverage | Gate |",
         "|---|---:|---:|---:|---|",

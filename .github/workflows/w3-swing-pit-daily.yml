@@ -1,0 +1,229 @@
+name: W3 Swing Canonical PIT Daily Price Build
+
+concurrency:
+  group: w3-swing-pit-price-build
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [engineering/w3-swing-pit-price-20261025]
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "research/collect_swing_pit_daily.py"
+      - "research/audit_swing_pit_price_coverage.py"
+      - "research/validate_swing_pit_readiness.py"
+      - "research/W3_SWING_PIT_DAILY_PRICE_DATA_CONTRACT.md"
+      - "tests/test_swing_pit_daily_collector.py"
+      - "tests/test_swing_pit_price_coverage.py"
+      - ".github/workflows/w3-swing-pit-daily.yml"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  fugle-probe:
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install requests
+      - name: Probe Fugle adjusted daily without exposing key
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+        run: python research/probe_fugle_adjusted_daily.py
+
+  canonical-pit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install focused test dependencies
+        run: pip install pytest requests
+      - name: Run focused unit tests
+        env:
+          PYTHONPATH: .
+        run: >
+          python -m pytest -q
+          tests/test_swing_pit_daily_collector.py
+          tests/test_swing_pit_price_coverage.py
+          tests/test_pit_adjusted_price.py
+          tests/test_swing_pit_readiness.py
+          tests/test_point_in_time_universe.py
+      - name: Download last verified canonical PIT artifact from main
+        uses: actions/download-artifact@v4
+        with:
+          name: historical-universe-audit-40193567617
+          path: canonical_pit
+          repository: cr8kj7k7j4-byte/sky-cloud-scanner
+          run-id: 40193567617
+          github-token: ${{ github.token }}
+      - name: Verify pinned canonical PIT gate
+        env:
+          PYTHONPATH: .
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("canonical_pit/pit_intervals.json")
+          x=json.loads(p.read_text(encoding="utf-8"))
+          assert x.get("historical_universe_gate_pass") is True, "pinned PIT gate must be PASS"
+          assert (x.get("interval_validation") or {}).get("valid") is True, "pinned PIT intervals must validate"
+          intervals=list(x.get("intervals") or [])
+          assert len(intervals) == 2116, f"unexpected canonical interval count: {len(intervals)}"
+          print({
+            "canonical_source_run":40193567617,
+            "artifact":"historical-universe-audit-40193567617",
+            "intervals":len(intervals),
+            "gate":"PASS",
+          })
+          PY
+      - name: Upload run-local canonical PIT copy
+        uses: actions/upload-artifact@v4
+        with:
+          name: swing-canonical-pit
+          path: canonical_pit/
+          retention-days: 90
+
+  collect:
+    needs: canonical-pit
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39]
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install requests
+      - name: Download pinned canonical PIT
+        uses: actions/download-artifact@v4
+        with:
+          name: swing-canonical-pit
+          path: canonical_pit
+      - name: Collect adjusted daily bars for PIT symbols
+        env:
+          PYTHONPATH: .
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+        run: >
+          python research/collect_swing_pit_daily.py
+          --pit-json canonical_pit/pit_intervals.json
+          --out shard_out
+          --start 2023-01-01
+          --end 2026-10-25
+          --shard-index ${{ matrix.shard }}
+          --shard-count 40
+      - name: Upload shard
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: swing-pit-shard-${{ matrix.shard }}
+          path: shard_out/
+          if-no-files-found: warn
+          retention-days: 90
+          compression-level: 6
+
+  combine-and-audit:
+    if: always()
+    needs: collect
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Download pinned canonical PIT
+        uses: actions/download-artifact@v4
+        with:
+          name: swing-canonical-pit
+          path: canonical_pit
+      - name: Download all price shards
+        uses: actions/download-artifact@v4
+        with:
+          pattern: swing-pit-shard-*
+          path: canonical_history
+          merge-multiple: true
+      - name: Normalize downloaded shard layout
+        run: |
+          mkdir -p canonical_history_flat/history
+          find canonical_history -type f -name '*_D.json' -exec cp {} canonical_history_flat/history/ \;
+          find canonical_history -type f -name 'shard_report_*.json' -exec cp {} canonical_history_flat/ \;
+          echo "Daily JSON files: $(find canonical_history_flat/history -name '*_D.json' | wc -l)"
+          echo "Shard reports: $(find canonical_history_flat -name 'shard_report_*.json' | wc -l)"
+          test "$(find canonical_history_flat/history -name '*_D.json' | wc -l)" -gt 0
+      - name: Run coverage / missingness audit
+        continue-on-error: true
+        env:
+          PYTHONPATH: .
+        run: >
+          python research/audit_swing_pit_price_coverage.py
+          --history-dir canonical_history_flat/history
+          --pit-json canonical_pit/pit_intervals.json
+          --shard-report-dir canonical_history_flat
+          --out canonical_audit
+      - name: Run W1 canonical readiness validator
+        continue-on-error: true
+        env:
+          PYTHONPATH: .
+        run: >
+          python research/validate_swing_pit_readiness.py
+          --history-dir canonical_history_flat/history
+          --pit-json canonical_pit/pit_intervals.json
+          --out w1_readiness
+      - name: Enforce final data-readiness gate
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          coverage=json.loads(Path("canonical_audit/coverage_report.json").read_text(encoding="utf-8"))
+          readiness=json.loads(Path("w1_readiness/swing_pit_readiness.json").read_text(encoding="utf-8"))
+          print({"coverage_status":coverage.get("status"),"w1_status":readiness.get("status")})
+          assert coverage.get("status") == "READY_FOR_W1_CANONICAL_REPLAY"
+          assert readiness.get("status") == "READY_FOR_CANONICAL_SWING_REPLAY"
+          PY
+      - name: Build manifest
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          files=sorted(Path("canonical_history_flat/history").glob("*_D.json"))
+          manifest={
+            "schema_version":"SWING_PIT_DAILY_MANIFEST_1.0",
+            "canonical_pit_source_run":40193567617,
+            "files":len(files),
+            "sha256":{
+              p.name:hashlib.sha256(p.read_bytes()).hexdigest()
+              for p in files
+            },
+          }
+          Path("canonical_audit/manifest.json").write_text(
+            json.dumps(manifest,ensure_ascii=False,indent=2),encoding="utf-8"
+          )
+          PY
+      - name: Upload canonical daily PIT dataset
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: swing-canonical-pit-daily-${{ github.run_id }}
+          path: |
+            canonical_history_flat/history/
+            canonical_audit/
+            w1_readiness/
+            canonical_pit/pit_intervals.json
+          if-no-files-found: warn
+          retention-days: 90
+          compression-level: 9
