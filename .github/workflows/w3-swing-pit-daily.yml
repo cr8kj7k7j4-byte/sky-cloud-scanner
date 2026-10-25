@@ -43,7 +43,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install focused test dependencies
-        run: pip install pytest
+        run: pip install pytest requests
       - name: Run focused unit tests
         env:
           PYTHONPATH: .
