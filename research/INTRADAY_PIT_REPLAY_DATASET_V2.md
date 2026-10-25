@@ -29,6 +29,20 @@ decision_id must be unique.
 
 Outcome fields are joined only after all decision-time context has been frozen.
 
+
+## Fugle 5-minute candle causality
+
+For historical 5-minute candles:
+- `date` is treated conservatively as the bar start timestamp.
+- A bar is eligible for decision-time features only when:
+  `bar_start + 5 minutes <= decision_timestamp`.
+- A bar starting exactly at `decision_timestamp` is not a decision feature; it may be used only in the post-decision counterfactual outcome path.
+- Stock historical `average` is Fugle's cumulative transaction average from market open. The latest completed bar's `average` is therefore the canonical cumulative VWAP source and must not be volume-weighted a second time.
+- `price_vs_vwap_pct`, `day_return_pct`, and `gap_pct` are stored in percentage units, not decimal-return units.
+
+Source semantics are versioned in:
+- research/FUGLE_5M_SOURCE_SEMANTICS_20261025.json
+
 ## Domain source contracts
 
 ### PIT Universe
