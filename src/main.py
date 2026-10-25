@@ -42,6 +42,7 @@ from .event_risk import assess_event_risk
 from .evidence_ledger import build_evidence_ledger as build_structured_evidence_ledger
 from .strategy_builder import build_breakout_plan, apply_plan
 from .monitor_engine import evaluate_monitor_state
+from .decision_engine import evaluate_decision
 from .state_store import MonitorStateStore
 from .premarket_state import load_premarket_event_snapshot
 from .paper_trading import (
@@ -384,6 +385,7 @@ def run():
                 )
                 item["evidence_ledger"] = evidence_ledger
                 item["agent_orchestration"] = orchestrate(item, evidence_ledger)
+                item["decision"] = evaluate_decision(item).to_dict()
                 paper_snapshots.append(
                     build_paper_snapshot(
                         run_id=run_id,
