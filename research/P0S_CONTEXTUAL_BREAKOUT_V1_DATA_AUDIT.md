@@ -72,8 +72,10 @@ Sector RS must not be claimed or backfilled using current-only membership.
 - session high/low position
 - some momentum measures
 
-### Requires semantic verification / new replay logic
-- VWAP from historical `average`
+### Verified / derivable
+- Historical `average` is documented by Fugle as cumulative transaction average from market open; treat as session cumulative VWAP semantics
+
+### Requires new replay logic
 - RVOL definition
 - ATR14 / price extension ATR
 - breakout-bar ATR
@@ -107,10 +109,11 @@ Only data-infrastructure work is allowed before the backtest:
 
 1. Build a point-in-time market-state replay table.
 2. Build an effective-dated stock-sector membership table.
-3. Verify the historical `average` field semantics.
-4. Define deterministic ATR / RVOL / Phase calculations using only prior/current data.
-5. Record unavailable microstructure fields such as spread as MISSING rather than imputing.
-6. Measure coverage before any strategy result is computed.
+3. Use verified historical `average` as the cumulative VWAP input for VWAP replay.
+4. Build an effective-dated sector membership table from official TWSE / TPEx industry-adjustment announcements.
+5. Define deterministic ATR / RVOL / Phase calculations using only prior/current data.
+6. Record unavailable microstructure fields such as spread as MISSING rather than imputing.
+7. Measure coverage before any strategy result is computed.
 
 ## Coverage gates
 
