@@ -56,4 +56,4 @@ def test_vnext_baseline_v1_is_frozen_and_decision_recorded():
     assert "REJECTED / ARCHIVED_NO_RETUNE" in decision
     assert "Do not escalate this exact feature/label formulation" in decision
     assert "Random Forest, XGBoost, or LightGBM" in decision
-    assert "negative Validation and Research Test" in decision
+    assert "negative daily portfolio expectancy in both Validation and Research Test" in decision
