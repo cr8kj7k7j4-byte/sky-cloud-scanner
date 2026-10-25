@@ -46,7 +46,8 @@ from .strategy_builder import build_breakout_plan, apply_plan
 from .monitor_engine import evaluate_monitor_state
 from .state_store import MonitorStateStore
 from .premarket_state import load_premarket_event_snapshot
-from .structured_log import emit as structured_log\nfrom .paper_trading import (
+from .structured_log import emit as structured_log
+from .paper_trading import (
     evaluate_paper_gate,
     build_paper_snapshot,
     write_paper_run_file,
