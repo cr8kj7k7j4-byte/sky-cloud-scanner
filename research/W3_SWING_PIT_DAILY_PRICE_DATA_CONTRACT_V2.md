@@ -1,4 +1,4 @@
-# W3｜Sky Swing Canonical PIT Daily Price Data Contract v2.0
+# W3｜Sky Swing Canonical PIT Daily Price Data Contract v2.1
 
 Status: W3 implementation contract for W1 data blocker handoff  
 Production strategy impact: NONE
@@ -9,26 +9,29 @@ A current-universe sample is never a substitute.
 
 ## Price source
 Primary free reproducible chain:
-- FinMind `TaiwanStockPrice` raw daily OHLCV (Free, per-symbol)
-- `TaiwanStockDividendResult`
-- `TaiwanStockCapitalReductionReferencePrice`
-- rare-event fallback: `TaiwanStockSplitPrice`, `TaiwanStockParValueChange`
+- FinMind `TaiwanStockPrice` raw daily OHLCV
+- FinMind `TaiwanStockDividendResult`
+- FinMind `TaiwanStockCapitalReductionReferencePrice`
+- full-market rare-event tables: `TaiwanStockSplitPrice`, `TaiwanStockParValueChange`
 
 The paid `TaiwanStockPriceAdj` dataset is not required.
 
 ## Adjustment
-1. Use raw daily `spread` to infer the exchange reference price for a date.
-2. Detect a reference discontinuity versus the prior available raw close.
-3. A discontinuity is adjusted only when a corporate-action reference dataset confirms that date.
-4. Effective event factor = confirmed trading reference / prior available raw close.
-5. Apply cumulative factors backward to OHLC strictly before each event date.
-6. If a discontinuity cannot be tied to a governed corporate-action event, quarantine the symbol instead of guessing.
-7. Volume remains raw share volume and is explicitly marked `volume_adjusted=false`.
+Corporate actions are identified only from governed corporate-action reference datasets.
+Ordinary raw-price gaps or `spread` values are **not** treated as corporate-action evidence.
 
-This handles cash/stock distributions, capital reductions, splits and par-value changes while failing closed on unresolved compound events.
+For each confirmed event:
+1. Dividend: use `reference_price / before_price`.
+2. Capital reduction: prefer `ExrightReferencePrice / ClosingPriceonTheLastTradingDay` for combined reduction/ex-right cases; otherwise use `PostReductionReferencePrice` or `OpeningReferencePrice`.
+3. Split: use `after_price / before_price`.
+4. Par-value change: use `after_ref_close / before_close` (fallback `after_ref_open`).
+5. Apply cumulative event factors backward to OHLC strictly before the event date.
+6. Multiple conflicting structural corporate actions on the same date are quarantined rather than guessed.
+7. If a required corporate-action source is unavailable, fail closed.
+8. Volume remains raw share volume and is explicitly marked `volume_adjusted=false`.
 
 ## Schema
-Each bar:
+Each bar retains:
 - symbol
 - exchange
 - date / trading_date
@@ -52,7 +55,12 @@ No forward fill across:
 - no-trade dates
 - source gaps
 
+FinMind zero-OHLC no-trade rows are not synthesized into price bars.
 Missingness remains explicit in coverage audit.
+
+## Market transfer / continuity
+Each bar's exchange is resolved from the canonical PIT interval valid on that historical trading date.
+TWSE ↔ TPEx transfers therefore remain effective-dated and are not rewritten using today's exchange.
 
 ## Acceptance
 - canonical PIT gate PASS
@@ -60,5 +68,7 @@ Missingness remains explicit in coverage audit.
 - zero duplicate symbol/exchange/date bars
 - all output symbols adjusted=true
 - each W1 registered audit date >=95%
-- `research/validate_swing_pit_readiness.py` returns READY_FOR_CANONICAL_SWING_REPLAY
+- `research/validate_swing_pit_readiness.py` returns `READY_FOR_CANONICAL_SWING_REPLAY`
 - canonical artifacts and reports uploaded by GitHub Actions
+
+Coverage PASS is a data-readiness result only. It does not validate strategy profitability.
