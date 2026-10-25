@@ -1,0 +1,25 @@
+name: Diagnose TPEx Universe Pages
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "research/diagnose_tpex_universe_pages.py"
+      - ".github/workflows/diagnose-tpex-universe.yml"
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install requests beautifulsoup4
+      - name: Diagnose TPEx dynamic pages
+        run: python research/diagnose_tpex_universe_pages.py --out research_output_tpex_diag
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tpex-universe-diagnostics-${{ github.run_id }}
+          path: research_output_tpex_diag/
