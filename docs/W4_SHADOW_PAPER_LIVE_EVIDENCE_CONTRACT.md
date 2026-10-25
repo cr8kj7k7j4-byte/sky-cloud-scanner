@@ -53,6 +53,32 @@ Each observation should preserve, when available:
 
 Unavailable evidence must remain null/unknown; it must not be inferred or fabricated.
 
+
+## Eligible scan definition
+
+A scheduled scanner workflow success is **not** automatically an eligible W4 observation source.
+
+A scan run counts toward W4 pipeline collection only when:
+- its Paper artifact is present;
+- the artifact contains at least one valid record;
+- the record observation timestamp is on/after the canonical ledger activation time;
+- the record contains a non-empty symbol.
+
+Therefore:
+- market holidays;
+- empty scans;
+- zero-record artifacts;
+- pre-ledger artifacts;
+- malformed Paper files
+
+do **not** count as eligible scan runs.
+
+Machine audit:
+- `research/w4_scan_artifact_eligibility.py`
+- `research_output/w4_scan_eligibility.json`
+
+This rule prevents weekday cron success on exchange holidays from inflating sample progress or producing false pipeline-failure signals.
+
 ## Shadow Sufficiency Gate
 
 Promotion review is blocked until all are true:
