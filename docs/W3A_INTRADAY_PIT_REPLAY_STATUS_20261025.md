@@ -16,19 +16,24 @@ Production baseline remains: Sky Day Trading v1.4 Dynamic Capital Rotation / P0-
 - Canonical whole-universe downloads use PIT membership intervals.
 
 ### Whole-Universe Intraday History
-Two real GitHub Actions paths are executing:
-- monolithic controlled-pacing export: run `40197918327`
-- canonical 20-shard export: run `40198835143`
+**PASS**
 
-The sharded pipeline:
-- max-parallel = 1
-- clamps each symbol to actual PIT membership window
-- aggregates exactly 20 shard artifacts
-- runs symbol-day coverage audit
-- requires >=95% symbol and symbol-day coverage
-- rejects duplicates and out-of-membership bars
+Canonical corrected PIT cache reconciliation:
+- source raw cache: legacy run `40198835143`
+- corrected workflow: `40221377923`
+- persisted/audited PIT intervals: 2,029
+- symbols with bars: 2,022
+- symbol coverage: 99.8519%
+- symbol-day coverage: 98.9071%
+- minimum daily coverage: 97.3726%
+- retained 5m bars: 54,187,242
+- removed out-of-membership bars: 4,819,372
+- duplicate bars: 0
+- conflicting duplicates: 0
+- out-of-membership bars after reconciliation: 0
+- parse errors: 0
 
-Final source coverage is not declared PASS until the aggregate audit finishes.
+This clears the >=95% whole-universe market-raw-data source gate.
 
 ### TAIEX Benchmark
 **PASS**
@@ -107,11 +112,20 @@ Current result: `FROZEN_ALPHA_INPUT_REQUIRED`.
 
 Observed facts:
 - registry metadata is not executable rule logic
-- no complete executable frozen v1.4 historical replay adapter exists
+- Git-history provenance confirms the historical scanner documented the conceptual A+ gate chain but did not preserve executable canonical W2 10-rule outputs
+- `first_gate` is an executable eligibility/liquidity primitive, not the W2 `market_gate`
+- the deterministic P0-S 5m breakout family is formally archived/rejected and cannot substitute for v1.4 Setup/Trigger
+- the trigger-slip Anti-Chase proxy is explicitly rejected as a standalone hard gate
 - current CORE_RULE_IDS does not cover all W2 10-rule columns
 - historical canonical decision stream is absent
 - current scanner stores Top-N truncated candidate snapshots
 - research-only strategy builder is not an acceptable v1.4 substitute
+
+A fail-closed evidence-preserving adapter now exists:
+- `research/frozen_v14_evidence_replay_adapter.py`
+- preserves PIT-safe observed fields
+- only preserves a canonical rule boolean when the formal provider registry allows it and the historical row already contains it
+- otherwise forces the rule to `None` and blocks W2 efficacy
 
 Therefore W3A will not reconstruct missing Alpha thresholds or rules.
 
