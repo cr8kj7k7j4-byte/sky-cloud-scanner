@@ -41,8 +41,13 @@ jobs:
           import json
           from pathlib import Path
           p=json.loads(Path("output/historical_universe_audit/audit.json").read_text(encoding="utf-8"))
+          intervals=json.loads(Path("output/historical_universe_audit/pit_intervals.json").read_text(encoding="utf-8"))
           assert p["historical_universe_gate_pass"], p
           assert p["current_open_interval_alignment_ok"], p
+          assert len(intervals.get("intervals") or []) == int(p["intervals"]), {
+              "persisted_intervals":len(intervals.get("intervals") or []),
+              "audited_intervals":p["intervals"],
+          }
           for ex,row in p["current_membership_alignment"].items():
               assert row["missing_open_symbol_count"] == 0, (ex,row)
               assert row["extraneous_open_symbol_count"] == 0, (ex,row)
