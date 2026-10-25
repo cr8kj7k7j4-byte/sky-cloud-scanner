@@ -182,9 +182,17 @@ def scan_file(path, cost_pct=DEFAULT_COST_PCT, lookback=DEFAULT_LOOKBACK,
     return trades
 
 
-def metrics(rows):
+def metrics(rows, cost_pct=None):
     if not rows:
         return {"n": 0}
+    if cost_pct is not None:
+        rows = [
+            {
+                **x,
+                "net_r": float(x["gross_r"]) - float(cost_pct) / float(x["risk_pct"]),
+            }
+            for x in rows
+        ]
     vals = [float(x["net_r"]) for x in rows]
     wins = [x for x in vals if x > 0]
     losses = [x for x in vals if x < 0]
@@ -204,6 +212,72 @@ def metrics(rows):
         "avg_mae_r": round(statistics.mean(
             x["mae_r"] for x in rows if x["mae_r"] is not None
         ), 4),
+    }
+
+
+def _bucket(value, cuts):
+    for label, upper in cuts:
+        if value <= upper:
+            return label
+    return cuts[-1][0]
+
+
+def diagnostic_breakdown(rows):
+    out = {}
+    if not rows:
+        return out
+
+    groups = defaultdict(list)
+    for x in rows:
+        groups[f"exit:{x['exit_reason']}"].append(x)
+        hour = int(str(x["trigger_time"]).split(":")[0])
+        minute = int(str(x["trigger_time"]).split(":")[1])
+        mins = hour * 60 + minute
+        if mins < 570:
+            t = "09:00-09:29"
+        elif mins < 600:
+            t = "09:30-09:59"
+        elif mins < 660:
+            t = "10:00-10:59"
+        elif mins < 720:
+            t = "11:00-11:59"
+        else:
+            t = "12:00+"
+        groups[f"time:{t}"].append(x)
+
+        rb = _bucket(float(x["risk_pct"]), [
+            ("0.30-0.60", 0.60),
+            ("0.61-1.00", 1.00),
+            ("1.01-1.50", 1.50),
+            ("1.51-2.00", 2.00),
+            ("2.01-2.50", 2.50),
+        ])
+        groups[f"risk:{rb}"].append(x)
+
+    for key, vals in sorted(groups.items()):
+        out[key] = metrics(vals)
+    return out
+
+
+def cost_sensitivity(rows):
+    return {
+        f"{cost:.2f}%": metrics(rows, cost_pct=cost)
+        for cost in (0.00, 0.20, 0.30, 0.45, 0.60)
+    }
+
+
+def excursion_structure(rows):
+    if not rows:
+        return {}
+    mfe = [float(x["mfe_r"]) for x in rows if x.get("mfe_r") is not None]
+    mae = [float(x["mae_r"]) for x in rows if x.get("mae_r") is not None]
+    return {
+        "share_mfe_ge_0_5r": round(sum(x >= 0.5 for x in mfe) / len(mfe), 4) if mfe else None,
+        "share_mfe_ge_1r": round(sum(x >= 1.0 for x in mfe) / len(mfe), 4) if mfe else None,
+        "share_mfe_ge_1_5r": round(sum(x >= 1.5 for x in mfe) / len(mfe), 4) if mfe else None,
+        "share_mfe_ge_2r": round(sum(x >= 2.0 for x in mfe) / len(mfe), 4) if mfe else None,
+        "share_mae_le_minus_0_5r": round(sum(x <= -0.5 for x in mae) / len(mae), 4) if mae else None,
+        "share_mae_le_minus_1r": round(sum(x <= -1.0 for x in mae) / len(mae), 4) if mae else None,
     }
 
 
@@ -242,6 +316,14 @@ def main():
         "all": metrics(trades),
         "in_sample": metrics(ins),
         "oos": metrics(oos),
+        "diagnostics": {
+            "in_sample_breakdown": diagnostic_breakdown(ins),
+            "oos_breakdown": diagnostic_breakdown(oos),
+            "in_sample_cost_sensitivity": cost_sensitivity(ins),
+            "oos_cost_sensitivity": cost_sensitivity(oos),
+            "in_sample_excursion": excursion_structure(ins),
+            "oos_excursion": excursion_structure(oos),
+        },
         "promotion_gate": {
             "min_oos_n": 100,
             "min_oos_pf": 1.05,
@@ -276,6 +358,8 @@ def main():
         f"- Input files: {len(files)}",
         f"- In-sample: {report['in_sample']}",
         f"- OOS: {report['oos']}",
+        f"- OOS excursion: {report['diagnostics']['oos_excursion']}",
+        f"- OOS cost sensitivity: {report['diagnostics']['oos_cost_sensitivity']}",
         "",
         "Research only. A+ / live promotion remains prohibited until Paper Trading and governance gates pass.",
     ]
