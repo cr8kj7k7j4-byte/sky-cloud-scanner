@@ -16,9 +16,9 @@
 
 | Candidate | W5 Status | Duplicate / Low-value | PIT feasibility | Pre-registration | Next step |
 |---|---|---|---|---|---|
-| Overnight-to-First-30m Reversal for Taiwan | HOLD | PASS structural novelty | PARTIAL；Fugle minute history + PIT universe 可用，但 canonical intraday PIT replay 仍 DATA_BLOCKED | NOT YET | W3A replay PASS 後優先重審 |
-| Taiwan Dynamic Futures/ETF/Spot Lead-Lag State | HOLD | PASS structural novelty | PARTIAL；minute data 可得，但 synchronized timestamp / session / roll contract 尚缺 | NOT YET | W3A/W6 建立 cross-market timestamp contract |
-| Taiwan Broker-Identity / Skill-Conditioned Flow | HOLD | PASS structural novelty | UNKNOWN / HARD DATA GATE；官方日頻資料存在，但 sample/schema/branch lifecycle/PIT mapping 未驗證 | NOT YET | DO_NOT_BUY NOW；先驗證 sample/schema/branch continuity |
+| Overnight-to-First-30m Reversal for Taiwan | HOLD | PASS structural novelty | PARTIAL / DATA_BLOCKED；W3A 工程已完成，但現有 100-symbol 5m artifact 對 governed PIT universe 僅約 4.8%–5.3% 最大覆蓋，遠低於 95% Gate | NOT YET | 補 whole-universe intraday history、historical decision stream、sector mapping、outcome/execution evidence 後優先重審 |
+| Taiwan Dynamic Futures/ETF/Spot Lead-Lag State | HOLD | PASS structural novelty | PARTIAL / DATA_BLOCKED；分鐘資料存在，但 synchronized whole-universe history、timestamp/session/roll contract 尚未成立 | NOT YET | W3A/W6 完成 cross-market causality contract 後重審 |
+| Taiwan Broker-Identity / Skill-Conditioned Flow | HOLD | PASS structural novelty | UNKNOWN / HARD DATA GATE；官方日頻資料存在，但 sample/schema/branch lifecycle/PIT mapping 未驗證 | NOT YET | DO_NOT_BUY NOW；先驗證 sample/schema/branch continuity 與授權可重現性 |
 
 ## Current formal disposition
 - `ACCEPT_FOR_PREREGISTRATION`: 0
@@ -31,8 +31,6 @@ Formal adjudication:
 - `research/w5/W7_INBOUND_ADJUDICATION_20261025.md`
 
 ## Inherited blocked research context
-
-以下項目屬正式 Registry 既有研究狀態，不在 W5 擅自改狀態：
 - Revenue MoM 5D — PRE_PIT_CANDIDATE
 - Revenue YoY Acceleration 5D — PRE_PIT_CANDIDATE
 - Revenue YoY 5D — HOLD_CONCENTRATION_FAIL
