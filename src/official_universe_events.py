@@ -16,6 +16,8 @@ TWSE_NEW_URL = "https://openapi.twse.com.tw/v1/company/newlisting"
 TWSE_DELIST_URL = "https://openapi.twse.com.tw/v1/company/suspendListingCsvAndHtml"
 TPEX_NEW_URL = "https://www.tpex.org.tw/zh-tw/mainboard/applying/status/new-listed.html"
 TPEX_DELIST_URL = "https://www.tpex.org.tw/zh-tw/mainboard/listed/delisted.html"
+TPEX_NEW_API = "https://www.tpex.org.tw/www/zh-tw/company/applicantStat"
+TPEX_DELIST_API = "https://www.tpex.org.tw/www/zh-tw/company/deListed"
 
 SOURCE_EXPECTATIONS = {
     "TWSE_BASIC": {"min_events": 100, "role": "CURRENT_BASE"},
@@ -202,6 +204,55 @@ def fetch_text(url: str, timeout=30) -> str:
     r.encoding = r.apparent_encoding or r.encoding
     return r.text
 
+def post_json(url: str, data: Dict[str, Any], timeout=30) -> Any:
+    r=requests.post(
+        url, data=data, timeout=timeout,
+        headers={
+            "User-Agent":"sky-cloud-scanner/1.0",
+            "Referer":"https://www.tpex.org.tw/zh-tw/",
+            "X-Requested-With":"XMLHttpRequest",
+        },
+    )
+    r.raise_for_status()
+    return r.json()
+
+def _payload_table_dicts(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
+    tables = payload.get("tables") if isinstance(payload, dict) else None
+    if not isinstance(tables, list) or not tables:
+        return []
+    table = tables[0] if isinstance(tables[0], dict) else {}
+    fields = table.get("fields") or []
+    data = table.get("data") or []
+    out=[]
+    if not isinstance(fields, list) or not isinstance(data, list):
+        return out
+    for row in data:
+        if isinstance(row, list) and len(row) >= len(fields):
+            out.append(dict(zip(fields,row)))
+    return out
+
+def fetch_tpex_delist_events(source_as_of: str, start_year: int = 2021, end_year: Optional[int] = None) -> List[UniverseEvent]:
+    end_year = end_year or datetime.now().year
+    out=[]
+    for year in range(int(start_year), int(end_year)+1):
+        payload=post_json(TPEX_DELIST_API, {"code":"","date":str(year),"reason":"-1"})
+        for row in _payload_table_dicts(payload):
+            symbol=str(row.get("股票代號") or "").strip()
+            if not (len(symbol)==4 and symbol.isdigit()):
+                continue
+            d=normalize_roc_date(row.get("終止上櫃日期"))
+            if not d:
+                continue
+            out.append(UniverseEvent(
+                symbol=symbol, exchange="TPEx",
+                name=str(row.get("公司名稱") or "").strip(),
+                event_type="DELIST", event_date=d,
+                source="TPEX_API_DELIST", source_url=TPEX_DELIST_API,
+                source_as_of=source_as_of,
+                notes=str(row.get("終止上櫃原因") or "").strip(),
+            ))
+    return out
+
 def dedupe_events(events: Iterable[UniverseEvent]) -> List[UniverseEvent]:
     seen={}
     for e in events:
@@ -271,7 +322,7 @@ def collect_official_events() -> Dict[str, Any]:
         ("TWSE_NEW",TWSE_NEW_URL,"json","TWSE","twse_new"),
         ("TWSE_DELIST",TWSE_DELIST_URL,"json","TWSE","twse_delist"),
         ("TPEX_NEW",TPEX_NEW_URL,"html","TPEx","list"),
-        ("TPEX_DELIST",TPEX_DELIST_URL,"html","TPEx","delist"),
+        ("TPEX_DELIST",TPEX_DELIST_API,"tpex_delist_api","TPEx","delist"),
     ]
     for name,url,kind,exchange,parser in sources:
         try:
@@ -284,6 +335,8 @@ def collect_official_events() -> Dict[str, Any]:
                     parsed=parse_twse_delist_records(rows,url,as_of)
                 else:
                     parsed=parse_basic_records(rows,exchange,url,as_of)
+            elif kind=="tpex_delist_api":
+                parsed=fetch_tpex_delist_events(as_of)
             else:
                 html=fetch_text(url)
                 parsed=parse_listing_html(html,exchange,url,as_of) if parser=="list" else parse_delisting_html(html,exchange,url,as_of)
