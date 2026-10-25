@@ -22,6 +22,7 @@ Research namespaces:
 
 | Candidate | Status | Priority | Current evidence |
 |---|---|---:|---|
+| Swing 5D 3-factor top-decile challenger | HOLD | 3 | Existing 100-symbol artifact is current-universe backward and fails artifact-level PIT/survivorship promotion gate; 0.65% stress-cost stability is inconsistent; portfolio/risk and Shadow/Paper gates incomplete. Do not result-select longer horizons from observed data. |
 | Revenue MoM 5D | PRE_PIT_CANDIDATE | 1 | Robustness gates passed, but 2023–2026 historical PIT audit found 0 / 87,588 company-months with verified MOPS filing timestamps (0.0000%). Promotion blocked until historical PIT coverage is resolved or the research window is redefined prospectively. |
 | Revenue YoY 5D | HOLD_CONCENTRATION_FAIL | 4 | Primary/stress return gates passed, but top-5-symbol concentration exceeded threshold across splits. Do not promote. |
 | Revenue YoY Acceleration 5D | PRE_PIT_CANDIDATE | 2 | Robustness gates passed, but 2023–2026 historical PIT coverage is 0.0000% (0 / 87,588 company-months). Remains pre-promotion research only; statutory-deadline proxies do not satisfy PIT. |
@@ -114,3 +115,10 @@ Any material gate failure blocks Promotion. No chat window, notebook, branch, or
 - Missing evidence is UNKNOWN / VERIFY_BEFORE_TRADE.
 - TRIGGERED does not mean automatic buy.
 - Formal production baselines remain unchanged until promotion gates pass.
+
+## Validation evidence state
+
+- W1 Swing validation: **HOLD**; no promotion-grade Swing challenger is currently authorized.
+- W4 Shadow/Paper: **WAITING_FOR_SUFFICIENCY**; minimum gate remains >=200 evaluable samples, >=20 trading days, >=2 regimes, >=95% outcome completeness, <=20% single-symbol share, plus portfolio/cost/capacity, P0-R and P0-G review.
+- W5 Candidate Lab: no active VNext Alpha candidate is currently authorized.
+- Production baseline remains unchanged until all 18 Promotion Gates pass.
