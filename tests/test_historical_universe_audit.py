@@ -300,3 +300,43 @@ def test_windowed_cross_exchange_migration_closes_prior_market():
     )
     assert out["current_open_interval_alignment_ok"] is True
     assert out["historical_universe_gate_pass"] is True
+
+
+def test_prewindow_cross_exchange_latest_list_wins_before_clipping():
+    p=_payload()
+    p["events"].extend([
+        {
+            "symbol":"5555","exchange":"TPEx","name":"Mover",
+            "event_type":"LIST","event_date":"2018-01-01",
+            "source":"official","source_url":"u","source_as_of":"2026-10-25","notes":"",
+        },
+        {
+            "symbol":"5555","exchange":"TWSE","name":"Mover",
+            "event_type":"LIST","event_date":"2022-06-01",
+            "source":"official","source_url":"u","source_as_of":"2026-10-25","notes":"",
+        },
+    ])
+    current=[
+        {"symbol":"2222","exchange":"TWSE"},
+        {"symbol":"3333","exchange":"TPEx"},
+        {"symbol":"5555","exchange":"TWSE"},
+    ]
+    out=build_historical_universe_audit(
+        official_payload=p,
+        current_universe=current,
+        audit_dates=["2023-12-31"],
+    )
+    assert out["current_open_interval_alignment_ok"] is True
+    assert out["current_interval_coverage"]["TPEx"]["extraneous_open_symbol_count"] == 0
+    assert out["current_interval_coverage"]["TWSE"]["extraneous_open_symbol_count"] == 0
+    pit_twse=out["historical_dates"]["2023-12-31"]["by_exchange"]["TWSE"]
+    assert pit_twse["pit_n"] >= 1
+    assert any(
+        x.get("type")=="PREWINDOW_CROSS_EXCHANGE_MIGRATION_RESOLUTION"
+        and x.get("symbol")=="5555"
+        and x.get("active_exchange")=="TWSE"
+        for x in (
+            __import__("research.audit_historical_universe",fromlist=["build_windowed_intervals"])
+            .build_windowed_intervals(p["events"])["annotations"]
+        )
+    )
