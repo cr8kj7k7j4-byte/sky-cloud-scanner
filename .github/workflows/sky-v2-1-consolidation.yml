@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - integration/sky-v2.1-consolidation
+      - 'governance/**'
   workflow_dispatch:
 
 permissions:
