@@ -32,87 +32,45 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
       - name: Install test/runtime dependencies
         run: pip install -r requirements.txt pytest
+
       - name: Compile
         run: python -m compileall -q src tests research
+
       - name: Dashboard tests
-        run: PYTHONPATH=. pytest -q tests/test_shadow_promotion_dashboard.py tests/test_evidence_promotion_gates.py tests/test_shadow_evidence.py
+        run: >-
+          PYTHONPATH=. pytest -q
+          tests/test_shadow_promotion_dashboard.py
+          tests/test_evidence_promotion_gates.py
+          tests/test_shadow_evidence.py
+
       - name: Download recent successful scan artifacts
         if: github.event_name != 'pull_request'
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p shadow_history
-          gh run list             --workflow scan.yml             --status success             --limit 100             --json databaseId,createdAt             --jq '.[] |
-              select(.createdAt >= "2026-10-24T23:28:08Z") |
-              .databaseId' > /tmp/scan_run_ids.txt
 
-          SCAN_RUNS="$(grep -cve '^
-
-          while read -r run_id; do
-            [ -z "$run_id" ] && continue
-            dest="shadow_history/$run_id"
-            mkdir -p "$dest"
-            gh run download "$run_id"               -n "sky-scan-$run_id"               -D "$dest" || true
-          done < /tmp/scan_run_ids.txt
-
-          find shadow_history -type f -path '*/output/paper/*.json' | sort || true
-
-      - name: Download enriched Shadow outcome artifacts
-        if: github.event_name != 'pull_request'
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p outcome_history
           gh run list \
-            --workflow shadow-outcome-backfill.yml \
+            --workflow scan.yml \
             --status success \
             --limit 100 \
             --json databaseId,createdAt \
-            --jq '.[].databaseId' > /tmp/outcome_run_ids.txt
+            --jq '.[] | select(.createdAt >= "2026-10-24T23:28:08Z") | .databaseId' \
+            > /tmp/scan_run_ids.txt
 
-          while read -r run_id; do
-            [ -z "$run_id" ] && continue
-            dest="outcome_history/$run_id/output/paper"
-            mkdir -p "$dest"
-            gh run download "$run_id" \
-              -n "shadow-outcomes-$run_id" \
-              -D "$dest" || true
-          done < /tmp/outcome_run_ids.txt
-
-          if [ -d outcome_history ]; then
-            cp -R outcome_history/. shadow_history/ || true
-          fi
-          find shadow_history -type f -name '*-outcomes.json' | sort || true
-
-      - name: Build dashboard
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            PAPER_ROOT="output/paper"
-          else
-            PAPER_ROOT="shadow_history"
-          fi
-          PYTHONPATH=. python research/shadow_promotion_dashboard.py             --paper-dir "$PAPER_ROOT"             --eligible-successful-scan-runs "${ELIGIBLE_SUCCESSFUL_SCAN_RUNS:-0}"             --out research_output/shadow_promotion_dashboard.json
-      - name: Upload dashboard artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: shadow-promotion-dashboard
-          path: |
-            research_output/shadow_promotion_dashboard.json
-            research_output/shadow_promotion_dashboard.md
-          if-no-files-found: error
-          retention-days: 30
-      - name: Production E2E
-        run: PYTHONPATH=. pytest -q tests/test_production_e2e_acceptance.py
- /tmp/scan_run_ids.txt || true)"
+          SCAN_RUNS="$(grep -cve '^$' /tmp/scan_run_ids.txt || true)"
           echo "ELIGIBLE_SUCCESSFUL_SCAN_RUNS=$SCAN_RUNS" >> "$GITHUB_ENV"
 
           while read -r run_id; do
             [ -z "$run_id" ] && continue
             dest="shadow_history/$run_id"
             mkdir -p "$dest"
-            gh run download "$run_id"               -n "sky-scan-$run_id"               -D "$dest" || true
+            gh run download "$run_id" \
+              -n "sky-scan-$run_id" \
+              -D "$dest" || true
           done < /tmp/scan_run_ids.txt
 
           find shadow_history -type f -path '*/output/paper/*.json' | sort || true
@@ -123,12 +81,14 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p outcome_history
+
           gh run list \
             --workflow shadow-outcome-backfill.yml \
             --status success \
             --limit 100 \
             --json databaseId,createdAt \
-            --jq '.[].databaseId' > /tmp/outcome_run_ids.txt
+            --jq '.[].databaseId' \
+            > /tmp/outcome_run_ids.txt
 
           while read -r run_id; do
             [ -z "$run_id" ] && continue
@@ -142,16 +102,24 @@ jobs:
           if [ -d outcome_history ]; then
             cp -R outcome_history/. shadow_history/ || true
           fi
+
           find shadow_history -type f -name '*-outcomes.json' | sort || true
 
       - name: Build dashboard
+        shell: bash
         run: |
+          set -euo pipefail
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             PAPER_ROOT="output/paper"
           else
             PAPER_ROOT="shadow_history"
           fi
-          PYTHONPATH=. python research/shadow_promotion_dashboard.py             --paper-dir "$PAPER_ROOT"             --out research_output/shadow_promotion_dashboard.json
+
+          PYTHONPATH=. python research/shadow_promotion_dashboard.py \
+            --paper-dir "$PAPER_ROOT" \
+            --eligible-successful-scan-runs "${ELIGIBLE_SUCCESSFUL_SCAN_RUNS:-0}" \
+            --out research_output/shadow_promotion_dashboard.json
+
       - name: Upload dashboard artifact
         uses: actions/upload-artifact@v4
         with:
@@ -161,5 +129,6 @@ jobs:
             research_output/shadow_promotion_dashboard.md
           if-no-files-found: error
           retention-days: 30
+
       - name: Production E2E
         run: PYTHONPATH=. pytest -q tests/test_production_e2e_acceptance.py
