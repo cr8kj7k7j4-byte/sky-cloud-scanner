@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import csv
+import io
 import json
 import re
 from dataclasses import dataclass, asdict
@@ -231,6 +233,35 @@ def _payload_table_dicts(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
             out.append(dict(zip(fields,row)))
     return out
 
+def fetch_tpex_new_events(source_as_of: str, start_year: int = 2005, end_year: Optional[int] = None) -> List[UniverseEvent]:
+    end_year = end_year or datetime.now().year
+    out=[]
+    for year in range(int(start_year), int(end_year)+1):
+        url=f"https://www.tpex.org.tw/www/zh-tw/company/applicantStatDl?type=list&date={year}"
+        r=requests.get(url,timeout=30,headers={"User-Agent":"sky-cloud-scanner/1.0"})
+        r.raise_for_status()
+        text=r.content.decode("cp950",errors="replace")
+        lines=text.splitlines()
+        if len(lines) < 2:
+            continue
+        reader=csv.DictReader(io.StringIO("\n".join(lines[1:])))
+        for row in reader:
+            symbol=str(row.get("公司代號") or "").strip()
+            if not (len(symbol)==4 and symbol.isdigit()):
+                continue
+            d=normalize_roc_date(row.get("上櫃日期"))
+            if not d:
+                continue
+            out.append(UniverseEvent(
+                symbol=symbol, exchange="TPEx",
+                name=str(row.get("公司名稱") or "").strip(),
+                event_type="LIST", event_date=d,
+                source="TPEX_OFFICIAL_NEWLIST_CSV", source_url=url,
+                source_as_of=source_as_of,
+                notes=f"source_year={year}",
+            ))
+    return out
+
 def fetch_tpex_delist_events(source_as_of: str, start_year: int = 2021, end_year: Optional[int] = None) -> List[UniverseEvent]:
     end_year = end_year or datetime.now().year
     out=[]
@@ -321,7 +352,7 @@ def collect_official_events() -> Dict[str, Any]:
         ("TPEX_BASIC",TPEX_BASIC_URL,"json","TPEx","basic"),
         ("TWSE_NEW",TWSE_NEW_URL,"json","TWSE","twse_new"),
         ("TWSE_DELIST",TWSE_DELIST_URL,"json","TWSE","twse_delist"),
-        ("TPEX_NEW",TPEX_NEW_URL,"html","TPEx","list"),
+        ("TPEX_NEW",TPEX_NEW_API,"tpex_new_api","TPEx","list"),
         ("TPEX_DELIST",TPEX_DELIST_API,"tpex_delist_api","TPEx","delist"),
     ]
     for name,url,kind,exchange,parser in sources:
@@ -335,6 +366,8 @@ def collect_official_events() -> Dict[str, Any]:
                     parsed=parse_twse_delist_records(rows,url,as_of)
                 else:
                     parsed=parse_basic_records(rows,exchange,url,as_of)
+            elif kind=="tpex_new_api":
+                parsed=fetch_tpex_new_events(as_of)
             elif kind=="tpex_delist_api":
                 parsed=fetch_tpex_delist_events(as_of)
             else:
