@@ -1,0 +1,32 @@
+{
+  "schema_version": "FUGLE_5M_SOURCE_SEMANTICS_V1_0",
+  "audited_at": "2026-10-25",
+  "source": "Fugle MarketData historical candles",
+  "timeframe_minutes": 5,
+  "official_docs": [
+    "https://developer.fugle.tw/docs/data/http-api/historical/candles/",
+    "https://developer.fugle.tw/docs/data-futopt/http-api/historical/candles/"
+  ],
+  "semantics": {
+    "timestamp": {
+      "conservative_interpretation": "BAR_START_TIME",
+      "feature_available_at_rule": "bar_start + 5 minutes <= decision_timestamp",
+      "note": "Futures historical docs explicitly define minute-K date as bar start. Stock historical API uses the same minute-candle date convention; W3A applies the conservative start-time interpretation to prevent look-ahead."
+    },
+    "average": {
+      "stock_historical_definition": "成交均價（自開盤累計）",
+      "canonical_use": "latest completed bar average is cumulative_vwap",
+      "prohibited": "do not volume-weight historical average again"
+    },
+    "volume": {
+      "stock_minute_unit": "lots for round-lot equities",
+      "index_minute_unit": "turnover amount"
+    }
+  },
+  "governance": {
+    "incomplete_bar_may_enter_decision_features": false,
+    "same_start_bar_may_enter_counterfactual_outcome_if_start_at_or_after_decision": true,
+    "future_bars_may_enter_features": false,
+    "alpha_logic_modified": false
+  }
+}
