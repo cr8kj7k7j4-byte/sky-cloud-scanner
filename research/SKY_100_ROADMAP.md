@@ -102,3 +102,15 @@ Research Candidate 不得自動覆蓋上述正式版本。
 - P0-G Promotion Decision 完成紀錄
 
 不得因單次回測較漂亮、單一月份獲利、Accuracy 較高或單一 feature Rank IC 較高就直接升 Production。
+
+
+## Revenue Point-in-Time 進度（2026-10-25）
+
+- MOPS Revenue PIT forward collector：**IMPLEMENTED / LIVE API VERIFIED**
+- 官方來源：`/mops/api/home_page/t51sb10`
+- 已驗證市場別：`sii` / `otc` / `rotc` / `pub`
+- 公司級 `filing_published_at` 僅在可同時辨識公司代號、營收月份與官方發布時間時才寫入。
+- API 無新公告（`data=[]`）屬正常狀態，不得視為資料失敗。
+- Forward ledger：排程累積未來正式公告時間。
+- **Historical filing timestamp backfill：NOT COMPLETE。**
+- Revenue MoM 5D / YoY Acceleration 5D 在歷史 PIT backfill 與 coverage audit 完成前仍維持 `PRE_PIT_CANDIDATE`，不得 Promotion。
