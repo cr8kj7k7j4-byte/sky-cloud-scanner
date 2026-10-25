@@ -42,6 +42,61 @@ def build_windowed_intervals(events: list[dict], window_start: str = WINDOW_STAR
     unresolved=[]
     annotations=[]
 
+    # Resolve market membership at the governed-window start BEFORE clipping
+    # dates to window_start. If the same symbol appears active on both exchanges
+    # because one market's termination event is absent, the later official LIST
+    # on the other exchange is affirmative migration evidence.
+    prewindow_state={}
+    for (symbol,exchange), arr in grouped.items():
+        arr_sorted=sorted(
+            arr,
+            key=lambda x: (
+                str(x.get("event_date")),
+                0 if x.get("event_type")=="DELIST" else 1,
+            ),
+        )
+        listed=False
+        last_list=None
+        for e in arr_sorted:
+            d=str(e.get("event_date"))
+            if d >= window_start:
+                break
+            if e.get("event_type")=="LIST":
+                listed=True
+                last_list=d
+            elif e.get("event_type")=="DELIST":
+                listed=False
+        prewindow_state[(symbol,exchange)]={"listed":listed,"last_list":last_list}
+
+    by_symbol_prewindow=defaultdict(list)
+    for (symbol,exchange), state in prewindow_state.items():
+        if state["listed"]:
+            by_symbol_prewindow[symbol].append((exchange,state.get("last_list")))
+
+    prewindow_winner={}
+    ambiguous_prewindow=set()
+    for symbol, rows in by_symbol_prewindow.items():
+        if len(rows)<=1:
+            if rows:
+                prewindow_winner[symbol]=rows[0][0]
+            continue
+        ranked=sorted(rows,key=lambda x:str(x[1] or ""),reverse=True)
+        if len(ranked)>=2 and str(ranked[0][1] or "")==str(ranked[1][1] or ""):
+            ambiguous_prewindow.add(symbol)
+            continue
+        prewindow_winner[symbol]=ranked[0][0]
+        annotations.append({
+            "symbol":symbol,
+            "type":"PREWINDOW_CROSS_EXCHANGE_MIGRATION_RESOLUTION",
+            "window_start":window_start,
+            "active_exchange":ranked[0][0],
+            "active_exchange_last_list":ranked[0][1],
+            "suppressed_exchanges":[
+                {"exchange":ex,"last_list":d} for ex,d in ranked[1:]
+            ],
+            "evidence":"LATEST_OFFICIAL_LIST_BEFORE_WINDOW_START",
+        })
+
     for (symbol,exchange), arr in grouped.items():
         arr=sorted(
             arr,
@@ -62,6 +117,17 @@ def build_windowed_intervals(events: list[dict], window_start: str = WINDOW_STAR
                 listed=True
             elif e.get("event_type")=="DELIST":
                 listed=False
+
+        if symbol in ambiguous_prewindow and listed:
+            unresolved.append({
+                "symbol":symbol,
+                "exchange":exchange,
+                "reason":"AMBIGUOUS_CROSS_EXCHANGE_MEMBERSHIP_AT_WINDOW_START",
+                "window_start":window_start,
+            })
+            listed=False
+        elif listed and prewindow_winner.get(symbol) and prewindow_winner[symbol] != exchange:
+            listed=False
 
         current_start=window_start if listed else None
         future=[e for e in arr if str(e.get("event_date")) >= window_start]
@@ -289,6 +355,9 @@ def build_historical_universe_audit(
         if str(err).startswith("overlap:"):
             _, symbol, exchange = str(err).split(":", 2)
             diagnostic_symbols.add((symbol, exchange))
+    for exchange, x in current_coverage.items():
+        for symbol in x.get("extraneous_open_symbols") or []:
+            diagnostic_symbols.add((str(symbol), str(exchange)))
 
     timelines = {}
     for symbol, exchange in sorted(diagnostic_symbols):
