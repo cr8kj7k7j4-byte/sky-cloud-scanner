@@ -424,6 +424,30 @@ def main():
         json.dumps(report, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
+
+    # Persist the canonical governed-window membership intervals as a first-class
+    # artifact. Downstream research (including W1 Swing) must consume these
+    # intervals instead of reconstructing historical membership from today's
+    # listing universe.
+    windowed = build_windowed_intervals(
+        list(official.get("events") or []),
+        window_start=WINDOW_START,
+    )
+    pit_snapshot = {
+        "schema_version": "1.0",
+        "window_start": WINDOW_START,
+        "source_as_of": official.get("source_as_of"),
+        "historical_universe_gate_pass": report.get("historical_universe_gate_pass"),
+        "interval_validation": report.get("interval_validation"),
+        "intervals": windowed.get("intervals") or [],
+        "annotations": windowed.get("annotations") or [],
+        "unresolved": windowed.get("unresolved") or [],
+    }
+    (out / "pit_intervals.json").write_text(
+        json.dumps(pit_snapshot, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
     write_markdown(report, out / "audit.md")
     print(json.dumps(report, ensure_ascii=False))
 
