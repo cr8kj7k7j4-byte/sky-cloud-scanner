@@ -27,7 +27,11 @@ DEFAULT_DATES = [
 
 
 
-def build_windowed_intervals(events: list[dict], window_start: str = WINDOW_START) -> dict:
+def build_windowed_intervals(
+    events: list[dict],
+    window_start: str = WINDOW_START,
+    current_membership: list[dict] | None = None,
+) -> dict:
     """Build membership intervals only for the governed research window."""
     grouped=defaultdict(list)
     for raw in events or []:
@@ -41,6 +45,14 @@ def build_windowed_intervals(events: list[dict], window_start: str = WINDOW_STAR
     intervals=[]
     unresolved=[]
     annotations=[]
+
+    membership_rows=list(current_membership or [])
+    membership_lookup={
+        (str(x.get("symbol") or ""),str(x.get("exchange") or "")):x
+        for x in membership_rows
+        if x.get("symbol") and x.get("exchange")
+    }
+    membership_keys=set(membership_lookup)
 
     # Resolve market membership at the governed-window start BEFORE clipping
     # dates to window_start. If the same symbol appears active on both exchanges
@@ -118,6 +130,12 @@ def build_windowed_intervals(events: list[dict], window_start: str = WINDOW_STAR
             elif e.get("event_type")=="DELIST":
                 listed=False
 
+        future=[e for e in arr if str(e.get("event_date")) >= window_start]
+        future_delists=[e for e in future if e.get("event_type")=="DELIST"]
+        current_member=(symbol,exchange) in membership_keys
+        membership_anchor=membership_lookup.get((symbol,exchange)) or {}
+        anchor_from=str(membership_anchor.get("listed_from") or "")
+
         if symbol in ambiguous_prewindow and listed:
             unresolved.append({
                 "symbol":symbol,
@@ -129,8 +147,43 @@ def build_windowed_intervals(events: list[dict], window_start: str = WINDOW_STAR
         elif listed and prewindow_winner.get(symbol) and prewindow_winner[symbol] != exchange:
             listed=False
 
+        # A pre-window LIST must not be projected indefinitely into the governed
+        # window merely because the older delisting source is incomplete.
+        # It is admitted at window_start only when current official membership
+        # confirms it, or a future DELIST proves it survived into the window.
+        if listed and not current_member and not future_delists:
+            annotations.append({
+                "symbol":symbol,
+                "exchange":exchange,
+                "type":"PREWINDOW_MEMBERSHIP_NOT_CONFIRMED_IN_GOVERNED_WINDOW",
+                "window_start":window_start,
+                "last_pre_window_list":prewindow_state.get((symbol,exchange),{}).get("last_list"),
+                "note":"Excluded from 2023+ PIT intervals; no current membership or in-window DELIST proves survival into the governed window.",
+            })
+            listed=False
+
+        # Current official membership is affirmative evidence that the symbol is
+        # listed now. If the event chain was broken before the governed window
+        # but the official membership anchor says listed_from predates the
+        # window, left-censor from window_start rather than treating it missing.
+        if (
+            not listed
+            and current_member
+            and anchor_from
+            and anchor_from <= window_start
+            and not any(e.get("event_type")=="LIST" for e in future)
+        ):
+            listed=True
+            annotations.append({
+                "symbol":symbol,
+                "exchange":exchange,
+                "type":"CURRENT_MEMBERSHIP_REASSERTED_AT_WINDOW_START",
+                "window_start":window_start,
+                "membership_listed_from":anchor_from,
+                "note":"Current official listing-membership anchor bridges a pre-window event-chain conflict; interval is asserted only from governed window start.",
+            })
+
         current_start=window_start if listed else None
-        future=[e for e in arr if str(e.get("event_date")) >= window_start]
 
         if (
             not listed
@@ -225,9 +278,11 @@ def build_historical_universe_audit(
     strict_unresolved = list(official_payload.get("unresolved") or [])
     source_health = list(official_payload.get("health") or [])
 
+    membership_rows=list(official_payload.get("current_membership") or [])
     windowed = build_windowed_intervals(
         list(official_payload.get("events") or []),
         window_start=WINDOW_START,
+        current_membership=membership_rows,
     )
     intervals = list(windowed.get("intervals") or [])
     unresolved = list(windowed.get("unresolved") or [])
@@ -247,6 +302,22 @@ def build_historical_universe_audit(
             symbol=str(row.get("symbol") or "")
             exchange=str(row.get("exchange") or "")
             if symbol and exchange:
+                membership_by_exchange[exchange].add(symbol)
+
+        # Official LIST events in the governed window can lead the basic-data
+        # snapshot by a few days. If the latest in-window event is LIST with no
+        # later DELIST, treat it as current listing membership evidence.
+        latest_by_key={}
+        for e in list(official_payload.get("events") or []):
+            d=str(e.get("event_date") or "")
+            if d < WINDOW_START:
+                continue
+            key=(str(e.get("symbol") or ""),str(e.get("exchange") or ""))
+            prev=latest_by_key.get(key)
+            if prev is None or str(prev.get("event_date") or "") < d:
+                latest_by_key[key]=e
+        for (symbol,exchange),e in latest_by_key.items():
+            if e.get("event_type")=="LIST" and symbol and exchange:
                 membership_by_exchange[exchange].add(symbol)
     else:
         # Backward-compatible fallback for synthetic tests only.
