@@ -54,3 +54,32 @@ RESEARCH_MORE
 
 Reason:
 The limiting factor is canonical PIT evidence/data architecture, not lack of additional strategy ideas.
+
+
+## W0 Governance Update — 2026-10-26
+
+W0/P0-G has formally resolved the v1.4 historical replay question:
+
+- Historical full-rule replay for Sky Day Trading v1.4 is **NOT FULLY RECONSTRUCTABLE from the current GitHub SSOT**.
+- Formal W2 status: **HOLD / HISTORICAL_V14_FULL_RULE_REPLAY_UNAVAILABLE**.
+- Historical full-rule ablation must remain closed unless an authoritative `FROZEN_CANONICAL_IMPLEMENTATION` or `HISTORICAL_SNAPSHOT` is later supplied.
+- No retrospective threshold/rule reconstruction is permitted.
+- Production baseline remains unchanged.
+
+### Updated system critical path
+1. W4 — Forward Shadow/Paper evidence accumulation
+2. P0-R — Portfolio/risk validation
+3. W6 — Prospective execution/slippage/fill evidence
+4. W3B — Reproducible forward evidence pipeline / operational hardening
+5. W0/P0-G — Evidence review and governance
+6. W2 — Future challenger validation only when provenance gates pass
+7. W3A — PIT/data maintenance only; no synthetic v1.4 Alpha reconstruction
+8. W5/W7 — Keep current inbound candidates HOLD until their data-specific blockers clear
+
+### W7 action
+Remain in low-intensity intelligence/vendor mode.
+Do not generate more Alpha backlog while forward evidence and risk/execution validation are the dominant bottlenecks.
+
+Reference:
+- `docs/W0_V14_HISTORICAL_REPLAY_GOVERNANCE_DECISION_20261026.md`
+- GitHub Issue #122 — closed as GOVERNANCE_BLOCKED
