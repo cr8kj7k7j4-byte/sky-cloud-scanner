@@ -54,20 +54,25 @@ def normalize_roc_date(value: Any) -> Optional[str]:
         return s
     m = ROC_DATE_RE.match(s)
     if not m:
-        # Common ROC basic-data format: 1121215
         digits = re.sub(r"\D", "", s)
-        if len(digits) in (7, 8):
-            try:
-                y = int(digits[:-4])
-                mo = int(digits[-4:-2])
-                d = int(digits[-2:])
+        try:
+            # Gregorian compact date: YYYYMMDD
+            if len(digits) == 8 and 1900 <= int(digits[:4]) <= 2100:
+                y = int(digits[:4]); mo = int(digits[4:6]); d = int(digits[6:8])
+                return f"{y:04d}-{mo:02d}-{d:02d}"
+            # ROC compact date: YYYMMDD
+            if len(digits) == 7:
+                y = int(digits[:3]); mo = int(digits[3:5]); d = int(digits[5:7])
                 return f"{y+1911:04d}-{mo:02d}-{d:02d}"
-            except Exception:
-                return None
+        except Exception:
+            return None
         return None
     y, mo, d = map(int, m.groups())
     try:
-        return f"{y+1911:04d}-{mo:02d}-{d:02d}"
+        year = y if y >= 1900 else y + 1911
+        if not (1900 <= year <= 2100):
+            return None
+        return f"{year:04d}-{mo:02d}-{d:02d}"
     except Exception:
         return None
 
