@@ -3,7 +3,7 @@ name: W3A TAIEX 5m Benchmark Audit
 on:
   push:
     branches:
-      - w3a/market-benchmark-pit
+      - w3a/market-benchmark-pit-v2
     paths:
       - ".github/workflows/w3a-market-benchmark-audit.yml"
       - "research/download_market_benchmark_5m.py"
