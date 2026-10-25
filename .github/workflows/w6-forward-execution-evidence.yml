@@ -54,7 +54,7 @@ jobs:
             --status success \
             --limit 500 \
             --json databaseId,createdAt \
-            --jq '.[] | select(.createdAt >= "2026-10-26T00:00:00Z") | .databaseId' \
+            --jq '.[] | select(.createdAt >= "2026-10-25T12:00:00Z") | .databaseId' \
             > /tmp/w6_scan_run_ids.txt
 
           while read -r run_id; do
