@@ -5,15 +5,20 @@ on:
     branches: [main]
   workflow_dispatch:
   schedule:
-    - cron: "30 9 * * 1-5"
+    - cron: "30 16 * * 1-5"
+      timezone: "Asia/Taipei"
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -25,14 +30,36 @@ jobs:
         run: python -m compileall -q src tests research
       - name: Dashboard tests
         run: PYTHONPATH=. pytest -q tests/test_shadow_promotion_dashboard.py tests/test_evidence_promotion_gates.py
-      - name: Build dashboard from available local Shadow records
+      - name: Download recent successful scan artifacts
+        if: github.event_name != 'pull_request'
+        shell: bash
         run: |
-          PYTHONPATH=. python research/shadow_promotion_dashboard.py             --paper-dir output/paper             --out research_output/shadow_promotion_dashboard.json
+          set -euo pipefail
+          mkdir -p shadow_history
+          gh run list             --workflow scan.yml             --status success             --limit 100             --json databaseId             --jq '.[].databaseId' > /tmp/scan_run_ids.txt
+
+          while read -r run_id; do
+            [ -z "$run_id" ] && continue
+            dest="shadow_history/$run_id"
+            mkdir -p "$dest"
+            gh run download "$run_id"               -n "sky-scan-$run_id"               -D "$dest" || true
+          done < /tmp/scan_run_ids.txt
+
+          find shadow_history -type f -path '*/output/paper/*.json' | sort || true
+      - name: Build dashboard
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            PAPER_ROOT="output/paper"
+          else
+            PAPER_ROOT="shadow_history"
+          fi
+          PYTHONPATH=. python research/shadow_promotion_dashboard.py             --paper-dir "$PAPER_ROOT"             --out research_output/shadow_promotion_dashboard.json
       - name: Upload dashboard artifact
         uses: actions/upload-artifact@v4
         with:
           name: shadow-promotion-dashboard
           path: research_output/shadow_promotion_dashboard.json
           if-no-files-found: error
+          retention-days: 30
       - name: Production E2E
         run: PYTHONPATH=. pytest -q tests/test_production_e2e_acceptance.py
