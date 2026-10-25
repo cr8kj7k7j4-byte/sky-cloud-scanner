@@ -168,3 +168,13 @@ Current critical path: **W4 → P0-R / W6 execution evidence → W0 / P0-G**.
 - Priority 2: Dynamic Futures/ETF/Spot Lead-Lag — HOLD / DATA_BLOCKED pending synchronized timestamp/session/roll causality.
 - Priority 3: Broker-Identity / Skill-Conditioned Flow — HOLD / HARD DATA GATE / DO_NOT_BUY NOW.
 - No Production change and no new formal Pre-registration authorization.
+
+## Intraday PIT data acquisition policy — 2026-10-26
+
+- Current bottleneck: promotion-grade whole-universe synchronized historical intraday coverage, not framework implementation.
+- Acquisition sequence is fixed:
+  1. Existing Fugle historical-minute capability / GitHub secret feasibility probe.
+  2. If and only if that cannot reach the governed PIT gate, evaluate minimum official paid TWSE + TPEx historical intraday products.
+  3. Paid purchase requires explicit user approval and does not itself satisfy validation gates.
+- TWSE order-type history and Broker Flow data are not authorized purchases at this stage.
+- W2, Overnight Reversal and Dynamic Lead-Lag remain HOLD while Gate 0 is unresolved.
