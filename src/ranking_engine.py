@@ -1,5 +1,6 @@
 from dataclasses import dataclass, asdict
 from statistics import mean
+import math
 
 RANKING_SCHEMA_VERSION = "1.0"
 
@@ -102,3 +103,30 @@ def summarize_ranking(ranked):
         "production_eligible": False,
         "reason": "目前 Ranking 僅研究用，不得繞過 P0-C/P0-R",
     }
+
+
+def screening_rank_score(row):
+    """Canonical P0-O broad-market screening score.
+
+    Operational purpose: order candidates that already passed the first gate.
+    It is a deterministic prioritization score only, not a probability,
+    expectancy estimate, or production ML prediction.
+    """
+    row = row or {}
+    cp = max(-20.0, min(20.0, float(row.get("change_pct") or 0.0)))
+    tv = max(0.0, float(row.get("trade_value") or 0.0))
+    vol = max(0.0, float(row.get("volume") or 0.0))
+    return cp * 4.0 + math.log10(tv + 1.0) * 3.0 + math.log10(vol + 1.0)
+
+
+def rank_screening_candidates(candidates):
+    """Canonical P0-O entry for broad-market operational ordering."""
+    ranked = []
+    for item in candidates or []:
+        payload = dict(item)
+        payload["rank_score"] = screening_rank_score(payload)
+        ranked.append(payload)
+    ranked.sort(key=lambda x: x["rank_score"], reverse=True)
+    for i, item in enumerate(ranked, 1):
+        item["ranking_position"] = i
+    return ranked
