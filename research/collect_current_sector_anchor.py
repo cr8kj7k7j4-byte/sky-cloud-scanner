@@ -8,6 +8,8 @@ from pathlib import Path
 import pandas as pd
 import requests
 
+from src.industry_codes import normalize_sector
+
 TWSE_URL="https://openapi.twse.com.tw/v1/opendata/t187ap03_L"
 TPEX_URL="https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap03_O"
 
@@ -32,15 +34,21 @@ def parse_rows(rows,exchange,source_url,source_as_of):
         symbol=str(_pick(row,SYMBOL_KEYS) or "").strip()
         if not (len(symbol)==4 and symbol.isdigit()):
             continue
-        sector=str(_pick(row,SECTOR_KEYS) or "").strip()
-        if not sector:
+        raw_sector=str(_pick(row,SECTOR_KEYS) or "").strip()
+        if not raw_sector:
+            missing_sector.append(symbol)
+            continue
+        sector_code,sector_name=normalize_sector(raw_sector)
+        if not sector_code:
             missing_sector.append(symbol)
             continue
         out.append({
             "symbol":symbol,
             "exchange":exchange,
             "name":str(_pick(row,NAME_KEYS) or "").strip(),
-            "sector":sector,
+            "sector_code":sector_code,
+            "sector":sector_name,
+            "sector_source_value":raw_sector,
             "source":source_url,
             "source_as_of":source_as_of,
         })
