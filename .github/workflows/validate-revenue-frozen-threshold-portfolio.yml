@@ -80,3 +80,5 @@ jobs:
           path: research_output_revenue_frozen
           if-no-files-found: warn
           retention-days: 14
+
+# trigger-20261025-frozen-portfolio
