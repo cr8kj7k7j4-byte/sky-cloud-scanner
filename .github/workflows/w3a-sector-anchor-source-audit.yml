@@ -1,0 +1,44 @@
+name: W3A Sector Anchor Source Audit
+
+on:
+  push:
+    branches:
+      - w3a/sector-pit-source-audit
+    paths:
+      - ".github/workflows/w3a-sector-anchor-source-audit.yml"
+      - "research/collect_current_sector_anchor.py"
+      - "src/industry_codes.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install requests pandas
+      - name: Collect official current sector anchors
+        run: |
+          python research/collect_current_sector_anchor.py             --out-dir research_output/current_sector_anchor
+      - name: Publish audit
+        if: always()
+        run: |
+          echo "## W3A Sector Anchor Audit" >> "$GITHUB_STEP_SUMMARY"
+          cat research_output/current_sector_anchor/current_sector_anchor_audit.json >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: w3a-current-sector-anchor
+          path: research_output/current_sector_anchor/
+          if-no-files-found: error
+          retention-days: 14
