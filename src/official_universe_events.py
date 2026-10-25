@@ -5,7 +5,7 @@ import io
 import json
 import re
 from dataclasses import dataclass, asdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
@@ -288,6 +288,53 @@ def fetch_tpex_delist_events(source_as_of: str, start_year: int = 2005, end_year
             ))
     return out
 
+
+def reconcile_cross_exchange_migrations(intervals: Iterable[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Close stale open intervals when the same stock code later has an official
+    LIST interval on the other production exchange.
+
+    Taiwan common-stock production membership is exclusive between TWSE and
+    TPEx. A later official LIST on the other exchange is affirmative migration
+    evidence; the prior open interval ends on the previous calendar day.
+    Explicit listed_to values are never overwritten.
+    """
+    rows=[dict(x) for x in (intervals or [])]
+    by_symbol={}
+    for i,row in enumerate(rows):
+        by_symbol.setdefault(str(row.get("symbol") or ""),[]).append(i)
+
+    notes=[]
+    for symbol,idxs in by_symbol.items():
+        idxs=sorted(idxs,key=lambda i:str(rows[i].get("listed_from") or ""))
+        for pos,i in enumerate(idxs):
+            current=rows[i]
+            if current.get("listed_to") not in (None,""):
+                continue
+            start=str(current.get("listed_from") or "")
+            exchange=str(current.get("exchange") or "")
+            for j in idxs[pos+1:]:
+                nxt=rows[j]
+                nxt_start=str(nxt.get("listed_from") or "")
+                nxt_exchange=str(nxt.get("exchange") or "")
+                if not nxt_start or nxt_start <= start or nxt_exchange == exchange:
+                    continue
+                end=(datetime.fromisoformat(nxt_start).date()-timedelta(days=1)).isoformat()
+                current["listed_to"]=end
+                old_notes=str(current.get("notes") or "")
+                tag=f"closed_by_cross_exchange_list:{nxt_exchange}:{nxt_start}"
+                current["notes"]=";".join(x for x in (old_notes,tag) if x)
+                notes.append({
+                    "symbol":symbol,
+                    "from_exchange":exchange,
+                    "to_exchange":nxt_exchange,
+                    "new_exchange_listed_from":nxt_start,
+                    "inferred_prior_listed_to":end,
+                    "evidence":"OFFICIAL_CROSS_EXCHANGE_LIST",
+                })
+                break
+    return {"intervals":rows,"migration_notes":notes}
+
 def dedupe_events(events: Iterable[UniverseEvent]) -> List[UniverseEvent]:
     seen={}
     for e in events:
@@ -359,10 +406,12 @@ def build_intervals(events: Iterable[UniverseEvent]) -> Dict[str, Any]:
                     "kept_list_date":active.event_date,
                     "ignored_list_dates":[x.event_date for x in duplicate_lists],
                 })
+    reconciled=reconcile_cross_exchange_migrations(intervals)
     return {
-        "intervals":intervals,
+        "intervals":reconciled["intervals"],
         "unresolved":unresolved,
         "continuity_notes":continuity_notes,
+        "migration_notes":reconciled["migration_notes"],
     }
 
 def assess_source_health(name: str, parsed_events: int, *, transport_ok: bool, error: str | None = None) -> dict:
