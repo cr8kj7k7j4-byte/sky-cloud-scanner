@@ -1,0 +1,42 @@
+name: Inspect P0-S OOS Artifact
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - ".github/workflows/inspect-p0s-artifact.yml"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download completed OOS artifact
+        uses: dawidd6/action-download-artifact@v11
+        with:
+          run_id: 40185100228
+          name: p0s-oos-40185100228
+          path: _artifact
+          search_artifacts: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Print diagnostic report
+        run: |
+          find _artifact -maxdepth 3 -type f -print
+          REPORT=$(find _artifact -name p0s_oos_report.json | head -1)
+          test -n "$REPORT"
+          python - "$REPORT" <<'PY'
+          import json, sys
+          p=sys.argv[1]
+          r=json.load(open(p,encoding="utf-8"))
+          print("VERDICT", r.get("verdict"))
+          print("OOS", json.dumps(r.get("oos",{}), ensure_ascii=False))
+          d=r.get("diagnostics",{})
+          print("OOS_BREAKDOWN", json.dumps(d.get("oos_breakdown",{}), ensure_ascii=False, sort_keys=True))
+          print("OOS_EXCURSION", json.dumps(d.get("oos_excursion",{}), ensure_ascii=False, sort_keys=True))
+          print("OOS_COST", json.dumps(d.get("oos_cost_sensitivity",{}), ensure_ascii=False, sort_keys=True))
+          PY
