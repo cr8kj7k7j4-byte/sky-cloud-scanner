@@ -1,6 +1,15 @@
 name: Shadow Outcome Backfill
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/shadow-outcome-backfill.yml"
+      - "research/shadow_outcome_backfill.py"
+      - "src/outcome_engine.py"
+      - "src/paper_trading.py"
+  pull_request:
+    branches: [main]
   workflow_dispatch:
   schedule:
     - cron: "30 14 * * 1-5"
@@ -29,6 +38,7 @@ jobs:
       - name: Outcome unit tests
         run: PYTHONPATH=. pytest -q tests/test_shadow_outcome_backfill.py
       - name: Download canonical post-ledger scan artifacts
+        if: github.event_name != 'pull_request'
         shell: bash
         run: |
           set -euo pipefail
@@ -53,6 +63,7 @@ jobs:
 
           find shadow_history -type f -path '*/output/paper/*.json' | sort || true
       - name: Backfill same-day Shadow outcomes
+        if: github.event_name != 'pull_request'
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
           EXEC_COST_PROFILE: ${{ vars.EXEC_COST_PROFILE || 'USER_CASH_DAYTRADE_20261022' }}
@@ -66,6 +77,7 @@ jobs:
             --paper-root shadow_history \
             --out-dir output/paper
       - name: Upload enriched Shadow outcomes
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: shadow-outcomes-${{ github.run_id }}
