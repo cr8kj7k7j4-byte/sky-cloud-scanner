@@ -138,7 +138,7 @@ Any material gate failure blocks Promotion. No chat window, notebook, branch, or
 - W0: Master Control / P0-G — ACTIVE.
 - W1: Swing Validation — HOLD.
 - W2: Intraday Validation — HOLD / DATA_BLOCKED pending canonical intraday PIT replay data.
-- W3A: Data & Feature Engineering — **P0 HIGHEST PRIORITY**, owner of Intraday PIT Historical Replay Dataset.
+- W3A: Data & Feature Engineering — **P0 HIGHEST PRIORITY**, engineering framework complete; owner of resolving promotion-grade whole-universe intraday PIT coverage/data-source blocker.
 - W3B: Cloud & Production Engineering — ACTIVE / P1, supporting reproducible W3A→W2 pipeline and Production hardening.
 - W4: Shadow/Paper/Live Evidence — WAITING_FOR_SUFFICIENCY / active accumulation.
 - W5: Candidate Strategy Lab — INTAKE ONLY.
@@ -147,3 +147,21 @@ Any material gate failure blocks Promotion. No chat window, notebook, branch, or
 - Legacy W3: DEPRECATED FOR NEW WORK.
 
 Current critical path: **W3A → W2 → W4 → W0**.
+
+## W3A historical intraday coverage status — 2026-10-25
+
+- W3A replay engineering framework: **ENGINEERING COMPLETE**.
+- Promotion-grade historical replay data: **DATA_BLOCKED**.
+- Existing 100-symbol 5m history provides only approximately 4.8%–5.3% maximum symbol coverage versus the governed PIT Universe, far below the >=95% research gate.
+- Current artifact is valid for engineering/regression checks only; it must not be treated as promotion-grade PIT evidence.
+- Main blocker is now whole-universe synchronized historical intraday data plus causal context reconstruction, not replay-framework implementation.
+
+## W5 / W7 inbound queue — 2026-10-25
+
+- PR #93 merged: `efae134bda8318bb018a251e0c679726e0af3e44`.
+- ACCEPT_FOR_PREREGISTRATION: **0**.
+- HOLD: **3**.
+- Priority 1: Overnight-to-First-30m Reversal — HOLD / DATA_BLOCKED.
+- Priority 2: Dynamic Futures/ETF/Spot Lead-Lag — HOLD / DATA_BLOCKED pending synchronized timestamp/session/roll causality.
+- Priority 3: Broker-Identity / Skill-Conditioned Flow — HOLD / HARD DATA GATE / DO_NOT_BUY NOW.
+- No Production change and no new formal Pre-registration authorization.
