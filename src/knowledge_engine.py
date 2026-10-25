@@ -24,6 +24,10 @@ class Evidence:
     source_url: Optional[str] = None
     published_at: Optional[str] = None
     observed_at: Optional[str] = None
+    ingestion_at: Optional[str] = None
+    company: Optional[str] = None
+    event_type: Optional[str] = None
+    reliability: Optional[float] = None
     confidence: float = 0.0
     status: str = "FACT"
 
@@ -118,6 +122,9 @@ def market_evidence_from_candidate(candidate: Dict[str, Any], observed_at: str) 
             source_type="exchange",
             source_name=source,
             observed_at=observed_at,
+            ingestion_at=observed_at,
+            event_type="market_price",
+            reliability=0.95,
             confidence=1.0,
         ))
 
@@ -130,6 +137,9 @@ def market_evidence_from_candidate(candidate: Dict[str, Any], observed_at: str) 
             source_type="exchange",
             source_name=source,
             observed_at=observed_at,
+            ingestion_at=observed_at,
+            event_type="market_volume",
+            reliability=0.95,
             confidence=1.0,
         ))
 

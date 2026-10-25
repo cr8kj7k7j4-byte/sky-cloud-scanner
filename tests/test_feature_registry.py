@@ -22,7 +22,7 @@ def test_registry_is_complete_and_valid():
     out = validate_registry()
     assert out["valid"] is True
     assert out["feature_count"] == 7
-    assert FEATURE_REGISTRY_VERSION == "1.0.0"
+    assert FEATURE_REGISTRY_VERSION == "1.1.0"
 
 def test_each_feature_has_required_governance_metadata():
     snap = registry_snapshot()
@@ -36,6 +36,11 @@ def test_each_feature_has_required_governance_metadata():
         assert item["timestamp_semantics"]
         assert item["missing_policy"]
         assert item["leakage_risk"]
+        assert item["online_offline_parity"]
+        assert item["freshness_sla"]
+        assert item["data_quality_rule"]
+        assert item["lineage"]
+        assert item["deprecation_status"]
 
 def test_feature_names_are_registered():
     out = validate_feature_names(_features())
@@ -60,3 +65,35 @@ def test_unregistered_feature_is_visible_not_silent():
     env = build_feature_envelope("2409", f, source="test")
     assert env.quality["valid_schema"] is False
     assert env.quality["unregistered_features"] == ["mystery_alpha"]
+
+
+def test_feature_store_has_causality_and_lineage_metadata():
+    env = build_feature_envelope(
+        "2409",
+        _features(),
+        as_of="2026-10-25T09:30:00+08:00",
+        available_at="2026-10-25T09:29:59+08:00",
+        calculation_timestamp="2026-10-25T09:30:00+08:00",
+        ingestion_timestamp="2026-10-25T09:30:01+08:00",
+        source="test",
+    )
+    assert env.quality["timestamp_causality_valid"] is True
+    assert env.available_at
+    assert env.calculation_timestamp
+    assert env.ingestion_timestamp
+    assert env.lineage["momentum_1"]["version"] == "1.0.0"
+    assert env.lineage["relative_strength"]["source"]
+
+
+def test_feature_store_blocks_future_available_at():
+    env = build_feature_envelope(
+        "2409",
+        _features(),
+        as_of="2026-10-25T09:30:00+08:00",
+        available_at="2026-10-25T09:31:00+08:00",
+        calculation_timestamp="2026-10-25T09:31:00+08:00",
+        source="test",
+    )
+    assert env.quality["timestamp_causality_valid"] is False
+    assert env.quality["valid_schema"] is False
+    assert "available_after_as_of" in env.quality["timestamp_causality_errors"]
