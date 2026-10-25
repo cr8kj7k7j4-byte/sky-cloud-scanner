@@ -1,0 +1,29 @@
+name: test-sector-membership-pit
+
+on:
+  pull_request:
+    paths:
+      - "src/sector_membership_events.py"
+      - "tests/test_sector_membership_events.py"
+      - "research/SECTOR_MEMBERSHIP_PIT_SOURCE_REGISTRY_20261025.json"
+      - "docs/W3A_SECTOR_MEMBERSHIP_PIT_STATUS_20261025.md"
+      - ".github/workflows/test-sector-membership-pit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install pytest
+      - name: Run sector membership PIT tests
+        run: python -m pytest -q tests/test_sector_membership_events.py tests/test_sector_rs_replay.py

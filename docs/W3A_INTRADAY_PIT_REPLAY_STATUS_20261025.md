@@ -94,14 +94,30 @@ Therefore:
 
 ## External-data blockers
 
-Highest priority:
-1. EXTERNAL_DATA_REQUIRED:EFFECTIVE_DATED_HISTORICAL_SECTOR_MEMBERSHIP
+### Sector membership blocker narrowed
+`EXTERNAL_DATA_REQUIRED:EFFECTIVE_DATED_HISTORICAL_SECTOR_MEMBERSHIP`
 
-Then:
-2. EXTERNAL_DATA_REQUIRED:SYNCHRONIZED_WHOLE_UNIVERSE_INTRADAY_HISTORY
-3. EXTERNAL_DATA_REQUIRED:HISTORICAL_DECISION_STREAM_OR_DETERMINISTIC_ALL_CANDIDATE_REPLAY
-4. EXTERNAL_DATA_REQUIRED:CANONICAL_OUTCOME_JOIN
-5. EXTERNAL_DATA_REQUIRED:EMPIRICAL_EXECUTION_EVIDENCE
+Engineering method is now defined:
+- current official sector snapshot + official sector-change events
+- reverse event-sourced reconstruction into effective-dated intervals
+- fail closed on event-chain mismatch
+- source registry: `research/SECTOR_MEMBERSHIP_PIT_SOURCE_REGISTRY_20261025.json`
+- implementation: `src/sector_membership_events.py`
+
+Verified official event-source coverage currently includes:
+- TWSE 2023
+- TPEx 2023, 2024, 2025, 2026
+
+Remaining source gap:
+- TWSE 2024, 2025, 2026 annual adjustment/no-change evidence
+
+Therefore sector membership remains DATA_BLOCKED, but the blocker is now **source coverage**, not missing engineering architecture.
+
+### Remaining blockers
+1. EXTERNAL_DATA_REQUIRED:SYNCHRONIZED_WHOLE_UNIVERSE_INTRADAY_HISTORY
+2. EXTERNAL_DATA_REQUIRED:HISTORICAL_DECISION_STREAM_OR_DETERMINISTIC_ALL_CANDIDATE_REPLAY
+3. EXTERNAL_DATA_REQUIRED:CANONICAL_OUTCOME_JOIN
+4. EXTERNAL_DATA_REQUIRED:EMPIRICAL_EXECUTION_EVIDENCE
 
 Additional missing canonical inputs:
 - market context snapshots
