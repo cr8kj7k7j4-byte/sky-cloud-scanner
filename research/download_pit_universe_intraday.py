@@ -176,6 +176,31 @@ def build_manifest(items: Iterable[dict], from_date: str, to_date: str) -> dict:
     }
 
 
+
+def build_download_report(items: list[dict], summary: list[dict]) -> dict:
+    successful = [x for x in summary if x.get("ok")]
+    with_data = [x for x in successful if int(x.get("bars") or 0) > 0]
+    transport_coverage = len(successful) / len(items) if items else 0.0
+    data_symbol_coverage = len(with_data) / len(items) if items else 0.0
+    return {
+        "schema_version": "1.1.0",
+        "expected_symbols": len(items),
+        "successful_symbols": len(successful),
+        "failed_symbols": len(items) - len(successful),
+        "symbols_with_data": len(with_data),
+        "zero_bar_symbols": [
+            x["symbol"] for x in successful if int(x.get("bars") or 0) == 0
+        ],
+        "total_5m_bars": sum(int(x.get("bars") or 0) for x in successful),
+        "transport_coverage_pct": round(transport_coverage * 100.0, 4),
+        "data_symbol_coverage_pct": round(data_symbol_coverage * 100.0, 4),
+        "coverage_pct": round(data_symbol_coverage * 100.0, 4),
+        "promotion_gate_95pct": bool(items) and data_symbol_coverage >= 0.95,
+        "note": "HTTP/request success with zero bars does not count as data coverage.",
+        "summary": summary,
+    }
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--pit-intervals", required=True)
@@ -229,27 +254,7 @@ def main():
                 "error": f"{type(e).__name__}: {e}",
             })
 
-    successful = [x for x in summary if x.get("ok")]
-    with_data = [x for x in successful if int(x.get("bars") or 0) > 0]
-    transport_coverage = len(successful) / len(items) if items else 0.0
-    data_symbol_coverage = len(with_data) / len(items) if items else 0.0
-    report = {
-        "schema_version": "1.1.0",
-        "expected_symbols": len(items),
-        "successful_symbols": len(successful),
-        "failed_symbols": len(items) - len(successful),
-        "symbols_with_data": len(with_data),
-        "zero_bar_symbols": [
-            x["symbol"] for x in successful if int(x.get("bars") or 0) == 0
-        ],
-        "total_5m_bars": sum(int(x.get("bars") or 0) for x in successful),
-        "transport_coverage_pct": round(transport_coverage * 100.0, 4),
-        "data_symbol_coverage_pct": round(data_symbol_coverage * 100.0, 4),
-        "coverage_pct": round(data_symbol_coverage * 100.0, 4),
-        "promotion_gate_95pct": bool(items) and data_symbol_coverage >= 0.95,
-        "note": "HTTP/request success with zero bars does not count as data coverage.",
-        "summary": summary,
-    }
+    report = build_download_report(items, summary)
     (out / "download_summary.json").write_text(
         json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
     )
