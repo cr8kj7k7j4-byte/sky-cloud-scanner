@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "as_of": "2026-10-25",
+  "taiex_benchmark": {
+    "status": "PASS",
+    "symbol": "IX0001",
+    "name": "發行量加權股價指數",
+    "period_start": "2023-05-23T09:00:00+08:00",
+    "period_end": "2026-10-22T13:30:00+08:00",
+    "timeframe": "5m",
+    "bars": 45760,
+    "workflow_run_id": 40199386467,
+    "artifact_id": 12601415748,
+    "artifact_digest": "sha256:9ff95cc99580716c0200dc1838b530459ebe0cab105ec555bdfbd0abe78dfde3",
+    "source": "Fugle historical candles",
+    "production_rule_change": false
+  },
+  "current_sector_anchor": {
+    "status": "PARTIAL_PASS",
+    "mapped_rows": 1981,
+    "twse_mapped": 1087,
+    "tpex_mapped": 894,
+    "unresolved_twse_symbols": [
+      "9103",
+      "9105",
+      "9110",
+      "9136"
+    ],
+    "workflow_run_id": 40198266990,
+    "note": "Current anchor only; not historical PIT evidence by itself."
+  },
+  "whole_universe_intraday": {
+    "status": "IN_PROGRESS",
+    "legacy_monolithic_run_id": 40197918327,
+    "canonical_sharded_run_id": 40198835143,
+    "required_gate": 0.95,
+    "note": "Final status depends on symbol-day coverage audit."
+  },
+  "frozen_v14_alpha": {
+    "status": "FROZEN_ALPHA_INPUT_REQUIRED",
+    "audit_source": "research/audit_frozen_v14_replay_readiness.py",
+    "note": "Executable historical v1.4 10-rule replay provider and canonical decision stream are absent from current repository evidence."
+  }
+}
