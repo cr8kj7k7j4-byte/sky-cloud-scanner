@@ -269,3 +269,197 @@ Reason:
 - no fresh untouched OOS remains in the current historical window.
 
 The next promotion-eligible experiment must be a pre-registered replay of Sky Swing V1.0 / frozen Challenger rules on the canonical 2023+ point-in-time universe, with fixed exits, 3+ folds, 0.45%/0.65% costs, rule/feature ablation, and portfolio validation. Only after those gates pass may W1 return PROMOTE_CANDIDATE for W4 Shadow/Paper.
+
+
+---
+
+## 15. Canonical PIT interface remediation — completed
+
+W1 identified that the system-level 2023+ Historical Universe Gate was PASS, but the audit artifact originally persisted only summary evidence rather than the actual governed-window membership intervals required by downstream Swing replay.
+
+This interface gap has now been remediated:
+
+- `research/audit_historical_universe.py` now writes `pit_intervals.json`.
+- Latest successful audit workflow run: **40193567617**.
+- Persisted canonical intervals: **2,116**.
+- Historical Universe Gate: **PASS**.
+- Interval validation: **PASS**.
+- Window unresolved events: **0**.
+- The PIT snapshot contains the actual date-bounded membership intervals and can now be consumed by downstream research.
+
+Governance consequence:
+
+**PIT membership reconstruction is no longer the immediate W1 blocker. Historical price coverage for that PIT membership is now the blocker.**
+
+## 16. Canonical PIT price-history readiness gate — completed
+
+W1 added:
+
+- `research/SKY_SWING_CANONICAL_PIT_REPLAY_PREREGISTRATION.md`
+- `research/validate_swing_pit_readiness.py`
+- `.github/workflows/w1-swing-pit-readiness.yml`
+
+The pre-registration freezes the research question, universe, costs, exits, ablation requirements and portfolio validation before any canonical replay result is visible.
+
+Latest readiness workflow:
+
+- Run: **40193629353**
+- Workflow conclusion: **success**
+- Evidence status: **BLOCKED_PRICE_HISTORY_COVERAGE**
+- Required minimum PIT price-history coverage: **95%**
+- Available legacy historical price symbols: **100**
+
+| Audit date | Canonical PIT symbols | Price-covered symbols | Coverage | Gate |
+|---|---:|---:|---:|---|
+| 2023-12-31 | 1,869 | 88 | 4.71% | BLOCKED |
+| 2024-12-31 | 1,925 | 90 | 4.68% | BLOCKED |
+| 2025-12-31 | 1,993 | 96 | 4.82% | BLOCKED |
+| 2026-09-30 | 2,035 | 99 | 4.86% | BLOCKED |
+
+Interpretation:
+
+1. The legacy 100-symbol history is adequate for engineering regression / descriptive research only.
+2. It is **not** adequate for promotion-grade Exit Comparison, Rule Ablation, Feature Ablation or Portfolio Validation.
+3. Running those promotion gates on the legacy subset would reintroduce the exact survivorship / current-universe bias that the canonical PIT layer was created to prevent.
+4. Therefore W1 deliberately stops those canonical tests at the data-readiness gate rather than producing misleading precision.
+
+## 17. Existing non-canonical evidence retained as Evidence-only
+
+The repository contains prior Swing-related evidence that remains useful for hypothesis and governance context but cannot substitute for canonical PIT replay.
+
+### Ranking / portfolio evidence
+
+`research/SKY_V2_1_ABLATION_RANKING_20261024.md`:
+- 1,161-trade ledger.
+- Opportunity ranking showed better historical Expectancy / PF / MDD than taking every qualified signal.
+- Lower original stop distance was the strongest tested proxy factor.
+- Top 3 was more year-to-year stable than Top 1.
+- This evidence does not independently reconstruct fees/tax/slippage and is not canonical PIT replay.
+
+### Anti-Chase evidence
+
+`research/SKY_V2_1_ANTI_CHASE_PROXY_ABLATION_20261024.md`:
+- 1,161 trades.
+- Entry-vs-Trigger deviation did **not** show a stable standalone hard-gate benefit.
+- Trigger-slip-only Anti-Chase is therefore rejected as a standalone hard gate.
+- Composite Anti-Chase remains data-incomplete and requires contemporaneous VWAP / ATR / extension / resistance / liquidity / regime context.
+
+### Generic ablation engines
+
+- `research/feature_ablation_lab.py`
+- `research/rule_ablation_lab.py`
+
+These are valid research frameworks, but their existing datasets are not a canonical Sky Swing V1.0 PIT replay. Their existence means the ablation machinery does not need to be reinvented; the missing input dataset is the blocker.
+
+### Legacy portfolio engines
+
+- `research/analyze_portfolio_capacity_frontier.py`
+- `research/audit_portfolio_decomposition.py`
+
+These operate on the same legacy 100-symbol historical sample and fixed research weights. They remain descriptive evidence only and must not be counted as canonical portfolio-gate PASS.
+
+## 18. W1 data handoff contract
+
+The next valid canonical replay requires a 2023+ historical OHLCV dataset aligned to the persisted PIT intervals.
+
+Minimum requirements:
+
+- All symbols that are members of the canonical PIT universe during the governed window.
+- Daily OHLCV is sufficient for the core 3–20D Swing replay unless an active rule explicitly requires intraday data.
+- Adjusted / corporate-action-aware daily price series must be available and the adjustment flag persisted.
+- Every row must retain symbol, exchange, trading date, open, high, low, close, volume and source timestamp / retrieval metadata.
+- Missing ranges must be explicit; no forward-fill across non-trading or not-yet-listed periods.
+- Price data must be joined only after membership eligibility is established for that date.
+- Symbol continuity and market-transfer intervals must preserve the canonical interval identity.
+- Coverage must be measured against PIT membership, not against today's listings.
+- W1 readiness threshold remains **>=95%** on the registered audit dates; material missingness still requires fail-closed review.
+
+Source engineering belongs to W3 / P0-DATA. W1 consumes the governed dataset and validates strategy evidence; W1 does not redefine Production data infrastructure.
+
+## 19. Updated Swing Evidence Matrix
+
+| Gate / Question | Latest evidence | Status |
+|---|---|---|
+| Canonical 2023+ PIT interval engine | 2,116 persisted intervals; audit run 40193567617 | **PASS** |
+| PIT interval validation | valid=true; unresolved=0 | **PASS** |
+| Canonical PIT price-history coverage | only 4.68%–4.86% using legacy 100-symbol history | **BLOCKED** |
+| Survivorship-safe canonical Swing replay | cannot run until PIT price coverage is sufficient | **BLOCKED** |
+| Corporate-action-safe replay | canonical adjusted historical price dataset not yet wired | **BLOCKED** |
+| Train / Validation / OOS structure | contract frozen | READY; DATA BLOCKED |
+| Fresh OOS | 2026 already observed | **WAITING_FOR_FUTURE_DATA** |
+| Walk-forward >=3 folds | legacy execution exists; canonical replay blocked | LEGACY MIXED / CANONICAL BLOCKED |
+| 0.45% cost | legacy evidence mixed-positive | EVIDENCE-ONLY |
+| 0.65% stress | legacy 5D unstable | **FAIL on legacy evidence** |
+| Bull / Neutral / Bear | regime effect supported; hard Bear veto unproven | HOLD |
+| Exit comparison | preregistered; no canonical PIT replay dataset | **BLOCKED** |
+| Rule ablation | framework exists; canonical PIT input missing | **BLOCKED** |
+| Feature ablation | framework exists; canonical PIT input missing | **BLOCKED** |
+| Portfolio validation | legacy engines exist; canonical PIT input missing | **BLOCKED** |
+| Correlation / sector concentration | PIT sector / portfolio dataset incomplete | **BLOCKED** |
+| Capacity / liquidity / turnover | canonical dataset incomplete | **BLOCKED** |
+| Shadow / Paper | historical gates not complete | **WAITING_FOR_FUTURE_DATA** |
+
+## 20. Updated core research answers
+
+1. **Does Sky Swing V1.0 have proven after-cost Edge?**  
+   No. Existing historical evidence is promising in places, but not promotion-grade because canonical PIT price coverage is only ~4.7%–4.9%.
+
+2. **Which Rules truly improve Expectancy?**  
+   Not yet proven under the canonical universe. Existing proxy evidence supports Opportunity Ranking as useful context, while Trigger-slip-only Anti-Chase is not a stable hard gate.
+
+3. **Which Rules mainly lower DD?**  
+   Not yet proven under canonical replay. Ranking / tighter candidate selection historically lowered MDD in the 1,161-trade ledger, but this is evidence-only.
+
+4. **Which Features lack stable value?**  
+   Signal freshness and Entry-vs-Trigger deviation are not stable standalone decision factors in existing evidence. No Production feature should be removed from W1 evidence alone.
+
+5. **Does Bear Market Gate have true cross-period benefit?**  
+   Market regime clearly matters; a hard Bear kill-switch is still unproven.
+
+6. **Which Exit is most stable?**  
+   BLOCKED pending canonical PIT historical prices and exact replay of FIXED_3R / MA20_TRAIL / SWING10_TRAIL.
+
+7. **Is portfolio-level expectancy positive?**  
+   Not proven to promotion standard. Legacy portfolio studies are survivorship-biased evidence only.
+
+8. **Single-stock / sector dependency?**  
+   Legacy 100-name single-symbol concentration was not excessive; canonical sector dependency remains untested.
+
+9. **Is the strategy acceptable at 0.65% cost?**  
+   Current legacy 5D evidence: **No, not consistently**.
+
+10. **Ready for Shadow/Paper?**  
+    **No.** Canonical PIT price-history coverage and downstream validation gates remain incomplete.
+
+## 21. Final W1 status after executable-data exhaustion
+
+**HOLD**
+
+### Champion Candidate
+None.
+
+### Challenger List
+- Frozen Sky Swing V1.0 canonical PIT replay — **BLOCKED by price-history coverage**.
+- Existing 5D 3-factor research candidate — **HOLD / evidence-only**.
+- Market Regime risk context — **HOLD / continue validation**.
+
+### Rejected / Archived
+- Weak-Regime Mean-Reversion 5–20D — **ARCHIVE / no retune**.
+- Trigger-slip-only Anti-Chase as a standalone hard gate — **REJECT**.
+- Any result-selected horizon / threshold / weight rescue after seeing legacy results — **REJECT**.
+
+### Outstanding risks
+1. Canonical PIT price history is materially incomplete (about 95 percentage points below the registered coverage gate).
+2. Corporate-action-safe adjusted series is not yet connected to the canonical PIT replay.
+3. Exact Production V1.0 exit/rule reconstruction has not been validated against the canonical dataset.
+4. Sector PIT mapping / correlation inputs remain incomplete for portfolio concentration tests.
+5. No future untouched OOS exists yet.
+6. Shadow/Paper evidence has not begun because the historical validation funnel is not complete.
+
+### Governance conclusion
+
+All W1 work that can be completed **without pretending the 100-symbol current-universe history is canonical** has been completed or explicitly preserved as evidence-only.
+
+The next dependency is a W3 / P0-DATA governed historical price dataset covering the canonical 2023+ PIT universe. Once that dataset is available, the frozen preregistration permits W1 to resume directly at canonical replay without asking for new strategy choices or retuning parameters.
+
+Production remains **Sky Swing V1.0 ACTIVE and unchanged**.
