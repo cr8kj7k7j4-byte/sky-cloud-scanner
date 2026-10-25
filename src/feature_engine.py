@@ -76,6 +76,12 @@ def build_features(candidate, candles=None, market_return_pct=None):
     )
 
 
+def _best_level(levels):
+    if not isinstance(levels, list) or not levels:
+        return None, None
+    first = levels[0] if isinstance(levels[0], dict) else {}
+    return first.get("price"), first.get("size")
+
 
 def enrich_candidate_context(row, ticker, quote, candles):
     """Canonical P0-F/Data enrichment for deep-dive candidate context."""
@@ -92,8 +98,24 @@ def enrich_candidate_context(row, ticker, quote, candles):
     o["fugle_close"] = quote.get("closePrice")
     o["fugle_high"] = quote.get("highPrice")
     o["fugle_low"] = quote.get("lowPrice")
+
     total = quote.get("total")
     o["fugle_volume"] = total.get("tradeVolume") if isinstance(total, dict) else None
+
+    # W6 forward L1 evidence. Preserve source fields without interpreting a
+    # midpoint or trigger price as executable. Fugle intraday quote exposes
+    # best-five bid/ask arrays plus lastUpdated/serial; only level 1 is kept
+    # here for forward execution research.
+    bid, bid_size = _best_level(quote.get("bids"))
+    ask, ask_size = _best_level(quote.get("asks"))
+    o["l1_bid"] = bid
+    o["l1_ask"] = ask
+    o["l1_bid_size"] = bid_size
+    o["l1_ask_size"] = ask_size
+    o["l1_quote_time"] = quote.get("lastUpdated")
+    o["l1_quote_serial"] = quote.get("serial")
+    o["l1_quote_source"] = "FUGLE_INTRADAY_QUOTE"
+
     o["is_limit_up"] = bool(
         o.get("limit_up") is not None
         and o.get("fugle_close") is not None
