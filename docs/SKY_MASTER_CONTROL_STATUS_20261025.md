@@ -94,3 +94,38 @@ PIT + leakage/survivorship + preregistration + walk-forward + OOS + cost stress 
 - 不可逆部署或資金風險；
 - 需使用者指定可承受 1R／實盤資金；
 - 研究資料來源本身無法取得。
+
+## J. W0 Convergence Update — 2026-10-25
+
+### W1｜Swing Validation
+- Formal status: **HOLD**.
+- Existing 100-symbol Swing artifact is not promotion-grade because it uses the current universe backward and therefore fails the artifact-level PIT / survivorship gate.
+- 5D challenger shows mixed walk-forward stability and fails consistent 0.65% stress-cost stability.
+- Portfolio overlap, correlation/sector concentration, capacity/liquidity, complete ablation and Shadow/Paper gates remain incomplete.
+- Governance action: **do not rerun the same current-universe artifact as if it were new evidence**. The next eligible W1 experiment must be pre-registered and consume the canonical 2023+ PIT universe.
+
+### W2｜Intraday Validation
+- No rejected intraday family may be reopened by local threshold, Top-N, indicator-period, weight, stop or target retuning.
+- No active intraday Challenger is authorized for Production review.
+
+### W3｜Data / Production Engineering
+- Priority remains PIT/data contracts, Feature schema/DQ, TPEx official chain, alert retry/dedup, runtime/E2E and rollback readiness.
+- Engineering acceptance is not profitability evidence.
+
+### W4｜Shadow / Paper / Live Evidence
+- Formal status: **WAITING_FOR_SUFFICIENCY**.
+- Promotion candidate minimum remains >=200 evaluable samples, >=20 trading days, >=2 regimes, >=95% outcome completeness, <=20% single-symbol share, plus portfolio/cost/capacity and P0-R evidence.
+- No Small Live authorization before Gate 0–8 pass.
+
+### W5｜Candidate Strategy Lab
+- No active VNext Alpha candidate is currently authorized.
+- New idea intake remains allowed, but research volume must not be created merely to fill a backlog.
+
+### W0 Promotion Decision
+- PROMOTE_CANDIDATE: **None**
+- HOLD: Swing 5D 3-factor challenger; Revenue MoM 5D; Revenue YoY Acceleration 5D; Revenue YoY 5D; Revenue YoY 20D
+- REJECT / ARCHIVE: keep current Freeze Registry unchanged
+- Production baseline: **unchanged / frozen at Sky V2.1**
+
+### Autonomous execution policy
+Within existing authorization, W0 continues to: inventory -> converge -> validate governance evidence -> update Registry -> set next priority. No per-step user approval is required. User intervention is required only for new external credentials/accounts, real-capital or irreversible risk, user-specific 1R/max-position settings, unavailable critical external data, or manual ChatGPT window operations.
