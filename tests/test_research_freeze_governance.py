@@ -54,6 +54,6 @@ def test_vnext_baseline_v1_is_frozen_and_decision_recorded():
         ROOT / "research" / "VNEXT_RESIDUAL_RANKING_BASELINE_V1_DECISION.md"
     ).read_text(encoding="utf-8")
     assert "REJECTED / ARCHIVED_NO_RETUNE" in decision
-    assert "do not retune or escalate to nonlinear ML" not in decision.lower()
+    assert "Do not escalate this exact feature/label formulation" in decision
     assert "Random Forest, XGBoost, or LightGBM" in decision
     assert "negative Validation and Research Test" in decision
