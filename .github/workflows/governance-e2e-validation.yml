@@ -1,0 +1,36 @@
+name: Sky Governance E2E Validation
+
+on:
+  push:
+    branches:
+      - 'governance/**'
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  governance-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+      - name: Compile
+        run: python -m compileall -q src tests research
+      - name: Run governance and production E2E
+        run: |
+          pytest -q \
+            tests/test_production_e2e_acceptance.py \
+            tests/test_governance_pit_gate.py \
+            tests/test_revenue_pit.py \
+            tests/test_paper_trading.py
