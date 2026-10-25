@@ -86,6 +86,11 @@ def build_paper_snapshot(*, run_id: str, observed_at: str, item: dict, gate: Pap
             "quote_time": item.get("quote_time"),
             "quote_source": item.get("quote_source"),
         },
+        "ranking": {
+            "position": item.get("ranking_position"),
+            "screening_score": item.get("rank_score"),
+            "research_model": dict(item.get("ranking_model") or {}),
+        },
         "strategy": {
             "setup": plan.get("setup"),
             "trigger": plan.get("trigger"),

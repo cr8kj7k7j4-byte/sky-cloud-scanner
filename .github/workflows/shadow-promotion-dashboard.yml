@@ -53,6 +53,34 @@ jobs:
           done < /tmp/scan_run_ids.txt
 
           find shadow_history -type f -path '*/output/paper/*.json' | sort || true
+
+      - name: Download enriched Shadow outcome artifacts
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p outcome_history
+          gh run list \
+            --workflow shadow-outcome-backfill.yml \
+            --status success \
+            --limit 100 \
+            --json databaseId,createdAt \
+            --jq '.[].databaseId' > /tmp/outcome_run_ids.txt
+
+          while read -r run_id; do
+            [ -z "$run_id" ] && continue
+            dest="outcome_history/$run_id/output/paper"
+            mkdir -p "$dest"
+            gh run download "$run_id" \
+              -n "shadow-outcomes-$run_id" \
+              -D "$dest" || true
+          done < /tmp/outcome_run_ids.txt
+
+          if [ -d outcome_history ]; then
+            cp -R outcome_history/. shadow_history/ || true
+          fi
+          find shadow_history -type f -name '*-outcomes.json' | sort || true
+
       - name: Build dashboard
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then

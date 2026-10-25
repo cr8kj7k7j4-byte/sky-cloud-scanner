@@ -22,7 +22,37 @@ def load_shadow_records(root):
         rows = payload.get("records") if isinstance(payload, dict) else None
         if isinstance(rows, list):
             records.extend(x for x in rows if isinstance(x, dict))
-    return records, files
+    dedup = {}
+    for row in records:
+        key = (
+            str(row.get("run_id") or ""),
+            str(row.get("symbol") or ""),
+            str(row.get("observed_at") or ""),
+        )
+        current = dedup.get(key)
+        if current is None:
+            dedup[key] = row
+            continue
+
+        current_outcome = dict(current.get("outcome") or {})
+        new_outcome = dict(row.get("outcome") or {})
+        current_rank = dict(current_outcome.get("ranking") or {})
+        new_rank = dict(new_outcome.get("ranking") or {})
+
+        current_score = (
+            2 if current_rank.get("status") == "COMPLETE"
+            else 1 if current_outcome.get("status") == "COMPLETE"
+            else 0
+        )
+        new_score = (
+            2 if new_rank.get("status") == "COMPLETE"
+            else 1 if new_outcome.get("status") == "COMPLETE"
+            else 0
+        )
+        if new_score > current_score:
+            dedup[key] = row
+
+    return list(dedup.values()), files
 
 
 def load_json(path):
