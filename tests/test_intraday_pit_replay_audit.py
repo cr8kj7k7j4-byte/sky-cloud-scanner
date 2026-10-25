@@ -117,5 +117,5 @@ def test_repository_readiness_fails_closed_without_inputs(tmp_path):
     report=inspect(str(tmp_path))
     assert report["status"]=="DATA_BLOCKED"
     assert report["w2_readiness_gate"]=="DATA_BLOCKED"
-    assert "NO_EFFECTIVE_DATED_HISTORICAL_SECTOR_MAPPING" in report["blockers"]
+    assert "EXTERNAL_DATA_REQUIRED:EFFECTIVE_DATED_HISTORICAL_SECTOR_MEMBERSHIP" in report["blockers"]
     assert report["audits"]["coverage_audit"]["status"]=="NOT_EVALUABLE"
