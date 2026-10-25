@@ -46,8 +46,8 @@
       "sky_rules.py (decompose legacy mixed helpers)"
     ],
     "P0-O": [
-      "ranking_engine.py",
-      "premarket_ranking.py"
+      "ranking_engine.py (canonical runtime + research ranking contracts)",
+      "premarket_ranking.py (premarket event-ranking context)"
     ],
     "P0-R": [
       "risk_engine.py"
@@ -92,11 +92,11 @@
     ]
   },
   "immediate_priorities": [
-    "close PR29 as superseded by PR38",
-    "PR 23-28 extraction and closure",
-    "single production ranking entry",
-    "decompose sky_rules mixed responsibilities",
-    "update readiness checks for canonical P0-K/P0-C/PMS"
+    "PR 23-28 research extraction and closure",
+    "decompose remaining sky_rules enrich/first_gate responsibilities",
+    "update readiness checks for canonical P0-K/P0-C/P0-O/PMS",
+    "fold PR28 rule registry ideas into existing P0-G",
+    "accumulate real Shadow evidence for Ranking/ML promotion"
   ],
   "paused": [
     "new phases beyond consolidation",
@@ -111,6 +111,7 @@
     "P0-S OOS workflow automation merged via PR34/PR35",
     "P0-K canonical evidence merged via PR43",
     "P0-C canonical decision contract merged via PR44",
-    "PMS canonical position manager merged via PR45"
+    "PMS canonical position manager merged via PR45",
+    "P0-O single runtime ranking entry merged via PR47"
   ]
 }
