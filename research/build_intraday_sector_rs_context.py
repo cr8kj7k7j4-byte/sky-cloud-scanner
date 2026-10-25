@@ -16,12 +16,13 @@ def _mapping_for(mapping: pd.DataFrame,symbol: str,day: date):
     x=mapping[mapping["symbol"].astype(str)==str(symbol)]
     if x.empty:
         return None
-    starts=pd.to_datetime(x["effective_from"],errors="coerce").dt.date
+    day_ts=pd.Timestamp(day)
+    starts=pd.to_datetime(x["effective_from"],errors="coerce")
     if "effective_to" in x.columns:
-        ends=pd.to_datetime(x["effective_to"],errors="coerce").dt.date
+        ends=pd.to_datetime(x["effective_to"],errors="coerce")
     else:
-        ends=pd.Series([pd.NaT]*len(x),index=x.index)
-    valid=x[(starts<=day)&(ends.isna()|(ends>=day))]
+        ends=pd.Series([pd.NaT]*len(x),index=x.index,dtype="datetime64[ns]")
+    valid=x[(starts<=day_ts)&(ends.isna()|(ends>=day_ts))]
     if valid.empty:
         return None
     valid=valid.assign(_start=pd.to_datetime(valid["effective_from"],errors="coerce"))
