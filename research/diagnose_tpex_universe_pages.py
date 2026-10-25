@@ -27,6 +27,8 @@ def diagnose(name,url,outdir):
     soup=BeautifulSoup(html,"html.parser")
     scripts=[urljoin(url,x.get("src")) for x in soup.find_all("script") if x.get("src")]
     inline="\n".join(x.get_text("\n") for x in soup.find_all("script") if not x.get("src"))
+    (outdir/f"{name.lower()}.html").write_text(html,encoding="utf-8")
+    (outdir/f"{name.lower()}_inline.js").write_text(inline,encoding="utf-8")
     candidates=set()
     for text in (html,inline):
         for pat in PATTERNS:
@@ -55,6 +57,9 @@ def diagnose(name,url,outdir):
         for tr in trs[:6]:
             sample.append([x.get_text(" ",strip=True) for x in tr.find_all(["th","td"])])
         table_samples.append({"table_index":ti,"rows":sample})
+    api_actions = sorted(set(re.findall(r'apiAction\s*[:=]\s*["\']([^"\']+)["\']', inline, re.I)))
+    api_options = sorted(set(re.findall(r'apiOption\s*[:=]\s*["\']([^"\']+)["\']', inline, re.I)))
+    action_attrs = sorted(set(re.findall(r'(?:data-)?api-action=["\']([^"\']+)["\']', html, re.I)))
     payload={
       "name":name,"url":url,"status":r.status_code,"content_type":r.headers.get("content-type"),
       "html_len":len(html),"tables":len(soup.find_all("table")),
@@ -63,6 +68,10 @@ def diagnose(name,url,outdir):
       "title":soup.title.get_text(" ",strip=True) if soup.title else None,
       "table_samples":table_samples,
       "body_prefix":soup.get_text("\n",strip=True)[:5000],
+      "api_actions":api_actions,
+      "api_options":api_options,
+      "api_action_attributes":action_attrs,
+      "inline_prefix":inline[:12000],
     }
     (outdir/f"{name.lower()}.json").write_text(json.dumps(payload,ensure_ascii=False,indent=2),encoding="utf-8")
     return payload
