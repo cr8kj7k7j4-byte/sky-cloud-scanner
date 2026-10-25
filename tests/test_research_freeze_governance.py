@@ -23,9 +23,7 @@ def test_freeze_registry_has_single_vnext_lane():
             encoding="utf-8"
         )
     )
-    assert payload["sole_vnext_lane"] == (
-        "Residual / Market-Neutral Cross-sectional Ranking"
-    )
+    assert payload["sole_vnext_lane"] == "NONE_AUTHORIZED"
     assert "P0-S 5m Breakout" in payload["frozen_families"]
     assert "Stage 7A Broader Market Alpha A1-A5" in payload["frozen_families"]
 
@@ -41,3 +39,21 @@ def test_vnext_preregistration_forbids_result_driven_retuning():
     assert "No threshold or feature-family change may use Research Test" in text
     assert "LSTM, Transformer, or RL" in text
     assert "Portfolio implementation preserves positive expectancy" in text
+
+
+
+def test_vnext_baseline_v1_is_frozen_and_decision_recorded():
+    payload = json.loads(
+        (ROOT / "research" / "research_freeze_registry.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert "VNext Residual Ranking Baseline v1" in payload["frozen_families"]
+
+    decision = (
+        ROOT / "research" / "VNEXT_RESIDUAL_RANKING_BASELINE_V1_DECISION.md"
+    ).read_text(encoding="utf-8")
+    assert "REJECTED / ARCHIVED_NO_RETUNE" in decision
+    assert "Do not escalate this exact feature/label formulation" in decision
+    assert "Random Forest, XGBoost, or LightGBM" in decision
+    assert "negative daily portfolio expectancy in both Validation and Research Test" in decision
