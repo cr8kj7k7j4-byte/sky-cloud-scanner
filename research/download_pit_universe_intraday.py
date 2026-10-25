@@ -169,6 +169,8 @@ def main():
     ap.add_argument("--to-date", required=True)
     ap.add_argument("--out", default="research_data/pit_history")
     ap.add_argument("--limit", type=int, default=0, help="Diagnostic limit only; 0 = all")
+    ap.add_argument("--shard-count", type=int, default=1)
+    ap.add_argument("--shard-index", type=int, default=0)
     args = ap.parse_args()
 
     start = date.fromisoformat(args.from_date)
@@ -177,6 +179,14 @@ def main():
         raise ValueError("to-date must be >= from-date")
 
     items = load_pit_union(args.pit_intervals, args.from_date, args.to_date)
+    if args.shard_count < 1:
+        raise ValueError("shard-count must be >= 1")
+    if not (0 <= args.shard_index < args.shard_count):
+        raise ValueError("shard-index must be in [0, shard-count)")
+    items = [
+        item for idx, item in enumerate(items)
+        if idx % args.shard_count == args.shard_index
+    ]
     if args.limit > 0:
         items = items[: args.limit]
 
