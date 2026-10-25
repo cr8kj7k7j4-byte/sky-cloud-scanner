@@ -1,0 +1,46 @@
+name: W3A TAIEX Historical Benchmark Audit
+
+on:
+  push:
+    branches:
+      - w3a/pit-feature-primitives
+    paths:
+      - ".github/workflows/w3a-taiex-benchmark-audit.yml"
+      - "research/download_taiex_benchmark.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: .
+      FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install requests pandas
+      - name: Download TAIEX IX0001 5m benchmark sample
+        run: |
+          python research/download_taiex_benchmark.py \
+            --from-date 2026-10-01 \
+            --to-date 2026-10-22 \
+            --out-dir research_output/taiex_benchmark
+      - name: Publish audit
+        if: always()
+        run: |
+          echo "## W3A TAIEX Benchmark Audit" >> "$GITHUB_STEP_SUMMARY"
+          cat research_output/taiex_benchmark/benchmark_audit.json >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: w3a-taiex-benchmark-audit
+          path: research_output/taiex_benchmark/
+          if-no-files-found: error
+          retention-days: 14
