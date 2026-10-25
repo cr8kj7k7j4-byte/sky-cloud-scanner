@@ -98,7 +98,7 @@ Research Candidate 不得自動覆蓋上述正式版本。
 1. TPEx 嚴格官方盤中全市場資料鏈
 2. Feature Store schema/versioning 與資料品質監控完全 production 化
 3. Historical filing timestamp backfill 與 coverage audit
-4. Broader / point-in-time universe 的完整歷史覆蓋，持續降低 survivorship bias
+4. 2023+ Point-in-Time Universe 已通過 Gate；完整全歷史 pre-2023 coverage 仍持續治理
 5. 尚存 Candidate 的正式 Walk-forward + OOS + regime 分層完整驗證
 6. Candidate cost/slippage stress matrix 與 capacity stress
 7. Portfolio concentration / correlation / capacity validation
@@ -155,3 +155,23 @@ Research Candidate 不得自動覆蓋上述正式版本。
 - 只從 artifact 中的 `output/paper/*.json` 載入 canonical Shadow/Paper records。
 - 每日 5 次盤中掃描 × 90 天保留期，足以讓 20 個交易日 Sufficiency Gate 在資料正常產生時可達成。
 - 舊 scan artifacts 可以保留作研究參考，但不得冒充正式 Shadow Promotion evidence。
+
+
+## Historical Universe / Survivorship 進度（2026-10-25）
+
+- Governed research window：**2023-01-01 起**
+- Historical Universe Gate：**PASS**
+- 官方來源：TWSE / TPEx current basic、new listing、delisting 全部健康。
+- Official events：2,499
+- Windowed intervals：2,116
+- Window unresolved：0
+- Interval overlap：0
+- Current interval coverage：TPEx 100.0000%；TWSE 99.9081%。
+- PIT Universe：
+  - 2023-12-31：1,904
+  - 2024-12-31：1,960
+  - 2025-12-31：2,028
+  - 2026-09-30：2,069
+- 實測證明：使用「今日上市櫃名單」回看歷史會產生明顯 Survivorship Bias；2023+ Promotion 級研究必須使用 PIT Universe。
+- Full-history strict ledger 尚有 163 筆 pre-window unresolved，故不得宣稱「全歷史完整覆蓋」。
+- 下一順位：Shadow / Paper Evidence Sufficiency + Portfolio / Cost / Capacity validation。
