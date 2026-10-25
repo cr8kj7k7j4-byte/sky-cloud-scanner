@@ -41,7 +41,11 @@ jobs:
           print(f"- Unresolved: {len(p.get('unresolved',[]))}")
           print(f"- Production eligible: {p.get('production_eligible')}")
           for x in p.get("health",[]):
-              print(f"- {x['source']}: {'OK' if x['ok'] else 'FAIL'} / events={x.get('parsed_events',0)}")
+              print(
+                  f"- {x['source']}: {x.get('parse_status')} / "
+                  f"healthy={x.get('healthy')} / events={x.get('parsed_events',0)} / "
+                  f"min_expected={x.get('min_expected_events')}"
+              )
           PY
           fi
       - name: Upload ingestion artifact
