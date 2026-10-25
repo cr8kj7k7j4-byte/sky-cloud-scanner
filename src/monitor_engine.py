@@ -2,12 +2,17 @@ from dataclasses import dataclass, asdict
 from pathlib import Path
 import json
 
+from .position_manager import evaluate_position
+
 
 STATE_ZH = {
     "WATCH": "觀察",
     "NEAR_TRIGGER": "接近觸發",
     "TRIGGERED": "已觸發",
     "HOLDING": "續抱",
+    "ADD_READY": "加碼條件成立",
+    "EXIT": "退出",
+    "DATA_REQUIRED": "資料不足",
     "NEAR_TARGET": "接近停利",
     "NEAR_STOP": "接近停損",
     "TAKE_PROFIT": "停利",
@@ -91,16 +96,12 @@ def evaluate_monitor_state(candidate, previous_state=None, near_pct=0.006):
         state, action = "BLOCKED", "禁止交易"
         reason = "；".join(risk.get("reasons", [])) or "P0-R 風控禁止進場"
     elif in_position:
-        if stop is not None and last <= stop:
-            state, action, reason = "STOP", "停損", "價格已觸及或跌破停損"
-        elif target is not None and last >= target:
-            state, action, reason = "TAKE_PROFIT", "減碼", "價格已觸及第一目標"
-        elif stop is not None and _near(last, stop, near_pct):
-            state, action, reason = "NEAR_STOP", "續抱", "價格接近停損，需提高警戒"
-        elif target is not None and _near(last, target, near_pct):
-            state, action, reason = "NEAR_TARGET", "續抱", "價格接近第一目標"
-        else:
-            state, action, reason = "HOLDING", "續抱", "交易假設未失效"
+        position = evaluate_position(c, near_pct=near_pct)
+        state = position.state
+        action = position.action
+        reason = position.reason
+        stop = position.effective_stop
+        target = position.target
     else:
         if max_entry is not None and last > max_entry:
             state, action, reason = "INVALIDATED", "禁止交易", "已高於最高可接受買價，禁止追高"
