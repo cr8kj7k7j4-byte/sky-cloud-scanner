@@ -22,7 +22,7 @@ Research namespaces:
 
 | Candidate | Status | Priority | Current evidence |
 |---|---|---:|---|
-| Swing 5D 3-factor top-decile challenger | HOLD | 3 | Existing 100-symbol artifact is current-universe backward and fails artifact-level PIT/survivorship promotion gate; 0.65% stress-cost stability is inconsistent; portfolio/risk and Shadow/Paper gates incomplete. Do not result-select longer horizons from observed data. |
+| Top100 Velocity Baseline | PREREGISTERED / HISTORICAL_RUN_QUEUED | 1 | Original intraday hypothesis restored as a frozen dynamic Top100 acceleration baseline. Uses corrected whole-universe PIT 5m source; first historical run queued. Production unchanged. |\n| Swing 5D 3-factor top-decile challenger | HOLD | 3 | Existing 100-symbol artifact is current-universe backward and fails artifact-level PIT/survivorship promotion gate; 0.65% stress-cost stability is inconsistent; portfolio/risk and Shadow/Paper gates incomplete. Do not result-select longer horizons from observed data. |
 | Revenue MoM 5D | PRE_PIT_CANDIDATE | 1 | Robustness gates passed, but 2023–2026 historical PIT audit found 0 / 87,588 company-months with verified MOPS filing timestamps (0.0000%). Promotion blocked until historical PIT coverage is resolved or the research window is redefined prospectively. |
 | Revenue YoY 5D | HOLD_CONCENTRATION_FAIL | 4 | Primary/stress return gates passed, but top-5-symbol concentration exceeded threshold across splits. Do not promote. |
 | Revenue YoY Acceleration 5D | PRE_PIT_CANDIDATE | 2 | Robustness gates passed, but 2023–2026 historical PIT coverage is 0.0000% (0 / 87,588 company-months). Remains pre-promotion research only; statutory-deadline proxies do not satisfy PIT. |
@@ -151,13 +151,19 @@ Any material gate failure blocks Promotion. No chat window, notebook, branch, or
 
 Current critical path: **W4 → P0-R / W6 execution evidence → W0 / P0-G**.
 
-## W3A historical intraday coverage status — 2026-10-25
+## W3A historical intraday coverage status — updated 2026-10-26
 
 - W3A replay engineering framework: **ENGINEERING COMPLETE**.
-- Promotion-grade historical replay data: **DATA_BLOCKED**.
-- Existing 100-symbol 5m history provides only approximately 4.8%–5.3% maximum symbol coverage versus the governed PIT Universe, far below the >=95% research gate.
-- Current artifact is valid for engineering/regression checks only; it must not be treated as promotion-grade PIT evidence.
-- Main blocker is now whole-universe synchronized historical intraday data plus causal context reconstruction, not replay-framework implementation.
+- Corrected whole-universe 5m PIT raw source: **PASS**.
+- Source run: GitHub Actions #40221377923.
+- Symbols with bars: 2,022 / 2,025 expected = **99.8519% symbol coverage**.
+- Symbol-day coverage: **98.9071%**.
+- Minimum daily coverage: **97.3726%**.
+- Bars kept after corrected PIT membership filtering: **54,187,242**.
+- Duplicate bars: 0; conflicting duplicates: 0; out-of-membership bars: 0.
+- The old ~100-symbol artifact remains engineering-only historical evidence, but it is no longer the best available intraday source.
+- Current v1.4 historical blocker is **missing authoritative frozen v1.4 rule provenance**, not market-data breadth.
+- New preregistered challengers with frozen executable rules, including Top100 Velocity, may use the corrected whole-universe source for historical validation.
 
 ## W5 / W7 inbound queue — 2026-10-25
 
