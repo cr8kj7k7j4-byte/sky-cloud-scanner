@@ -14,6 +14,7 @@ from src.point_in_time_universe import (
 )
 
 MIN_CURRENT_INTERVAL_COVERAGE_PCT = 99.0
+REQUIRED_HISTORICAL_SOURCES = {"TWSE_DELIST", "TPEX_DELIST"}
 
 DEFAULT_DATES = [
     "2023-12-31",
@@ -98,17 +99,31 @@ def build_historical_universe_audit(
         }
 
     sources_ok = bool(source_health) and all(x.get("ok") for x in source_health)
+    health_by_name = {str(x.get("source")): x for x in source_health}
+    historical_source_coverage_ok = all(
+        name in health_by_name
+        and health_by_name[name].get("ok")
+        and int(health_by_name[name].get("parsed_events") or 0) > 0
+        for name in REQUIRED_HISTORICAL_SOURCES
+    )
     current_coverage_ok = all(
-        x["coverage_pct"] >= MIN_CURRENT_INTERVAL_COVERAGE_PCT for x in current_coverage.values()
+        x["coverage_pct"] >= MIN_CURRENT_INTERVAL_COVERAGE_PCT
+        for x in current_coverage.values()
         if x["current_symbols"] > 0
     )
     unresolved_ok = len(unresolved) == 0
+    historical_dates_nonempty = bool(dates) and all(
+        int(item.get("pit_symbols_total") or 0) > 0
+        for item in dates.values()
+    )
 
     gate_pass = bool(
         sources_ok
+        and historical_source_coverage_ok
         and validation.get("valid")
         and current_coverage_ok
         and unresolved_ok
+        and historical_dates_nonempty
     )
 
     return {
@@ -120,6 +135,8 @@ def build_historical_universe_audit(
         "interval_validation": validation,
         "current_interval_coverage": current_coverage,
         "historical_dates": dates,
+        "historical_source_coverage_ok": historical_source_coverage_ok,
+        "historical_dates_nonempty": historical_dates_nonempty,
         "historical_universe_gate_pass": gate_pass,
         "production_eligible": gate_pass,
         "status": (
@@ -130,6 +147,9 @@ def build_historical_universe_audit(
         "governance": {
             "minimum_current_interval_coverage_pct": MIN_CURRENT_INTERVAL_COVERAGE_PCT,
             "all_official_sources_must_be_healthy": True,
+            "required_historical_sources": sorted(REQUIRED_HISTORICAL_SOURCES),
+            "required_historical_sources_must_parse_events": True,
+            "all_audit_dates_must_have_nonzero_pit_membership": True,
             "unresolved_events_allowed": 0,
             "rule": (
                 "Current-universe-only historical studies must not be promoted "
@@ -147,6 +167,8 @@ def write_markdown(report: dict, path: Path):
         f"- Intervals: {report['intervals']:,}",
         f"- Unresolved events: {report['unresolved']:,}",
         f"- Interval validation: {'PASS' if report['interval_validation']['valid'] else 'FAIL'}",
+        f"- Historical source coverage: {'PASS' if report['historical_source_coverage_ok'] else 'FAIL'}",
+        f"- Historical dates non-empty: {'PASS' if report['historical_dates_nonempty'] else 'FAIL'}",
         f"- Historical Universe Gate: {'PASS' if report['historical_universe_gate_pass'] else 'FAIL'}",
         "",
         "## Current-universe interval coverage",
