@@ -19,7 +19,13 @@ def main():
         "execution_type": "MIXED_OBSERVED_EXECUTION",
         "data_source": args.input,
         **summary,
-        "status_w6": "EXECUTION_CANDIDATE" if summary["status"] == "P1_BASELINE_READY" else "INSUFFICIENT_DATA",
+        "status_w6": (
+            "EXECUTION_CANDIDATE"
+            if summary["status"] == "P1_BASELINE_READY"
+            else "HOLD"
+            if summary.get("spread_status") == "BASELINE_READY"
+            else "INSUFFICIENT_DATA"
+        ),
     }
     text = json.dumps(payload, ensure_ascii=False, indent=2)
     if args.output:
