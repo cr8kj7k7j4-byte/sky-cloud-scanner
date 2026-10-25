@@ -1,44 +1,49 @@
 # W0 Intake — Top100 Velocity Challenger
 
 Date: 2026-10-26
-Source: W5 preregistration
 Production change: NONE
 
 ## Decision
-- Candidate: Top100 Velocity Baseline
-- Status: PREREGISTERED_RESEARCH_CANDIDATE / DATA_BLOCKED
+- Candidate: Dynamic Top100 Velocity Baseline A
+- Status: PREREGISTERED_RESEARCH_CANDIDATE / HISTORICAL_BASELINE_ELIGIBLE
 - Production Day Trading v1.4: ACTIVE / UNCHANGED
+- Historical full-rule v1.4 comparison: NOT AUTHORIZED (W0 PR #118)
 - Formal promotion: NOT AUTHORIZED
 
 ## Why this candidate is allowed
-The research reconstructs the user's original alpha hypothesis as a dynamic rolling-universe acceleration model:
-- causal Top100 gainers membership;
+
+The hypothesis studies dynamic rank migration / acceleration inside a causal rolling Top100 gainers universe:
 - price velocity;
 - gain-rank velocity;
-- volume acceleration.
+- volume-rate acceleration.
 
-It is structurally distinct from frozen Fixed-time Intraday Ranking and P0-S 5m Breakout. If implementation degenerates into those archived families, stop the experiment.
+It is structurally distinct from frozen Fixed-time Intraday Ranking and P0-S 5m Breakout.
 
-## Required comparison
-Ablation ladder:
-A Top100 + Velocity
-B + Anti-Chase
-C + VWAP quality
-D + Market Gate
-E + Sector / Relative Strength
-F + Phase
-G + Setup / Trigger
-H + RR Gate
-I full reproducible Sky Day Trading v1.4
+## Data state
 
-Primary decision metric: after-cost expectancy.
-Secondary: PF, Max DD, stability, Avg Win/Loss, MAE/MFE, win rate, turnover, capacity.
+Corrected PIT whole-universe 5m source is PASS:
+- 2,022 symbols with bars;
+- 99.8519% symbol coverage;
+- 98.9071% symbol-day coverage;
+- minimum daily coverage 97.3726%;
+- 54,187,242 retained bars.
 
-## Blocker
-Promotion-grade full-market synchronized intraday history is unavailable. Existing ~100-symbol artifact cannot reconstruct Top100_t and may not be used to claim superiority.
+Therefore Baseline A historical validation may proceed.
+
+## Historical comparison boundary
+
+Do not reconstruct missing v1.4 historical Alpha gates.
+
+Historical work evaluates Baseline A itself under preregistered after-cost/stability gates.
+
+Production v1.4 versus challenger comparison moves to W4 prospective Shadow/Paper evidence.
 
 ## Routing
-W3A -> resolve data coverage / causal Top100 reconstruction.
-W2 -> run preregistered comparison after dataset passes fail-closed PIT gate.
-W4 -> collect prospective Shadow/Paper observations when live causal Top100 construction is available.
-W0 -> adjudicate only after W2 + W4 + P0-R evidence.
+
+1. W5 preregistration freeze.
+2. W2 historical Baseline A validation.
+3. If Baseline A survives, W4 prospective Champion–Challenger.
+4. W6/P0-R execution and risk evidence.
+5. W0/P0-G governance review.
+
+No Production change is created by this intake.
