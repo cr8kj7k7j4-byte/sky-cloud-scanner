@@ -4,129 +4,102 @@ Date: 2026-10-26
 Owner: W5｜Sky Candidate Strategy Lab
 Status: PREREGISTERED_STRUCTURAL_CHALLENGER
 Production impact: NONE
+Source data: governed whole-market 1-minute PIT artifacts from workflow run 40267006806
+Primary research window: 2026-01-01 through 2026-10-22
 
 ## 1. Research question
 
-After an early opening impulse, does waiting for price to retest the session open and then causally reclaim it improve after-cost expectancy versus entering the first opening acceleration wave?
+Does waiting for an early strong stock to pull back to the session open and then causally reclaim the session open improve after-cost expectancy versus entering the first opening acceleration wave directly?
 
-Baseline D is a distinct setup architecture. It does not retune Baseline C thresholds after seeing C's negative result.
+Baseline D is structurally distinct from rejected Baseline C. It changes the entry architecture from first-wave acceleration to retest-and-reclaim confirmation. It is not a threshold rescue of Baseline C.
 
-## 2. Data
+## 2. Observation and execution window
 
-Source dataset:
-- governed PIT-active Taiwan equity universe;
-- whole-market 1-minute intraday candles;
-- source workflow run: 40267006806;
-- period: 2026-01-01 through 2026-10-22;
-- Asia/Taipei timestamps;
-- no Top100 eligibility gate;
-- no TWD 100 price ceiling.
+- Opening observation window: 09:00–09:15.
+- With 1-minute bars, 09:00 initializes the session open.
+- Reclaim evidence must be visible only after a completed bar.
+- Earliest causal entry is the next minute open after a completed reclaim bar.
+- No entry after the 09:15 decision boundary.
 
-The existing compact schema OPENING_ACCELERATION_1M_COMPACT_V1_1_4TICK_STOP is reused. No new market-data download is required.
+## 3. Whole-market universe
 
-## 3. Observation / execution window
-
-Observation window:
-- 09:00 through 09:15.
-
-Causal convention:
-- 09:00 initializes the session open.
-- A decision at minute t may use only completed bars through t-1.
-- Entry proxy is the open of minute t.
-- No same-minute close is visible before completion.
-- Earliest practical reclaim entry is determined by the completed launch → retest → reclaim sequence.
+At each session:
+- use the full governed PIT-active Taiwan equity universe contained in the frozen source run;
+- no Top100 membership requirement;
+- no TWD 100 price cap;
+- no end-of-day ranking or universe leakage.
 
 ## 4. Frozen structural sequence
 
-For each symbol/session, all three states must occur in order using completed 1-minute bars.
+A symbol becomes eligible only after the following causal sequence occurs:
 
-### State A — Initial launch
-A completed bar must:
-- close > session open; and
-- high >= the 4th legal Taiwan tick above session open.
+1. PRIOR STRENGTH:
+   - before the retest, at least one completed 1-minute bar closes strictly above the session open.
 
-This establishes that the stock actually produced an opening impulse before the retest.
+2. OPEN RETEST:
+   - after prior strength has occurred, a completed 1-minute bar touches or crosses the session open: low <= session_open.
 
-### State B — Retest
-After State A, a later completed bar must:
-- low <= session open.
+3. RECLAIM:
+   - after the retest event, a later completed 1-minute bar closes strictly above session_open.
+   - the reclaim bar itself is observation-only and cannot be entered using its own close.
 
-The retest may close above or below the open. No entry occurs on the retest itself.
+4. ENTRY:
+   - entry proxy is the next 1-minute bar open after the completed reclaim bar;
+   - entry must lie strictly above session_open and at or below the fourth legal Taiwan exchange tick above session_open;
+   - otherwise status is NO_ENTRY_OPEN_ZONE or MISSED_4TICK_NO_CHASE.
 
-### State C — Reclaim
-After State B, a later completed bar must:
-- close > session open.
+The same symbol may enter at most once per session.
 
-Only after this completed reclaim may the next minute be considered for entry.
+## 5. Stop
 
-The launch, retest and reclaim must be causally ordered. A single bar cannot satisfy multiple states.
-
-## 5. Entry
-
-At decision minute t immediately after a completed reclaim:
-- entry proxy = minute-t open;
-- entry must be strictly above session open;
-- entry must be <= the 4th legal tick above session open;
-- otherwise classify MISSED_4TICK_NO_CHASE / NO_ENTRY_OPEN_ZONE;
-- same symbol max one trade per session.
-
-No later retry after a missed reclaim entry in Baseline D v1.
-
-## 6. Stop
-
-Mandatory session-open stop:
-- after entry, first 1-minute bar with low < session open triggers exit;
-- fill proxy = min(session open, trigger-bar open) when trigger-bar open exists;
+After valid entry:
+- the first subsequent 1-minute bar whose low < session_open triggers the opening-price stop;
+- fill proxy = min(session_open, trigger_bar_open) when the trigger bar open is available;
 - no averaging down;
 - no stop widening.
 
-## 7. Exit / evaluation
+## 6. Outcome horizons
 
-Primary economic horizon:
-- 60 minutes, stop-aware.
-
-Also report:
+Report:
 - 30-minute stop-aware return;
+- 60-minute stop-aware return [PRIMARY];
 - session-close return;
-- MFE / MAE;
+- MFE / MAE where available;
 - +5% post-entry excursion;
 - near-limit proxy;
-- open-stop rate;
-- decision-minute distribution.
+- opening-stop hit rate.
 
-No profit-target optimization.
+## 7. Cost model
 
-## 8. Cost model
+- Primary round-trip cost: 0.45%.
+- Stress round-trip cost: 0.65%.
 
-Primary round-trip cost: 0.45%.
-Stress round-trip cost: 0.65%.
+A gross-positive but after-cost-negative result fails.
 
-Gross-positive but after-cost-negative fails.
+## 8. Selection policy
 
-## 9. Selection / portfolio simplification
+Baseline D tests the event pattern itself:
+- include every first valid reclaim event per symbol/session;
+- do not optimize Top-N, score weights, retest depth, reclaim buffer, volume threshold, or ranking threshold after outcomes are visible.
 
-This baseline tests the setup architecture, not a cross-sectional optimizer:
-- every symbol/session that completes the frozen launch → retest → reclaim sequence and has a valid causal entry is an evaluable trade;
-- no Top-N, no score weights, no threshold search;
-- same symbol max one trade/day.
+Cross-sectional ranking, if later justified, must be a separately preregistered structural extension.
 
-Portfolio concurrency is not used to rescue signal-level economics. If signal-level evidence survives, portfolio/capacity work is a later gate.
-
-## 10. Decision rule
+## 9. Decision rule
 
 PROMOTE_CANDIDATE_TO_W4 only if:
-- n >= 200;
+- evaluable 60m sample >= 200;
 - 0.45% after-cost expectancy > 0;
-- 0.45% PF > 1;
+- PF > 1;
 - 0.65% stress is not catastrophic;
-- no single symbol > 20%;
-- 2026 H1 and H2 are not structurally contradictory.
+- no single-symbol concentration > 20%;
+- first-half / second-half evidence is not structurally contradictory.
 
-HOLD for insufficient sample or mixed stability.
+HOLD:
+- insufficient sample or mixed stability.
 
-REJECT if:
-- 0.45% expectancy <= 0; or
-- PF <= 1; or
-- broad instability is evident.
+REJECT:
+- 0.45% after-cost expectancy <= 0;
+- PF <= 1;
+- persistent instability.
 
 Promotion, if any, is W4 Shadow/Paper only. Production remains unchanged.
