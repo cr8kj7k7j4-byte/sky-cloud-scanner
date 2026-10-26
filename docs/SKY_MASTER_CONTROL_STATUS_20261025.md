@@ -469,3 +469,58 @@ The 20% historical-closed result is **not yet valid evidence of historical-symbo
 - Do not escalate to paid TWSE/TPEx acquisition until the corrected historical-symbol probe is complete.
 - W3A remains ENGINEERING COMPLETE / DATA_BLOCKED.
 - W2 remains HOLD / DATA_BLOCKED.
+
+## Q. W0 Full Status Refresh — 2026-10-26
+
+### W3A Fugle feasibility round 3
+GitHub Actions run #40272554958 completed successfully after correcting historical-closed query windows.
+
+Observed sample result:
+- Active symbols: 40 / 40 OK = **100%**.
+- Historical-closed symbols: 10 / 10 OK = **100%** when queried inside each symbol's effective listing interval.
+- Overall: 50 / 50 OK = **100%**.
+- No 429 failures remained after retry/backoff hardening.
+
+Interpretation:
+- Fugle is now a credible zero-new-spend acquisition path for a broader PIT historical intraday backfill.
+- This sample does **not** establish the formal >=95% whole-universe PIT gate.
+- Next eligible W3A action is to expand from feasibility sample to a materially larger PIT-universe acquisition/coverage test, then to full governed-universe backfill if capacity and coverage remain acceptable.
+- Paid TWSE/TPEx acquisition remains fallback only; no purchase authorized.
+
+### W4 latest forward-evidence state
+Latest Shadow Promotion Dashboard run #40298299983 completed successfully but reports:
+- status: **WAITING_FOR_FUTURE_SAMPLE**
+- eligible successful scan runs: **0**
+- samples remaining: 200
+- trading days remaining: 20
+- regimes remaining: 2
+- outcome completeness gap: 0.95
+- promotable_to_governance_review: false
+- production_eligible: false
+
+Therefore W4 infrastructure is healthy, but usable forward evidence has not yet accumulated.
+
+### Open PR governance inventory
+Open PRs are not formal Registry state until W0/P0-G review and merge.
+- PR #149: W5/W2 Baseline C 'exit immediately below daily open' — OPEN, not merged; no Production change authorized.
+- PR #80: W3 canonical PIT adjusted daily Swing dataset — DRAFT, not merged.
+- PR #100: W3 canonical PIT daily Swing dataset v2 — DRAFT, not merged.
+
+### Current formal state
+- Day Trading v1.4: ACTIVE / unchanged.
+- Swing V1.0: ACTIVE / unchanged.
+- W1: HOLD.
+- W2: HOLD / DATA_BLOCKED pending promotion-grade replay dataset.
+- W3A: ENGINEERING COMPLETE; Fugle feasibility PASS at 50-symbol sample level; formal whole-universe data gate still OPEN.
+- W3B: ACTIVE support / no Alpha changes.
+- W4: WAITING_FOR_FUTURE_SAMPLE; 0 eligible scan runs in latest dashboard.
+- W5: ACCEPT_FOR_PREREGISTRATION = 0; HOLD = 3 for current W7 inbound queue.
+- W6: no formal Production-changing result registered.
+- W7: low-intensity intelligence; no direct Production path.
+- Small Live: NOT AUTHORIZED.
+
+### Current critical path
+1. W3A expand Fugle PIT coverage test toward governed whole-universe coverage.
+2. W2 remains blocked until the dataset passes fail-closed governance gates.
+3. W4 must start accumulating eligible forward scans/samples.
+4. W0 reviews open research PRs separately; none are formal until accepted.
