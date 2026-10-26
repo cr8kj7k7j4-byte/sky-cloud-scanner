@@ -1,0 +1,52 @@
+name: W2 False-Reclaim Short Baseline E Backtest Recovery
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/w2-false-reclaim-short-baseline-e-backtest-recovery.yml"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests
+      - run: python tests/test_false_reclaim_short_baseline_e.py
+      - name: Download successful Baseline E shards from source run
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: 40329668748
+          pattern: baseline-e-shard-*-40329668748
+          path: short_data
+      - name: Run Baseline E backtest only
+        run: |
+          python research/backtest_false_reclaim_short_baseline_e.py \
+            --data-root short_data \
+            --source-run-id 40329668748 \
+            --out-dir research_output/false_reclaim_short_baseline_e
+      - name: Publish result
+        if: always()
+        run: |
+          if [ -f research_output/false_reclaim_short_baseline_e/false_reclaim_short_baseline_e_report.md ]; then
+            cat research_output/false_reclaim_short_baseline_e/false_reclaim_short_baseline_e_report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: baseline-e-recovery-result-${{ github.run_id }}
+          path: research_output/false_reclaim_short_baseline_e
+          if-no-files-found: warn
+          retention-days: 30
