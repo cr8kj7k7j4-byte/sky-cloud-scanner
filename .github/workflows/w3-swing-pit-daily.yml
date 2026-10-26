@@ -11,6 +11,10 @@ on:
   pull_request:
     paths:
       - "research/collect_swing_pit_daily.py"
+      - "research/audit_historical_universe.py"
+      - "tests/test_historical_universe_audit.py"
+      - "src/official_universe_events.py"
+      - "src/point_in_time_universe.py"
       - "research/audit_swing_pit_price_coverage.py"
       - "research/validate_swing_pit_readiness.py"
       - "research/W3_SWING_PIT_DAILY_PRICE_DATA_CONTRACT.md"
@@ -47,7 +51,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install focused test dependencies
-        run: pip install pytest requests
+        run: pip install pytest requests beautifulsoup4
       - name: Run focused unit tests
         env:
           PYTHONPATH: .
@@ -57,16 +61,22 @@ jobs:
           tests/test_swing_pit_price_coverage.py
           tests/test_pit_adjusted_price.py
           tests/test_swing_pit_readiness.py
+          tests/test_historical_universe_audit.py
           tests/test_point_in_time_universe.py
-      - name: Download last verified canonical PIT artifact from main
-        uses: actions/download-artifact@v4
-        with:
-          name: historical-universe-audit-40193567617
-          path: canonical_pit
-          repository: cr8kj7k7j4-byte/sky-cloud-scanner
-          run-id: 40193567617
-          github-token: ${{ github.token }}
-      - name: Verify pinned canonical PIT gate
+      - name: Build fresh canonical PIT from current official-source code
+        run: |
+          set -e
+          for attempt in 1 2 3; do
+            rm -rf canonical_pit
+            mkdir -p canonical_pit
+            if python research/audit_historical_universe.py --out canonical_pit; then
+              exit 0
+            fi
+            echo "Historical-universe live audit attempt $attempt failed"
+            if [ "$attempt" -lt 3 ]; then sleep $((attempt * 15)); fi
+          done
+          exit 1
+      - name: Verify fresh canonical PIT gate and cross-exchange continuity
         env:
           PYTHONPATH: .
         run: |
@@ -78,12 +88,36 @@ jobs:
           assert x.get("historical_universe_gate_pass") is True, "pinned PIT gate must be PASS"
           assert (x.get("interval_validation") or {}).get("valid") is True, "pinned PIT intervals must validate"
           intervals=list(x.get("intervals") or [])
-          assert len(intervals) == 2116, f"unexpected canonical interval count: {len(intervals)}"
+          assert intervals, "canonical PIT intervals must not be empty"
+
+          # Cross-exchange overlap is invalid for the same Taiwan common-share
+          # stock code. Same-exchange validation alone is insufficient for board
+          # transfers (TPEx -> TWSE).
+          by_symbol={}
+          for row in intervals:
+            by_symbol.setdefault(str(row.get("symbol") or ""), []).append(row)
+          conflicts=[]
+          for symbol, rows in by_symbol.items():
+            rows=sorted(rows,key=lambda r:(str(r.get("listed_from") or ""),str(r.get("exchange") or "")))
+            for i,a in enumerate(rows):
+              a0=str(a.get("listed_from") or "")
+              a1=str(a.get("listed_to") or "9999-12-31")
+              for b in rows[i+1:]:
+                if a.get("exchange")==b.get("exchange"):
+                  continue
+                b0=str(b.get("listed_from") or "")
+                b1=str(b.get("listed_to") or "9999-12-31")
+                if max(a0,b0) <= min(a1,b1):
+                  conflicts.append({
+                    "symbol":symbol,
+                    "a":[a.get("exchange"),a0,a.get("listed_to")],
+                    "b":[b.get("exchange"),b0,b.get("listed_to")],
+                  })
+          assert not conflicts, f"cross-exchange PIT overlaps: {conflicts[:20]}"
           print({
-            "canonical_source_run":40193567617,
-            "artifact":"historical-universe-audit-40193567617",
             "intervals":len(intervals),
             "gate":"PASS",
+            "cross_exchange_conflicts":len(conflicts),
           })
           PY
       - name: Upload run-local canonical PIT copy
@@ -203,7 +237,7 @@ jobs:
           files=sorted(Path("canonical_history_flat/history").glob("*_D.json"))
           manifest={
             "schema_version":"SWING_PIT_DAILY_MANIFEST_1.0",
-            "canonical_pit_source_run":40193567617,
+            "canonical_pit_source":"fresh_official_live_audit_same_run",
             "files":len(files),
             "sha256":{
               p.name:hashlib.sha256(p.read_bytes()).hexdigest()
