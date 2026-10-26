@@ -168,7 +168,10 @@ def build_snapshot_db(data_root: str, db_path: str) -> dict:
                 if session_close and session_close>0:
                     prior_close=session_close
             if batch:
-                conn.executemany("INSERT INTO snapshots VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",batch)
+                conn.executemany(
+                    "INSERT INTO snapshots VALUES (" + ",".join(["?"] * 30) + ")",
+                    batch,
+                )
                 rows+=len(batch)
                 symbols.add(symbol)
             if i%100==0:
