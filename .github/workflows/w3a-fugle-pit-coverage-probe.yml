@@ -14,7 +14,7 @@ permissions:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -37,8 +37,8 @@ jobs:
             --as-of 2026-09-30 \
             --from-date 2026-09-01 \
             --to-date 2026-09-30 \
-            --per-exchange 20 \
-            --historical-closed-n 10 \
+            --per-exchange 100 \
+            --historical-closed-n 50 \
             --out research_output_pit/fugle_pit_coverage_probe.json
       - name: Publish summary
         if: always()
