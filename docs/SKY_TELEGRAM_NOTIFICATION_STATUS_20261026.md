@@ -1,7 +1,7 @@
 # Sky Telegram Notification Status — 2026-10-26
 
 ## Status
-**VERIFIED / ACTIVE**
+**VERIFIED / ACTIVE — ALL EVENTS MODE**
 
 ## Scope
 This document records the external notification state for all Sky workstreams W0–W7.
@@ -14,20 +14,31 @@ This document records the external notification state for all Sky workstreams W0
 - The one-time smoke-test workflow was removed after verification.
 - User-visible Telegram notifications are Chinese-first.
 - Internal system status codes may remain English for machine logic and governance traceability.
-- Routine per-scan Telegram delivery remains disabled to avoid notification noise.
-- Telegram is reserved for material status changes only.
+- Repository event notifications are enabled broadly: push, PR, Issue, comments/reviews, Release, Deployment, branch/tag create/delete, fork/star, Discussions, repository dispatch, and manual workflow dispatch.
+- All GitHub Actions workflow completions are sent to Telegram regardless of success, failure, cancellation, or other conclusion, excluding the notifier workflow itself to prevent recursion.
+- Existing detailed material-status alerts may still be emitted by their owning workflow; therefore a material change can legitimately produce both a workflow-completion notification and a detailed status notification.
 - ChatGPT does not own Sky monitoring schedules. GitHub Actions / external infrastructure owns recurring execution.
 - ChatGPT remains an on-demand reader / analyst. The canonical on-demand instruction is: 「讀取 Sky 最新結果」.
 
-## Material notification policy
-Telegram may notify when one of the following occurs:
-1. W4 stage changes.
-2. Pipeline enters or exits a failure / incomplete-evidence state.
-3. W4 sample sufficiency is reached for the first time.
-4. Promotion-to-governance-review gate is reached for the first time.
-5. Future W0/P0-G-approved material alert conditions are added.
+## Notification policy
+Telegram is now configured in **ALL EVENTS MODE** for this repository.
 
-Routine scan results, ordinary heartbeat runs, and unchanged status snapshots should not generate Telegram messages.
+Coverage includes:
+1. Every GitHub Actions workflow completion.
+2. Push events.
+3. Pull Request lifecycle updates.
+4. Issues and comments.
+5. PR reviews and review comments.
+6. Releases.
+7. Deployment status changes.
+8. Branch/tag create and delete.
+9. Fork and Star events.
+10. Discussions and discussion comments.
+11. repository_dispatch and workflow_dispatch.
+
+Existing domain-specific material alerts remain allowed for richer context.
+
+This mode intentionally produces substantially more Telegram traffic than the prior material-only baseline.
 
 ## Language policy
 User-visible Telegram alert text should be Traditional Chinese whenever practical.
