@@ -125,8 +125,21 @@ def main():
     rows = []
     for i, item in enumerate(selected, 1):
         symbol = str(item["symbol"])
+        query_from, query_to = args.from_date, args.to_date
+
+        # Historical-closed members must be probed while the symbol was actually
+        # listed. Querying an already-delisted symbol in 2026 would create a false
+        # NO_DATA_404 and would not test historical retrievability.
+        if item.get("probe_type") == "HISTORICAL_CLOSED" and item.get("listed_to"):
+            end_d = date.fromisoformat(str(item["listed_to"])[:10])
+            start_raw = item.get("listed_from")
+            start_d = date.fromisoformat(str(start_raw)[:10]) if start_raw else end_d
+            probe_end = end_d
+            probe_start = max(start_d, date.fromordinal(probe_end.toordinal() - 30))
+            query_from, query_to = probe_start.isoformat(), probe_end.isoformat()
+
         try:
-            result = request_one(symbol, args.from_date, args.to_date)
+            result = request_one(symbol, query_from, query_to)
         except Exception as e:
             result = {"status": f"ERROR_{type(e).__name__}", "bars": 0, "error": str(e)}
         rows.append({
@@ -135,6 +148,8 @@ def main():
             "listed_from": item.get("listed_from"),
             "listed_to": item.get("listed_to"),
             "probe_type": item.get("probe_type"),
+            "query_from": query_from,
+            "query_to": query_to,
             **result,
         })
         print(f"[{i}/{len(selected)}] {symbol}: {result['status']} bars={result.get('bars',0)}")
