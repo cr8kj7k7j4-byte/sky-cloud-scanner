@@ -61,3 +61,5 @@ Rules:
 5. A rejected family is negative evidence and must stay archived.
 6. Promotion requires after-cost positive expectancy and acceptable drawdown,
    not merely a high win rate.
+
+| Top100 Open-Price Gate Baseline B | ARCHIVED_NO_RETUNE | n=1,244; 0.45% expectancy=-0.5190%; PF=0.393; all folds and 2023-2026 slices negative. Open-price gate did not improve Baseline A. |
