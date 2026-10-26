@@ -64,6 +64,8 @@ jobs:
           tests/test_historical_universe_audit.py
           tests/test_point_in_time_universe.py
       - name: Build fresh canonical PIT from current official-source code
+        env:
+          PYTHONPATH: .
         run: |
           set -e
           for attempt in 1 2 3; do
