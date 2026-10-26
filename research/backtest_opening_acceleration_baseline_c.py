@@ -83,6 +83,9 @@ def build_snapshot_db(data_root: str, db_path: str) -> dict:
       ret_5m REAL,
       ret_10m REAL,
       entry REAL,
+      raw_entry_open REAL,
+      max_entry_4tick REAL,
+      entry_status TEXT,
       exit_30m REAL,
       exit_60m REAL,
       session_close REAL,
@@ -106,6 +109,8 @@ def build_snapshot_db(data_root: str, db_path: str) -> dict:
             x=json.loads(p.read_text(encoding="utf-8"))
             symbol=str(x.get("symbol") or "")
             exchange=str(x.get("exchange") or "")
+            if x.get("schema_version") != "OPENING_ACCELERATION_1M_COMPACT_V1_1_4TICK_STOP":
+                raise ValueError(f"ineligible compact schema: {x.get('schema_version')}")
             days=sorted(x.get("days") or [], key=lambda d:str(d.get("date") or ""))
             prior_close=None
             batch=[]
@@ -151,7 +156,8 @@ def build_snapshot_db(data_root: str, db_path: str) -> dict:
                     batch.append((
                         symbol,exchange,day,obs,price,session_open,prior_close,dr,vols.get(feature_label),
                         ret(1),ret(3),ret(5),ret(10),
-                        n(o.get("entry")),n(o.get("exit_30m")),n(o.get("exit_60m")),n(o.get("session_close")),
+                        n(o.get("entry")),n(o.get("raw_entry_open")),n(o.get("max_entry_4tick")),o.get("entry_status"),
+                        n(o.get("exit_30m")),n(o.get("exit_60m")),n(o.get("session_close")),
                         n(o.get("high_30m")),n(o.get("low_30m")),n(o.get("high_60m")),n(o.get("low_60m")),
                         n(o.get("high_to_close")),n(o.get("low_to_close")),
                         split_label(day),half_label(day)
@@ -263,6 +269,8 @@ def select_variant(rows: list[dict], *, remove_open=False, remove_fresh=False,
     for d0 in rows:
         d=dict(d0)
         if d["gain_rank"]>100:
+            continue
+        if d.get("entry_status") != "ENTRY_4TICK_ZONE" or not d.get("entry"):
             continue
         if not remove_open:
             if d.get("session_open") is None or d["price"]<=d["session_open"]:
