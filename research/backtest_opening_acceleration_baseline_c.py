@@ -10,7 +10,6 @@ from pathlib import Path
 
 PRIMARY_COST = 0.0045
 STRESS_COST = 0.0065
-PRICE_CAP = 100.0
 DAY_RETURN_CAP = 0.095
 MINUTES = [f"09:{m:02d}" for m in range(0, 16)]
 TRADE_MINUTES = [f"09:{m:02d}" for m in range(1, 16)]
@@ -150,7 +149,7 @@ def build_snapshot_db(data_root: str, db_path: str) -> dict:
                     if price is None or price<=0:
                         continue
                     dr=price/prior_close-1.0
-                    if price>PRICE_CAP or dr>=DAY_RETURN_CAP:
+                    if dr>=DAY_RETURN_CAP:
                         continue
                     def ret(h):
                         if feature_idx-h<0:
