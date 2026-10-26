@@ -51,6 +51,8 @@ Research namespaces:
 | VNext Residual Ranking Baseline v1 | REJECTED | All preregistered 3D/5D/10D × Top3/5/10 variants had negative Validation and Research-Test expectancy after 0.45% cost with PF < 1; do not retune or escalate to nonlinear ML. |
 | Top100 Velocity Baseline A family | REJECTED_STANDALONE / ARCHIVED_NO_RETUNE | Dual negative evidence: A1 Top3/60m n=9,934, 0.45% expectancy -0.4888%, PF 0.556; A2 top-decile/30m 9,949 signals / 8,685 entries, 0.45% expectancy -0.4285%, PF 0.528, 8/8 half-year folds negative. No local Top-N/time/lookback/weight/holding/stop-target rescue. Top100 universe remains FEATURE_ONLY context. |n=9,934; gross expectancy -0.0388%, gross PF 0.953; 0.45% expectancy -0.4888%, PF 0.556; all folds and 2023-2026 slices negative. Top100 universe retained as FEATURE_ONLY candidate-pool context. |
 
+| Opening Retest Reclaim Baseline D | REJECTED_STANDALONE / ARCHIVED_NO_RETUNE | 2026-01-01–2026-10-22 whole-market 1m PIT; n=12,967; gross 60m expectancy +0.1032%, PF 1.312; 0.45% expectancy -0.3468%, PF 0.506; 0.65% expectancy -0.5468%, PF 0.372; open-stop rate 85.08%; H1/H2 both negative after cost. |
+
 ## Historical Universe / Survivorship audit
 
 - Main-native live audit run: GitHub Actions #40177304792 (2026-10-25)
