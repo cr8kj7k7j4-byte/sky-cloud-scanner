@@ -381,3 +381,32 @@ User intervention remains required only for:
 - Do not treat zero W4 forward samples as an outage.
 - Do not buy broker-flow / TWSE / TPEx historical products until existing free/authorized acquisition paths are exhausted.
 - Do not add new broad workstreams while forward evidence accumulation is the critical path.
+
+
+## O. External Telegram Notification Baseline — 2026-10-26
+
+### Verified operational state
+- GitHub Actions → Telegram delivery path: **VERIFIED / ACTIVE**.
+- Repository secrets for Telegram delivery are configured and readable by GitHub Actions.
+- End-to-end live smoke test: **PASS**.
+- One-time smoke-test workflow removed after verification.
+- Routine per-scan Telegram notifications: **DISABLED** to avoid noise.
+- Telegram purpose: **material status changes only**.
+- User-visible Telegram notifications: **Traditional Chinese first**; machine-facing canonical status codes may remain English internally.
+- ChatGPT does **not** own monitoring schedules. GitHub Actions / external infrastructure owns recurring execution.
+- ChatGPT role remains **on-demand reader / analyst**. Canonical user instruction: **「讀取 Sky 最新結果」**.
+
+### Material notification triggers
+Current baseline includes:
+1. W4 stage change.
+2. Pipeline entering or exiting failure / incomplete-evidence state.
+3. W4 sample sufficiency first becomes true.
+4. Promotion-to-governance-review first becomes true.
+
+### Security / governance
+- Telegram token must remain in repository secrets or equivalent secret store only.
+- No token may be committed to source, docs, logs, issues, or PR text.
+- Notification setup does not change Alpha logic, Production trading rules, P0-C, P0-R, or promotion status.
+
+Canonical record:
+`docs/SKY_TELEGRAM_NOTIFICATION_STATUS_20261026.md`
