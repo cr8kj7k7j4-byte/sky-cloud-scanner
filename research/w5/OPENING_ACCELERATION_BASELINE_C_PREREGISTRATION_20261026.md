@@ -77,7 +77,7 @@ At each minute t:
 2. valid prior-session close exists;
 3. latest completed 1-minute close is available;
 4. price > 0;
-5. price <= TWD 100;
+5. no price-cap exclusion; the scan covers the full PIT-active equity universe across legal Taiwan tick bands;
 6. current-day return < +9.5% near-limit guard;
 7. session open is known from the 09:00 bar.
 
@@ -139,7 +139,7 @@ A candidate at t must:
 - rank_velocity_1m > 0;
 - ret_1m > 0;
 - volume_acceleration_1v3 > 0;
-- satisfy price/near-limit/data-quality gates.
+- satisfy near-limit/data-quality gates; no TWD 100 price ceiling is imposed in this whole-market research variant.
 
 No alternative threshold search is allowed in Baseline C.
 
