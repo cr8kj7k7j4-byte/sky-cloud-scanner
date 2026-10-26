@@ -182,7 +182,22 @@ Also record:
 - near-limit-up proxy: post-entry high >= +9.5% vs prior close;
 - holding time.
 
-No stop/target optimization in Baseline C.
+### Mandatory opening-price stop
+
+After entry, if any subsequent 1-minute bar has:
+`low < session_open`
+
+the trade exits immediately via a stop-market proxy.
+
+Fill proxy:
+- if that stop-trigger bar opens below `session_open`, use the trigger bar open;
+- otherwise use `session_open`.
+
+This prevents a gap below the opening price from receiving an unrealistically favorable fill at the opening-price level.
+
+The opening-price stop is mandatory for Baseline C and is frozen before historical strategy outcomes are observed.
+
+No profit-target optimization in Baseline C.
 
 ## 13. Cost model
 
@@ -223,7 +238,7 @@ No threshold retuning inside ablations.
 ## 16. Decision rule
 
 PROMOTE_CANDIDATE only if:
-- primary 60m 0.45% after-cost expectancy > 0;
+- primary stop-aware 60m 0.45% after-cost expectancy > 0;
 - PF > 1;
 - sample >= 200;
 - validation/research-test are not structurally negative;
