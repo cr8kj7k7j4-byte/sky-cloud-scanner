@@ -84,3 +84,24 @@ jobs:
         run: terraform -chdir=infra/gcp init -backend=false
       - name: Terraform validate
         run: terraform -chdir=infra/gcp validate
+
+  notify-failure:
+    if: failure()
+    needs: [python-validation, container-validation, terraform-validation]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install notifier dependency
+        run: pip install requests
+      - name: Telegram W3B failure notification
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          PYTHONPATH=. python research/notify_governance_event.py \
+            --kind failure \
+            --workflow "W3B Production Hardening" \
+            --run-url "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
