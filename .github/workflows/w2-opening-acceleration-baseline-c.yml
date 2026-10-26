@@ -4,6 +4,10 @@ on:
   workflow_run:
     workflows: ["W3A Opening Acceleration Full 1m PIT Dataset"]
     types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/w2-opening-acceleration-baseline-c.yml"
   workflow_dispatch:
     inputs:
       source_run_id:
@@ -16,11 +20,13 @@ permissions:
 
 jobs:
   backtest:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
       PYTHONPATH: .
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -35,10 +41,15 @@ jobs:
         shell: bash
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "SOURCE_RUN_ID=${{ inputs.source_run_id }}" >> "$GITHUB_ENV"
+            SOURCE_RUN_ID="${{ inputs.source_run_id }}"
+          elif [ "${{ github.event_name }}" = "workflow_run" ]; then
+            SOURCE_RUN_ID="${{ github.event.workflow_run.id }}"
           else
-            echo "SOURCE_RUN_ID=${{ github.event.workflow_run.id }}" >> "$GITHUB_ENV"
+            SOURCE_RUN_ID="$(gh run list               --workflow w3a-opening-acceleration-1m-full.yml               --status success               --limit 1               --json databaseId               --jq '.[0].databaseId')"
           fi
+          test -n "$SOURCE_RUN_ID"
+          echo "SOURCE_RUN_ID=$SOURCE_RUN_ID" >> "$GITHUB_ENV"
+          echo "Using W3A source run $SOURCE_RUN_ID"
       - name: Download all compact 1m shards
         uses: actions/download-artifact@v4
         with:
