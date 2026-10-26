@@ -26,6 +26,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Restore P0-A monitor state cache
+        uses: actions/cache/restore@v4
+        with:
+          path: output/monitor_state.json
+          key: sky-monitor-state-${{ github.run_id }}
+          restore-keys: |
+            sky-monitor-state-
       - name: Install dependencies
         run: pip install -r requirements.txt
       - name: Check TWSE trading calendar
@@ -84,6 +91,12 @@ jobs:
           REDIS_URL: ${{ secrets.REDIS_URL }}
           MONITOR_STATE_REDIS_KEY: ${{ vars.MONITOR_STATE_REDIS_KEY || 'sky:p0a:monitor_state' }}
         run: python -m src.main
+      - name: Save P0-A monitor state cache
+        if: steps.calendar.outputs.should_scan == 'true' && always()
+        uses: actions/cache/save@v4
+        with:
+          path: output/monitor_state.json
+          key: sky-monitor-state-${{ github.run_id }}
       - name: Upload scan report
         if: always()
         uses: actions/upload-artifact@v4
