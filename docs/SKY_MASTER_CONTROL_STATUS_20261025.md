@@ -444,3 +444,28 @@ Canonical workflow:
 
 Canonical status:
 `docs/SKY_TELEGRAM_NOTIFICATION_STATUS_20261026.md`
+
+## P. Fugle Probe Round 2 / Historical-Window Fix — 2026-10-26
+
+### Round 2 result
+GitHub Actions run #40263853713 completed successfully after retry/backoff hardening.
+
+Observed:
+- Active sample: 40 / 40 successful = **100%**.
+- Historical-closed sample: 2 / 10 successful = 20%.
+- No remaining 429 failures after retry/backoff.
+
+### Important correction
+The 20% historical-closed result is **not yet valid evidence of historical-symbol coverage failure** because the probe queried the global September 2026 window even for already-delisted symbols. A post-delisting 404 does not establish that historical bars are unavailable during the symbol's actual listing period.
+
+### Corrective action
+- Probe logic updated so HISTORICAL_CLOSED symbols are queried within their own effective listing interval, using a 30-day window ending at `listed_to`.
+- Commit: `a4140ec1579da8b9ef8751c7d03cc85540d1777d`.
+- Third probe triggered: GitHub Actions run #40272554958.
+
+### Governance
+- Active-symbol Fugle feasibility is now strong at the sampled level.
+- Historical/delisted coverage remains UNKNOWN pending the corrected third probe.
+- Do not escalate to paid TWSE/TPEx acquisition until the corrected historical-symbol probe is complete.
+- W3A remains ENGINEERING COMPLETE / DATA_BLOCKED.
+- W2 remains HOLD / DATA_BLOCKED.
