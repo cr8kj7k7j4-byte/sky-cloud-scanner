@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - w5/opening-acceleration-baseline-c-20261026
+      - w5/opening-acceleration-open-stop-20261026
     paths:
       - "research/download_pit_universe_intraday.py"
       - "tests/test_pit_intraday_timeframe.py"
