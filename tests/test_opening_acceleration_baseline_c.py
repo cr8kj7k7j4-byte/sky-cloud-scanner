@@ -42,7 +42,12 @@ for i,s in enumerate(["1101","1102","1103","1104"]):
       "rank_velocity_1m":5-i,"rank_velocity_3m":4-i,
       "ret_1m":0.01+i*0.001,"ret_3m":0.02+i*0.001,
       "volume_acceleration_1v3":0.5+i*0.1,
-      "entry":10.2,"exit_30m":10.4,"exit_60m":10.5,"session_close":10.6,
+      "entry":10.2,"raw_entry_open":10.2,"max_entry_4tick":10.2,
+      "entry_status":"ENTRY_4TICK_ZONE",
+      "exit_30m":10.4,"exit_60m":10.5,
+      "stop_aware_exit_30m":10.4,"stop_aware_exit_60m":10.5,
+      "open_stop_fill":None,"open_stop_time":None,"open_stop_triggered":0,
+      "session_close":10.6,
       "high_30m":10.5,"low_30m":10.1,"high_60m":10.7,"low_60m":10.1,
       "high_to_close":10.8,"low_to_close":10.0,"prior_close":10.0,
       "split":"RESEARCH_TEST","half":"2026-H2"
