@@ -131,21 +131,25 @@ def build_snapshot_db(data_root: str, db_path: str) -> dict:
                     vols[obs]=n((b or {}).get("volume")) or 0.0
 
                 for obs in TRADE_MINUTES:
-                    price=prices.get(obs)
+                    decision_idx=MINUTES.index(obs)
+                    feature_idx=decision_idx-1
+                    if feature_idx<0:
+                        continue
+                    feature_label=MINUTES[feature_idx]
+                    price=prices.get(feature_label)
                     if price is None or price<=0:
                         continue
                     dr=price/prior_close-1.0
                     if price>PRICE_CAP or dr>=DAY_RETURN_CAP:
                         continue
-                    idx=MINUTES.index(obs)
                     def ret(h):
-                        if idx-h<0:
+                        if feature_idx-h<0:
                             return None
-                        p0=prices.get(MINUTES[idx-h])
+                        p0=prices.get(MINUTES[feature_idx-h])
                         return price/p0-1.0 if p0 and p0>0 else None
                     o=outcomes.get(obs) or {}
                     batch.append((
-                        symbol,exchange,day,obs,price,session_open,prior_close,dr,vols.get(obs),
+                        symbol,exchange,day,obs,price,session_open,prior_close,dr,vols.get(feature_label),
                         ret(1),ret(3),ret(5),ret(10),
                         n(o.get("entry")),n(o.get("exit_30m")),n(o.get("exit_60m")),n(o.get("session_close")),
                         n(o.get("high_30m")),n(o.get("low_30m")),n(o.get("high_60m")),n(o.get("low_60m")),
