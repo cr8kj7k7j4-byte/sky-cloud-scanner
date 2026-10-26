@@ -14,7 +14,7 @@ permissions:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -35,10 +35,11 @@ jobs:
           python research/probe_fugle_pit_intraday_coverage.py \
             --pit-snapshot research_output_pit/official_universe_snapshot.json \
             --as-of 2026-09-30 \
+            --audit-dates "2023-12-31,2024-12-31,2025-12-31,2026-09-30" \
             --from-date 2026-09-01 \
             --to-date 2026-09-30 \
-            --per-exchange 20 \
-            --historical-closed-n 10 \
+            --per-exchange 30 \
+            --historical-closed-n 40 \
             --out research_output_pit/fugle_pit_coverage_probe.json
       - name: Publish summary
         if: always()
@@ -48,11 +49,18 @@ jobs:
           import json
           p=json.load(open("research_output_pit/fugle_pit_coverage_probe.json",encoding="utf-8"))
           print("## W3A Fugle PIT Coverage Probe")
+          print(f"- Contract: {p['probe_contract']}")
           print(f"- Sample: {p['sample_n']}")
-          print(f"- Active OK share: {p['active_ok_share']:.1%}")
-          print(f"- Historical-closed OK share: {p['historical_closed_ok_share']:.1%}")
+          print(f"- Overall OK share: {p['overall_ok_share']:.1%}")
+          hc = p.get('historical_closed_ok_share')
+          print(f"- Historical-closed OK share: {hc:.1%}" if hc is not None else "- Historical-closed OK share: n/a")
+          for d, row in p.get('by_audit_date', {}).items():
+              print(f"- {d}: {row['ok_n']}/{row['sample_n']} = {row['ok_share']:.1%}")
+              for exch, ex in row.get('by_exchange', {}).items():
+                  if ex.get('sample_n'):
+                      print(f"  - {exch}: {ex['ok_n']}/{ex['sample_n']} = {ex['ok_share']:.1%}")
           print(f"- Status counts: {p['status_counts']}")
-          print("- Feasibility probe only; not promotion-grade coverage evidence.")
+          print("- Stratified feasibility/stress probe only; not yet formal whole-universe coverage evidence.")
           PY
           fi
       - name: Upload probe artifact
