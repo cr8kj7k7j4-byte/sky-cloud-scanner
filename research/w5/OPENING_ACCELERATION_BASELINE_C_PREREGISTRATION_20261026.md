@@ -53,11 +53,17 @@ If the 1-minute data gate fails, Baseline C remains DATA_BLOCKED.
 
 ## 4. Observation window
 
-Primary opening window:
-- 09:01 through 09:15, inclusive;
-- every completed minute.
+Primary decision-clock window:
+- 09:01 through 09:15, inclusive.
 
-09:00 is initialization only because no completed 1-minute bar exists yet.
+Causal candle convention:
+- Fugle minute-candle timestamp is treated as the bar start label.
+- At decision clock 09:01, only the completed 09:00 bar may be used.
+- At decision clock t, features use the bar labeled t-1 minute.
+- The entry proxy is the open of the bar labeled t.
+- Therefore no same-minute close is visible before its bar completes.
+
+09:00 is initialization; the first actionable decision clock is 09:01.
 
 ## 5. Universe and causal price
 
@@ -158,11 +164,11 @@ No alternative Top-N search after outcome visibility.
 
 ## 12. Entry and outcomes
 
-Decision at completed minute t.
-Entry proxy:
-- open of the next 1-minute bar t+1 minute.
+At decision clock t:
+- feature bar = completed 1-minute candle labeled t-1 minute;
+- entry proxy = open of the 1-minute candle labeled t.
 
-The decision bar is never used as an entry bar.
+The entry bar is never used in decision features.
 
 Outcome horizons are all reported, but the primary economic decision metric uses 60 minutes:
 - 30-minute exit
