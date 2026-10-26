@@ -162,7 +162,36 @@ At each minute:
 
 No alternative Top-N search after outcome visibility.
 
-## 12. Entry and outcomes
+## 12. Frozen 4-Tick entry zone
+
+All entries must be decided within the first 15 minutes after the open.
+
+For a selected candidate:
+- legal entry zone is strictly above session open;
+- maximum acceptable entry price = the 4th legal exchange tick above session open;
+- if the next executable entry proxy is above that 4th tick, the trade is rejected as MISSED / NO_CHASE;
+- if the entry proxy is at or below session open, no long entry is allowed;
+- no later re-entry after the 09:15 decision-clock boundary.
+
+Tick ladder is calculated sequentially using the Taiwan equity price-step schedule:
+- < 10: 0.01
+- 10 to < 50: 0.05
+- 50 to < 100: 0.10
+- 100 to < 500: 0.50
+- 500 to < 1000: 1.00
+- >= 1000: 5.00
+
+Cross-band movement is calculated one legal tick at a time rather than multiplying the opening-band tick size by four.
+
+Historical execution proxy:
+- candidate is chosen causally at decision clock t using completed information through t-1;
+- entry proxy is the open of the 1-minute candle labeled t;
+- entry occurs only if that proxy lies in (session_open, fourth_tick_above_open];
+- otherwise outcome status is NO_ENTRY_OPEN_ZONE or MISSED_4TICK_NO_CHASE.
+
+This is frozen before Baseline C historical strategy outcomes are observed.
+
+## 13. Entry and outcomes
 
 At decision clock t:
 - feature bar = completed 1-minute candle labeled t-1 minute;
@@ -184,14 +213,14 @@ Also record:
 
 No stop/target optimization in Baseline C.
 
-## 13. Cost model
+## 14. Cost model
 
 Primary round trip: 0.45%.
 Stress: 0.65%.
 
 A gross-positive / after-cost-negative result fails.
 
-## 14. Validation
+## 15. Validation
 
 Chronological reporting:
 - DEVELOPMENT: 2023-05-23 through 2024-12-31
@@ -209,7 +238,7 @@ Required:
 - market-regime breakdown where canonical regime data are available;
 - 0.45% and 0.65% costs.
 
-## 15. Ablation plan
+## 16. Ablation plan
 
 Run frozen remove-one ablations only after Baseline C:
 1. remove opening-price gate;
@@ -220,7 +249,7 @@ Run frozen remove-one ablations only after Baseline C:
 
 No threshold retuning inside ablations.
 
-## 16. Decision rule
+## 17. Decision rule
 
 PROMOTE_CANDIDATE only if:
 - primary 60m 0.45% after-cost expectancy > 0;

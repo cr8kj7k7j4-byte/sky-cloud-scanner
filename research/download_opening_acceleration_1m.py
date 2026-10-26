@@ -15,6 +15,30 @@ from research.download_pit_universe_intraday import (
 )
 
 TAIPEI = timezone(timedelta(hours=8))
+
+def tick_size(price: float) -> float:
+    if price < 10:
+        return 0.01
+    if price < 50:
+        return 0.05
+    if price < 100:
+        return 0.10
+    if price < 500:
+        return 0.50
+    if price < 1000:
+        return 1.00
+    return 5.00
+
+def next_tick(price: float) -> float:
+    step = tick_size(price + 1e-12)
+    return round(price + step, 2)
+
+def fourth_tick_above(price: float) -> float:
+    x = float(price)
+    for _ in range(4):
+        x = next_tick(x)
+    return x
+
 DECISION_TIMES = [f"09:{m:02d}" for m in range(1, 16)]
 KEEP_END = dtime(9, 14)
 
@@ -81,7 +105,37 @@ def compact_chunk(data: list[dict]) -> list[dict]:
             if not future:
                 continue
 
-            row = {"entry": entry}
+            max_entry_4tick = fourth_tick_above(session_open)
+            entry_zone_ok = bool(session_open < entry <= max_entry_4tick)
+            row = {
+                "entry": entry if entry_zone_ok else None,
+                "raw_entry_open": entry,
+                "max_entry_4tick": max_entry_4tick,
+                "entry_zone_ok": entry_zone_ok,
+                "entry_status": (
+                    "ENTRY_4TICK_ZONE"
+                    if entry_zone_ok
+                    else ("NO_ENTRY_OPEN_ZONE" if entry <= session_open else "MISSED_4TICK_NO_CHASE")
+                ),
+            }
+            if not entry_zone_ok:
+                outcomes[hhmm] = row
+                continue
+            entry = row["entry"]
+
+            stop_ts = None
+            stop_fill = None
+            for ts, b in future:
+                lo = num(b.get("low"))
+                op = num(b.get("open"))
+                if lo is not None and lo < session_open:
+                    stop_ts = ts
+                    stop_fill = min(session_open, op) if op is not None else session_open
+                    break
+            row["open_stop_triggered"] = stop_ts is not None
+            row["open_stop_time"] = stop_ts.strftime("%H:%M") if stop_ts is not None else None
+            row["open_stop_fill"] = stop_fill
+
             for horizon in (30, 60):
                 exit_dt = decision_dt + timedelta(minutes=horizon - 1)
                 window = [(ts, b) for ts, b in future if ts <= exit_dt]
@@ -94,6 +148,12 @@ def compact_chunk(data: list[dict]) -> list[dict]:
                     row[f"exit_{horizon}m"] = num(exit_row[1].get("close"))
                     row[f"high_{horizon}m"] = max(highs) if highs else None
                     row[f"low_{horizon}m"] = min(lows) if lows else None
+                    if stop_ts is not None and stop_ts <= exit_dt:
+                        row[f"stop_aware_exit_{horizon}m"] = stop_fill
+                        row[f"stop_hit_within_{horizon}m"] = True
+                    else:
+                        row[f"stop_aware_exit_{horizon}m"] = row[f"exit_{horizon}m"]
+                        row[f"stop_hit_within_{horizon}m"] = False
 
             highs = [num(b.get("high")) for _, b in future]
             lows = [num(b.get("low")) for _, b in future]
@@ -134,7 +194,7 @@ def download_symbol(item: dict, start: date, end: date, out_dir: Path) -> dict:
     symbol_dir.mkdir(parents=True, exist_ok=True)
     payload = {
         **item,
-        "schema_version": "OPENING_ACCELERATION_1M_COMPACT_V1_0",
+        "schema_version": "OPENING_ACCELERATION_1M_COMPACT_V1_1_4TICK_STOP",
         "timeframe": "1",
         "from": start.isoformat(),
         "to": end.isoformat(),
