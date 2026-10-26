@@ -14,9 +14,9 @@ permissions:
   contents: read
 
 jobs:
-  test-and-backtest:
+  backtest:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 120
     env:
       PYTHONPATH: .
     steps:
@@ -26,29 +26,29 @@ jobs:
           python-version: "3.12"
       - name: Unit test Baseline D
         run: python tests/test_opening_retest_reclaim_baseline_d.py
-      - name: Reuse Jan-Oct22 whole-market PIT 1m shards
+      - name: Download frozen source shards from run 40267006806
         uses: actions/download-artifact@v4
         with:
           github-token: ${{ github.token }}
           run-id: 40267006806
-          pattern: opening-accel-2026-jan-oct22-shard-*
+          pattern: opening-accel-2026-jan-oct22-shard-*-40267006806
           path: opening_data
       - name: Run Baseline D
         run: |
           python research/backtest_opening_retest_reclaim_baseline_d.py \
             --data-root opening_data \
             --source-run-id 40267006806 \
-            --out-dir research_output/opening_retest_reclaim_baseline_d
-      - name: Publish result
+            --out-dir research_output/opening_retest_reclaim_baseline_d_2026_jan_oct22
+      - name: Publish summary
         if: always()
         run: |
-          if [ -f research_output/opening_retest_reclaim_baseline_d/opening_retest_reclaim_baseline_d_report.md ]; then
-            cat research_output/opening_retest_reclaim_baseline_d/opening_retest_reclaim_baseline_d_report.md >> "$GITHUB_STEP_SUMMARY"
+          if [ -f research_output/opening_retest_reclaim_baseline_d_2026_jan_oct22/opening_retest_reclaim_baseline_d_report.md ]; then
+            cat research_output/opening_retest_reclaim_baseline_d_2026_jan_oct22/opening_retest_reclaim_baseline_d_report.md >> "$GITHUB_STEP_SUMMARY"
           fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: opening-retest-reclaim-baseline-d-${{ github.run_id }}
-          path: research_output/opening_retest_reclaim_baseline_d
+          path: research_output/opening_retest_reclaim_baseline_d_2026_jan_oct22
           if-no-files-found: warn
           retention-days: 30
