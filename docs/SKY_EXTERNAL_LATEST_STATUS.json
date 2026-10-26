@@ -1,6 +1,6 @@
 {
   "schema_version": "SKY_EXTERNAL_STATUS_SNAPSHOT_V1_0",
-  "generated_at_utc": "2026-10-26T01:16:27.155741+00:00",
+  "generated_at_utc": "2026-10-26T01:20:17.297800+00:00",
   "source": {
     "dashboard_workflow_run_id": "40230014295",
     "repository": "cr8kj7k7j4-byte/sky-cloud-scanner"
