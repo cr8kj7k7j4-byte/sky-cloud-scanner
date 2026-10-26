@@ -1,0 +1,71 @@
+name: W2 Opening Acceleration Baseline C
+
+on:
+  workflow_run:
+    workflows: ["W3A Opening Acceleration Full 1m PIT Dataset"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: "Successful W3A full 1m dataset run ID"
+        required: true
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  backtest:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Unit tests
+        run: python tests/test_opening_acceleration_baseline_c.py
+      - name: Resolve source run
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "SOURCE_RUN_ID=${{ inputs.source_run_id }}" >> "$GITHUB_ENV"
+          else
+            echo "SOURCE_RUN_ID=${{ github.event.workflow_run.id }}" >> "$GITHUB_ENV"
+          fi
+      - name: Download all compact 1m shards
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+          pattern: opening-acceleration-1m-shard-*-${{ env.SOURCE_RUN_ID }}
+          path: opening_data
+      - name: Run frozen Baseline C and ablations
+        run: |
+          python research/backtest_opening_acceleration_baseline_c.py \
+            --data-root opening_data \
+            --source-run-id "$SOURCE_RUN_ID" \
+            --out-dir research_output/opening_acceleration_baseline_c
+      - name: Publish result
+        if: always()
+        run: |
+          if [ -f research_output/opening_acceleration_baseline_c/opening_acceleration_baseline_c_report.md ]; then
+            cat research_output/opening_acceleration_baseline_c/opening_acceleration_baseline_c_report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Remove working DB
+        if: always()
+        run: rm -f research_output/opening_acceleration_baseline_c/opening_acceleration.sqlite*
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: opening-acceleration-baseline-c-${{ github.run_id }}
+          path: |
+            research_output/opening_acceleration_baseline_c/opening_acceleration_baseline_c_report.json
+            research_output/opening_acceleration_baseline_c/opening_acceleration_baseline_c_report.md
+            research_output/opening_acceleration_baseline_c/opening_acceleration_baseline_c_trades.csv
+          if-no-files-found: warn
+          retention-days: 30
