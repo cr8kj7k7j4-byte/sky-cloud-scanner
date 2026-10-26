@@ -23,7 +23,7 @@ for i in range(80):
 c=dl.compact_chunk(data)
 assert len(c)==1
 d=c[0]
-assert "09:00" in d["bars"] and "09:16" in d["bars"]
+assert "09:00" in d["bars"] and "09:14" in d["bars"] and "09:15" not in d["bars"]
 assert "09:01" in d["outcomes"]
 o=d["outcomes"]["09:01"]
 assert o["entry"]>0 and o["exit_30m"]>0 and o["exit_60m"]>0
