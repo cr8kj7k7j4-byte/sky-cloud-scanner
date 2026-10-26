@@ -54,8 +54,13 @@ def validate_intervals(rows: Iterable[dict]) -> dict:
         for a, b in zip(spans, spans[1:]):
             a_end = _date(a.listed_to) if a.listed_to else date.max
             b_start = _date(b.listed_from)
-            if b_start <= a_end and a.exchange == b.exchange:
-                errors.append(f"overlap:{sym}:{a.exchange}")
+            if b_start <= a_end:
+                if a.exchange == b.exchange:
+                    errors.append(f"overlap:{sym}:{a.exchange}")
+                else:
+                    errors.append(
+                        f"cross_exchange_overlap:{sym}:{a.exchange}:{b.exchange}"
+                    )
 
     return {
         "schema_version": PIT_UNIVERSE_SCHEMA_VERSION,
