@@ -60,3 +60,24 @@ def test_overlapping_same_exchange_intervals_fail():
     out = validate_intervals(bad)
     assert out["valid"] is False
     assert any(x.startswith("overlap:1111") for x in out["errors"])
+
+
+def test_overlapping_cross_exchange_intervals_fail():
+    bad = ROWS + [
+        {
+            "symbol": "4444", "exchange": "TPEx", "name": "TransferCo",
+            "listed_from": "2023-01-01", "listed_to": None,
+            "source": "official",
+        },
+        {
+            "symbol": "4444", "exchange": "TWSE", "name": "TransferCo",
+            "listed_from": "2024-01-01", "listed_to": None,
+            "source": "official",
+        },
+    ]
+    out = validate_intervals(bad)
+    assert out["valid"] is False
+    assert any(
+        x.startswith("cross_exchange_overlap:4444")
+        for x in out["errors"]
+    )
