@@ -34,7 +34,8 @@ Research namespaces:
 |---|---|---|
 | vol20 market-residual relationship | FEATURE_ONLY | P0-F contextual feature; not a standalone long-only trigger. |
 | drawdown20 residual evidence | FEATURE_ONLY | Research evidence only. |
-| market breadth / relative strength | FEATURE_ONLY / CONTEXT | Market and ranking context; not standalone production alpha. |\n| Top100 gainers universe | FEATURE_ONLY / CANDIDATE_POOL | Candidate-universe context only. Frozen Baseline A velocity selector was rejected; Top100 membership alone is not a trade signal. |
+| market breadth / relative strength | FEATURE_ONLY / CONTEXT | Market and ranking context; not standalone production alpha. |
+| Top100 gainers universe | FEATURE_ONLY / CANDIDATE_POOL | Candidate-universe context only. Two independently preregistered Top100 Velocity selector variants failed after cost; Top100 membership alone is not a trade signal. |ndidate-universe context only. Frozen Baseline A velocity selector was rejected; Top100 membership alone is not a trade signal. |
 
 ## Rejected candidate families
 
@@ -47,7 +48,8 @@ Research namespaces:
 | Transparent intraday ML feature ensemble | REJECTED | Negative post-cost Train/Valid/Test performance. |
 | Low-vol market-residual long-only | REJECTED_AS_STRATEGY | Stable IC did not convert into robust tradable long-only edge. |
 | Stage 7A Broader Market Alpha | REJECTED | Pre-registered A1–A5 hypotheses failed stable-positive and cost gates; archived and no further local retuning allowed. |
-| VNext Residual Ranking Baseline v1 | REJECTED | All preregistered 3D/5D/10D × Top3/5/10 variants had negative Validation and Research-Test expectancy after 0.45% cost with PF < 1; do not retune or escalate to nonlinear ML. |\n| Top100 Velocity Baseline A | REJECTED_STANDALONE | n=9,934; gross expectancy -0.0388%, gross PF 0.953; 0.45% expectancy -0.4888%, PF 0.556; all folds and 2023-2026 slices negative. Top100 universe retained as FEATURE_ONLY candidate-pool context. |
+| VNext Residual Ranking Baseline v1 | REJECTED | All preregistered 3D/5D/10D × Top3/5/10 variants had negative Validation and Research-Test expectancy after 0.45% cost with PF < 1; do not retune or escalate to nonlinear ML. |
+| Top100 Velocity Baseline A family | REJECTED_STANDALONE / ARCHIVED_NO_RETUNE | Dual negative evidence: A1 Top3/60m n=9,934, 0.45% expectancy -0.4888%, PF 0.556; A2 top-decile/30m 9,949 signals / 8,685 entries, 0.45% expectancy -0.4285%, PF 0.528, 8/8 half-year folds negative. No local Top-N/time/lookback/weight/holding/stop-target rescue. Top100 universe remains FEATURE_ONLY context. |n=9,934; gross expectancy -0.0388%, gross PF 0.953; 0.45% expectancy -0.4888%, PF 0.556; all folds and 2023-2026 slices negative. Top100 universe retained as FEATURE_ONLY candidate-pool context. |
 
 ## Historical Universe / Survivorship audit
 
