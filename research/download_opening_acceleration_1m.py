@@ -122,6 +122,20 @@ def compact_chunk(data: list[dict]) -> list[dict]:
                 outcomes[hhmm] = row
                 continue
             entry = row["entry"]
+
+            stop_ts = None
+            stop_fill = None
+            for ts, b in future:
+                lo = num(b.get("low"))
+                op = num(b.get("open"))
+                if lo is not None and lo < session_open:
+                    stop_ts = ts
+                    stop_fill = min(session_open, op) if op is not None else session_open
+                    break
+            row["open_stop_triggered"] = stop_ts is not None
+            row["open_stop_time"] = stop_ts.strftime("%H:%M") if stop_ts is not None else None
+            row["open_stop_fill"] = stop_fill
+
             for horizon in (30, 60):
                 exit_dt = decision_dt + timedelta(minutes=horizon - 1)
                 window = [(ts, b) for ts, b in future if ts <= exit_dt]
@@ -134,6 +148,12 @@ def compact_chunk(data: list[dict]) -> list[dict]:
                     row[f"exit_{horizon}m"] = num(exit_row[1].get("close"))
                     row[f"high_{horizon}m"] = max(highs) if highs else None
                     row[f"low_{horizon}m"] = min(lows) if lows else None
+                    if stop_ts is not None and stop_ts <= exit_dt:
+                        row[f"stop_aware_exit_{horizon}m"] = stop_fill
+                        row[f"stop_hit_within_{horizon}m"] = True
+                    else:
+                        row[f"stop_aware_exit_{horizon}m"] = row[f"exit_{horizon}m"]
+                        row[f"stop_hit_within_{horizon}m"] = False
 
             highs = [num(b.get("high")) for _, b in future]
             lows = [num(b.get("low")) for _, b in future]
