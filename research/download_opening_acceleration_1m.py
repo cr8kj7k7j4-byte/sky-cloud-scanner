@@ -16,7 +16,7 @@ from research.download_pit_universe_intraday import (
 
 TAIPEI = timezone(timedelta(hours=8))
 DECISION_TIMES = [f"09:{m:02d}" for m in range(1, 16)]
-KEEP_END = dtime(9, 16)
+KEEP_END = dtime(9, 14)
 
 
 def parse_ts(value: str) -> datetime:
@@ -69,7 +69,7 @@ def compact_chunk(data: list[dict]) -> list[dict]:
         bm = {ts.strftime("%H:%M"): (ts, b) for ts, b in items}
         for hhmm in DECISION_TIMES:
             decision_dt = datetime.fromisoformat(f"{day}T{hhmm}:00").replace(tzinfo=TAIPEI)
-            entry_dt = decision_dt + timedelta(minutes=1)
+            entry_dt = decision_dt
             entry_row = bm.get(entry_dt.strftime("%H:%M"))
             if entry_row is None:
                 continue
@@ -83,7 +83,7 @@ def compact_chunk(data: list[dict]) -> list[dict]:
 
             row = {"entry": entry}
             for horizon in (30, 60):
-                exit_dt = decision_dt + timedelta(minutes=horizon)
+                exit_dt = decision_dt + timedelta(minutes=horizon - 1)
                 window = [(ts, b) for ts, b in future if ts <= exit_dt]
                 exit_row = bm.get(exit_dt.strftime("%H:%M"))
                 if exit_row is not None and window:
