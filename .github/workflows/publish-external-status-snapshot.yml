@@ -40,6 +40,16 @@ jobs:
           gh run download "$RUN_ID" -n shadow-promotion-dashboard -D latest_dashboard
           echo "DASHBOARD_RUN_ID=$RUN_ID" >> "$GITHUB_ENV"
 
+      - name: Preserve previous status for material-change detection
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f docs/SKY_EXTERNAL_LATEST_STATUS.json ]; then
+            cp docs/SKY_EXTERNAL_LATEST_STATUS.json /tmp/sky_previous_status.json
+          else
+            echo '{}' > /tmp/sky_previous_status.json
+          fi
+
       - name: Build stable latest-status snapshot
         shell: bash
         run: |
@@ -107,6 +117,77 @@ jobs:
           ]
           (out / "SKY_EXTERNAL_LATEST_STATUS.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
           PY
+
+      - name: Detect material status change
+        id: material
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          def load(path):
+              try:
+                  return json.loads(Path(path).read_text(encoding="utf-8"))
+              except Exception:
+                  return {}
+
+          old=load("/tmp/sky_previous_status.json")
+          new=load("docs/SKY_EXTERNAL_LATEST_STATUS.json")
+
+          od=old.get("w4_dashboard") or {}
+          nd=new.get("w4_dashboard") or {}
+
+          old_stage=od.get("stage")
+          new_stage=nd.get("stage")
+          old_pipe=(od.get("pipeline_readiness") or {}).get("status")
+          new_pipe=(nd.get("pipeline_readiness") or {}).get("status")
+          old_prom=(od.get("promotion_scorecard") or {}).get("promotable_to_governance_review")
+          new_prom=(nd.get("promotion_scorecard") or {}).get("promotable_to_governance_review")
+          old_suff=(od.get("sample_sufficiency") or {}).get("sufficient")
+          new_suff=(nd.get("sample_sufficiency") or {}).get("sufficient")
+          old_samples=((od.get("sample_sufficiency") or {}).get("observed") or {}).get("samples",0)
+          new_samples=((nd.get("sample_sufficiency") or {}).get("observed") or {}).get("samples",0)
+
+          unhealthy={"PIPELINE_ARTIFACT_MISSING","PIPELINE_RECORDS_MISSING","EVIDENCE_INCOMPLETE","FAILED"}
+          reasons=[]
+          if old_stage != new_stage and old_stage is not None:
+              reasons.append(f"W4 stage: {old_stage} -> {new_stage}")
+          if old_pipe != new_pipe and (new_pipe in unhealthy or old_pipe in unhealthy):
+              reasons.append(f"Pipeline: {old_pipe} -> {new_pipe}")
+          if old_prom is not True and new_prom is True:
+              reasons.append("Promotion governance review gate reached")
+          if old_suff is not True and new_suff is True:
+              reasons.append("W4 sample sufficiency gate reached")
+
+          material=bool(reasons)
+          Path("/tmp/sky_material_message.txt").write_text(
+              "Sky 外部監控重大更新\n"
+              + ("\n".join(f"- {x}" for x in reasons) if reasons else "No material change")
+              + f"\n- Samples: {old_samples} -> {new_samples}"
+              + "\n- Source: docs/SKY_EXTERNAL_LATEST_STATUS.json",
+              encoding="utf-8"
+          )
+          with open(os.environ["GITHUB_OUTPUT"],"a",encoding="utf-8") as fh:
+              fh.write(f"material={'true' if material else 'false'}\n")
+          print({"material":material,"reasons":reasons,"samples":new_samples})
+          PY
+
+      - name: Telegram major-change notification
+        if: steps.material.outputs.material == 'true'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${TELEGRAM_BOT_TOKEN:-}" ] || [ -z "${TELEGRAM_CHAT_ID:-}" ]; then
+            echo "Telegram secrets not configured; material status remains recorded in GitHub."
+            exit 0
+          fi
+          MSG="$(cat /tmp/sky_material_message.txt)"
+          curl --fail --silent --show-error             --retry 3             -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage"             -H "Content-Type: application/json"             --data "$(python -c 'import json,os; print(json.dumps({"chat_id":os.environ["TELEGRAM_CHAT_ID"],"text":open("/tmp/sky_material_message.txt",encoding="utf-8").read(),"disable_web_page_preview":True},ensure_ascii=False))')"
 
       - name: Commit snapshot when changed
         shell: bash
