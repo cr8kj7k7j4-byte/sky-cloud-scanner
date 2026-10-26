@@ -274,3 +274,29 @@ def test_cross_exchange_transfer_closes_source_interval_before_destination_list(
         x.get("type") == "CROSS_EXCHANGE_TRANSFER_RECONCILED"
         for x in out["annotations"]
     )
+
+
+def test_pre_window_cross_exchange_transfer_removes_old_board_membership():
+    events = [
+        {
+            "symbol": "1597", "exchange": "TPEx", "name": "X",
+            "event_type": "LIST", "event_date": "2013-08-20",
+            "source_as_of": "2026-10-26",
+        },
+        {
+            "symbol": "1597", "exchange": "TWSE", "name": "X",
+            "event_type": "LIST", "event_date": "2019-08-15",
+            "source_as_of": "2026-10-26",
+        },
+    ]
+    out = build_windowed_intervals(events, window_start="2023-01-01")
+    rows = out["intervals"]
+    assert len(rows) == 1
+    assert rows[0]["exchange"] == "TWSE"
+    assert rows[0]["listed_from"] == "2023-01-01"
+    assert rows[0]["listed_to"] is None
+    assert any(
+        x.get("type") == "CROSS_EXCHANGE_TRANSFER_RECONCILED"
+        and x.get("resolution") == "SOURCE_INTERVAL_REMOVED_BEFORE_WINDOW"
+        for x in out["annotations"]
+    )
