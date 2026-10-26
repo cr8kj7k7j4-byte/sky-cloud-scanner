@@ -271,7 +271,7 @@ def enrich_rows(conn: sqlite3.Connection) -> list[dict]:
     return out
 
 
-def select_variant(rows: list[dict], *, remove_open=False, remove_fresh=False,
+def select_variant(rows: list[dict], *, remove_open=False, add_legacy_top100_fresh=False,
                    remove_rank=False, remove_return=False, remove_volume=False) -> list[dict]:
     by_group=defaultdict(list)
     for d0 in rows:
@@ -280,6 +280,10 @@ def select_variant(rows: list[dict], *, remove_open=False, remove_fresh=False,
             continue
         if not remove_open:
             if d.get("session_open") is None or d["price"]<=d["session_open"]:
+                continue
+        if add_legacy_top100_fresh:
+            m=d.get("minutes_since_top100_entry")
+            if d.get("gain_rank") is None or d["gain_rank"]>100 or m is None or m<0 or m>3:
                 continue
         if not remove_rank:
             if d.get("rank_velocity_1m") is None or d["rank_velocity_1m"]<=0:
@@ -446,7 +450,7 @@ def run(data_root: str, out_dir: str, source_run_id: str|None=None):
 
     ab_specs={
       "REMOVE_OPEN_GATE":{"remove_open":True},
-      "REMOVE_FRESH_ENTRY":{"remove_fresh":True},
+      "ADD_LEGACY_TOP100_FRESH":{"add_legacy_top100_fresh":True},
       "REMOVE_RANK_VELOCITY":{"remove_rank":True},
       "REMOVE_RETURN_ACCELERATION":{"remove_return":True},
       "REMOVE_VOLUME_ACCELERATION":{"remove_volume":True},
