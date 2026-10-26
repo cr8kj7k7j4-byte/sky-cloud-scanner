@@ -14,7 +14,7 @@ PRICE_CAP = 100.0
 DAY_RETURN_CAP = 0.095
 MINUTES = [f"09:{m:02d}" for m in range(0, 16)]
 TRADE_MINUTES = [f"09:{m:02d}" for m in range(1, 16)]
-SCHEMA_VERSION = "OPENING_ACCELERATION_BASELINE_C_V1_0"
+SCHEMA_VERSION = "OPENING_ACCELERATION_BASELINE_C_WHOLE_MARKET_V1_1"
 
 
 def n(v):
@@ -174,7 +174,7 @@ def build_snapshot_db(data_root: str, db_path: str) -> dict:
                 if session_close and session_close>0:
                     prior_close=session_close
             if batch:
-                conn.executemany("INSERT INTO snapshots VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",batch)
+                conn.executemany("INSERT INTO snapshots VALUES (" + ",".join(["?"] * 33) + ")",batch)
                 rows+=len(batch)
                 symbols.add(symbol)
             if i%100==0:
@@ -199,7 +199,7 @@ def build_snapshot_db(data_root: str, db_path: str) -> dict:
     conn.execute("CREATE INDEX idx_rank_symbol_day_obs ON ranked(symbol,session_date,obs)")
     conn.commit()
 
-    # Add causal rank lags and first Top100 entry minute.
+    # Add causal rank lags; Top100 entry remains diagnostic only, not an eligibility gate.
     conn.execute("""
     CREATE TABLE features AS
     SELECT c.*,
@@ -277,16 +277,10 @@ def select_variant(rows: list[dict], *, remove_open=False, remove_fresh=False,
     by_group=defaultdict(list)
     for d0 in rows:
         d=dict(d0)
-        if d["gain_rank"]>100:
-            continue
         if d.get("entry_status") != "ENTRY_4TICK_ZONE" or not d.get("entry"):
             continue
         if not remove_open:
             if d.get("session_open") is None or d["price"]<=d["session_open"]:
-                continue
-        if not remove_fresh:
-            m=d.get("minutes_since_top100_entry")
-            if m is None or m<0 or m>3:
                 continue
         if not remove_rank:
             if d.get("rank_velocity_1m") is None or d["rank_velocity_1m"]<=0:
