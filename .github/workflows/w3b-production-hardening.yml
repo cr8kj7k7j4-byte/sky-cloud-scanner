@@ -14,6 +14,9 @@ on:
       - "PRODUCTION_E2E_ACCEPTANCE.md"
       - "docs/W3B_**"
   workflow_dispatch:
+  schedule:
+    - cron: "10 17 * * 1-5"
+      timezone: "Asia/Taipei"
 
 permissions:
   contents: read
