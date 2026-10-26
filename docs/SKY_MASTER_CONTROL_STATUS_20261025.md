@@ -339,3 +339,45 @@ This probe is feasibility evidence only. It cannot authorize W2 validation, form
 ### Prepared fallback
 - The probe script and acquisition plan are committed and can run unchanged on any environment with Python + requests + `FUGLE_API_KEY`.
 - If GitHub-hosted Actions remains unavailable, execution may be moved to an already-authorized runtime (e.g. existing Cloud/production environment) only if no new credential, paid service, or irreversible deployment is required.
+
+
+## P. Automated Recovery Update — 2026-10-26
+
+### Recovery result
+- Core CI / governance / runtime tests: **HEALTHY**.
+- Sky Premarket Intelligence scheduled run: **SUCCESS**.
+- W3B production hardening and canonical P0-C / P0-R / P0-O / PMS / P0-L / P0-G checks: **SUCCESS**.
+- W1 Swing W3 Data Handoff Gate: **SUCCESS** after artifact repair.
+- Failed Swing PIT shard from run #40252311154 has been re-run as attempt 2; this is cleanup only and does not change strategy status.
+- The earlier repository-wide GitHub Actions queue condition is no longer classified as a global outage because newer scheduled and PR workflows are executing successfully.
+
+### Normal-operation classification
+- Production baseline remains **ACTIVE / UNCHANGED**.
+- No Production strategy semantics changed during recovery.
+- W4 current state is **WAITING_FOR_FIRST_ELIGIBLE_SCAN / HEALTHY**, not a system failure. Zero eligible forward samples is a sample-timing state, not an outage.
+- W2 historical v1.4 full-rule replay remains intentionally closed because provenance is insufficient. This is a governance constraint, not an operational incident.
+- W3A whole-universe historical intraday coverage remains a data-coverage blocker. Zero-new-spend paths must be exhausted before any paid acquisition request.
+
+### Canonical operating path after recovery
+1. Intraday scheduled scans / Shadow snapshots.
+2. Same-day outcome completion.
+3. W6 forward execution evidence.
+4. W4 sample-sufficiency dashboard.
+5. P0-R forward risk evidence.
+6. W3B runtime hardening / E2E.
+7. W0 / P0-G governance review.
+
+### Human action
+No immediate user action is required.
+User intervention remains required only for:
+- paid data acquisition;
+- new external credentials/accounts;
+- irreversible Production changes;
+- real-capital activation;
+- user-specific 1R / max-position settings.
+
+### Do-not-do
+- Do not restart historical v1.4 rule reconstruction by inference.
+- Do not treat zero W4 forward samples as an outage.
+- Do not buy broker-flow / TWSE / TPEx historical products until existing free/authorized acquisition paths are exhausted.
+- Do not add new broad workstreams while forward evidence accumulation is the critical path.
