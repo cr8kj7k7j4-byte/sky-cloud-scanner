@@ -1,9 +1,11 @@
-name: W3 Swing PIT Recombine Repair
+name: W3 Swing PIT Artifact Repair
 
 on:
   push:
     branches: [engineering/w3-swing-pit-price-20261025]
     paths:
+      - "research/repair_swing_pit_history.py"
+      - "tests/test_repair_swing_pit_history.py"
       - ".github/workflows/w3-swing-pit-recombine.yml"
   workflow_dispatch:
 
@@ -11,13 +13,20 @@ permissions:
   actions: read
   contents: write
 
+concurrency:
+  group: w3-swing-pit-artifact-repair
+  cancel-in-progress: true
+
 jobs:
-  recombine-and-audit:
+  repair-and-audit:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
       PYTHONPATH: .
-      SOURCE_RUN_ID: "40194690718"
+      PRIMARY_RUN_ID: "40251277897"
+      FALLBACK_RUN_ID: "40230254227"
+      PRIMARY_ARTIFACT: "swing-canonical-pit-daily-40251277897"
+      FALLBACK_ARTIFACT: "swing-canonical-pit-daily-40230254227"
     steps:
       - uses: actions/checkout@v4
 
@@ -25,79 +34,108 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Download canonical PIT from successful source run
-        uses: dawidd6/action-download-artifact@v11
-        with:
-          run_id: ${{ env.SOURCE_RUN_ID }}
-          name: swing-canonical-pit
-          path: canonical_pit
-          search_artifacts: true
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install test dependency
+        run: pip install pytest
 
-      - name: Download all successful price shards
-        uses: dawidd6/action-download-artifact@v11
-        with:
-          run_id: ${{ env.SOURCE_RUN_ID }}
-          name_is_regexp: true
-          name: swing-pit-shard-.*
-          path: canonical_history_raw
-          search_artifacts: true
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Validate repair logic
+        run: python -m pytest -q tests/test_repair_swing_pit_history.py tests/test_swing_pit_price_coverage.py tests/test_swing_pit_readiness.py
 
-      - name: Normalize artifact layout
+      - name: Download Run 67 primary canonical bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.PRIMARY_ARTIFACT }}
+          path: primary_bundle
+          repository: cr8kj7k7j4-byte/sky-cloud-scanner
+          run-id: ${{ env.PRIMARY_RUN_ID }}
+          github-token: ${{ github.token }}
+
+      - name: Download Run 59 fallback canonical bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.FALLBACK_ARTIFACT }}
+          path: fallback_bundle
+          repository: cr8kj7k7j4-byte/sky-cloud-scanner
+          run-id: ${{ env.FALLBACK_RUN_ID }}
+          github-token: ${{ github.token }}
+
+      - name: Validate source bundle layout
         run: |
-          mkdir -p canonical_history/history
-          find canonical_history_raw -type f -name '*_D.json' -exec cp {} canonical_history/history/ \;
-          find canonical_history_raw -type f -name 'shard_report_*.json' -exec cp {} canonical_history/ \;
-          DAILY=$(find canonical_history/history -type f -name '*_D.json' | wc -l)
-          REPORTS=$(find canonical_history -type f -name 'shard_report_*.json' | wc -l)
-          echo "Daily JSON files: $DAILY"
-          echo "Shard reports: $REPORTS"
-          test "$REPORTS" -eq 16
-          test "$DAILY" -gt 0
+          test -f primary_bundle/canonical_pit/pit_intervals.json
+          test -d primary_bundle/canonical_history_flat/history
+          test -d fallback_bundle/canonical_history_flat/history
+          echo "Primary files: $(find primary_bundle/canonical_history_flat/history -name '*_D.json' | wc -l)"
+          echo "Fallback files: $(find fallback_bundle/canonical_history_flat/history -name '*_D.json' | wc -l)"
 
-      - name: Run coverage and missingness audit
+      - name: Repair missing raw history with fresh PIT remap
+        run: >
+          python research/repair_swing_pit_history.py
+          --primary-history primary_bundle/canonical_history_flat/history
+          --fallback-history fallback_bundle/canonical_history_flat/history
+          --pit-json primary_bundle/canonical_pit/pit_intervals.json
+          --out-history repaired_history
+          --report repaired_audit/repair_report.json
+
+      - name: Run repaired coverage audit
         run: >
           python research/audit_swing_pit_price_coverage.py
-          --history-dir canonical_history/history
-          --pit-json canonical_pit/pit_intervals.json
-          --out canonical_audit
+          --history-dir repaired_history
+          --pit-json primary_bundle/canonical_pit/pit_intervals.json
+          --out repaired_audit
 
-      - name: Run W1 registered readiness gate
+      - name: Run W1 repaired readiness validator
         run: >
           python research/validate_swing_pit_readiness.py
-          --history-dir canonical_history/history
-          --pit-json canonical_pit/pit_intervals.json
+          --history-dir repaired_history
+          --pit-json primary_bundle/canonical_pit/pit_intervals.json
           --out w1_readiness
 
-      - name: Build reproducible manifest
+      - name: Enforce repaired data-readiness gate
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          coverage=json.loads(Path("repaired_audit/coverage_report.json").read_text(encoding="utf-8"))
+          readiness=json.loads(Path("w1_readiness/swing_pit_readiness.json").read_text(encoding="utf-8"))
+          repair=json.loads(Path("repaired_audit/repair_report.json").read_text(encoding="utf-8"))
+          print({
+            "coverage_status":coverage.get("status"),
+            "w1_status":readiness.get("status"),
+            "repaired_symbols":repair.get("repaired_symbols"),
+            "final_files":repair.get("final_files"),
+          })
+          assert coverage.get("status") == "READY_FOR_W1_CANONICAL_REPLAY"
+          assert readiness.get("status") == "READY_FOR_CANONICAL_SWING_REPLAY"
+          PY
+
+      - name: Build reproducible repair manifest
         run: |
           python - <<'PY'
           import hashlib,json
           from pathlib import Path
-          files=sorted(Path("canonical_history/history").glob("*_D.json"))
+          files=sorted(Path("repaired_history").glob("*_D.json"))
           manifest={
-            "schema_version":"SWING_PIT_DAILY_MANIFEST_1.0",
-            "source_run_id":"40194690718",
+            "schema_version":"SWING_PIT_DAILY_REPAIRED_MANIFEST_1.0",
+            "primary_run_id":40251277897,
+            "fallback_run_id":40230254227,
+            "repair_method":"REUSE_RAW_HISTORY_REMAP_FRESH_PIT_V1",
+            "new_api_calls":0,
             "files":len(files),
             "sha256":{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in files},
           }
-          Path("canonical_audit").mkdir(exist_ok=True)
-          Path("canonical_audit/manifest.json").write_text(
+          Path("repaired_audit/manifest.json").write_text(
             json.dumps(manifest,ensure_ascii=False,indent=2),encoding="utf-8"
           )
           PY
 
-      - name: Upload canonical daily PIT dataset
-        id: upload
+      - name: Upload repaired canonical daily PIT dataset
         uses: actions/upload-artifact@v4
         with:
-          name: w3-swing-canonical-daily-history
+          name: w3-swing-canonical-daily-history-repaired-${{ github.run_id }}
           path: |
-            canonical_history/history/
-            canonical_audit/
+            repaired_history/
+            repaired_audit/
             w1_readiness/
-            canonical_pit/pit_intervals.json
+            primary_bundle/canonical_pit/pit_intervals.json
           retention-days: 90
           compression-level: 9
 
@@ -108,11 +146,12 @@ jobs:
         run: |
           python - <<'PY'
           import json, os, urllib.request
+          artifact=f"w3-swing-canonical-daily-history-repaired-{os.environ['GITHUB_RUN_ID']}"
           payload=json.dumps({
             "event_type":"w3_swing_data_ready",
             "client_payload":{
               "run_id":os.environ["GITHUB_RUN_ID"],
-              "artifact_name":"w3-swing-canonical-daily-history"
+              "artifact_name":artifact
             }
           }).encode()
           req=urllib.request.Request(
