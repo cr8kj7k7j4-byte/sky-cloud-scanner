@@ -1,0 +1,112 @@
+name: W3A Opening Acceleration 2026 Jan-Sep 1m PIT Dataset
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/w3a-opening-acceleration-2026-jan-sep.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests beautifulsoup4
+      - run: python research/audit_historical_universe.py --out output/historical_universe_audit
+      - name: Require PIT gate
+        run: |
+          python - <<'PY'
+          import json
+          x=json.load(open("output/historical_universe_audit/audit.json",encoding="utf-8"))
+          assert x["historical_universe_gate_pass"],x
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: opening-accel-2026-jan-sep-pit-universe-${{ github.run_id }}
+          path: output/historical_universe_audit/pit_intervals.json
+          retention-days: 14
+
+  download:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        shard_index: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
+    env:
+      PYTHONPATH: .
+      FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests
+      - uses: actions/download-artifact@v4
+        with:
+          name: opening-accel-2026-jan-sep-pit-universe-${{ github.run_id }}
+          path: input
+      - name: Download Jan-Sep 2026 1m shard
+        run: |
+          python research/download_opening_acceleration_1m.py \
+            --pit-intervals input/pit_intervals.json \
+            --from-date "2026-01-01" \
+            --to-date "2026-09-30" \
+            --shard-count "20" \
+            --shard-index "${{ matrix.shard_index }}" \
+            --out "research_data/opening_1m_2026_jan_sep_${{ matrix.shard_index }}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: opening-accel-2026-jan-sep-shard-${{ matrix.shard_index }}-${{ github.run_id }}
+          path: research_data/opening_1m_2026_jan_sep_${{ matrix.shard_index }}
+          if-no-files-found: error
+          retention-days: 14
+
+  backtest:
+    needs: [prepare,download]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: opening-accel-2026-jan-sep-shard-*-${{ github.run_id }}
+          path: opening_data
+      - name: Run 2026 Jan-Sep Baseline C
+        run: |
+          python research/backtest_opening_acceleration_baseline_c.py \
+            --data-root opening_data \
+            --source-run-id "${{ github.run_id }}" \
+            --out-dir research_output/opening_acceleration_baseline_c_2026_jan_sep
+      - name: Publish result
+        if: always()
+        run: |
+          if [ -f research_output/opening_acceleration_baseline_c_2026_jan_sep/opening_acceleration_baseline_c_report.md ]; then
+            cat research_output/opening_acceleration_baseline_c_2026_jan_sep/opening_acceleration_baseline_c_report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: opening-accel-2026-jan-sep-result-${{ github.run_id }}
+          path: research_output/opening_acceleration_baseline_c_2026_jan_sep
+          if-no-files-found: warn
+          retention-days: 30
