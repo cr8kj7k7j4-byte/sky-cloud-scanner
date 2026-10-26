@@ -2,6 +2,10 @@ name: W3A Sharded PIT Intraday History Export
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/w3a-sharded-pit-history-export.yml"
 
 permissions:
   contents: read
@@ -32,7 +36,7 @@ jobs:
           if not x.get("historical_universe_gate_pass"):
               raise SystemExit("PIT historical universe gate is not PASS")
           PY
-          python research/build_pit_history_manifest.py             --pit-universe output/historical_universe_audit/pit_intervals.json             --from-date 2023-01-01             --to-date 2026-10-24             --out research_data/pit_history_manifest.json
+          python research/build_pit_history_manifest.py             --pit-universe output/historical_universe_audit/pit_intervals.json             --from-date 2023-05-23             --to-date 2026-10-24             --out research_data/pit_history_manifest.json
           python research/shard_pit_history_manifest.py             --manifest research_data/pit_history_manifest.json             --shard-count 8             --out-dir research_data/pit_history_shards
       - id: meta
         run: echo "shard_count=8" >> "$GITHUB_OUTPUT"
