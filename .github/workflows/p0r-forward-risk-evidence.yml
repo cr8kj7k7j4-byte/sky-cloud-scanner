@@ -1,0 +1,171 @@
+name: P0-R Forward Risk Evidence
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "50 16 * * 1-5"
+      timezone: "Asia/Taipei"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  validate-forward-risk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt pytest
+
+      - name: Compile
+        run: python -m compileall -q src tests research
+
+      - name: P0-R unit and integration tests
+        run: |
+          PYTHONPATH=. pytest -q \
+            tests/test_risk_engine.py \
+            tests/test_position_manager.py \
+            tests/test_p0l_canonical_ledger.py \
+            tests/test_production_e2e_acceptance.py
+
+      - name: Download latest W4 dashboard
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p upstream/w4
+          run_id="$(gh run list \
+            --workflow shadow-promotion-dashboard.yml \
+            --status success \
+            --limit 1 \
+            --json databaseId \
+            --jq '.[0].databaseId // empty')"
+          if [ -n "$run_id" ]; then
+            gh run download "$run_id" \
+              -n shadow-promotion-dashboard \
+              -D upstream/w4 || true
+          fi
+
+      - name: Download latest W6 execution evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p upstream/w6
+          run_id="$(gh run list \
+            --workflow w6-forward-execution-evidence.yml \
+            --status success \
+            --limit 1 \
+            --json databaseId \
+            --jq '.[0].databaseId // empty')"
+          if [ -n "$run_id" ]; then
+            gh run download "$run_id" \
+              -n w6-forward-execution-evidence \
+              -D upstream/w6 || true
+          fi
+
+      - name: Build fail-closed P0-R evidence report
+        env:
+          ACCOUNT_EQUITY: ${{ vars.ACCOUNT_EQUITY || '0' }}
+          RISK_PER_TRADE_PCT: ${{ vars.RISK_PER_TRADE_PCT || '0.005' }}
+          DAILY_LOSS_LIMIT_PCT: ${{ vars.DAILY_LOSS_LIMIT_PCT || '0.015' }}
+          MAX_PORTFOLIO_HEAT_PCT: ${{ vars.MAX_PORTFOLIO_HEAT_PCT || '0.03' }}
+          MAX_POSITION_PCT: ${{ vars.MAX_POSITION_PCT || '0.20' }}
+          CORRELATION_LIMIT_PCT: ${{ vars.CORRELATION_LIMIT_PCT || '0.02' }}
+          MAX_CONCURRENT_POSITIONS: ${{ vars.MAX_CONCURRENT_POSITIONS || '3' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p research_output
+          PYTHONPATH=. python - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          def load(path):
+              p=Path(path)
+              if not p.exists():
+                  return {}
+              try:
+                  return json.loads(p.read_text(encoding="utf-8"))
+              except Exception:
+                  return {}
+
+          w4=load("upstream/w4/shadow_promotion_dashboard.json")
+          w6=load("upstream/w6/w6_p1_report.json")
+          summary=dict(w4.get("summary") or {})
+          samples=int(summary.get("samples") or 0)
+          days=int(summary.get("trading_days") or 0)
+          regimes=int(summary.get("regime_count") or 0)
+          completeness=float(summary.get("outcome_complete_ratio") or 0.0)
+          top_share=float(summary.get("top_symbol_share") or 0.0)
+
+          suff = (
+              samples >= 200 and
+              days >= 20 and
+              regimes >= 2 and
+              completeness >= 0.95 and
+              top_share <= 0.20
+          )
+
+          equity=float(os.getenv("ACCOUNT_EQUITY") or 0)
+          user_risk_configured = equity > 0
+
+          status = "READY_FOR_P0R_REVIEW" if suff and user_risk_configured else "NOT_EVALUABLE"
+          blockers=[]
+          if not suff:
+              blockers.append("W4_SAMPLE_SUFFICIENCY_NOT_MET")
+          if not user_risk_configured:
+              blockers.append("USER_CAPITAL_1R_NOT_CONFIGURED")
+          if not w6:
+              blockers.append("W6_EXECUTION_EVIDENCE_MISSING")
+
+          report={
+              "schema_version":"1.0",
+              "status":status,
+              "production_impact":"NONE",
+              "w4":{
+                  "samples":samples,
+                  "trading_days":days,
+                  "regime_count":regimes,
+                  "outcome_complete_ratio":completeness,
+                  "top_symbol_share":top_share,
+                  "sample_sufficient":suff,
+              },
+              "w6":{
+                  "available":bool(w6),
+                  "status":w6.get("status") if isinstance(w6,dict) else None,
+              },
+              "risk_config":{
+                  "account_equity_configured":user_risk_configured,
+                  "risk_per_trade_pct":os.getenv("RISK_PER_TRADE_PCT"),
+                  "daily_loss_limit_pct":os.getenv("DAILY_LOSS_LIMIT_PCT"),
+                  "max_portfolio_heat_pct":os.getenv("MAX_PORTFOLIO_HEAT_PCT"),
+                  "max_position_pct":os.getenv("MAX_POSITION_PCT"),
+                  "correlation_limit_pct":os.getenv("CORRELATION_LIMIT_PCT"),
+                  "max_concurrent_positions":os.getenv("MAX_CONCURRENT_POSITIONS"),
+              },
+              "blockers":blockers,
+              "note":"P0-R evidence gate only. NOT a profit probability, not live authorization, and no position size is inferred without user capital/1R inputs."
+          }
+          Path("research_output/p0r_forward_risk_evidence.json").write_text(
+              json.dumps(report,ensure_ascii=False,indent=2),
+              encoding="utf-8"
+          )
+          print(json.dumps(report,ensure_ascii=False,indent=2))
+          PY
+
+      - name: Upload P0-R evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: p0r-forward-risk-evidence
+          path: research_output/p0r_forward_risk_evidence.json
+          if-no-files-found: error
+          retention-days: 90
