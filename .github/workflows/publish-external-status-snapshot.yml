@@ -1,0 +1,119 @@
+name: Publish Sky External Status Snapshot
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "45 16 * * 1-5"
+      timezone: "Asia/Taipei"
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Download latest Shadow promotion dashboard artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p latest_dashboard
+          RUN_ID="$(gh run list --workflow shadow-promotion-dashboard.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId')"
+          test -n "$RUN_ID"
+          gh run download "$RUN_ID" -n shadow-promotion-dashboard -D latest_dashboard
+          echo "DASHBOARD_RUN_ID=$RUN_ID" >> "$GITHUB_ENV"
+
+      - name: Build stable latest-status snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          root = Path("latest_dashboard")
+          dash = json.loads((root / "shadow_promotion_dashboard.json").read_text(encoding="utf-8"))
+          elig_path = root / "w4_scan_eligibility.json"
+          elig = json.loads(elig_path.read_text(encoding="utf-8")) if elig_path.exists() else {}
+
+          snapshot = {
+              "schema_version": "SKY_EXTERNAL_STATUS_SNAPSHOT_V1_0",
+              "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+              "source": {
+                  "dashboard_workflow_run_id": os.environ.get("DASHBOARD_RUN_ID"),
+                  "repository": os.environ.get("GITHUB_REPOSITORY"),
+              },
+              "production_baseline": {
+                  "day_trading": "Sky Day Trading v1.4 Dynamic Capital Rotation / P0-C MVP",
+                  "system": "Sky V2.1",
+                  "production_changed": False,
+              },
+              "w4_dashboard": dash,
+              "scan_eligibility": elig,
+              "usage": {
+                  "monitoring_owner": "GitHub Actions / external infrastructure",
+                  "chatgpt_role": "on-demand reader and analyst only",
+                  "instruction": "When user asks for Sky latest result, read this file first and then fetch linked evidence if needed.",
+              },
+          }
+
+          out = Path("docs")
+          out.mkdir(exist_ok=True)
+          (out / "SKY_EXTERNAL_LATEST_STATUS.json").write_text(
+              json.dumps(snapshot, ensure_ascii=False, indent=2),
+              encoding="utf-8",
+          )
+
+          obs = dash.get("observed") or dash.get("sample_progress") or {}
+          status = dash.get("status") or dash.get("promotion_status") or "UNKNOWN"
+          eligible_runs = elig.get("eligible_run_count")
+          eligible_records = elig.get("eligible_record_count")
+
+          lines = [
+              "# Sky External Latest Status",
+              "",
+              f"- Generated (UTC): {snapshot['generated_at_utc']}",
+              f"- Dashboard workflow run: {os.environ.get('DASHBOARD_RUN_ID')}",
+              f"- W4 status: **{status}**",
+              f"- Eligible scan runs: {eligible_runs}",
+              f"- Eligible records: {eligible_records}",
+              "- Monitoring owner: **GitHub Actions / external infrastructure**",
+              "- ChatGPT role: **on-demand reader / analysis only; no monitoring schedule required**",
+              "",
+              "## Canonical source",
+              "",
+              "Machine-readable detail: `docs/SKY_EXTERNAL_LATEST_STATUS.json`.",
+              "",
+              "Production remains unchanged unless W0/P0-G records a formal promotion decision.",
+          ]
+          (out / "SKY_EXTERNAL_LATEST_STATUS.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
+
+      - name: Commit snapshot when changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "sky-evidence-bot"
+          git config user.email "sky-evidence-bot@users.noreply.github.com"
+          git add docs/SKY_EXTERNAL_LATEST_STATUS.json docs/SKY_EXTERNAL_LATEST_STATUS.md
+          if git diff --cached --quiet; then
+            echo "No status change to commit."
+            exit 0
+          fi
+          git commit -m "W4: publish external latest status snapshot [skip ci]"
+          git push origin HEAD:main
