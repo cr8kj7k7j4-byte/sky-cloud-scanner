@@ -73,12 +73,12 @@ def load_pit_union(interval_json: str, from_date: str, to_date: str) -> list[dic
     return [out[k] for k in sorted(out)]
 
 
-def _request_chunk(symbol, a, b, *, request_get=requests.get, sleep_fn=time.sleep):
+def _request_chunk(symbol, a, b, *, timeframe="5", request_get=requests.get, sleep_fn=time.sleep):
     url = f"{BASE}/historical/candles/{symbol}"
     params = {
         "from": a.isoformat(),
         "to": b.isoformat(),
-        "timeframe": "5",
+        "timeframe": str(timeframe),
         "fields": "open,high,low,close,volume,average",
         "sort": "asc",
     }
@@ -110,6 +110,7 @@ def download_symbol(
     end: date,
     out_dir: Path,
     *,
+    timeframe="5",
     request_get=requests.get,
     sleep_fn=time.sleep,
 ) -> dict:
@@ -120,7 +121,7 @@ def download_symbol(
     chunk_reports = []
     total_bars = 0
     for a, b in chunks(start, end):
-        path = symbol_dir / f"{a.isoformat()}_{b.isoformat()}_5m.json"
+        path = symbol_dir / f"{a.isoformat()}_{b.isoformat()}_{timeframe}m.json"
         if path.exists():
             try:
                 obj = json.loads(path.read_text(encoding="utf-8"))
@@ -132,12 +133,12 @@ def download_symbol(
                 pass
 
         t0 = time.time()
-        data = _request_chunk(symbol, a, b, request_get=request_get, sleep_fn=sleep_fn)
+        data = _request_chunk(symbol, a, b, timeframe=timeframe, request_get=request_get, sleep_fn=sleep_fn)
         path.write_text(
             json.dumps(
                 {
                     **item,
-                    "timeframe": "5",
+                    "timeframe": str(timeframe),
                     "from": a.isoformat(),
                     "to": b.isoformat(),
                     "data": data,
@@ -191,7 +192,7 @@ def build_download_report(items: list[dict], summary: list[dict]) -> dict:
         "zero_bar_symbols": [
             x["symbol"] for x in successful if int(x.get("bars") or 0) == 0
         ],
-        "total_5m_bars": sum(int(x.get("bars") or 0) for x in successful),
+        "total_bars": sum(int(x.get("bars") or 0) for x in successful),
         "transport_coverage_pct": round(transport_coverage * 100.0, 4),
         "data_symbol_coverage_pct": round(data_symbol_coverage * 100.0, 4),
         "coverage_pct": round(data_symbol_coverage * 100.0, 4),
@@ -208,6 +209,7 @@ def main():
     ap.add_argument("--to-date", required=True)
     ap.add_argument("--out", default="research_data/pit_history")
     ap.add_argument("--limit", type=int, default=0, help="Diagnostic limit only; 0 = all")
+    ap.add_argument("--timeframe", choices=["1","3","5","10","15","30","60"], default="5")
     ap.add_argument("--shard-count", type=int, default=1)
     ap.add_argument("--shard-index", type=int, default=0)
     args = ap.parse_args()
@@ -242,7 +244,7 @@ def main():
         try:
             symbol_start=max(start,date.fromisoformat(item.get("history_required_from",start.isoformat())))
             symbol_end=min(end,date.fromisoformat(item.get("history_required_to",end.isoformat())))
-            row = download_symbol(item, symbol_start, symbol_end, out)
+            row = download_symbol(item, symbol_start, symbol_end, out, timeframe=args.timeframe)
             print(f"[{i}/{len(items)}] {item['exchange']} {item['symbol']}: {row['bars']} bars")
             summary.append(row)
         except Exception as e:
@@ -258,6 +260,7 @@ def main():
     (out / "download_summary.json").write_text(
         json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
     )
+    report["timeframe"] = args.timeframe
     print(json.dumps({k: v for k, v in report.items() if k != "summary"}, ensure_ascii=False))
 
 
