@@ -1,0 +1,101 @@
+name: W3A-W2 False-Reclaim Short Baseline E
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "research/download_false_reclaim_short_1m.py"
+      - "research/backtest_false_reclaim_short_baseline_e.py"
+      - "research/w5/FALSE_RECLAIM_SHORT_BASELINE_E_PREREGISTRATION_20261026.md"
+      - ".github/workflows/w3a-w2-false-reclaim-short-baseline-e.yml"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: 40267006806
+          name: opening-accel-2026-jan-oct22-pit-universe-40267006806
+          path: input
+      - uses: actions/upload-artifact@v4
+        with:
+          name: baseline-e-pit-${{ github.run_id }}
+          path: input/pit_intervals.json
+          retention-days: 14
+
+  download:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        shard_index: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
+    env:
+      PYTHONPATH: .
+      FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install requests
+      - uses: actions/download-artifact@v4
+        with:
+          name: baseline-e-pit-${{ github.run_id }}
+          path: input
+      - run: |
+          python research/download_false_reclaim_short_1m.py \
+            --pit-intervals input/pit_intervals.json \
+            --from-date 2026-01-01 --to-date 2026-10-22 \
+            --shard-count 20 --shard-index "${{ matrix.shard_index }}" \
+            --out "research_data/false_reclaim_short_${{ matrix.shard_index }}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: baseline-e-shard-${{ matrix.shard_index }}-${{ github.run_id }}
+          path: research_data/false_reclaim_short_${{ matrix.shard_index }}
+          if-no-files-found: error
+          retention-days: 14
+
+  backtest:
+    needs: [prepare,download]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env: {PYTHONPATH: .}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: python tests/test_false_reclaim_short_baseline_e.py
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: baseline-e-shard-*-${{ github.run_id }}
+          path: short_data
+      - run: |
+          python research/backtest_false_reclaim_short_baseline_e.py \
+            --data-root short_data \
+            --source-run-id 40267006806 \
+            --out-dir research_output/false_reclaim_short_baseline_e
+      - name: Publish result
+        if: always()
+        run: |
+          if [ -f research_output/false_reclaim_short_baseline_e/false_reclaim_short_baseline_e_report.md ]; then
+            cat research_output/false_reclaim_short_baseline_e/false_reclaim_short_baseline_e_report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: baseline-e-result-${{ github.run_id }}
+          path: research_output/false_reclaim_short_baseline_e
+          if-no-files-found: warn
+          retention-days: 30
