@@ -1,0 +1,124 @@
+name: W3A Opening Acceleration Full 1m PIT Dataset
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "research/download_opening_acceleration_1m.py"
+      - "research/audit_opening_acceleration_1m.py"
+      - ".github/workflows/w3a-opening-acceleration-1m-full.yml"
+      - "research/w5/OPENING_ACCELERATION_BASELINE_C_PREREGISTRATION_20261026.md"
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests beautifulsoup4
+      - name: Build governed PIT universe
+        run: python research/audit_historical_universe.py --out output/historical_universe_audit
+      - name: Require PIT gate
+        run: |
+          python - <<'PY'
+          import json
+          x=json.load(open("output/historical_universe_audit/audit.json",encoding="utf-8"))
+          assert x["historical_universe_gate_pass"],x
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: opening-acceleration-pit-universe-${{ github.run_id }}
+          path: output/historical_universe_audit/pit_intervals.json
+          retention-days: 14
+
+  download:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        shard_index: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
+    env:
+      PYTHONPATH: .
+      FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests
+      - uses: actions/download-artifact@v4
+        with:
+          name: opening-acceleration-pit-universe-${{ github.run_id }}
+          path: input
+      - name: Download and compact 1m shard
+        run: |
+          python research/download_opening_acceleration_1m.py \
+            --pit-intervals input/pit_intervals.json \
+            --from-date "2023-05-23" \
+            --to-date "2026-10-22" \
+            --shard-count "20" \
+            --shard-index "${{ matrix.shard_index }}" \
+            --out "research_data/opening_1m_shard_${{ matrix.shard_index }}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: opening-acceleration-1m-shard-${{ matrix.shard_index }}-${{ github.run_id }}
+          path: research_data/opening_1m_shard_${{ matrix.shard_index }}
+          if-no-files-found: error
+          retention-days: 14
+
+  aggregate:
+    needs: [prepare,download]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests
+      - uses: actions/download-artifact@v4
+        with:
+          name: opening-acceleration-pit-universe-${{ github.run_id }}
+          path: input
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: opening-acceleration-1m-shard-*-${{ github.run_id }}
+          path: opening_data
+      - name: Audit whole-universe 1m compact source
+        run: |
+          python research/audit_opening_acceleration_1m.py \
+            --pit-intervals input/pit_intervals.json \
+            --data-root opening_data \
+            --from-date "2023-05-23" \
+            --to-date "2026-10-22" \
+            --out research_output/opening_acceleration_1m_coverage.json
+      - name: Require 95% data gate
+        run: |
+          python - <<'PY'
+          import json
+          x=json.load(open("research_output/opening_acceleration_1m_coverage.json",encoding="utf-8"))
+          print(json.dumps({k:v for k,v in x.items() if k!="daily"},ensure_ascii=False,indent=2))
+          assert x["gate_95pct"],x
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: opening-acceleration-1m-coverage-${{ github.run_id }}
+          path: research_output/opening_acceleration_1m_coverage.json
+          retention-days: 30
