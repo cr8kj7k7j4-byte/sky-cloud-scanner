@@ -87,3 +87,54 @@ Therefore the honest conclusion is:
 **Baseline A failed. Whether v1.4 is better cannot be proven historically from current SSOT.**
 
 Forward Shadow/Paper comparison is the correct route for future Champion–Challenger evidence.
+
+
+## Dual-evidence convergence — 2026-10-26
+
+After the original W0 decision above, W2 completed a second independently preregistered implementation on the same corrected PIT whole-universe 5m source.
+
+### Variant A1 — original W0 freeze evidence
+- selector: Top3 new symbols per scan
+- exit: 60 minutes
+- selected observations: 9,934
+- gross expectancy: -0.0388%
+- gross PF: 0.953
+- 0.45% expectancy: -0.4888%
+- 0.45% PF: 0.556
+- all chronological folds and 2023–2026 yearly slices negative after cost
+
+### Variant A2 — later W2 preregistered replication
+- selector: top decile of eligible Top100 velocity candidates
+- exit: fixed 30 minutes
+- selected signals: 9,949
+- deterministic entries: 8,685
+- gross expectancy: +0.0215%
+- gross PF: 1.035
+- 0.45% expectancy: -0.4285%
+- 0.45% PF: 0.528
+- 0.65% expectancy: -0.6285%
+- 0.65% PF: 0.402
+- 2025 Validation negative
+- 2026 Research Test negative
+- 8 / 8 half-year folds negative
+- all four official observation times negative after cost
+- both TWSE and TPEx negative
+
+### Consolidated interpretation
+
+The second preregistered variant removes the argument that the original rejection was caused only by the exact Top3 / 60-minute implementation. The family remains economically too weak after the frozen cost assumptions even when selection breadth and holding horizon differ.
+
+Therefore the Freeze applies to the **Top100 Velocity Baseline A family**, not merely one parameter tuple.
+
+Forbidden rescue includes:
+- Top100 → Top50 / Top30 / another Top-N;
+- choosing only the best observed scan time;
+- velocity lookback changes;
+- score-weight changes;
+- volume-threshold tuning;
+- holding-period tuning;
+- stop/target optimization.
+
+A successor must introduce a genuinely structural new source of information, target/label, or execution architecture and return through W5 preregistration.
+
+Production Sky Day Trading v1.4 remains unchanged.
