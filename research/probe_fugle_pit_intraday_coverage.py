@@ -28,38 +28,89 @@ def active_on(interval, d: date) -> bool:
     return start <= d and (end is None or d <= end)
 
 
-def select_probe(intervals, as_of: date, per_exchange: int, historical_closed_n: int):
-    by_exchange = defaultdict(list)
-    closed = []
+def _spread_sample(rows, n):
+    rows = list(rows)
+    if n <= 0 or not rows:
+        return []
+    if len(rows) <= n:
+        return rows
+    if n == 1:
+        return [rows[len(rows) // 2]]
+    idx = [round(i * (len(rows) - 1) / (n - 1)) for i in range(n)]
+    seen = set()
+    out = []
+    for i in idx:
+        key = (str(rows[i].get("exchange")), str(rows[i].get("symbol")), str(rows[i].get("listed_from")))
+        if key not in seen:
+            seen.add(key)
+            out.append(rows[i])
+    return out
 
+
+def select_probe(intervals, audit_dates, per_exchange: int, historical_closed_n: int):
+    selected = []
+    seen = set()
+
+    for as_of in audit_dates:
+        by_exchange = defaultdict(list)
+        for x in intervals:
+            symbol = str(x.get("symbol") or "").strip()
+            exchange = str(x.get("exchange") or "").upper().strip()
+            if not symbol or exchange not in {"TWSE", "TPEx", "TPEX"}:
+                continue
+            if active_on(x, as_of):
+                exch = "TPEx" if exchange == "TPEX" else exchange
+                by_exchange[exch].append(x)
+
+        for exch in ("TWSE", "TPEx"):
+            uniq = {}
+            for x in by_exchange[exch]:
+                uniq[str(x["symbol"])] = x
+            population = [uniq[s] for s in sorted(uniq)]
+            for x in _spread_sample(population, per_exchange):
+                key = ("PIT_DATE", as_of.isoformat(), exch, str(x["symbol"]))
+                if key in seen:
+                    continue
+                seen.add(key)
+                selected.append({
+                    **x,
+                    "probe_type": "PIT_DATE",
+                    "probe_as_of": as_of.isoformat(),
+                    "probe_exchange": exch,
+                })
+
+    # Historical-closed feasibility is only meaningful inside Fugle's documented
+    # minute-history window. Older closures are outside the supported research
+    # horizon and must not be counted as provider failures.
+    minute_start = date(2023, 5, 23)
+    closed = []
     for x in intervals:
         symbol = str(x.get("symbol") or "").strip()
         exchange = str(x.get("exchange") or "").upper().strip()
-        if not symbol or exchange not in {"TWSE", "TPEx", "TPEX"}:
+        listed_to = x.get("listed_to")
+        if not symbol or exchange not in {"TWSE", "TPEx", "TPEX"} or not listed_to:
             continue
-        if active_on(x, as_of):
-            by_exchange["TPEx" if exchange == "TPEX" else exchange].append(x)
-        elif x.get("listed_to"):
+        end_d = date.fromisoformat(str(listed_to)[:10])
+        start_d = date.fromisoformat(str(x["listed_from"])[:10])
+        if end_d >= minute_start and end_d >= start_d:
             closed.append(x)
 
-    selected = []
-    for exch in ("TWSE", "TPEx"):
-        uniq = {}
-        for x in by_exchange[exch]:
-            uniq[str(x["symbol"])] = x
-        for symbol in sorted(uniq)[:per_exchange]:
-            selected.append({**uniq[symbol], "probe_type": "ACTIVE", "probe_as_of": as_of.isoformat()})
-
-    uniq_closed = {}
-    for x in closed:
-        uniq_closed[(str(x.get("exchange")), str(x["symbol"]))] = x
     closed_sorted = sorted(
-        uniq_closed.values(),
-        key=lambda x: (str(x.get("listed_to") or ""), str(x["symbol"])),
-        reverse=True,
+        closed,
+        key=lambda x: (str(x.get("listed_to") or ""), str(x.get("exchange")), str(x["symbol"])),
     )
-    for x in closed_sorted[:historical_closed_n]:
-        selected.append({**x, "probe_type": "HISTORICAL_CLOSED", "probe_as_of": as_of.isoformat()})
+    for x in _spread_sample(closed_sorted, historical_closed_n):
+        exch = "TPEx" if str(x.get("exchange")).upper() == "TPEX" else str(x.get("exchange"))
+        key = ("HISTORICAL_CLOSED", exch, str(x["symbol"]), str(x.get("listed_to")))
+        if key in seen:
+            continue
+        seen.add(key)
+        selected.append({
+            **x,
+            "probe_type": "HISTORICAL_CLOSED",
+            "probe_as_of": str(x.get("listed_to"))[:10],
+            "probe_exchange": exch,
+        })
     return selected
 
 
@@ -106,6 +157,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--pit-snapshot", required=True)
     ap.add_argument("--as-of", default="2026-09-30")
+    ap.add_argument(
+        "--audit-dates",
+        default="2023-12-31,2024-12-31,2025-12-31,2026-09-30",
+        help="Comma-separated PIT audit dates; each exchange is sampled on every date.",
+    )
     ap.add_argument("--from-date", default="2026-09-01")
     ap.add_argument("--to-date", default="2026-09-30")
     ap.add_argument("--per-exchange", type=int, default=20)
@@ -115,9 +171,10 @@ def main():
 
     payload = json.loads(Path(args.pit_snapshot).read_text(encoding="utf-8"))
     intervals = payload.get("intervals", [])
+    audit_dates = [date.fromisoformat(x.strip()) for x in args.audit_dates.split(",") if x.strip()]
     selected = select_probe(
         intervals,
-        date.fromisoformat(args.as_of),
+        audit_dates,
         args.per_exchange,
         args.historical_closed_n,
     )
@@ -125,18 +182,14 @@ def main():
     rows = []
     for i, item in enumerate(selected, 1):
         symbol = str(item["symbol"])
-        query_from, query_to = args.from_date, args.to_date
-
-        # Historical-closed members must be probed while the symbol was actually
-        # listed. Querying an already-delisted symbol in 2026 would create a false
-        # NO_DATA_404 and would not test historical retrievability.
-        if item.get("probe_type") == "HISTORICAL_CLOSED" and item.get("listed_to"):
-            end_d = date.fromisoformat(str(item["listed_to"])[:10])
-            start_raw = item.get("listed_from")
-            start_d = date.fromisoformat(str(start_raw)[:10]) if start_raw else end_d
-            probe_end = end_d
-            probe_start = max(start_d, date.fromordinal(probe_end.toordinal() - 30))
-            query_from, query_to = probe_start.isoformat(), probe_end.isoformat()
+        # Probe each row inside the actual PIT membership interval.
+        probe_as_of = date.fromisoformat(str(item.get("probe_as_of") or args.as_of)[:10])
+        start_d = date.fromisoformat(str(item["listed_from"])[:10])
+        end_raw = item.get("listed_to")
+        end_d = date.fromisoformat(str(end_raw)[:10]) if end_raw else probe_as_of
+        probe_end = min(probe_as_of, end_d)
+        probe_start = max(start_d, date(2023, 5, 23), date.fromordinal(probe_end.toordinal() - 30))
+        query_from, query_to = probe_start.isoformat(), probe_end.isoformat()
 
         try:
             result = request_one(symbol, query_from, query_to)
@@ -148,6 +201,8 @@ def main():
             "listed_from": item.get("listed_from"),
             "listed_to": item.get("listed_to"),
             "probe_type": item.get("probe_type"),
+            "probe_as_of": item.get("probe_as_of"),
+            "probe_exchange": item.get("probe_exchange"),
             "query_from": query_from,
             "query_to": query_to,
             **result,
@@ -156,31 +211,51 @@ def main():
         time.sleep(2.2)
 
     ok = [x for x in rows if x["status"] == "OK"]
-    active = [x for x in rows if x["probe_type"] == "ACTIVE"]
-    active_ok = [x for x in active if x["status"] == "OK"]
+    pit_rows = [x for x in rows if x["probe_type"] == "PIT_DATE"]
     closed = [x for x in rows if x["probe_type"] == "HISTORICAL_CLOSED"]
-    closed_ok = [x for x in closed if x["status"] == "OK"]
 
+    by_audit_date = {}
+    for d in sorted({x.get("probe_as_of") for x in pit_rows if x.get("probe_as_of")}):
+        subset = [x for x in pit_rows if x.get("probe_as_of") == d]
+        by_exchange = {}
+        for exch in ("TWSE", "TPEx"):
+            ex = [x for x in subset if x.get("probe_exchange") == exch]
+            ex_ok = [x for x in ex if x["status"] == "OK"]
+            by_exchange[exch] = {
+                "sample_n": len(ex),
+                "ok_n": len(ex_ok),
+                "ok_share": round(len(ex_ok) / len(ex), 6) if ex else None,
+            }
+        date_ok = [x for x in subset if x["status"] == "OK"]
+        by_audit_date[d] = {
+            "sample_n": len(subset),
+            "ok_n": len(date_ok),
+            "ok_share": round(len(date_ok) / len(subset), 6) if subset else None,
+            "by_exchange": by_exchange,
+        }
+
+    closed_ok = [x for x in closed if x["status"] == "OK"]
     report = {
-        "probe_contract": "W3A_FUGLE_PIT_COVERAGE_PROBE_V1",
-        "as_of": args.as_of,
-        "date_range": [args.from_date, args.to_date],
+        "probe_contract": "W3A_FUGLE_PIT_COVERAGE_PROBE_V2",
+        "audit_dates": [d.isoformat() for d in audit_dates],
+        "provider_minute_history_start": "2023-05-23",
         "sample_n": len(rows),
-        "active_sample_n": len(active),
-        "active_ok_n": len(active_ok),
-        "active_ok_share": round(len(active_ok) / len(active), 6) if active else 0.0,
+        "pit_date_sample_n": len(pit_rows),
         "historical_closed_sample_n": len(closed),
         "historical_closed_ok_n": len(closed_ok),
-        "historical_closed_ok_share": round(len(closed_ok) / len(closed), 6) if closed else 0.0,
+        "historical_closed_ok_share": round(len(closed_ok) / len(closed), 6) if closed else None,
+        "overall_ok_n": len(ok),
         "overall_ok_share": round(len(ok) / len(rows), 6) if rows else 0.0,
+        "by_audit_date": by_audit_date,
         "status_counts": {
             s: sum(1 for x in rows if x["status"] == s)
             for s in sorted({x["status"] for x in rows})
         },
         "rows": rows,
         "governance_note": (
-            "This is a feasibility probe only. It does not establish >=95% PIT coverage "
-            "and does not authorize preregistration or Production changes."
+            "This is a stratified feasibility/stress probe only. It does not establish "
+            "formal whole-universe >=95% PIT coverage and does not authorize preregistration "
+            "or Production changes."
         ),
     }
 
