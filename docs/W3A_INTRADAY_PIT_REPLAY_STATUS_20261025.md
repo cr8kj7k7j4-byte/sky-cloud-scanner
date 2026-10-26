@@ -207,3 +207,37 @@ Reason:
 
 Re-open condition:
 - W0/P0-G accepts an authoritative `FROZEN_CANONICAL_IMPLEMENTATION` or `HISTORICAL_SNAPSHOT`.
+
+
+## 2026-10-26 Fugle Expanded PIT Coverage Update
+
+Latest zero-new-spend feasibility evidence:
+- Workflow: `W3A Fugle PIT Coverage Probe`
+- Run: `40328073241`
+- Head commit: `28eabe8729e2522de39cf41fa335791aee86245c`
+- Sample: 268
+- OK: 265
+- Overall OK share: 98.9%
+- Active PIT-date samples:
+  - 2023-12-31: 60 / 60 = 100%
+  - 2024-12-31: 60 / 60 = 100%
+  - 2025-12-31: 60 / 60 = 100%
+  - 2026-09-30: 60 / 60 = 100%
+- Historical-closed sample: 25 / 28 OK = 89.3%
+- Historical-closed `NO_DATA_404`: 3642, 6404, 3202
+- 429 exhausted failures: 0
+
+Interpretation:
+- The W0-requested materially larger feasibility probe is complete.
+- Active-symbol historical 5m availability is strong across all four governed audit dates in this sample.
+- The three 404s are confined to the historical-closed stratum and must remain explicit provider/data gaps until separately resolved; they are not reclassified as strategy failures.
+- This 268-row probe is still sampled evidence and does not by itself replace a governed full-universe coverage audit.
+- Paid TWSE/TPEx acquisition remains unnecessary at this stage because the authorized Fugle path remains viable.
+
+Next W3A action:
+- Launch a governed sharded full PIT-universe Fugle backfill starting at the provider minute-history boundary `2023-05-23`.
+- Preserve raw provider lineage separately from the already-PASS reconciled legacy raw cache.
+- Re-run coverage, leakage, survivorship and duplicate/conflict audits after merge.
+- Do not use the new backfill to synthesize missing historical v1.4 Alpha outputs; W0's `HISTORICAL_V14_FULL_RULE_REPLAY_UNAVAILABLE` decision remains unchanged.
+
+Production impact: **NONE**.
