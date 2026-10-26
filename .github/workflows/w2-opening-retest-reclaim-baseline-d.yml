@@ -1,0 +1,54 @@
+name: W2 Opening Retest Reclaim Baseline D
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "research/backtest_opening_retest_reclaim_baseline_d.py"
+      - "research/w5/OPENING_RETEST_RECLAIM_BASELINE_D_PREREGISTRATION_20261026.md"
+      - ".github/workflows/w2-opening-retest-reclaim-baseline-d.yml"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  test-and-backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Unit test Baseline D
+        run: python tests/test_opening_retest_reclaim_baseline_d.py
+      - name: Reuse Jan-Oct22 whole-market PIT 1m shards
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: 40267006806
+          pattern: opening-accel-2026-jan-oct22-shard-*
+          path: opening_data
+      - name: Run Baseline D
+        run: |
+          python research/backtest_opening_retest_reclaim_baseline_d.py \
+            --data-root opening_data \
+            --source-run-id 40267006806 \
+            --out-dir research_output/opening_retest_reclaim_baseline_d
+      - name: Publish result
+        if: always()
+        run: |
+          if [ -f research_output/opening_retest_reclaim_baseline_d/opening_retest_reclaim_baseline_d_report.md ]; then
+            cat research_output/opening_retest_reclaim_baseline_d/opening_retest_reclaim_baseline_d_report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: opening-retest-reclaim-baseline-d-${{ github.run_id }}
+          path: research_output/opening_retest_reclaim_baseline_d
+          if-no-files-found: warn
+          retention-days: 30
