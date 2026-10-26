@@ -463,3 +463,48 @@ All W1 work that can be completed **without pretending the 100-symbol current-un
 The next dependency is a W3 / P0-DATA governed historical price dataset covering the canonical 2023+ PIT universe. Once that dataset is available, the frozen preregistration permits W1 to resume directly at canonical replay without asking for new strategy choices or retuning parameters.
 
 Production remains **Sky Swing V1.0 ACTIVE and unchanged**.
+
+
+## 22. Exact-rule reconstruction gate — 2026-10-26
+
+Canonical PIT price-history readiness has now passed on the W3 repaired dataset:
+
+| Audit date | PIT symbols | Price-covered | Coverage | Gate |
+|---|---:|---:|---:|---|
+| 2023-12-31 | 1,869 | 1,807 | 96.68% | PASS |
+| 2024-12-31 | 1,925 | 1,863 | 96.78% | PASS |
+| 2025-12-31 | 1,993 | 1,932 | 96.94% | PASS |
+| 2026-09-30 | 2,034 | 1,970 | 96.85% | PASS |
+
+Additional data evidence:
+- symbol-day coverage: 95.83%
+- price symbols available: 2,009
+- duplicate rows: 0
+- corporate-action conflicts: 0
+- continuity conflicts: 0
+- W3 repair workflow: PASS
+- W3 → W1 repository dispatch: PASS
+- W1 readiness: READY_FOR_CANONICAL_SWING_REPLAY
+
+However W1 cannot yet execute a promotion-grade **Sky Swing V1.0** replay because the exact frozen Production rule specification is not reconstructable from the current SSOT.
+
+Repository / history inspection found:
+- Registry confirms Sky Swing V1.0 is ACTIVE.
+- Existing 3-factor Swing scripts are research proxies / challengers, not an exact V1.0 implementation.
+- PMS governs position-management safety but consumes externally supplied stop/target/add levels; it does not define the missing entry / setup / trigger / stop formulas.
+- No canonical executable implementation for FIXED_3R / MA20_TRAIL / SWING10_TRAIL precedence was found.
+- No complete Production Entry / Market Gate / Trend / RS / Setup / Trigger / Anti-Chase / RR rule definition was found.
+
+Formal gate:
+**BLOCKED_EXACT_RULE_SPEC**
+
+Formal evidence:
+`research/W1_SWING_V1_EXACT_RULE_RECONSTRUCTION_GATE_20261026.md`
+
+Governance consequence:
+- Data Gate = PASS.
+- Exact-Rule Reconstruction Gate = BLOCKED.
+- W1 final state remains **HOLD**.
+- Production Sky Swing V1.0 remains ACTIVE / unchanged.
+- Legacy 3-factor research must not be substituted for Production.
+- No W4 handoff is authorized until exact-rule reproducibility is resolved.
