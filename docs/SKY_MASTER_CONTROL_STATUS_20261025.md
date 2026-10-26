@@ -537,3 +537,21 @@ Open PRs are not formal Registry state until W0/P0-G review and merge.
 - W0 decision: current SSOT does not contain a complete executable Swing V1.0 rule specification; proxy research may not be substituted.
 - Formal decision: `docs/SKY_SWING_V1_EXACT_RULE_GOVERNANCE_DECISION_20261026.md`.
 - Resume only after exact frozen rule specification is recovered/governed from contemporaneous pre-result evidence.
+
+## R. 2026-10-27 Trading-Day Operating Mode
+
+Formal runbook:
+- `docs/SKY_TRADING_DAY_RUNBOOK_20261027.md`
+- Commit: `327dce8257d8c5b8526be73f7151634c9f4d50ca`
+
+Operating decision:
+- 2026-10-27 new intraday entries: **Sky Day Trading v1.4 Production baseline only**.
+- Research candidates / open PRs: Shadow/Research only; no real-money entry authorization.
+- New Swing entries: **TEMPORARILY HOLD** because Swing V1.0 exact-rule specification remains BLOCKED_EXACT_RULE_SPEC.
+- Existing Swing positions: PMS risk management remains allowed.
+- Premarket workflow: 08:20 Asia/Taipei.
+- Intraday scanner schedule: 09:05 / 09:15 / 09:30 / 09:50 / 10:15.
+- Live auto-execution remains disabled; manual execution required.
+- No A+ candidate => no new trade.
+
+This is an operational-use decision only and does not claim proven profitability or modify Production Alpha semantics.
