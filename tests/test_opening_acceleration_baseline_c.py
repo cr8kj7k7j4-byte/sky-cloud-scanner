@@ -27,7 +27,31 @@ assert "09:00" in d["bars"] and "09:14" in d["bars"] and "09:15" not in d["bars"
 assert "09:01" in d["outcomes"]
 o=d["outcomes"]["09:01"]
 assert o["entry"]>0 and o["exit_30m"]>0 and o["exit_60m"]>0
+assert o["stop_aware_exit_30m"]>0 and o["stop_aware_exit_60m"]>0
 assert o["high_to_close"]>=o["entry"]
+
+# Explicit stop case: entry above session open, then next minute breaks below it.
+stop_data=[]
+for i in range(80):
+    t=(base+timedelta(minutes=i)).strftime("%H:%M")
+    if i==0:
+        px=10.0
+    elif i==1:
+        px=10.2
+    else:
+        px=10.3
+    b=bar(t,px,100+i)
+    if i==2:
+        b["open"]=10.1
+        b["low"]=9.9
+        b["close"]=10.0
+    stop_data.append(b)
+sd=dl.compact_chunk(stop_data)[0]
+so=sd["outcomes"]["09:01"]
+assert so["open_stop_triggered"] is True
+assert so["open_stop_time"]=="09:02"
+assert abs(so["open_stop_fill"]-10.0)<1e-12
+assert abs(so["stop_aware_exit_60m"]-10.0)<1e-12
 
 rows=[]
 for i,s in enumerate(["1101","1102","1103","1104"]):

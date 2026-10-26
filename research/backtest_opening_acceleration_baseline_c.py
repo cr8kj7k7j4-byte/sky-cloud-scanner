@@ -85,6 +85,11 @@ def build_snapshot_db(data_root: str, db_path: str) -> dict:
       entry REAL,
       exit_30m REAL,
       exit_60m REAL,
+      stop_aware_exit_30m REAL,
+      stop_aware_exit_60m REAL,
+      open_stop_fill REAL,
+      open_stop_time TEXT,
+      open_stop_triggered INTEGER,
       session_close REAL,
       high_30m REAL,
       low_30m REAL,
@@ -151,7 +156,11 @@ def build_snapshot_db(data_root: str, db_path: str) -> dict:
                     batch.append((
                         symbol,exchange,day,obs,price,session_open,prior_close,dr,vols.get(feature_label),
                         ret(1),ret(3),ret(5),ret(10),
-                        n(o.get("entry")),n(o.get("exit_30m")),n(o.get("exit_60m")),n(o.get("session_close")),
+                        n(o.get("entry")),n(o.get("exit_30m")),n(o.get("exit_60m")),
+                        n(o.get("stop_aware_exit_30m")),n(o.get("stop_aware_exit_60m")),
+                        n(o.get("open_stop_fill")),o.get("open_stop_time"),
+                        1 if o.get("open_stop_triggered") else 0,
+                        n(o.get("session_close")),
                         n(o.get("high_30m")),n(o.get("low_30m")),n(o.get("high_60m")),n(o.get("low_60m")),
                         n(o.get("high_to_close")),n(o.get("low_to_close")),
                         split_label(day),half_label(day)
@@ -159,7 +168,10 @@ def build_snapshot_db(data_root: str, db_path: str) -> dict:
                 if session_close and session_close>0:
                     prior_close=session_close
             if batch:
-                conn.executemany("INSERT INTO snapshots VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",batch)
+                conn.executemany(
+                    "INSERT INTO snapshots VALUES (" + ",".join(["?"] * 30) + ")",
+                    batch,
+                )
                 rows+=len(batch)
                 symbols.add(symbol)
             if i%100==0:
@@ -317,6 +329,7 @@ def select_variant(rows: list[dict], *, remove_open=False, remove_fresh=False,
             d["mfe_to_close"]=(d["high_to_close"]/d["entry"]-1.0) if d.get("entry") and d.get("high_to_close") else None
             d["mae_to_close"]=(d["low_to_close"]/d["entry"]-1.0) if d.get("entry") and d.get("low_to_close") else None
             d["hit_plus5"]=(d["mfe_to_close"] is not None and d["mfe_to_close"]>=0.05)
+            d["open_stop_hit"]=bool(d.get("open_stop_triggered"))
             d["near_limit_proxy"]=(
                 d.get("high_to_close") is not None and d.get("prior_close") and
                 d["high_to_close"]/d["prior_close"]-1.0>=0.095
@@ -360,6 +373,7 @@ def metrics(trades: list[dict], field: str) -> dict:
         "avg_mae_60m":sum(t["mae_60m"] for t in trades if t.get("mae_60m") is not None)/max(1,sum(t.get("mae_60m") is not None for t in trades)),
         "hit_plus5_rate":sum(bool(t.get("hit_plus5")) for t in trades)/len(trades),
         "near_limit_proxy_rate":sum(bool(t.get("near_limit_proxy")) for t in trades)/len(trades),
+        "open_stop_rate":sum(bool(t.get("open_stop_hit")) for t in trades)/len(trades),
     }
 
 
@@ -453,8 +467,8 @@ def run(data_root: str, out_dir: str, source_run_id: str|None=None):
         "build":build,
         "baseline":{
             "selected":len(baseline),
-            "gross_30m":metrics(baseline,"gross_30m"),
-            "gross_60m":metrics(baseline,"gross_60m"),
+            "gross_30m_stop_aware":metrics(baseline,"gross_30m"),
+            "gross_60m_stop_aware":metrics(baseline,"gross_60m"),
             "gross_close":metrics(baseline,"gross_close"),
             "cost_045":p045,
             "cost_065":p065,
