@@ -63,34 +63,43 @@ def select_probe(intervals, as_of: date, per_exchange: int, historical_closed_n:
     return selected
 
 
-def request_one(symbol: str, start: str, end: str):
-    r = requests.get(
-        f"{BASE}/historical/candles/{symbol}",
-        params={
-            "from": start,
-            "to": end,
-            "timeframe": "5",
-            "fields": "open,high,low,close,volume,average",
-            "sort": "asc",
-        },
-        headers=headers(),
-        timeout=30,
-    )
-    if r.status_code == 404:
-        return {"status": "NO_DATA_404", "bars": 0}
-    if r.status_code == 403:
-        return {"status": "PLAN_RESTRICTED_403", "bars": 0}
-    if r.status_code == 429:
-        return {"status": "RATE_LIMIT_429", "bars": 0}
-    r.raise_for_status()
-    payload = r.json()
-    rows = payload.get("data", []) if isinstance(payload, dict) else []
-    return {
-        "status": "OK" if rows else "EMPTY",
-        "bars": len(rows),
-        "first_bar": rows[0].get("date") if rows else None,
-        "last_bar": rows[-1].get("date") if rows else None,
+def request_one(symbol: str, start: str, end: str, *, max_retries: int = 6):
+    url = f"{BASE}/historical/candles/{symbol}"
+    params = {
+        "from": start,
+        "to": end,
+        "timeframe": "5",
+        "fields": "open,high,low,close,volume,average",
+        "sort": "asc",
     }
+    backoff = [5, 10, 20, 30, 45, 60]
+    for attempt in range(max_retries + 1):
+        r = requests.get(url, params=params, headers=headers(), timeout=30)
+        if r.status_code == 404:
+            return {"status": "NO_DATA_404", "bars": 0, "attempts": attempt + 1}
+        if r.status_code == 403:
+            return {"status": "PLAN_RESTRICTED_403", "bars": 0, "attempts": attempt + 1}
+        if r.status_code == 429:
+            if attempt >= max_retries:
+                return {"status": "RATE_LIMIT_429_EXHAUSTED", "bars": 0, "attempts": attempt + 1}
+            retry_after = r.headers.get("Retry-After")
+            try:
+                wait = float(retry_after) if retry_after is not None else backoff[attempt]
+            except (TypeError, ValueError):
+                wait = backoff[attempt]
+            time.sleep(max(wait, backoff[attempt]))
+            continue
+        r.raise_for_status()
+        payload = r.json()
+        rows = payload.get("data", []) if isinstance(payload, dict) else []
+        return {
+            "status": "OK" if rows else "EMPTY",
+            "bars": len(rows),
+            "attempts": attempt + 1,
+            "first_bar": rows[0].get("date") if rows else None,
+            "last_bar": rows[-1].get("date") if rows else None,
+        }
+    return {"status": "UNKNOWN", "bars": 0, "attempts": max_retries + 1}
 
 
 def main():
@@ -129,7 +138,7 @@ def main():
             **result,
         })
         print(f"[{i}/{len(selected)}] {symbol}: {result['status']} bars={result.get('bars',0)}")
-        time.sleep(1.1)
+        time.sleep(2.2)
 
     ok = [x for x in rows if x["status"] == "OK"]
     active = [x for x in rows if x["probe_type"] == "ACTIVE"]
