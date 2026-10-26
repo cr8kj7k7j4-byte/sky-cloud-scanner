@@ -88,6 +88,11 @@ def build_snapshot_db(data_root: str, db_path: str) -> dict:
       entry_status TEXT,
       exit_30m REAL,
       exit_60m REAL,
+      stop_aware_exit_30m REAL,
+      stop_aware_exit_60m REAL,
+      open_stop_fill REAL,
+      open_stop_time TEXT,
+      open_stop_triggered INTEGER,
       session_close REAL,
       high_30m REAL,
       low_30m REAL,
@@ -157,7 +162,11 @@ def build_snapshot_db(data_root: str, db_path: str) -> dict:
                         symbol,exchange,day,obs,price,session_open,prior_close,dr,vols.get(feature_label),
                         ret(1),ret(3),ret(5),ret(10),
                         n(o.get("entry")),n(o.get("raw_entry_open")),n(o.get("max_entry_4tick")),o.get("entry_status"),
-                        n(o.get("exit_30m")),n(o.get("exit_60m")),n(o.get("session_close")),
+                        n(o.get("exit_30m")),n(o.get("exit_60m")),
+                        n(o.get("stop_aware_exit_30m")),n(o.get("stop_aware_exit_60m")),
+                        n(o.get("open_stop_fill")),o.get("open_stop_time"),
+                        1 if o.get("open_stop_triggered") else 0,
+                        n(o.get("session_close")),
                         n(o.get("high_30m")),n(o.get("low_30m")),n(o.get("high_60m")),n(o.get("low_60m")),
                         n(o.get("high_to_close")),n(o.get("low_to_close")),
                         split_label(day),half_label(day)
@@ -312,8 +321,10 @@ def select_variant(rows: list[dict], *, remove_open=False, remove_fresh=False,
             if d["symbol"] in seen_by_day[d["session_date"]]:
                 continue
             seen_by_day[d["session_date"]].add(d["symbol"])
-            gross60=(d["exit_60m"]/d["entry"]-1.0) if d.get("entry") and d.get("exit_60m") else None
-            gross30=(d["exit_30m"]/d["entry"]-1.0) if d.get("entry") and d.get("exit_30m") else None
+            exit60=d.get("stop_aware_exit_60m") or d.get("exit_60m")
+            exit30=d.get("stop_aware_exit_30m") or d.get("exit_30m")
+            gross60=(exit60/d["entry"]-1.0) if d.get("entry") and exit60 else None
+            gross30=(exit30/d["entry"]-1.0) if d.get("entry") and exit30 else None
             close_ret=(d["session_close"]/d["entry"]-1.0) if d.get("entry") and d.get("session_close") else None
             d["gross_30m"]=gross30
             d["gross_60m"]=gross60
@@ -325,6 +336,7 @@ def select_variant(rows: list[dict], *, remove_open=False, remove_fresh=False,
             d["mfe_to_close"]=(d["high_to_close"]/d["entry"]-1.0) if d.get("entry") and d.get("high_to_close") else None
             d["mae_to_close"]=(d["low_to_close"]/d["entry"]-1.0) if d.get("entry") and d.get("low_to_close") else None
             d["hit_plus5"]=(d["mfe_to_close"] is not None and d["mfe_to_close"]>=0.05)
+            d["open_stop_hit"]=bool(d.get("open_stop_triggered"))
             d["near_limit_proxy"]=(
                 d.get("high_to_close") is not None and d.get("prior_close") and
                 d["high_to_close"]/d["prior_close"]-1.0>=0.095
@@ -368,6 +380,7 @@ def metrics(trades: list[dict], field: str) -> dict:
         "avg_mae_60m":sum(t["mae_60m"] for t in trades if t.get("mae_60m") is not None)/max(1,sum(t.get("mae_60m") is not None for t in trades)),
         "hit_plus5_rate":sum(bool(t.get("hit_plus5")) for t in trades)/len(trades),
         "near_limit_proxy_rate":sum(bool(t.get("near_limit_proxy")) for t in trades)/len(trades),
+        "open_stop_rate":sum(bool(t.get("open_stop_hit")) for t in trades)/len(trades),
     }
 
 
