@@ -55,14 +55,18 @@ def build_windowed_intervals(events: list[dict], window_start: str = WINDOW_STAR
         history_start=LISTING_HISTORY_START.get(exchange)
 
         listed=False
+        active_since=None
         for e in arr:
             d=str(e.get("event_date"))
             if d >= window_start:
                 break
             if e.get("event_type")=="LIST":
+                if not listed:
+                    active_since=d
                 listed=True
             elif e.get("event_type")=="DELIST":
                 listed=False
+                active_since=None
 
         current_start=window_start if listed else None
         future=[e for e in arr if str(e.get("event_date")) >= window_start]
@@ -101,6 +105,7 @@ def build_windowed_intervals(events: list[dict], window_start: str = WINDOW_STAR
                     continue
                 listed=True
                 current_start=d
+                active_since=d
             elif typ=="DELIST":
                 if not listed:
                     unresolved.append({
@@ -119,9 +124,11 @@ def build_windowed_intervals(events: list[dict], window_start: str = WINDOW_STAR
                     "source":"official_event_ledger_windowed",
                     "source_as_of":str(e.get("source_as_of") or ""),
                     "notes":"windowed_membership",
+                    "_evidence_listed_from": active_since or current_start,
                 })
                 listed=False
                 current_start=None
+                active_since=None
 
         if listed and current_start:
             name=""
@@ -138,46 +145,81 @@ def build_windowed_intervals(events: list[dict], window_start: str = WINDOW_STAR
                 "source":"official_event_ledger_windowed",
                 "source_as_of":max(str(e.get("source_as_of") or "") for e in arr),
                 "notes":"windowed_membership",
+                "_evidence_listed_from": active_since or current_start,
             })
 
-    # Reconcile official cross-exchange transfers. Taiwan common shares cannot
-    # be concurrently listed on TWSE and TPEx under the same stock code. When
-    # an official LIST event on the destination exchange starts inside an
-    # otherwise open interval on the source exchange, the destination LIST
-    # date is point-in-time evidence of a board transfer. Close the older
-    # interval on the preceding calendar day. We do not resolve same-day /
-    # same-start ambiguities; those remain visible to downstream fail-closed
-    # validation.
+    # Reconcile official cross-exchange transfers using the ORIGINAL official
+    # LIST evidence date, not the research-window-clipped listed_from. This is
+    # required when a TPEx -> TWSE transfer happened before WINDOW_START: both
+    # windowed intervals would otherwise appear to start on the same date and
+    # create false concurrent membership.
     by_symbol=defaultdict(list)
     for item in intervals:
         by_symbol[str(item["symbol"])].append(item)
+
+    remove_ids=set()
     for symbol, rows in by_symbol.items():
-        rows.sort(key=lambda x:(str(x["listed_from"]),str(x["exchange"])))
+        rows.sort(
+            key=lambda x:(
+                str(x.get("_evidence_listed_from") or x.get("listed_from") or ""),
+                str(x.get("exchange") or ""),
+            )
+        )
         for newer in rows:
-            new_start=str(newer.get("listed_from") or "")
-            if not new_start:
+            new_evidence=str(
+                newer.get("_evidence_listed_from")
+                or newer.get("listed_from")
+                or ""
+            )
+            if not new_evidence:
                 continue
             for older in rows:
                 if older is newer or older.get("exchange")==newer.get("exchange"):
                     continue
+                old_evidence=str(
+                    older.get("_evidence_listed_from")
+                    or older.get("listed_from")
+                    or ""
+                )
+                if not old_evidence or old_evidence >= new_evidence:
+                    continue
+
                 old_start=str(older.get("listed_from") or "")
-                old_end=older.get("listed_to")
-                if not old_start or old_start >= new_start:
+                old_end=str(older.get("listed_to") or "9999-12-31")
+                new_window_start=str(newer.get("listed_from") or "")
+                new_window_end=str(newer.get("listed_to") or "9999-12-31")
+                if max(old_start,new_window_start) > min(old_end,new_window_end):
                     continue
-                if old_end and str(old_end) < new_start:
-                    continue
-                inferred_end=(date.fromisoformat(new_start)-timedelta(days=1)).isoformat()
-                older["listed_to"]=inferred_end
-                older["notes"]="windowed_membership;cross_exchange_transfer_closed_from_official_destination_list"
+
+                inferred_end=(
+                    date.fromisoformat(new_evidence)-timedelta(days=1)
+                ).isoformat()
+
+                # Transfer completed before the governed research window:
+                # the source-board interval has no valid membership inside it.
+                if inferred_end < window_start:
+                    remove_ids.add(id(older))
+                    resolution="SOURCE_INTERVAL_REMOVED_BEFORE_WINDOW"
+                else:
+                    older["listed_to"]=inferred_end
+                    older["notes"]="windowed_membership;cross_exchange_transfer_closed_from_official_destination_list"
+                    resolution="SOURCE_INTERVAL_CLOSED"
+
                 annotations.append({
                     "symbol":symbol,
                     "type":"CROSS_EXCHANGE_TRANSFER_RECONCILED",
                     "from_exchange":older.get("exchange"),
                     "to_exchange":newer.get("exchange"),
-                    "destination_listed_from":new_start,
+                    "source_official_listed_from":old_evidence,
+                    "destination_official_listed_from":new_evidence,
                     "source_interval_closed_to":inferred_end,
-                    "note":"Derived from official destination-exchange LIST evidence; no current-universe substitution.",
+                    "resolution":resolution,
+                    "note":"Derived only from ordered official LIST evidence; same-date/ambiguous evidence remains fail-closed.",
                 })
+
+    intervals=[x for x in intervals if id(x) not in remove_ids]
+    for item in intervals:
+        item.pop("_evidence_listed_from",None)
 
     return {
         "intervals":sorted(intervals,key=lambda x:(x["exchange"],x["symbol"],x["listed_from"])),
