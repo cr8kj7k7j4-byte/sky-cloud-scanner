@@ -25,50 +25,20 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Locate latest canonical Swing daily artifact
-        id: artifact
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          import json, os, urllib.request
-          repo=os.environ["GITHUB_REPOSITORY"]
-          token=os.environ["GH_TOKEN"]
-          url=f"https://api.github.com/repos/{repo}/actions/artifacts?per_page=100"
-          req=urllib.request.Request(url,headers={"Authorization":f"Bearer {token}","Accept":"application/vnd.github+json"})
-          data=json.load(urllib.request.urlopen(req))
-          xs=[a for a in data.get("artifacts",[]) if (not a.get("expired")) and str(a.get("name","")).startswith("w3-swing-canonical-daily-history")]
-          if not xs:
-              raise SystemExit("No non-expired canonical Swing daily artifact found")
-          xs.sort(key=lambda a:a.get("created_at",""), reverse=True)
-          a=xs[0]
-          print("artifact",a["id"],a["name"],a.get("created_at"))
-          with open(os.environ["GITHUB_OUTPUT"],"a",encoding="utf-8") as fh:
-              fh.write(f"id={a['id']}\n")
-              fh.write(f"name={a['name']}\n")
-          PY
+      - name: Download verified canonical Swing daily artifact
+        uses: dawidd6/action-download-artifact@v11
+        with:
+          run_id: 40252311345
+          name: w3-swing-canonical-daily-history-repaired-40252311345
+          path: _canonical
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Download canonical artifact
+      - name: Verify canonical artifact
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p _canonical
-          python - <<'PY'
-          import os, urllib.request
-          aid=os.environ["ARTIFACT_ID"]
-          repo=os.environ["GITHUB_REPOSITORY"]
-          token=os.environ["GH_TOKEN"]
-          url=f"https://api.github.com/repos/{repo}/actions/artifacts/{aid}/zip"
-          req=urllib.request.Request(url,headers={"Authorization":f"Bearer {token}","Accept":"application/vnd.github+json"})
-          with urllib.request.urlopen(req) as r, open("_canonical/artifact.zip","wb") as f:
-              f.write(r.read())
-          PY
-          cd _canonical
-          unzip -q artifact.zip
-          echo "daily files: $(find . -name '*_D.json' | wc -l)"
-          test "$(find . -name '*_D.json' | wc -l)" -gt 0
-        env:
-          ARTIFACT_ID: ${{ steps.artifact.outputs.id }}
+          echo "daily files: $(find _canonical -name '*_D.json' | wc -l)"
+          test "$(find _canonical -name '*_D.json' | wc -l)" -gt 0
 
       - name: Locate history directory
         id: data
