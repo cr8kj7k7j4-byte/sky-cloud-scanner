@@ -1,0 +1,247 @@
+name: Sky GitHub 全事件 Telegram 通知
+
+on:
+  workflow_run:
+    workflows:
+      - "**"
+      - "!Sky GitHub 全事件 Telegram 通知"
+    types: [completed]
+  push:
+  pull_request:
+    types: [opened, closed, reopened, synchronize, ready_for_review, converted_to_draft, review_requested, review_request_removed]
+  issues:
+    types: [opened, closed, reopened, edited, labeled, unlabeled, assigned, unassigned]
+  issue_comment:
+    types: [created, edited, deleted]
+  pull_request_review:
+    types: [submitted, edited, dismissed]
+  pull_request_review_comment:
+    types: [created, edited, deleted]
+  release:
+    types: [published, unpublished, created, edited, deleted, prereleased, released]
+  deployment_status:
+  create:
+  delete:
+  fork:
+  watch:
+    types: [started]
+  discussion:
+    types: [created, edited, deleted, transferred, pinned, unpinned, labeled, unlabeled, locked, unlocked, category_changed, answered, unanswered]
+  discussion_comment:
+    types: [created, edited, deleted]
+  repository_dispatch:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: telegram-all-events-${{ github.event_name }}-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      GH_EVENT_NAME: ${{ github.event_name }}
+      GH_REPOSITORY: ${{ github.repository }}
+      GH_ACTOR: ${{ github.actor }}
+      GH_SERVER_URL: ${{ github.server_url }}
+      GH_RUN_ID: ${{ github.run_id }}
+      GH_REF: ${{ github.ref }}
+      GH_SHA: ${{ github.sha }}
+    steps:
+      - name: 建立中文通知並傳送 Telegram
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${TELEGRAM_BOT_TOKEN:-}"
+          test -n "${TELEGRAM_CHAT_ID:-}"
+
+          python - <<'PY'
+          import json
+          import os
+          import urllib.request
+          from pathlib import Path
+
+          event_name = os.environ["GH_EVENT_NAME"]
+          repo = os.environ["GH_REPOSITORY"]
+          actor = os.environ["GH_ACTOR"]
+          payload = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text(encoding="utf-8"))
+
+          zh_event = {
+              "workflow_run": "Actions 執行完成",
+              "push": "程式碼推送",
+              "pull_request": "Pull Request 更新",
+              "issues": "Issue 更新",
+              "issue_comment": "Issue／PR 留言更新",
+              "pull_request_review": "PR 審查更新",
+              "pull_request_review_comment": "PR 審查留言更新",
+              "release": "版本發布更新",
+              "deployment_status": "部署狀態更新",
+              "create": "分支／標籤建立",
+              "delete": "分支／標籤刪除",
+              "fork": "Repository Fork",
+              "watch": "Repository Star",
+              "discussion": "Discussion 更新",
+              "discussion_comment": "Discussion 留言更新",
+              "repository_dispatch": "外部事件觸發",
+              "workflow_dispatch": "手動工作流程觸發",
+          }
+
+          title = f"【Sky GitHub】{zh_event.get(event_name, event_name)}"
+          lines = [title, f"專案：{repo}", f"操作者：{actor}"]
+
+          if event_name == "workflow_run":
+              wr = payload.get("workflow_run") or {}
+              conclusion_map = {
+                  "success": "成功",
+                  "failure": "失敗",
+                  "cancelled": "已取消",
+                  "skipped": "已略過",
+                  "neutral": "中立",
+                  "timed_out": "逾時",
+                  "action_required": "需要處理",
+                  "stale": "已失效",
+              }
+              lines += [
+                  f"工作流程：{wr.get('name','未知')}",
+                  f"結果：{conclusion_map.get(wr.get('conclusion'), wr.get('conclusion') or '未知')}",
+                  f"分支：{wr.get('head_branch') or '未知'}",
+              ]
+              url = wr.get("html_url")
+
+          elif event_name == "push":
+              ref = payload.get("ref","")
+              commits = payload.get("commits") or []
+              head = payload.get("head_commit") or {}
+              lines += [
+                  f"分支／標籤：{ref.replace('refs/heads/','').replace('refs/tags/','')}",
+                  f"提交數：{len(commits)}",
+                  f"最新提交：{head.get('message') or '無'}",
+              ]
+              url = payload.get("compare") or f"https://github.com/{repo}/commit/{payload.get('after','')}"
+
+          elif event_name == "pull_request":
+              pr = payload.get("pull_request") or {}
+              lines += [
+                  f"動作：{payload.get('action','未知')}",
+                  f"PR：#{pr.get('number')} {pr.get('title','')}",
+                  f"狀態：{pr.get('state','未知')}",
+              ]
+              url = pr.get("html_url")
+
+          elif event_name == "issues":
+              issue = payload.get("issue") or {}
+              lines += [
+                  f"動作：{payload.get('action','未知')}",
+                  f"Issue：#{issue.get('number')} {issue.get('title','')}",
+                  f"狀態：{issue.get('state','未知')}",
+              ]
+              url = issue.get("html_url")
+
+          elif event_name in {"issue_comment","pull_request_review_comment"}:
+              comment = payload.get("comment") or {}
+              issue = payload.get("issue") or {}
+              pr = payload.get("pull_request") or {}
+              body = (comment.get("body") or "").replace("\n"," ").strip()
+              if len(body) > 180:
+                  body = body[:177] + "..."
+              number = issue.get("number") or pr.get("number")
+              lines += [
+                  f"動作：{payload.get('action','未知')}",
+                  f"編號：#{number}" if number else "編號：無",
+                  f"內容：{body or '無'}",
+              ]
+              url = comment.get("html_url")
+
+          elif event_name == "pull_request_review":
+              review = payload.get("review") or {}
+              pr = payload.get("pull_request") or {}
+              lines += [
+                  f"動作：{payload.get('action','未知')}",
+                  f"PR：#{pr.get('number')} {pr.get('title','')}",
+                  f"審查狀態：{review.get('state','未知')}",
+              ]
+              url = review.get("html_url") or pr.get("html_url")
+
+          elif event_name == "release":
+              rel = payload.get("release") or {}
+              lines += [
+                  f"動作：{payload.get('action','未知')}",
+                  f"版本：{rel.get('tag_name') or rel.get('name') or '未知'}",
+              ]
+              url = rel.get("html_url")
+
+          elif event_name == "deployment_status":
+              ds = payload.get("deployment_status") or {}
+              lines += [
+                  f"部署狀態：{ds.get('state','未知')}",
+                  f"環境：{ds.get('environment') or '未指定'}",
+              ]
+              url = ds.get("target_url") or ds.get("environment_url")
+
+          elif event_name in {"create","delete"}:
+              lines += [
+                  f"類型：{payload.get('ref_type','未知')}",
+                  f"名稱：{payload.get('ref','未知')}",
+              ]
+              url = f"https://github.com/{repo}"
+
+          elif event_name == "fork":
+              fr = payload.get("forkee") or {}
+              lines.append(f"Fork：{fr.get('full_name','未知')}")
+              url = fr.get("html_url")
+
+          elif event_name == "watch":
+              lines.append("動作：新增 Star")
+              url = f"https://github.com/{repo}/stargazers"
+
+          elif event_name == "discussion":
+              d = payload.get("discussion") or {}
+              lines += [
+                  f"動作：{payload.get('action','未知')}",
+                  f"討論：#{d.get('number')} {d.get('title','')}",
+              ]
+              url = d.get("html_url")
+
+          elif event_name == "discussion_comment":
+              d = payload.get("discussion") or {}
+              c = payload.get("comment") or {}
+              body = (c.get("body") or "").replace("\n"," ").strip()
+              if len(body) > 180:
+                  body = body[:177] + "..."
+              lines += [
+                  f"動作：{payload.get('action','未知')}",
+                  f"討論：#{d.get('number')} {d.get('title','')}",
+                  f"內容：{body or '無'}",
+              ]
+              url = c.get("html_url") or d.get("html_url")
+
+          else:
+              lines.append(f"動作：{payload.get('action','觸發')}")
+              url = f"https://github.com/{repo}/actions/runs/{os.environ['GH_RUN_ID']}"
+
+          if url:
+              lines.append(f"連結：{url}")
+
+          text = "\n".join(lines)
+          req = urllib.request.Request(
+              f"https://api.telegram.org/bot{os.environ['TELEGRAM_BOT_TOKEN']}/sendMessage",
+              data=json.dumps({
+                  "chat_id": os.environ["TELEGRAM_CHAT_ID"],
+                  "text": text,
+                  "disable_web_page_preview": True,
+              }, ensure_ascii=False).encode("utf-8"),
+              headers={"Content-Type":"application/json"},
+              method="POST",
+          )
+          with urllib.request.urlopen(req, timeout=20) as r:
+              body = json.loads(r.read().decode("utf-8"))
+          if not body.get("ok"):
+              raise SystemExit(body)
+          print("telegram_all_events_notification=PASS")
+          PY

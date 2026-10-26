@@ -410,3 +410,37 @@ Current baseline includes:
 
 Canonical record:
 `docs/SKY_TELEGRAM_NOTIFICATION_STATUS_20261026.md`
+
+
+## P. Telegram All-Events Mode — 2026-10-26
+
+### User directive
+Telegram notification scope is expanded from material-status-only to **ALL EVENTS MODE** for `sky-cloud-scanner`.
+
+### Coverage
+- All GitHub Actions workflow completions, regardless of conclusion.
+- Push.
+- Pull Request lifecycle events.
+- Issue events and comments.
+- PR reviews and review comments.
+- Release.
+- Deployment status.
+- Branch/tag create/delete.
+- Fork / Star.
+- Discussions and discussion comments.
+- repository_dispatch / workflow_dispatch.
+
+### Safety / recursion control
+- The Telegram notifier excludes its own workflow name from `workflow_run` matching to prevent recursive self-triggering.
+- Secrets remain in GitHub Actions repository secrets only.
+- User-visible messages remain Traditional Chinese first.
+
+### Governance impact
+- Notification policy only; no Alpha, P0-C, P0-R, Production, risk, or promotion-rule change.
+- Existing detailed material alerts may coexist with generic workflow-completion alerts.
+
+Canonical workflow:
+`.github/workflows/telegram-all-github-events.yml`
+
+Canonical status:
+`docs/SKY_TELEGRAM_NOTIFICATION_STATUS_20261026.md`
