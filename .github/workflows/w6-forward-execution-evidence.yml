@@ -68,6 +68,23 @@ jobs:
 
           find shadow_history -type f -path '*/output/paper/*.json' | sort || true
 
+      - name: Download previous W6 report for transition detection
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p previous/w6
+          run_id="$(gh run list \
+            --workflow w6-forward-execution-evidence.yml \
+            --status success \
+            --limit 1 \
+            --json databaseId \
+            --jq '.[0].databaseId // empty')"
+          if [ -n "$run_id" ]; then
+            gh run download "$run_id" \
+              -n w6-forward-execution-evidence \
+              -D previous/w6 || true
+          fi
+
       - name: Build W6 forward L1 evidence
         run: |
           PYTHONPATH=. python research/w6_collect_forward_l1.py \
@@ -79,6 +96,28 @@ jobs:
           PYTHONPATH=. python research/w6_p1_report.py \
             --input research_output/w6_execution_evidence.jsonl \
             --output research_output/w6_p1_report.json
+
+      - name: Telegram W6 milestone notification
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+        run: |
+          PYTHONPATH=. python research/notify_governance_event.py \
+            --kind w6 \
+            --input research_output/w6_p1_report.json \
+            --previous-input previous/w6/w6_p1_report.json
+
+      - name: Telegram W6 failure notification
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          PYTHONPATH=. python research/notify_governance_event.py \
+            --kind failure \
+            --workflow "W6 Forward Execution Evidence" \
+            --run-url "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
       - name: Upload W6 evidence artifact
         uses: actions/upload-artifact@v4
