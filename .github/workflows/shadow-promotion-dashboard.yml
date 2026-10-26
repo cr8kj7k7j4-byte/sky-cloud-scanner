@@ -138,6 +138,24 @@ jobs:
 
           find shadow_history -type f -name '*-outcomes.json' | sort || true
 
+      - name: Download previous W4 dashboard for transition detection
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p previous/w4
+          run_id="$(gh run list \
+            --workflow shadow-promotion-dashboard.yml \
+            --status success \
+            --limit 1 \
+            --json databaseId \
+            --jq '.[0].databaseId // empty')"
+          if [ -n "$run_id" ]; then
+            gh run download "$run_id" \
+              -n shadow-promotion-dashboard \
+              -D previous/w4 || true
+          fi
+
       - name: Build dashboard
         shell: bash
         run: |
@@ -163,6 +181,29 @@ jobs:
             research_output/w4_scan_eligibility.json
           if-no-files-found: error
           retention-days: 30
+
+      - name: Telegram milestone notification
+        if: github.event_name != 'pull_request'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+        run: |
+          PYTHONPATH=. python research/notify_governance_event.py \
+            --kind w4 \
+            --input research_output/shadow_promotion_dashboard.json \
+            --previous-input previous/w4/shadow_promotion_dashboard.json
+
+      - name: Telegram failure notification
+        if: failure() && github.event_name != 'pull_request'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          PYTHONPATH=. python research/notify_governance_event.py \
+            --kind failure \
+            --workflow "W4 Shadow Promotion Dashboard" \
+            --run-url "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
       - name: Production E2E
         run: PYTHONPATH=. pytest -q tests/test_production_e2e_acceptance.py
