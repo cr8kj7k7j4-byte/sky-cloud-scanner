@@ -1,0 +1,63 @@
+name: W2 Baseline E Dual-Path False-Start Filter
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/w2-baseline-e-dual-path.yml"
+      - "research/backtest_opening_acceleration_baseline_e_dual_path.py"
+      - "research/w5/OPENING_ACCELERATION_BASELINE_E_DUAL_PATH_PREREGISTRATION_20261027.md"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      PYTHONPATH: .
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Download frozen Baseline C source shards
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p opening_data
+          gh run download 40267006806 \
+            -p "opening-accel-2026-jan-oct22-shard-*-40267006806" \
+            -D opening_data
+          count="$(find opening_data -type f -name '*_opening_1m.json' | wc -l | tr -d ' ')"
+          echo "opening_json_files=$count"
+          test "$count" -gt 0
+
+      - name: Run preregistered Baseline E
+        run: |
+          python research/backtest_opening_acceleration_baseline_e_dual_path.py \
+            --data-root opening_data \
+            --source-run-id 40267006806 \
+            --out-dir research_output/opening_acceleration_baseline_e_2026_jan_oct22
+
+      - name: Publish summary
+        if: always()
+        run: |
+          if [ -f research_output/opening_acceleration_baseline_e_2026_jan_oct22/opening_acceleration_baseline_e_report.md ]; then
+            cat research_output/opening_acceleration_baseline_e_2026_jan_oct22/opening_acceleration_baseline_e_report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: baseline-e-dual-path-${{ github.run_id }}
+          path: research_output/opening_acceleration_baseline_e_2026_jan_oct22
+          if-no-files-found: error
+          retention-days: 30
