@@ -19,7 +19,8 @@
 | Event-driven Intraday Ranking / Catalyst Stack | ARCHIVED_NO_RETUNE | Slower horizon or new target family, not intraday threshold tuning |
 | Transparent Intraday ML Ensemble | ARCHIVED_NO_RETUNE | New labels / data contract / validation period, not model hyperparameter search |
 | Low-vol Market-residual Long-only | ARCHIVED_NO_RETUNE | Cross-sectional residual target / market-neutral formulation |
-| VNext Residual Ranking Baseline v1 | ARCHIVED_NO_RETUNE | New structural preregistration only; no weight/Top-N/horizon/ML rescue of v1 |\n| Top100 Velocity Baseline A | ARCHIVED_NO_RETUNE | n=9,934; gross PF=0.953; 0.45% expectancy=-0.4888%; PF=0.556; all 3 folds and 2023-2026 yearly slices negative after cost. Re-open only via structural new preregistration, not Top-N/lookback/weight/exit retuning. |
+| VNext Residual Ranking Baseline v1 | ARCHIVED_NO_RETUNE | New structural preregistration only; no weight/Top-N/horizon/ML rescue of v1 |
+| Top100 Velocity Baseline A family | ARCHIVED_NO_RETUNE | Two preregistered variants both failed after cost: (A1) Top3 / 60m, n=9,934, gross PF=0.953, 0.45% expectancy=-0.4888%, PF=0.556; (A2) top-decile / 30m, 9,949 signals / 8,685 deterministic entries, gross expectancy=+0.0215%, PF=1.035, 0.45% expectancy=-0.4285%, PF=0.528, 8/8 half-year folds negative. Re-open only via structural new information/label/execution preregistration, not Top-N/time/lookback/weights/volume threshold/holding-period/stop-target retuning. |n=9,934; gross PF=0.953; 0.45% expectancy=-0.4888%; PF=0.556; all 3 folds and 2023-2026 yearly slices negative after cost. Re-open only via structural new preregistration, not Top-N/lookback/weight/exit retuning. |
 
 ## Active but blocked research
 
