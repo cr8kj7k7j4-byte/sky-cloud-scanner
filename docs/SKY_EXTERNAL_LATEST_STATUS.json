@@ -1,0 +1,254 @@
+{
+  "schema_version": "SKY_EXTERNAL_STATUS_SNAPSHOT_V1_0",
+  "generated_at_utc": "2026-10-26T01:16:27.155741+00:00",
+  "source": {
+    "dashboard_workflow_run_id": "40230014295",
+    "repository": "cr8kj7k7j4-byte/sky-cloud-scanner"
+  },
+  "production_baseline": {
+    "day_trading": "Sky Day Trading v1.4 Dynamic Capital Rotation / P0-C MVP",
+    "system": "Sky V2.1",
+    "production_changed": false
+  },
+  "w4_dashboard": {
+    "schema_version": "1.1",
+    "stage": "WAITING_FOR_FUTURE_SAMPLE",
+    "artifact_type": "RANKING",
+    "sample_sufficiency": {
+      "sufficient": false,
+      "checks": {
+        "sample_count": false,
+        "trading_days": false,
+        "regime_coverage": false,
+        "outcome_completeness": false,
+        "symbol_concentration": true
+      },
+      "failed_checks": [
+        "sample_count",
+        "trading_days",
+        "regime_coverage",
+        "outcome_completeness"
+      ],
+      "observed": {
+        "samples": 0,
+        "trading_days": 0,
+        "regimes": [],
+        "regime_count": 0,
+        "outcome_complete": 0,
+        "outcome_complete_ratio": 0.0,
+        "unique_symbols": 0,
+        "top_symbol_share": 0.0
+      },
+      "thresholds": {
+        "min_samples": 200,
+        "min_trading_days": 20,
+        "min_regimes": 2,
+        "min_outcome_complete_ratio": 0.95,
+        "max_symbol_share": 0.2
+      },
+      "note": "Shadow Sample Sufficiency 只判斷證據量與代表性，不代表勝率、獲利機率或策略有效性。"
+    },
+    "sample_gaps": {
+      "samples_remaining": 200,
+      "trading_days_remaining": 20,
+      "regimes_remaining": 2,
+      "outcome_completeness_gap": 0.95,
+      "symbol_concentration_excess": 0.0
+    },
+    "promotion_scorecard": {
+      "artifact_type": "RANKING",
+      "score": 3.0,
+      "meaning": "升版證據成熟度，不代表勝率或獲利機率",
+      "checks": {
+        "sample_sufficient": false,
+        "walk_forward": false,
+        "oos": false,
+        "cost_stress": false,
+        "leakage_check": false,
+        "survivorship_review": false,
+        "regime_stability": false,
+        "paper_trade": false,
+        "positive_expectancy": false,
+        "profit_factor": false,
+        "drawdown_control": true
+      },
+      "failed_checks": [
+        "sample_sufficient",
+        "walk_forward",
+        "oos",
+        "cost_stress",
+        "leakage_check",
+        "survivorship_review",
+        "regime_stability",
+        "paper_trade",
+        "positive_expectancy",
+        "profit_factor"
+      ],
+      "metrics_used": {
+        "expectancy_r": 0.0,
+        "profit_factor": 0.0,
+        "max_drawdown_r": null
+      },
+      "thresholds": {
+        "min_expectancy_r": 0.0,
+        "min_profit_factor": 1.0,
+        "max_drawdown_r": null
+      },
+      "promotable_to_governance_review": false,
+      "production_eligible": false,
+      "note": "Scorecard 全通過只代表可進治理審查；仍須由 P0-G 明確核准 Champion Configuration。"
+    },
+    "blocking_items": [
+      "sample:sample_count",
+      "sample:trading_days",
+      "sample:regime_coverage",
+      "sample:outcome_completeness",
+      "promotion:walk_forward",
+      "promotion:oos",
+      "promotion:cost_stress",
+      "promotion:leakage_check",
+      "promotion:survivorship_review",
+      "promotion:regime_stability",
+      "promotion:paper_trade",
+      "promotion:positive_expectancy",
+      "promotion:profit_factor"
+    ],
+    "summary": {
+      "samples": 0,
+      "trading_days": 0,
+      "regime_count": 0,
+      "outcome_complete_ratio": 0.0,
+      "top_symbol_share": 0.0,
+      "promotion_score": 3.0,
+      "promotable_to_governance_review": false
+    },
+    "note": "Dashboard 用於證據累積與升版治理，不是交易勝率、報酬預測或自動 Production Promotion。",
+    "source": {
+      "paper_dir": "shadow_history",
+      "files_scanned": 4,
+      "records_loaded": 0,
+      "promotion_evidence_file": null
+    },
+    "pipeline_readiness": {
+      "status": "WAITING_FOR_FIRST_ELIGIBLE_SCAN",
+      "healthy": true,
+      "collection_started": false,
+      "ledger_start": "2026-10-24T23:28:08Z",
+      "eligible_successful_scan_runs": 0,
+      "paper_files": 4,
+      "records_loaded": 0,
+      "blocking_items": [],
+      "note": "Pipeline readiness only classifies evidence collection health. It does not imply strategy edge, profitability, or promotion readiness."
+    },
+    "portfolio_cost_capacity": {
+      "status": "NOT_EVALUABLE",
+      "production_eligible": false,
+      "checks": {
+        "has_complete_strategy_outcomes": false,
+        "cost_completeness": false,
+        "symbol_concentration": false,
+        "capacity": null
+      },
+      "observed": {
+        "records": 0,
+        "eligible_strategy_records": 0,
+        "complete_strategy_outcomes": 0,
+        "cost_complete_ratio": 0.0,
+        "unique_symbols": 0,
+        "top_symbol_share": 0.0,
+        "expectancy_r": null,
+        "profit_factor": null,
+        "max_drawdown_r": null,
+        "capacity_observations": 0,
+        "median_participation_rate": null,
+        "peak_participation_rate": null
+      },
+      "thresholds": {
+        "min_cost_complete_ratio": 0.95,
+        "max_symbol_share": 0.2,
+        "max_participation_rate": null
+      },
+      "note": "Portfolio/Cost/Capacity evidence is descriptive Shadow validation. No result here is a win rate, profit guarantee, or automatic Production promotion."
+    },
+    "w4_report": {
+      "Sample Progress": {
+        "status": "WAITING_FOR_FUTURE_SAMPLE",
+        "samples": 0,
+        "trading_days": 0,
+        "regime_count": 0
+      },
+      "Data Completeness": {
+        "pipeline_status": "WAITING_FOR_FIRST_ELIGIBLE_SCAN",
+        "outcome_complete_ratio": 0.0,
+        "sample_gate_sufficient": false
+      },
+      "Strategy Performance": {
+        "expectancy_r": null,
+        "profit_factor": null,
+        "max_drawdown_r": null,
+        "note": "Counterfactual/Shadow evidence only; not realized trading PnL."
+      },
+      "Risk": {
+        "portfolio_status": "NOT_EVALUABLE",
+        "top_symbol_share": 0.0,
+        "cost_complete_ratio": 0.0,
+        "production_eligible": false
+      },
+      "Drift": {
+        "status": "WAITING_FOR_FUTURE_SAMPLE",
+        "note": "Requires sufficient forward evidence before Backtest vs Shadow/Paper/Live deterioration can be interpreted."
+      },
+      "Promotion Readiness": {
+        "status": "WAITING_FOR_FUTURE_SAMPLE",
+        "promotable_to_governance_review": false,
+        "production_eligible": false,
+        "blocking_items": [
+          "sample:sample_count",
+          "sample:trading_days",
+          "sample:regime_coverage",
+          "sample:outcome_completeness",
+          "promotion:walk_forward",
+          "promotion:oos",
+          "promotion:cost_stress",
+          "promotion:leakage_check",
+          "promotion:survivorship_review",
+          "promotion:regime_stability",
+          "promotion:paper_trade",
+          "promotion:positive_expectancy",
+          "promotion:profit_factor"
+        ]
+      },
+      "Outstanding Days / Samples": {
+        "samples_remaining": 200,
+        "trading_days_remaining": 20,
+        "regimes_remaining": 2,
+        "outcome_completeness_gap": 0.95,
+        "symbol_concentration_excess": 0.0
+      }
+    }
+  },
+  "scan_eligibility": {
+    "schema_version": "W4_SCAN_ARTIFACT_ELIGIBILITY_V1_0",
+    "ledger_start": "2026-10-24T23:28:08Z",
+    "paper_files_scanned": 0,
+    "run_count": 0,
+    "eligible_run_count": 0,
+    "eligible_record_count": 0,
+    "eligible_run_ids": [],
+    "ineligible_or_empty_runs": [],
+    "runs": [],
+    "malformed_files": [],
+    "status": "PASS",
+    "governance": {
+      "workflow_success_alone_is_not_eligible_evidence": true,
+      "nonempty_post_ledger_paper_record_required": true,
+      "holiday_or_empty_scan_counts_as_eligible": false,
+      "production_change": false
+    }
+  },
+  "usage": {
+    "monitoring_owner": "GitHub Actions / external infrastructure",
+    "chatgpt_role": "on-demand reader and analyst only",
+    "instruction": "When user asks for Sky latest result, read this file first and then fetch linked evidence if needed."
+  }
+}
