@@ -28,7 +28,7 @@ assert "09:01" in d["outcomes"]
 o=d["outcomes"]["09:01"]
 assert dl.fourth_tick_above(10.00)==10.20
 assert dl.fourth_tick_above(50.00)==50.40
-assert dl.fourth_tick_above(49.90)==50.15
+assert dl.fourth_tick_above(49.90)==50.20
 assert o["entry_status"] in {"ENTRY_4TICK_ZONE","MISSED_4TICK_NO_CHASE","NO_ENTRY_OPEN_ZONE"}
 assert o["raw_entry_open"]>0
 assert o["high_to_close"]>=o["entry"]
@@ -53,3 +53,28 @@ assert all(x["net_60m_045"] is not None for x in p)
 m=bt.metrics(p,"net_60m_045")
 assert m["n"]==3
 print("PASS Opening Acceleration unit tests")
+
+
+# Explicit stop case after a valid 4-tick-zone entry.
+stop_data=[]
+for i in range(80):
+    t=(base+timedelta(minutes=i)).strftime("%H:%M")
+    if i==0:
+        px=10.0
+    elif i==1:
+        px=10.1
+    else:
+        px=10.3
+    b=bar(t,px,100+i)
+    if i==2:
+        b["open"]=10.1
+        b["low"]=9.9
+        b["close"]=10.0
+    stop_data.append(b)
+sd=dl.compact_chunk(stop_data)[0]
+so=sd["outcomes"]["09:01"]
+assert so["entry_status"]=="ENTRY_4TICK_ZONE"
+assert so["open_stop_triggered"] is True
+assert so["open_stop_time"]=="09:02"
+assert abs(so["open_stop_fill"]-10.0)<1e-12
+assert abs(so["stop_aware_exit_60m"]-10.0)<1e-12
