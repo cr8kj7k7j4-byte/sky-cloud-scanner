@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import defaultdict
+from datetime import date, timedelta
 from pathlib import Path
 
 from research.build_universe_sample import fetch_universe
@@ -138,6 +139,45 @@ def build_windowed_intervals(events: list[dict], window_start: str = WINDOW_STAR
                 "source_as_of":max(str(e.get("source_as_of") or "") for e in arr),
                 "notes":"windowed_membership",
             })
+
+    # Reconcile official cross-exchange transfers. Taiwan common shares cannot
+    # be concurrently listed on TWSE and TPEx under the same stock code. When
+    # an official LIST event on the destination exchange starts inside an
+    # otherwise open interval on the source exchange, the destination LIST
+    # date is point-in-time evidence of a board transfer. Close the older
+    # interval on the preceding calendar day. We do not resolve same-day /
+    # same-start ambiguities; those remain visible to downstream fail-closed
+    # validation.
+    by_symbol=defaultdict(list)
+    for item in intervals:
+        by_symbol[str(item["symbol"])].append(item)
+    for symbol, rows in by_symbol.items():
+        rows.sort(key=lambda x:(str(x["listed_from"]),str(x["exchange"])))
+        for newer in rows:
+            new_start=str(newer.get("listed_from") or "")
+            if not new_start:
+                continue
+            for older in rows:
+                if older is newer or older.get("exchange")==newer.get("exchange"):
+                    continue
+                old_start=str(older.get("listed_from") or "")
+                old_end=older.get("listed_to")
+                if not old_start or old_start >= new_start:
+                    continue
+                if old_end and str(old_end) < new_start:
+                    continue
+                inferred_end=(date.fromisoformat(new_start)-timedelta(days=1)).isoformat()
+                older["listed_to"]=inferred_end
+                older["notes"]="windowed_membership;cross_exchange_transfer_closed_from_official_destination_list"
+                annotations.append({
+                    "symbol":symbol,
+                    "type":"CROSS_EXCHANGE_TRANSFER_RECONCILED",
+                    "from_exchange":older.get("exchange"),
+                    "to_exchange":newer.get("exchange"),
+                    "destination_listed_from":new_start,
+                    "source_interval_closed_to":inferred_end,
+                    "note":"Derived from official destination-exchange LIST evidence; no current-universe substitution.",
+                })
 
     return {
         "intervals":sorted(intervals,key=lambda x:(x["exchange"],x["symbol"],x["listed_from"])),
