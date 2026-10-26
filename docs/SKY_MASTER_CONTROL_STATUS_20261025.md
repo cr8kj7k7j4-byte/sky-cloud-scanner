@@ -524,3 +524,16 @@ Open PRs are not formal Registry state until W0/P0-G review and merge.
 2. W2 remains blocked until the dataset passes fail-closed governance gates.
 3. W4 must start accumulating eligible forward scans/samples.
 4. W0 reviews open research PRs separately; none are formal until accepted.
+
+
+## Swing V1.0 exact-rule specification debt — 2026-10-26
+
+- W3 canonical PIT daily data: PASS.
+- W1 data readiness: READY_FOR_CANONICAL_SWING_REPLAY.
+- W3→W1 handoff: PASS.
+- Production Swing V1.0: ACTIVE / unchanged.
+- W1: HOLD.
+- Blocking gate: BLOCKED_EXACT_RULE_SPEC.
+- W0 decision: current SSOT does not contain a complete executable Swing V1.0 rule specification; proxy research may not be substituted.
+- Formal decision: `docs/SKY_SWING_V1_EXACT_RULE_GOVERNANCE_DECISION_20261026.md`.
+- Resume only after exact frozen rule specification is recovered/governed from contemporaneous pre-result evidence.
