@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/w3a-opening-acceleration-2026-jan-oct22.yml"
+      - "research/backtest_opening_acceleration_baseline_c.py"
+      - "research/w5/OPENING_ACCELERATION_BASELINE_C_PREREGISTRATION_20261026.md"
+      - "research/download_opening_acceleration_1m.py"
   workflow_dispatch:
 
 permissions:
