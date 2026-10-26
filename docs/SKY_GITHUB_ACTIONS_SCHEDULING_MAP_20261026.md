@@ -44,3 +44,26 @@
 - TWSE trading-calendar gate in `scan.yml` prevents ordinary non-trading-day scans.
 - GitHub artifact retention remains the evidence handoff mechanism.
 - Production baseline remains unchanged.
+
+
+## Notification Architecture
+
+Canonical notification flow:
+
+`GitHub Actions → GitHub Artifacts / Evidence → Telegram milestone alerts → ChatGPT on-demand analysis`
+
+Telegram is intentionally event-driven, not chatty.
+
+Notify only when:
+- W4 transitions to `SAMPLE_READY` or `GOVERNANCE_REVIEW_READY`;
+- P0-R transitions to `READY_FOR_P0R_REVIEW`;
+- W6 transitions to `EXECUTION_CANDIDATE`;
+- W4 / P0-R / W6 / W3B workflow has a material execution failure.
+
+Do not notify for:
+- normal scheduled runs;
+- ordinary WAITING / HOLD / INSUFFICIENT_DATA states;
+- unchanged repeated states;
+- research intermediate output with no governance consequence.
+
+ChatGPT is not part of the execution chain. It reads GitHub evidence on demand for analysis, interpretation and governance support.
