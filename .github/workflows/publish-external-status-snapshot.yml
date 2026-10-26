@@ -151,22 +151,39 @@ jobs:
           new_samples=((nd.get("sample_sufficiency") or {}).get("observed") or {}).get("samples",0)
 
           unhealthy={"PIPELINE_ARTIFACT_MISSING","PIPELINE_RECORDS_MISSING","EVIDENCE_INCOMPLETE","FAILED"}
+          zh={
+              "WAITING_FOR_FUTURE_SAMPLE":"等待未來樣本",
+              "WAITING_FOR_FIRST_ELIGIBLE_SCAN":"等待第一筆符合條件的掃描",
+              "PIPELINE_ARTIFACT_MISSING":"資料管線產物缺失",
+              "PIPELINE_RECORDS_MISSING":"資料管線紀錄缺失",
+              "EVIDENCE_INCOMPLETE":"證據不完整",
+              "FAILED":"執行失敗",
+              "READY":"已就緒",
+              "PASS":"通過",
+              "SUCCESS":"成功",
+              "HEALTHY":"正常",
+          }
+          def z(v):
+              if v is None:
+                  return "無"
+              return zh.get(str(v), str(v))
+
           reasons=[]
           if old_stage != new_stage and old_stage is not None:
-              reasons.append(f"W4 stage: {old_stage} -> {new_stage}")
+              reasons.append(f"W4 階段：{z(old_stage)} → {z(new_stage)}")
           if old_pipe != new_pipe and (new_pipe in unhealthy or old_pipe in unhealthy):
-              reasons.append(f"Pipeline: {old_pipe} -> {new_pipe}")
+              reasons.append(f"資料管線：{z(old_pipe)} → {z(new_pipe)}")
           if old_prom is not True and new_prom is True:
-              reasons.append("Promotion governance review gate reached")
+              reasons.append("已達升版治理審查門檻")
           if old_suff is not True and new_suff is True:
-              reasons.append("W4 sample sufficiency gate reached")
+              reasons.append("W4 樣本充分性已達門檻")
 
           material=bool(reasons)
           Path("/tmp/sky_material_message.txt").write_text(
               "Sky 外部監控重大更新\n"
-              + ("\n".join(f"- {x}" for x in reasons) if reasons else "No material change")
-              + f"\n- Samples: {old_samples} -> {new_samples}"
-              + "\n- Source: docs/SKY_EXTERNAL_LATEST_STATUS.json",
+              + ("\n".join(f"- {x}" for x in reasons) if reasons else "無重大狀態變化")
+              + f"\n- 樣本數：{old_samples} → {new_samples}"
+              + "\n- 資料來源：docs/SKY_EXTERNAL_LATEST_STATUS.json",
               encoding="utf-8"
           )
           with open(os.environ["GITHUB_OUTPUT"],"a",encoding="utf-8") as fh:
