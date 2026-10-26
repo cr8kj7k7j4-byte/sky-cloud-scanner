@@ -72,6 +72,23 @@ jobs:
               -D upstream/w6 || true
           fi
 
+      - name: Download previous P0-R report for transition detection
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p previous/p0r
+          run_id="$(gh run list \
+            --workflow p0r-forward-risk-evidence.yml \
+            --status success \
+            --limit 1 \
+            --json databaseId \
+            --jq '.[0].databaseId // empty')"
+          if [ -n "$run_id" ]; then
+            gh run download "$run_id" \
+              -n p0r-forward-risk-evidence \
+              -D previous/p0r || true
+          fi
+
       - name: Build fail-closed P0-R evidence report
         env:
           ACCOUNT_EQUITY: ${{ vars.ACCOUNT_EQUITY || '0' }}
@@ -161,6 +178,28 @@ jobs:
           )
           print(json.dumps(report,ensure_ascii=False,indent=2))
           PY
+
+      - name: Telegram P0-R milestone notification
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+        run: |
+          PYTHONPATH=. python research/notify_governance_event.py \
+            --kind p0r \
+            --input research_output/p0r_forward_risk_evidence.json \
+            --previous-input previous/p0r/p0r_forward_risk_evidence.json
+
+      - name: Telegram P0-R failure notification
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          PYTHONPATH=. python research/notify_governance_event.py \
+            --kind failure \
+            --workflow "P0-R Forward Risk Evidence" \
+            --run-url "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
       - name: Upload P0-R evidence
         uses: actions/upload-artifact@v4
