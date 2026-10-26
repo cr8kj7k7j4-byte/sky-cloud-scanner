@@ -4,7 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from research.audit_historical_universe import build_historical_universe_audit
+from research.audit_historical_universe import build_historical_universe_audit, build_windowed_intervals
 
 
 def _payload():
@@ -249,3 +249,28 @@ def test_missing_delisting_evidence_blocks_gate():
     )
     assert out["historical_source_coverage_ok"] is False
     assert out["historical_universe_gate_pass"] is False
+
+
+def test_cross_exchange_transfer_closes_source_interval_before_destination_list():
+    events = [
+        {
+            "symbol": "1597", "exchange": "TPEx", "name": "X",
+            "event_type": "LIST", "event_date": "2020-01-01",
+            "source_as_of": "2026-10-25",
+        },
+        {
+            "symbol": "1597", "exchange": "TWSE", "name": "X",
+            "event_type": "LIST", "event_date": "2026-01-15",
+            "source_as_of": "2026-10-25",
+        },
+    ]
+    out = build_windowed_intervals(events)
+    rows = {x["exchange"]: x for x in out["intervals"]}
+    assert rows["TPEx"]["listed_from"] == "2023-01-01"
+    assert rows["TPEx"]["listed_to"] == "2026-01-14"
+    assert rows["TWSE"]["listed_from"] == "2026-01-15"
+    assert rows["TWSE"]["listed_to"] is None
+    assert any(
+        x.get("type") == "CROSS_EXCHANGE_TRANSFER_RECONCILED"
+        for x in out["annotations"]
+    )
