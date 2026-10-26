@@ -34,7 +34,12 @@ assert o["high_to_close"]>=o["entry"]
 stop_data=[]
 for i in range(80):
     t=(base+timedelta(minutes=i)).strftime("%H:%M")
-    px=10.2 if i==1 else 10.3
+    if i==0:
+        px=10.0
+    elif i==1:
+        px=10.2
+    else:
+        px=10.3
     b=bar(t,px,100+i)
     if i==2:
         b["open"]=10.1
