@@ -9,6 +9,9 @@ on:
       - "tests/test_pit_intraday_timeframe.py"
       - ".github/workflows/w3a-opening-acceleration-1m-probe.yml"
       - "research/w5/OPENING_ACCELERATION_BASELINE_C_PREREGISTRATION_20261026.md"
+      - "research/download_opening_acceleration_1m.py"
+      - "research/backtest_opening_acceleration_baseline_c.py"
+      - "tests/test_opening_acceleration_baseline_c.py"
   workflow_dispatch:
 
 permissions:
@@ -29,6 +32,8 @@ jobs:
       - run: pip install requests beautifulsoup4 pytest
       - name: Unit test timeframe support
         run: python tests/test_pit_intraday_timeframe.py
+      - name: Unit test Opening Acceleration compact/backtest
+        run: python tests/test_opening_acceleration_baseline_c.py
       - name: Build governed PIT universe
         run: python research/audit_historical_universe.py --out output/historical_universe_audit
       - name: Probe 1m historical endpoint on 20 PIT symbols
