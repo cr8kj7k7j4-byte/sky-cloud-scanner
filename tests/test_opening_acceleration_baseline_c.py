@@ -26,7 +26,11 @@ d=c[0]
 assert "09:00" in d["bars"] and "09:14" in d["bars"] and "09:15" not in d["bars"]
 assert "09:01" in d["outcomes"]
 o=d["outcomes"]["09:01"]
-assert o["entry"]>0 and o["exit_30m"]>0 and o["exit_60m"]>0
+assert dl.fourth_tick_above(10.00)==10.20
+assert dl.fourth_tick_above(50.00)==50.40
+assert dl.fourth_tick_above(49.90)==50.15
+assert o["entry_status"] in {"ENTRY_4TICK_ZONE","MISSED_4TICK_NO_CHASE","NO_ENTRY_OPEN_ZONE"}
+assert o["raw_entry_open"]>0
 assert o["high_to_close"]>=o["entry"]
 
 rows=[]
