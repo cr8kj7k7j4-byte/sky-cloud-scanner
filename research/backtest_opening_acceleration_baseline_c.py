@@ -10,11 +10,10 @@ from pathlib import Path
 
 PRIMARY_COST = 0.0045
 STRESS_COST = 0.0065
-PRICE_CAP = 100.0
 DAY_RETURN_CAP = 0.095
 MINUTES = [f"09:{m:02d}" for m in range(0, 16)]
 TRADE_MINUTES = [f"09:{m:02d}" for m in range(1, 16)]
-SCHEMA_VERSION = "OPENING_ACCELERATION_BASELINE_C_V1_0"
+SCHEMA_VERSION = "OPENING_ACCELERATION_BASELINE_C_WHOLE_MARKET_V1_1"
 
 
 def n(v):
@@ -150,7 +149,7 @@ def build_snapshot_db(data_root: str, db_path: str) -> dict:
                     if price is None or price<=0:
                         continue
                     dr=price/prior_close-1.0
-                    if price>PRICE_CAP or dr>=DAY_RETURN_CAP:
+                    if dr>=DAY_RETURN_CAP:
                         continue
                     def ret(h):
                         if feature_idx-h<0:
@@ -174,7 +173,7 @@ def build_snapshot_db(data_root: str, db_path: str) -> dict:
                 if session_close and session_close>0:
                     prior_close=session_close
             if batch:
-                conn.executemany("INSERT INTO snapshots VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",batch)
+                conn.executemany("INSERT INTO snapshots VALUES (" + ",".join(["?"] * 33) + ")",batch)
                 rows+=len(batch)
                 symbols.add(symbol)
             if i%100==0:
@@ -199,7 +198,7 @@ def build_snapshot_db(data_root: str, db_path: str) -> dict:
     conn.execute("CREATE INDEX idx_rank_symbol_day_obs ON ranked(symbol,session_date,obs)")
     conn.commit()
 
-    # Add causal rank lags and first Top100 entry minute.
+    # Add causal rank lags; Top100 entry remains diagnostic only, not an eligibility gate.
     conn.execute("""
     CREATE TABLE features AS
     SELECT c.*,
@@ -272,21 +271,19 @@ def enrich_rows(conn: sqlite3.Connection) -> list[dict]:
     return out
 
 
-def select_variant(rows: list[dict], *, remove_open=False, remove_fresh=False,
+def select_variant(rows: list[dict], *, remove_open=False, add_legacy_top100_fresh=False,
                    remove_rank=False, remove_return=False, remove_volume=False) -> list[dict]:
     by_group=defaultdict(list)
     for d0 in rows:
         d=dict(d0)
-        if d["gain_rank"]>100:
-            continue
         if d.get("entry_status") != "ENTRY_4TICK_ZONE" or not d.get("entry"):
             continue
         if not remove_open:
             if d.get("session_open") is None or d["price"]<=d["session_open"]:
                 continue
-        if not remove_fresh:
+        if add_legacy_top100_fresh:
             m=d.get("minutes_since_top100_entry")
-            if m is None or m<0 or m>3:
+            if d.get("gain_rank") is None or d["gain_rank"]>100 or m is None or m<0 or m>3:
                 continue
         if not remove_rank:
             if d.get("rank_velocity_1m") is None or d["rank_velocity_1m"]<=0:
@@ -453,7 +450,7 @@ def run(data_root: str, out_dir: str, source_run_id: str|None=None):
 
     ab_specs={
       "REMOVE_OPEN_GATE":{"remove_open":True},
-      "REMOVE_FRESH_ENTRY":{"remove_fresh":True},
+      "ADD_LEGACY_TOP100_FRESH":{"add_legacy_top100_fresh":True},
       "REMOVE_RANK_VELOCITY":{"remove_rank":True},
       "REMOVE_RETURN_ACCELERATION":{"remove_return":True},
       "REMOVE_VOLUME_ACCELERATION":{"remove_volume":True},

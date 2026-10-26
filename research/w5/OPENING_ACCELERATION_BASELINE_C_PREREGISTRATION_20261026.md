@@ -2,12 +2,12 @@
 
 Date: 2026-10-26
 Owner: W5｜Sky Candidate Strategy Lab
-Status: PREREGISTERED_STRUCTURAL_CHALLENGER / DATA_GATE_PENDING
+Status: PREREGISTERED_STRUCTURAL_CHALLENGER_WHOLE_MARKET / DATA_GATE_PENDING
 Production impact: NONE
 
 ## 1. Research question
 
-Can a causal 09:00–09:15 whole-market opening scanner identify first-wave intraday leaders by measuring how quickly a stock enters the current-day Top100 gainers, while requiring price to remain above the session open and confirming short-horizon return/rank/volume acceleration?
+Can a causal 09:00–09:15 whole-market opening scanner identify first-wave intraday leaders directly from the full PIT-active market, without requiring prior Top100 membership, while requiring price to remain above the session open and confirming short-horizon return/rank/volume acceleration?
 
 This is not a rescue of Baseline A or B.
 
@@ -22,8 +22,8 @@ Baseline A/B:
 Baseline C:
 - begins at 09:01 after the first completed 1-minute bar;
 - rebuilds the whole-market current-day gain ranking every minute;
-- explicitly measures Top100 entry time and rank migration velocity;
-- focuses on 09:01–09:15 opening formation;
+- ranks the full eligible market every minute and measures rank migration velocity; Top100 entry is diagnostic only;
+- observes the full 09:00–09:15 opening formation; with 1-minute candles, 09:00 initializes the opening state and the earliest causal execution remains 09:01;
 - requires price > session open;
 - measures 1/3/5/10-minute return and rank acceleration;
 - records volume velocity/acceleration;
@@ -53,8 +53,13 @@ If the 1-minute data gate fails, Baseline C remains DATA_BLOCKED.
 
 ## 4. Observation window
 
-Primary decision-clock window:
+Primary observation window:
+- 09:00 through 09:15, inclusive.
+
+Causal execution window with current 1-minute data:
 - 09:01 through 09:15, inclusive.
+- 09:00 is the opening-state initialization minute, not a hindsight trade.
+- A true intra-09:00 acceleration entry would require tick/trade data and is not claimed by this backtest.
 
 Causal candle convention:
 - Fugle minute-candle timestamp is treated as the bar start label.
@@ -72,7 +77,7 @@ At each minute t:
 2. valid prior-session close exists;
 3. latest completed 1-minute close is available;
 4. price > 0;
-5. price <= TWD 100;
+5. no price-cap exclusion; the scan covers the full PIT-active equity universe across legal Taiwan tick bands;
 6. current-day return < +9.5% near-limit guard;
 7. session open is known from the 09:00 bar.
 
@@ -81,18 +86,17 @@ price_t / prior_session_close - 1.
 
 No end-of-day values may be backfilled into t.
 
-## 6. Current Top100 and entry dynamics
+## 6. Whole-market rank dynamics
 
 At every minute t:
-- rank every eligible symbol by current-day return;
-- Top100_t = ranks 1–100.
+- rank every eligible PIT-active symbol by current-day return;
+- do not require Top100 membership for eligibility.
 
 For each symbol record:
-- current gain rank;
+- current whole-market gain rank;
 - prior 1m / 3m / 5m / 10m rank where available;
-- first minute it enters Top100;
-- minutes since first Top100 entry;
-- whether this is a new Top100 entrant.
+- rank migration velocity across the full eligible market;
+- Top100 entry time may still be recorded as a diagnostic field, but it is not an entry gate.
 
 Rank velocity over horizon h:
 (rank_{t-h} - rank_t) / h.
@@ -130,13 +134,12 @@ Acceleration descriptors are causal differences between shorter- and longer-hori
 ## 9. Baseline C eligibility
 
 A candidate at t must:
-- be in Top100_t;
+- come from the full PIT-active eligible market; no Top100 hard gate;
 - price_t > session_open;
-- be either a new Top100 entrant or have entered Top100 within the previous 3 completed minutes;
 - rank_velocity_1m > 0;
 - ret_1m > 0;
 - volume_acceleration_1v3 > 0;
-- satisfy price/near-limit/data-quality gates.
+- satisfy near-limit/data-quality gates; no TWD 100 price ceiling is imposed in this whole-market research variant.
 
 No alternative threshold search is allowed in Baseline C.
 
@@ -156,7 +159,7 @@ No optimized weights.
 ## 11. Frozen selection
 
 At each minute:
-- select Top 3 eligible symbols by score;
+- score the full eligible market and select Top 3 qualified symbols by score;
 - same symbol max one selection per session;
 - tie break: better current gain rank, then symbol ascending.
 
@@ -242,7 +245,7 @@ Required:
 
 Run frozen remove-one ablations only after Baseline C:
 1. remove opening-price gate;
-2. remove Top100 freshness / recent-entry condition;
+2. diagnostic comparison: add back the legacy Top100 freshness / recent-entry condition;
 3. remove rank velocity;
 4. remove return acceleration component;
 5. remove volume acceleration.
