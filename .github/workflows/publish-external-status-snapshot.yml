@@ -2,6 +2,10 @@ name: Publish Sky External Status Snapshot
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/publish-external-status-snapshot.yml"
   schedule:
     - cron: "45 16 * * 1-5"
       timezone: "Asia/Taipei"
