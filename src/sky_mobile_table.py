@@ -28,6 +28,14 @@ def _price(value):
     return s
 
 
+def _bold(text):
+    if text in (None, ""):
+        return "—"
+    if text == "—":
+        return "—"
+    return f"**{text}**"
+
+
 def evidence_scores(item: dict[str, Any]) -> tuple[int | None, int | None]:
     """Display-only bull/bear evidence scores.
 
@@ -210,17 +218,29 @@ def normalize_mobile_row(item: dict[str, Any]) -> dict[str, str]:
     symbol = str(item.get("symbol") or "").strip()
     stock = f"**{symbol} {name}**".strip() if (symbol or name) else "—"
 
+    bull_text = str(bull) if bull is not None else "—"
+    bear_text = str(bear) if bear is not None else "—"
+    if bull is not None and bear is not None:
+        if bull >= bear + 10:
+            bull_text = _bold(bull_text)
+        elif bear >= bull + 10:
+            bear_text = _bold(bear_text)
+
+    max_entry_text = _price(max_entry)
+    cls = classification(item)
+    action = action_text(item)
+
     return {
         "股票": stock,
-        "現價": _price(last),
+        "現價": _bold(_price(last)),
         "方向": direction_label(bull, bear, item),
-        "多方評分": str(bull) if bull is not None else "—",
-        "空方評分": str(bear) if bear is not None else "—",
+        "多方評分": bull_text,
+        "空方評分": bear_text,
         "買進觸發": buy_trigger_text(item),
-        "最高接受價": _price(max_entry),
+        "最高接受價": _bold(max_entry_text) if max_entry_text != "—" else "—",
         "停損／失效": stop_text,
-        "分類": classification(item),
-        "現在動作": action_text(item),
+        "分類": _bold(cls),
+        "現在動作": _bold(action),
     }
 
 

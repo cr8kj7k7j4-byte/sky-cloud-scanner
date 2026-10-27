@@ -50,3 +50,8 @@ If the D+1 opening entry window has already passed:
 - 買進觸發: show the original D+1 open and "(已過，不追)";
 - 現在動作: 禁止交易;
 - current intraday price must never be rewritten into a new trigger.
+
+
+## Quick-scan emphasis v1.1
+
+所有快掃／掃一次輸出固定採 10 欄表格。股票、現價、分類、現在動作以粗體呈現；多空評分差距達 10 分以上時，較強一側以粗體呈現；沒有治理後價位時顯示 —，不得補假數字。
