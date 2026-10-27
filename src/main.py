@@ -178,6 +178,8 @@ def run():
             "historical_full_rule_replay_status": HISTORICAL_REPLAY_STATUS,
         },
         "full_market_scan": False,
+        "operational_full_market_scan": False,
+        "quote_coverage_pct": 0.0,
         "strict_official_mode": STRICT_OFFICIAL_MODE,
         "warnings": [],
         "source_health": {},
@@ -253,6 +255,16 @@ def run():
 
         official_universe_ok = ust["twse"] >= 500 and ust["tpex"] >= 400
         twse_intraday_ok = len(twse_rows) >= 400
+        otc_operational_ok = len(otc_rows) >= 300
+        st["quote_coverage_pct"] = round(
+            (len(rows) / len(universe) * 100.0), 2
+        ) if universe else 0.0
+        st["operational_full_market_scan"] = bool(
+            official_universe_ok
+            and twse_intraday_ok
+            and otc_operational_ok
+            and st["quote_coverage_pct"] >= 70.0
+        )
 
         # Free/public TPEx official full-market real-time feed is not certified
         # in this build. MIS OTC can be used operationally but cannot promote
@@ -266,6 +278,7 @@ def run():
         }
         st["source_health"]["tpex_intraday"] = {
             "ok": False,
+            "operational_ok": otc_operational_ok,
             "source": (
                 "TPEx official public/free full-market real-time feed "
                 "not certified; TWSE MIS OTC is operational fallback only"
@@ -287,6 +300,13 @@ def run():
         else:
             st["full_market_scan"] = bool(
                 official_universe_ok and len(rows) >= 700
+            )
+
+        if st["operational_full_market_scan"] and not st["full_market_scan"]:
+            st["warnings"].append(
+                "實務全市場行情鏈可用：TWSE + TPEx 官方母池，盤中以 TWSE MIS "
+                "批次讀取 TSE + OTC；OTC 為 operational fallback，不能誤稱為 "
+                "TPEx 官方認證即時來源。"
             )
 
         working_rows = rows if ALLOW_MIS_OTC_FALLBACK else twse_rows

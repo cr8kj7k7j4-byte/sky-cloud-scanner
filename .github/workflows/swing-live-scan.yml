@@ -1,0 +1,55 @@
+name: Sky Swing Live Whole-Market Scan
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "swing = 波段快掃；swing5d = Swing 5D 快掃"
+        required: true
+        default: "swing5d"
+        type: choice
+        options:
+          - swing5d
+          - swing
+      top_n:
+        description: "Broad-market candidate output count"
+        required: true
+        default: "20"
+      deep_n:
+        description: "Fugle single-stock verification count"
+        required: true
+        default: "8"
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run whole-market live swing scan
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+          MAX_PRICE: "100"
+          MIN_VOLUME: "500"
+          MIN_TRADE_VALUE: "10000000"
+        run: |
+          python -m src.swing_live_scanner \
+            --mode "${{ inputs.mode }}" \
+            --top-n "${{ inputs.top_n }}" \
+            --deep-n "${{ inputs.deep_n }}"
+      - name: Upload result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-swing-live-${{ inputs.mode }}-${{ github.run_id }}
+          path: output/swing_live/
+          if-no-files-found: warn
+          retention-days: 30
