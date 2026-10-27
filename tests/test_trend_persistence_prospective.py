@@ -95,3 +95,34 @@ def test_d1_open_at_or_above_100_is_rejected():
     evaluate_matured(state)
     assert state["signals"][0]["status"] == "ENTRY_REJECTED_PRICE"
     assert state["signals"][0]["entry_open"] == 100.0
+
+
+def test_regime_uses_taiex_ma60_and_20d_slope():
+    from research.trend_persistence_prospective import regime_for_date
+    from datetime import date, timedelta
+    benchmark = {}
+    d = date(2026, 1, 1)
+    # 100 monotonically rising synthetic benchmark observations.
+    for i in range(100):
+        benchmark[(d + timedelta(days=i)).isoformat()] = 10000.0 + i * 10.0
+    last = (d + timedelta(days=99)).isoformat()
+    assert regime_for_date(benchmark, last) == "BULL"
+
+
+def test_dashboard_requires_two_known_regimes_for_regime_coverage():
+    state = {"snapshots": {}, "signals": []}
+    for day in range(1, 26):
+        state["snapshots"][f"2026-11-{day:02d}"] = {}
+    for i in range(200):
+        state["signals"].append({
+            "signal_date": "2026-11-01",
+            "symbol": f"{1000 + (i % 50)}",
+            "status": "EVALUATED",
+            "net_045": 0.01,
+            "net_065": 0.008,
+            "regime": "BULL",
+        })
+    d = build_dashboard(state)
+    assert d["sufficiency_pass"] is True
+    assert d["regime_gate"] == "INCOMPLETE"
+    assert d["decision"] == "HOLD_REGIME_COVERAGE_INCOMPLETE"
