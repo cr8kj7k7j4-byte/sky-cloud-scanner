@@ -2,6 +2,12 @@ name: P0-R Forward Risk Evidence
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "src/config.py"
+      - ".github/workflows/p0r-forward-risk-evidence.yml"
+      - "docs/SKY_RISK_PROFILE.md"
   schedule:
     - cron: "50 16 * * 1-5"
       timezone: "Asia/Taipei"
@@ -91,9 +97,9 @@ jobs:
 
       - name: Build fail-closed P0-R evidence report
         env:
-          ACCOUNT_EQUITY: ${{ vars.ACCOUNT_EQUITY || '0' }}
-          RISK_PER_TRADE_PCT: ${{ vars.RISK_PER_TRADE_PCT || '0.005' }}
-          DAILY_LOSS_LIMIT_PCT: ${{ vars.DAILY_LOSS_LIMIT_PCT || '0.015' }}
+          ACCOUNT_EQUITY: ${{ vars.ACCOUNT_EQUITY || '500000' }}
+          RISK_PER_TRADE_PCT: ${{ vars.RISK_PER_TRADE_PCT || '0.01' }}
+          DAILY_LOSS_LIMIT_PCT: ${{ vars.DAILY_LOSS_LIMIT_PCT || '0.02' }}
           MAX_PORTFOLIO_HEAT_PCT: ${{ vars.MAX_PORTFOLIO_HEAT_PCT || '0.03' }}
           MAX_POSITION_PCT: ${{ vars.MAX_POSITION_PCT || '0.20' }}
           CORRELATION_LIMIT_PCT: ${{ vars.CORRELATION_LIMIT_PCT || '0.02' }}
