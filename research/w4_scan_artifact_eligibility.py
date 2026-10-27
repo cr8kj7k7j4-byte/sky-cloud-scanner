@@ -92,10 +92,11 @@ def audit_scan_artifacts(root: str, ledger_start: str=DEFAULT_LEDGER_START) -> d
         "ineligible_or_empty_runs":[x["run_id"] for x in empty],
         "runs":ordered,
         "malformed_files":malformed,
-        "status":"PASS" if not malformed else "WARN",
+        "status":("NO_INPUT_ARTIFACTS" if not files else ("WARN" if malformed else "PASS")),
         "governance":{
             "workflow_success_alone_is_not_eligible_evidence":True,
             "nonempty_post_ledger_paper_record_required":True,
+            "zero_source_files_cannot_pass":True,
             "holiday_or_empty_scan_counts_as_eligible":False,
             "production_change":False,
         },
