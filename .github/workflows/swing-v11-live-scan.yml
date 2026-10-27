@@ -1,12 +1,23 @@
 name: Sky Swing V1.1 Live Whole-Market Scan
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/swing-v11-live-scan.yml"
+      - "src/swing_v11_live_scanner.py"
+      - "src/sky_command_router.py"
+      - "research/SKY_SWING_V11_INTRADAY_EXECUTION_OVERLAY_V1.md"
   workflow_dispatch:
     inputs:
       top_n:
         description: "V1.1 candidate output count"
         required: true
         default: "20"
+  schedule:
+    # Taiwan market hours 09:00-13:30 (UTC+8), every 5 minutes.
+    - cron: "*/5 1-4 * * 1-5"
+    - cron: "0,5,10,15,20,25,30 5 * * 1-5"
 
 permissions:
   actions: read
@@ -49,7 +60,7 @@ jobs:
         run: |
           python -m src.swing_v11_live_scanner \
             --history-dir "${{ steps.data.outputs.history_dir }}" \
-            --top-n "${{ inputs.top_n }}"
+            --top-n "${{ inputs.top_n || '20' }}"
 
       - name: Publish summary
         if: always()
