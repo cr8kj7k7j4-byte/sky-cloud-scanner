@@ -44,11 +44,19 @@ _PATTERNS = [
         ),
     ),
     (
-        re.compile(r"^Sky\s*(?:波段)(?:現在掃一次|快掃)$", re.I),
+        re.compile(r"^Sky\s*波段現在掃一次$", re.I),
+        CommandRoute(
+            "SKY_SWING_V11_LIVE_ALIAS", "WHOLE_MARKET_REALTIME_PLUS_CANONICAL_DAILY", True, True, False,
+            "src.swing_v11_live_scanner",
+            "Canonical alias to Swing V1.1 live scanner with intraday BUY/WAIT/REJECT execution overlay."
+        ),
+    ),
+    (
+        re.compile(r"^Sky\s*波段快掃$", re.I),
         CommandRoute(
             "SKY_SWING_SCAN", "WHOLE_MARKET_REALTIME", True, True, False,
             "src.swing_live_scanner --mode swing",
-            "Whole-market live swing candidate generation; V1.0 exact-rule governance remains separate."
+            "Broad swing candidate generation only; not an executable V1.1 entry decision."
         ),
     ),
     (

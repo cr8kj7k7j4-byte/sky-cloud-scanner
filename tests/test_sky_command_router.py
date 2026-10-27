@@ -37,3 +37,16 @@ def test_unknown_current_sky_command_fails_closed():
     route = route_command("Sky 神秘快掃")
     assert route.data_mode == "REALTIME_REQUIRED_UNROUTED"
     assert route.execution_target == "ROUTER_REVIEW_REQUIRED"
+
+
+def test_sky_swing_now_aliases_v11_intraday_overlay():
+    route = route_command("Sky 波段現在掃一次")
+    assert route.command_family == "SKY_SWING_V11_LIVE_ALIAS"
+    assert route.execution_target == "src.swing_v11_live_scanner"
+    assert route.data_mode == "WHOLE_MARKET_REALTIME_PLUS_CANONICAL_DAILY"
+
+
+def test_sky_swing_quick_scan_remains_broad_candidate_scan():
+    route = route_command("Sky 波段快掃")
+    assert route.command_family == "SKY_SWING_SCAN"
+    assert route.execution_target == "src.swing_live_scanner --mode swing"

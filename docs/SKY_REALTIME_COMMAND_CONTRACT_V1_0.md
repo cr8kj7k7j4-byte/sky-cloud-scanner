@@ -19,9 +19,9 @@ Use for:
 - `Sky 當沖快掃`
 - `Sky Swing 5D 快掃`
 - `Sky Swing 5D 現在掃一次`
-- `Sky 波段現在掃一次`
-- `Sky 波段快掃`
-- `Sky Swing V1.1｜現在掃一次`
+- `Sky 波段現在掃一次` → canonical alias of `Sky Swing V1.1｜現在掃一次`; returns intraday BUY / WAIT / REJECT via V1.1 execution overlay
+- `Sky 波段快掃` → broad swing candidate scan only
+- `Sky Swing V1.1｜現在掃一次` → explicit V1.1 live scan
 
 Pipeline:
 1. TWSE + TPEx official current universe.
