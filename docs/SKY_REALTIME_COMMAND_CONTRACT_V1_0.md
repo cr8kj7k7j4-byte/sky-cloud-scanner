@@ -94,3 +94,8 @@ For `Sky 波段現在掃一次` / `Sky Swing V1.1｜現在掃一次`:
 3. Chat then refreshes shortlisted symbols with connected Fugle realtime single-stock quotes when available.
 4. Public web search is fallback context only and must not replace the canonical live-scan + Fugle path for executable intraday judgments.
 5. If the latest live scan is stale or unavailable, fail closed and disclose the stale timestamp.
+
+
+## Update command presentation
+
+任何包含「更新」的 Sky 指令，完成即時資料刷新後，都必須先使用 `SKY_MOBILE_TABLE_V1_0` 10 欄格式輸出主決策表。持倉更新可在表格後追加成本／張數／損益等欄位。
