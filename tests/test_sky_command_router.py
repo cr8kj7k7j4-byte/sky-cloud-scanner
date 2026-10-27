@@ -50,3 +50,12 @@ def test_sky_swing_quick_scan_remains_broad_candidate_scan():
     route = route_command("Sky 波段快掃")
     assert route.command_family == "SKY_SWING_SCAN"
     assert route.execution_target == "src.swing_live_scanner --mode swing"
+
+
+def test_single_stock_update_requires_fugle_realtime_first():
+    route = route_command("Sky 當沖更新 4960")
+    assert route.realtime_required is True
+    assert route.data_mode == "SINGLE_STOCK_REALTIME"
+    assert "Fugle" in route.execution_target
+    assert "MANDATORY" in route.notes
+    assert "stale public web data must never substitute" in route.notes
