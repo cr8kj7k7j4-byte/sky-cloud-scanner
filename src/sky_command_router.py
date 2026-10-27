@@ -129,3 +129,18 @@ def route_command(command: str) -> CommandRoute:
         "NON_SKY", "UNROUTED", False, False, False, "NONE",
         "Not a Sky command."
     )
+
+
+UPDATE_PRESENTATION = "SKY_MOBILE_TABLE_V1_0"
+
+
+def presentation_for_command(command: str) -> str | None:
+    """Canonical presentation for Sky commands.
+
+    Every Sky command containing 更新 uses the same 10-column mobile decision
+    table. Position updates may append position/P&L details after the table.
+    """
+    normalized = " ".join((command or "").strip().split())
+    if normalized.lower().startswith("sky") and "更新" in normalized:
+        return UPDATE_PRESENTATION
+    return None
