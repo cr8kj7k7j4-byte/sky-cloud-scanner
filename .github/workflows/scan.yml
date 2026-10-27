@@ -3,13 +3,7 @@ name: Sky Cloud Scanner v0.5 + P0-R
 on:
   workflow_dispatch:
   schedule:
-    - cron: "5 9 * * 1-5"
-      timezone: "Asia/Taipei"
-    - cron: "15 9 * * 1-5"
-      timezone: "Asia/Taipei"
-    - cron: "30 9 * * 1-5"
-      timezone: "Asia/Taipei"
-    - cron: "50 9 * * 1-5"
+    - cron: "5,15,30,50 9 * * 1-5"
       timezone: "Asia/Taipei"
     - cron: "15 10 * * 1-5"
       timezone: "Asia/Taipei"
