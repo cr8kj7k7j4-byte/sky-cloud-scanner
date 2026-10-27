@@ -21,8 +21,8 @@ def test_mobile_table_columns_and_action():
     }
     row = normalize_mobile_row(item)
     assert row["股票"] == "**9914 測試股**"
-    assert row["現在動作"] == "觀察"
-    assert row["分類"] == "A"
+    assert row["現在動作"] == "**觀察**"
+    assert row["分類"] == "**A**"
     assert row["多方評分"] != "—"
     assert "9914" in render_mobile_table([item])
 
@@ -42,9 +42,9 @@ def test_v11_passed_open_window_is_no_chase():
         "strategy_signal": True,
     }
     row = normalize_mobile_row(item)
-    assert row["現在動作"] == "禁止交易"
+    assert row["現在動作"] == "**禁止交易**"
     assert "已過，不追" in row["買進觸發"]
-    assert row["分類"] == "X"
+    assert row["分類"] == "**X**"
 
 
 def test_unified_v13_format():
