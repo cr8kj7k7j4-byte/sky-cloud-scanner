@@ -283,28 +283,40 @@ def evaluate_matured(state: dict) -> int:
     dates = sorted(state["snapshots"])
     matured = 0
     for s in state["signals"]:
-        if s.get("status") == "EVALUATED":
+        if s.get("status") in {"EVALUATED", "ENTRY_REJECTED_PRICE"}:
             continue
         d = s["signal_date"]
         later = [x for x in dates if x > d]
-        if len(later) < 5:
+        if not later:
             continue
-        d1, d5 = later[0], later[4]
+        d1 = later[0]
         r1 = state["snapshots"].get(d1, {}).get(s["symbol"])
-        r5 = state["snapshots"].get(d5, {}).get(s["symbol"])
-        if not r1 or not r5:
-            s["status"] = "MATURED_INCOMPLETE"
+        if not r1:
             continue
         entry = _f(r1.get("open"))
+        if entry in (None, 0):
+            continue
+        s["entry_date"] = d1
+        s["entry_open"] = entry
+        if entry >= 100:
+            s["status"] = "ENTRY_REJECTED_PRICE"
+            continue
+        if s.get("status") == "PENDING":
+            s["status"] = "ENTRY_ACCEPTED_PENDING"
+        if len(later) < 5:
+            continue
+        d5 = later[4]
+        r5 = state["snapshots"].get(d5, {}).get(s["symbol"])
+        if not r5:
+            s["status"] = "MATURED_INCOMPLETE"
+            continue
         exit_ = _f(r5.get("close"))
-        if entry in (None, 0) or exit_ is None:
+        if exit_ is None:
             s["status"] = "MATURED_INCOMPLETE"
             continue
         gross = exit_ / entry - 1.0
         s.update({
             "status": "EVALUATED",
-            "entry_date": d1,
-            "entry_open": entry,
             "outcome_date": d5,
             "exit_close": exit_,
             "gross_f5": gross,
@@ -327,6 +339,8 @@ def build_dashboard(state: dict) -> dict:
     matured_pool = []
     all_dates = sorted(state["snapshots"])
     for x in state["signals"]:
+        if x.get("status") == "ENTRY_REJECTED_PRICE":
+            continue
         if len([d for d in all_dates if d > x["signal_date"]]) >= 5:
             matured_pool.append(x)
     completeness = (
@@ -363,6 +377,7 @@ def build_dashboard(state: dict) -> dict:
         "fresh_oos_start_exclusive": FRESH_START,
         "fresh_trading_days": len(dates),
         "signal_count": len(state["signals"]),
+        "entry_rejected_price_count": sum(x.get("status") == "ENTRY_REJECTED_PRICE" for x in state["signals"]),
         "evaluable_count": len(evaluated),
         "matured_pool_count": len(matured_pool),
         "outcome_completeness": completeness,
