@@ -94,3 +94,27 @@ REJECT_CANDIDATE when the sufficiency gate is met and either:
 - 0.65% expectancy <= 0.
 
 PROMOTE_CANDIDATE is impossible while the regime gate is DATA_BLOCKED, and additionally requires all preregistered regime/capacity/Shadow/P0-R/P0-G gates.
+
+
+## PIT-safe TAIEX regime implementation
+
+Official source:
+- TWSE `indicesReport/MI_5MINS_HIST` historical daily TAIEX OHLC.
+- Only observations with benchmark date <= signal date D are used.
+- Historical data is used as an immutable published benchmark time series, not as a tradable signal.
+
+Exact regime calculation:
+- benchmark close series = official TAIEX daily closing index.
+- MA60(D) = arithmetic mean of the 60 benchmark closes ending at D.
+- MA60_20D_ago = MA60 computed on the benchmark close 20 benchmark trading sessions before D.
+- MA60 slope over prior 20D = MA60(D) - MA60_20D_ago.
+- BULL = close(D) > MA60(D) AND slope > 0.
+- BEAR = close(D) < MA60(D) AND slope < 0.
+- NEUTRAL = all other cases.
+- Missing official benchmark history => regime UNKNOWN; no proxy substitution.
+
+Formal regime coverage gate:
+- every evaluated fresh-OOS signal must have a non-UNKNOWN regime label;
+- at least two distinct regimes must be represented before Promotion review.
+- The pipeline reports per-regime n, 0.45% expectancy, 0.45% PF, and 0.65% expectancy.
+- Regime stability remains a governance review gate; positive aggregate expectancy cannot override a materially failing regime.
