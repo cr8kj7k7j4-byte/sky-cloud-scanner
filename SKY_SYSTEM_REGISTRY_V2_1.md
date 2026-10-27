@@ -208,3 +208,10 @@ Canonical contract: `docs/SKY_REALTIME_COMMAND_CONTRACT_V1_0.md`.
 - Current-state scan/update outputs prioritize the unified 10-column mobile decision table.
 - Bull/bear scores are evidence-comparison scores, not statistical probability or win rate.
 - Missing governed trigger/max-entry/stop values remain `—`; no presentation layer may synthesize executable levels.
+
+
+## Update-command unified presentation — 2026-10-27
+
+- 所有包含「更新」的 Sky 指令統一使用 `SKY_MOBILE_TABLE_V1_0`。
+- 單檔更新、Swing 5D 更新、波段更新、快掃更新、持倉更新皆適用。
+- 持倉特有損益欄位可追加於主表後，不得取代或改寫主表。
