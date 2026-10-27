@@ -2,6 +2,12 @@ name: W1 Trend Persistence V1.1 Prospective Evidence
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "research/trend_persistence_prospective.py"
+      - "tests/test_trend_persistence_prospective.py"
+      - ".github/workflows/trend-persistence-prospective.yml"
   schedule:
     - cron: "20 6 * * 1-5"
 
