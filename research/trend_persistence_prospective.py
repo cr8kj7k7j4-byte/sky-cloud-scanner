@@ -10,11 +10,13 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from src.official import fetch_mis_quotes, load_official_universe
+from src.http_utils import get_json
 
 TZ = ZoneInfo("Asia/Taipei")
 FRESH_START = "2026-10-27"
 PRIMARY_COST = 0.0045
 STRESS_COST = 0.0065
+TAIEX_HIST_URL = "https://www.twse.com.tw/indicesReport/MI_5MINS_HIST"
 
 
 def _f(v):
@@ -39,6 +41,69 @@ def _ecdf(values, x):
     return sum(v <= x for v in vals) / len(vals)
 
 
+def _month_keys(date_str: str, months: int = 8) -> list[str]:
+    y, m, _ = map(int, date_str.split("-"))
+    out = []
+    for _ in range(months):
+        out.append(f"{y:04d}{m:02d}01")
+        m -= 1
+        if m == 0:
+            y -= 1
+            m = 12
+    return out
+
+
+def _parse_twse_date(v: str) -> str | None:
+    s = str(v or "").strip().replace(".", "/").replace("-", "/")
+    parts = s.split("/")
+    if len(parts) != 3:
+        return None
+    try:
+        y, m, d = map(int, parts)
+        if y < 1911:
+            y += 1911
+        return f"{y:04d}-{m:02d}-{d:02d}"
+    except Exception:
+        return None
+
+
+def fetch_taiex_history(asof_date: str) -> dict[str, float]:
+    out = {}
+    for month_key in _month_keys(asof_date, 8):
+        url = f"{TAIEX_HIST_URL}?response=json&date={month_key}"
+        payload = get_json(url)
+        rows = payload.get("data") if isinstance(payload, dict) else None
+        for r in rows or []:
+            if not isinstance(r, list) or len(r) < 5:
+                continue
+            ds = _parse_twse_date(r[0])
+            close = _f(str(r[4]).replace(",", ""))
+            if ds and close is not None and ds <= asof_date:
+                out[ds] = close
+    return out
+
+
+def regime_for_date(benchmark: dict[str, float], date_str: str) -> str:
+    dates = sorted(d for d in benchmark if d <= date_str)
+    if date_str not in benchmark:
+        return "UNKNOWN"
+    i = dates.index(date_str)
+    if i < 79:
+        return "UNKNOWN"
+    closes = [benchmark[d] for d in dates]
+    ma60 = _mean(closes[i-59:i+1])
+    ma60_20 = _mean(closes[i-79:i-19])
+    if ma60 is None or ma60_20 is None:
+        return "UNKNOWN"
+    slope = ma60 - ma60_20
+    close = benchmark[date_str]
+    if close > ma60 and slope > 0:
+        return "BULL"
+    if close < ma60 and slope < 0:
+        return "BEAR"
+    return "NEUTRAL"
+
+
 def load_base_history(history_dir: str) -> dict[str, list[dict]]:
     bysym = {}
     for p in sorted(Path(history_dir).rglob("*_D.json")):
@@ -60,14 +125,15 @@ def load_base_history(history_dir: str) -> dict[str, list[dict]]:
 
 def load_state(path: str | None) -> dict:
     if not path:
-        return {"version": 1, "snapshots": {}, "signals": []}
+        return {"version": 1, "snapshots": {}, "signals": [], "benchmark": {}}
     p = Path(path)
     if not p.exists():
-        return {"version": 1, "snapshots": {}, "signals": []}
+        return {"version": 1, "snapshots": {}, "signals": [], "benchmark": {}}
     state = json.loads(p.read_text(encoding="utf-8"))
     state.setdefault("version", 1)
     state.setdefault("snapshots", {})
     state.setdefault("signals", [])
+    state.setdefault("benchmark", {})
     return state
 
 
@@ -249,7 +315,7 @@ def score_events(events: list[dict]) -> list[dict]:
     return scored
 
 
-def add_signals(state: dict, scored: list[dict], date_str: str) -> int:
+def add_signals(state: dict, scored: list[dict], date_str: str, regime: str) -> int:
     if date_str <= FRESH_START:
         return 0
     existing = {(x["signal_date"], x["symbol"]) for x in state["signals"]}
@@ -266,6 +332,7 @@ def add_signals(state: dict, scored: list[dict], date_str: str) -> int:
             "symbol": x["symbol"],
             "score": x["score"],
             "score_pct": x["score_pct"],
+            "regime": regime,
             "status": "PENDING",
             "entry_date": None,
             "entry_open": None,
@@ -356,21 +423,41 @@ def build_dashboard(state: dict) -> dict:
     exp65 = statistics.mean(vals65) if vals65 else None
     pf45 = _pf(vals45) if vals45 else None
 
-    sufficiency = (
+    regime_metrics = {}
+    for regime in ("BULL", "NEUTRAL", "BEAR", "UNKNOWN"):
+        sub = [x for x in evaluated if x.get("regime", "UNKNOWN") == regime]
+        if not sub:
+            continue
+        v45 = [x["net_045"] for x in sub]
+        v65 = [x["net_065"] for x in sub]
+        regime_metrics[regime] = {
+            "n": len(sub),
+            "expectancy_045": statistics.mean(v45),
+            "pf_045": _pf(v45),
+            "expectancy_065": statistics.mean(v65),
+        }
+
+    known_regimes = {x.get("regime") for x in evaluated if x.get("regime") in {"BULL","NEUTRAL","BEAR"}}
+    regime_unknown_count = sum(x.get("regime", "UNKNOWN") == "UNKNOWN" for x in evaluated)
+    regime_coverage_pass = bool(evaluated) and regime_unknown_count == 0 and len(known_regimes) >= 2
+
+    base_sufficiency = (
         len(evaluated) >= 200
         and len(dates) >= 20
         and completeness >= 0.95
         and single_share <= 0.20
     )
 
-    if not sufficiency:
+    if not base_sufficiency:
         decision = "WAITING_FOR_SUFFICIENCY"
     elif exp45 is None or pf45 is None or exp65 is None:
         decision = "HOLD_INCOMPLETE_METRICS"
     elif exp45 <= 0 or pf45 <= 1 or exp65 <= 0:
         decision = "REJECT_CANDIDATE"
+    elif not regime_coverage_pass:
+        decision = "HOLD_REGIME_COVERAGE_INCOMPLETE"
     else:
-        decision = "HOLD_REGIME_DATA_BLOCKED"
+        decision = "HOLD_FOR_REGIME_STABILITY_AND_CAPACITY_REVIEW"
 
     return {
         "strategy_id": "trend_persistence_v1_1",
@@ -385,9 +472,11 @@ def build_dashboard(state: dict) -> dict:
         "expectancy_045": exp45,
         "pf_045": pf45,
         "expectancy_065": exp65,
-        "regime_gate": "DATA_BLOCKED",
-        "regime_note": "PIT-safe market benchmark not yet integrated; no proxy substitution allowed.",
-        "sufficiency_pass": sufficiency,
+        "regime_gate": "PASS_COVERAGE" if regime_coverage_pass else "INCOMPLETE",
+        "regime_unknown_count": regime_unknown_count,
+        "distinct_known_regimes": sorted(known_regimes),
+        "regime_metrics": regime_metrics,
+        "sufficiency_pass": base_sufficiency,
         "decision": decision,
         "production_change": False,
     }
@@ -407,7 +496,7 @@ def render_md(d: dict) -> str:
         f"- 0.45% expectancy: {pct(d.get('expectancy_045'))}",
         f"- 0.45% PF: {pf}",
         f"- 0.65% expectancy: {pct(d.get('expectancy_065'))}",
-        f"- Regime gate: {d['regime_gate']}",
+        f"- Regime gate: {d['regime_gate']}｜Known regimes: {','.join(d.get('distinct_known_regimes', [])) or 'N/A'}",
         f"- Decision: **{d['decision']}**",
         "",
         "Production remains unchanged.",
@@ -432,12 +521,14 @@ def run(history_dir: str, previous_state: str | None, out_dir: str):
 
     state = load_state(previous_state)
     state["snapshots"][date_str] = snapshot
+    state["benchmark"].update(fetch_taiex_history(date_str))
+    regime = regime_for_date(state["benchmark"], date_str)
 
     base = load_base_history(history_dir)
     bysym = merge_history(base, state["snapshots"])
     events = build_breakout_events(bysym, date_str)
     scored = score_events(events)
-    added = add_signals(state, scored, date_str)
+    added = add_signals(state, scored, date_str, regime)
     matured = evaluate_matured(state)
     dashboard = build_dashboard(state)
 
@@ -458,6 +549,8 @@ def run(history_dir: str, previous_state: str | None, out_dir: str):
         "breakout_event_count": len(events),
         "scored_event_count": len(scored),
         "selected_added": added,
+        "signal_date_regime": regime,
+        "benchmark_points": len(state["benchmark"]),
         "newly_matured": matured,
         "decision": dashboard["decision"],
     }
