@@ -84,3 +84,13 @@ Current-state Sky outputs use `docs/SKY_MOBILE_RESULT_TABLE_V1_0.md` as the prim
 `股票｜現價｜方向｜多方評分｜空方評分｜買進觸發｜最高接受價｜停損／失效｜分類｜現在動作`.
 
 Missing governed levels remain `—`; presentation must not invent prices just to fill the table.
+
+
+## Chat execution bridge
+
+For `Sky 波段現在掃一次` / `Sky Swing V1.1｜現在掃一次`:
+1. GitHub Actions maintains a Swing V1.1 whole-market live scan every 5 minutes during Taiwan market hours.
+2. Chat reads the latest successful scan artifact / summary as the canonical whole-market candidate pool.
+3. Chat then refreshes shortlisted symbols with connected Fugle realtime single-stock quotes when available.
+4. Public web search is fallback context only and must not replace the canonical live-scan + Fugle path for executable intraday judgments.
+5. If the latest live scan is stale or unavailable, fail closed and disclose the stale timestamp.
