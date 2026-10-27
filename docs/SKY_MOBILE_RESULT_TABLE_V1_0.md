@@ -100,3 +100,8 @@ If the D+1 opening entry window has already passed:
 - 分類：粗體，僅 A+ / A / X。
 - 現在動作：粗體，僅使用既定中文動作集合。
 - 缺少治理後資料時顯示 —；不得為了完整表格補造價位或分數。
+
+
+## Unified display v1.3
+
+All Sky current-state tables use the same 10 columns. Bull and bear scores render as bold `XX / 100`. Current price, trigger text, valid max-entry, invalidation text, classification, and current action render bold when present. Missing governed values remain `—`. This is presentation-only and does not alter strategy logic or risk controls.
