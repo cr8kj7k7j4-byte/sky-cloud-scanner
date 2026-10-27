@@ -99,3 +99,23 @@ For `Sky 波段現在掃一次` / `Sky Swing V1.1｜現在掃一次`:
 ## Update command presentation
 
 任何包含「更新」的 Sky 指令，完成即時資料刷新後，都必須先使用 `SKY_MOBILE_TABLE_V1_0` 10 欄格式輸出主決策表。持倉更新可在表格後追加成本／張數／損益等欄位。
+
+
+## Mandatory single-stock realtime bridge
+
+For every single-stock current-state command:
+- `Sky 當沖更新 <symbol>`
+- `Sky 波段更新 <symbol>`
+- `Sky Swing 5D 更新 <symbol>`
+- `Sky 完整分析 <symbol>`
+- position-update variants
+
+Execution order is mandatory:
+1. Call connected Fugle realtime quote for the requested symbol.
+2. Record returned quote timestamp / lastUpdated.
+3. Use the returned live price, intraday high/low, volume and available bid/ask as current-state evidence.
+4. Only after the realtime quote succeeds may analysis and presentation proceed.
+5. Public web data may supplement news/background only; it must not replace the live current price.
+6. If Fugle realtime quote fails or permission is unavailable, fail closed as realtime data unavailable. Do not fall back to a stale prior-close or older web snapshot as if it were live.
+
+This requirement applies even if an older public source appears newer than the last completed daily market dataset.
