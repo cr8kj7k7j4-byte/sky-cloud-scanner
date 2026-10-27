@@ -73,3 +73,28 @@ def test_unified_v13_format():
     assert row["停損／失效"] == "**跌破 69.0 則續弱**"
     assert row["分類"] == "**X**"
     assert row["現在動作"] == "**觀察**"
+
+
+def test_general_table_direction_is_bold():
+    item = {
+        "symbol": "6770",
+        "name": "力積電",
+        "last": 69.5,
+        "direction": "弱勢反彈轉改善",
+        "bull_score": 52,
+        "bear_score": 60,
+        "buy_trigger": "69.5 守穩後，再突破 69.6～69.7",
+        "max_entry": 69.8,
+        "invalidation_text": "跌回 69.2 以下則反彈失效",
+        "classification": "A",
+        "candidate_action": "等待",
+    }
+    row = normalize_mobile_row(item)
+    assert row["方向"] == "**弱勢反彈轉改善**"
+    assert row["多方評分"] == "**52 / 100**"
+    assert row["空方評分"] == "**60 / 100**"
+    assert row["買進觸發"] == "**69.5 守穩後，再突破 69.6～69.7**"
+    assert row["最高接受價"] == "**69.8**"
+    assert row["停損／失效"] == "**跌回 69.2 以下則反彈失效**"
+    assert row["分類"] == "**A**"
+    assert row["現在動作"] == "**等待**"

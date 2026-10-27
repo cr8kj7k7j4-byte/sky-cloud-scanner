@@ -229,7 +229,7 @@ def normalize_mobile_row(item: dict[str, Any]) -> dict[str, str]:
     return {
         "股票": stock,
         "現價": _bold(_price(last)),
-        "方向": direction_label(bull, bear, item),
+        "方向": _bold(direction_label(bull, bear, item)),
         "多方評分": bull_text,
         "空方評分": bear_text,
         "買進觸發": _bold(trigger_text) if trigger_text != "—" else "—",
