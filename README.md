@@ -99,3 +99,24 @@ Sky 的研究輸入改採 Evidence-First：
 - Agent 結果只提供給 P0-C 決策層使用。
 
 此階段先以市場行情證據接入既有 scanner；新聞、財報、法說與產業資料後續再接至同一 Evidence Ledger。
+
+
+## Sky Realtime Command Routing
+
+Canonical contract: `docs/SKY_REALTIME_COMMAND_CONTRACT_V1_0.md`
+
+Realtime-first commands:
+- `Sky 快掃`
+- `Sky 當沖現在掃一次`
+- `Sky Swing 5D 快掃`
+- `Sky 波段現在掃一次`
+- `Sky 波段快掃`
+- `Sky Swing V1.1｜現在掃一次`
+- single-stock `更新` / `完整分析`
+- position `持倉更新` / `警戒`
+
+Whole-market live scans use TWSE + TPEx official current universe with TWSE MIS TSE + OTC operational quotes, then Fugle single-stock realtime deep-dive where available. OTC via MIS remains an operational fallback and is not labelled TPEx-official realtime certification.
+
+Backtest / validation commands remain historical Point-in-Time workflows and do not get rewritten into realtime scans.
+
+Command parser: `src/sky_command_router.py`.
