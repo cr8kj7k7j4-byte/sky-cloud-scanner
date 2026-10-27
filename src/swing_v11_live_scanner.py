@@ -128,11 +128,23 @@ def frozen_signal_pass(r: dict) -> tuple[bool, list[str]]:
 
 def _entry_status(now: datetime) -> tuple[str, str]:
     t = now.time()
-    if dtime(9, 0) <= t <= dtime(9, 5):
-        return "OPEN_ENTRY_WINDOW", "原凍結規則為 D+1 開盤進場；目前仍在開盤執行窗口。"
-    if t > dtime(9, 5):
-        return "OPEN_ENTRY_PASSED_NO_CHASE", "原凍結規則的 D+1 開盤進場已過；不得把盤中現價改寫成新 Trigger。"
-    return "PREOPEN_WAIT", "尚未進入 D+1 開盤執行時間。"
+    if t < dtime(9, 0):
+        return "PREOPEN_WAIT", "尚未進入交易時段。"
+    if t > dtime(13, 30):
+        return "SESSION_CLOSED", "今日交易時段已結束；不建立新的盤中進場。"
+    return "INTRADAY_EXECUTION_WINDOW", "使用 V1.1 盤中執行 Overlay：只在現價不高於 D+1 開盤參考價且未失效時允許買進。"
+
+
+def intraday_execution_decision(current_price: float | None, entry_open: float | None, stop: float | None, target: float | None) -> tuple[str, str, str]:
+    if current_price is None or entry_open is None or stop is None or target is None:
+        return "DATA_BLOCKED", "等待", "即時價格或執行基準不足，禁止推測。"
+    if current_price <= stop:
+        return "REJECT_STOPPED", "禁止交易", "現價已跌破或觸及原始停損，原交易論點失效。"
+    if current_price >= target:
+        return "REJECT_TARGET_PASSED", "禁止交易", "現價已達原始 3R 參考目標，視為錯過原始進場機會。"
+    if current_price <= entry_open:
+        return "BUY_ELIGIBLE", "買進", "現價不高於 D+1 開盤參考價，且仍高於原停損；不追價條件成立。"
+    return "WAIT_PULLBACK", "等待", "現價高於 D+1 開盤參考價；等待回到開盤價或以下，不追價。"
 
 
 def run(history_dir: str, top_n: int = 20):
@@ -167,7 +179,7 @@ def run(history_dir: str, top_n: int = 20):
         and coverage >= 80.0
     )
 
-    status_code, status_text = _entry_status(now)
+    session_status, session_text = _entry_status(now)
     candidates = []
     for sig in frozen_pass:
         q = quote_by_symbol.get(sig["symbol"])
@@ -185,6 +197,14 @@ def run(history_dir: str, top_n: int = 20):
         risk = entry_open - stop
         target = entry_open + 3.0 * risk
 
+        overlay_status, current_action, overlay_note = intraday_execution_decision(
+            current, entry_open, stop, target
+        )
+        if session_status in {"PREOPEN_WAIT", "SESSION_CLOSED"}:
+            overlay_status = session_status
+            current_action = "等待" if session_status == "PREOPEN_WAIT" else "禁止交易"
+            overlay_note = session_text
+
         item = {
             **sig,
             "name": q.get("name"),
@@ -192,6 +212,7 @@ def run(history_dir: str, top_n: int = 20):
             "entry_date": now.date().isoformat(),
             "entry_open": entry_open,
             "current_price": current,
+            "highest_acceptable_price": entry_open,
             "stop": round(stop, 4),
             "target_3r": round(target, 4),
             "gross_rr": 3.0,
@@ -200,12 +221,13 @@ def run(history_dir: str, top_n: int = 20):
             "trade_value": q.get("trade_value"),
             "quote_time": q.get("quote_time"),
             "quote_source": q.get("quote_source"),
-            "execution_status": status_code,
-            "current_action": "禁止交易" if status_code == "OPEN_ENTRY_PASSED_NO_CHASE" else ("等待" if status_code != "OPEN_ENTRY_WINDOW" else "觀察"),
-            "execution_note": status_text,
+            "execution_status": overlay_status,
+            "current_action": current_action,
+            "execution_note": overlay_note,
             "strategy_signal": True,
             "production_eligible": False,
             "strategy_status": "PREREGISTERED_CHALLENGER / NOT_PRODUCTION",
+            "execution_overlay": "SKY_SWING_V11_INTRADAY_EXECUTION_OVERLAY_V1",
         }
         candidates.append(item)
 
@@ -264,13 +286,13 @@ def run(history_dir: str, top_n: int = 20):
         f"訊號日：{signal_date}｜執行日：{now:%Y-%m-%d}",
         f"全市場實務掃描：{'是' if operational_full_market_scan else '否'}｜覆蓋率 {coverage}%｜母池 {len(universe)}｜即時報價 {len(quotes)}",
         f"V1.1 cross-section：{len(cross)}｜Breadth：{round((breadth or 0)*100,2)}%｜凍結規則通過：{len(frozen_pass)}｜今日有效候選：{len(candidates)}",
-        f"執行狀態：{status_code}｜{status_text}",
+        f"交易時段：{session_status}｜{session_text}",
         "",
         render_mobile_table(candidates),
         "",
         "【治理】",
         "V1.1 仍為 PREREGISTERED_CHALLENGER / NOT_PRODUCTION；即時資料接通不等於 Promotion。",
-        "盤中掃描不會把現價替代原凍結規則的 D+1 開盤進場。",
+        "盤中執行 Overlay 不改寫 Alpha；只允許現價 <= D+1 開盤參考價且仍高於原停損時標示買進。",
         "多方／空方評分為證據評分，不是勝率或機率。",
     ]
     text = "\n".join(lines)
