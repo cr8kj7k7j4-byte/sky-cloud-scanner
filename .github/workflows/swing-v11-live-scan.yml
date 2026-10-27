@@ -1,0 +1,68 @@
+name: Sky Swing V1.1 Live Whole-Market Scan
+
+on:
+  workflow_dispatch:
+    inputs:
+      top_n:
+        description: "V1.1 candidate output count"
+        required: true
+        default: "20"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  live-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Download canonical Swing daily history
+        uses: dawidd6/action-download-artifact@v11
+        with:
+          run_id: 40252311345
+          name: w3-swing-canonical-daily-history-repaired-40252311345
+          path: _canonical
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Locate canonical history
+        id: data
+        shell: bash
+        run: |
+          set -euo pipefail
+          HIST_DIR=$(find _canonical -type f -name '*_D.json' -printf '%h\n' | sort -u | head -1)
+          test -n "$HIST_DIR"
+          echo "history_dir=$HIST_DIR" >> "$GITHUB_OUTPUT"
+          echo "daily_files=$(find "$HIST_DIR" -name '*_D.json' | wc -l)"
+
+      - name: Run V1.1 whole-market live scan
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+        run: |
+          python -m src.swing_v11_live_scanner \
+            --history-dir "${{ steps.data.outputs.history_dir }}" \
+            --top-n "${{ inputs.top_n }}"
+
+      - name: Publish summary
+        if: always()
+        run: |
+          if [ -f output/swing_v11_live/latest.txt ]; then
+            cat output/swing_v11_live/latest.txt >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-swing-v11-live-${{ github.run_id }}
+          path: output/swing_v11_live/
+          if-no-files-found: warn
+          retention-days: 30
