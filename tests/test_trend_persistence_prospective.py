@@ -67,3 +67,31 @@ def test_dashboard_rejects_after_sufficiency_when_cost_edge_fails():
     d = build_dashboard(state)
     assert d["sufficiency_pass"] is True
     assert d["decision"] == "REJECT_CANDIDATE"
+
+
+def test_d1_open_at_or_above_100_is_rejected():
+    from research.trend_persistence_prospective import evaluate_matured
+    state = {
+        "snapshots": {
+            "2026-10-29": {"1234": {"open": 100.0, "close": 101.0}},
+            "2026-10-30": {"1234": {"open": 101.0, "close": 102.0}},
+            "2026-11-02": {"1234": {"open": 102.0, "close": 103.0}},
+            "2026-11-03": {"1234": {"open": 103.0, "close": 104.0}},
+            "2026-11-04": {"1234": {"open": 104.0, "close": 105.0}},
+        },
+        "signals": [{
+            "signal_date": "2026-10-28",
+            "symbol": "1234",
+            "status": "PENDING",
+            "entry_date": None,
+            "entry_open": None,
+            "outcome_date": None,
+            "exit_close": None,
+            "gross_f5": None,
+            "net_045": None,
+            "net_065": None,
+        }],
+    }
+    evaluate_matured(state)
+    assert state["signals"][0]["status"] == "ENTRY_REJECTED_PRICE"
+    assert state["signals"][0]["entry_open"] == 100.0
