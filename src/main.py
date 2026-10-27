@@ -139,6 +139,16 @@ def _portfolio_context():
         "execution_policy": _execution_policy(),
     }
 
+
+def _serializable_portfolio_context(portfolio_context):
+    """Keep the runtime policy object for risk evaluation, but emit JSON-safe evidence."""
+    out = dict(portfolio_context or {})
+    execution_policy = out.get("execution_policy")
+    if execution_policy is not None:
+        out["execution_policy"] = execution_policy.to_dict()
+    return out
+
+
 def run():
     now = datetime.now(TZ)
     run_id = now.strftime("%Y%m%dT%H%M%S%z")
@@ -236,7 +246,7 @@ def run():
         "risk_engine": {
             "enabled": True,
             "policy": policy.to_dict(),
-            "portfolio_context": portfolio_context,
+            "portfolio_context": _serializable_portfolio_context(portfolio_context),
             "state": portfolio_state,
             "state_zh": RISK_STATE_ZH.get(portfolio_state, portfolio_state),
         },
