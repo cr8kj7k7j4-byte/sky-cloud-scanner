@@ -218,17 +218,13 @@ def normalize_mobile_row(item: dict[str, Any]) -> dict[str, str]:
     symbol = str(item.get("symbol") or "").strip()
     stock = f"**{symbol} {name}**".strip() if (symbol or name) else "—"
 
-    bull_text = str(bull) if bull is not None else "—"
-    bear_text = str(bear) if bear is not None else "—"
-    if bull is not None and bear is not None:
-        if bull >= bear + 10:
-            bull_text = _bold(bull_text)
-        elif bear >= bull + 10:
-            bear_text = _bold(bear_text)
+    bull_text = _bold(f"{bull} / 100") if bull is not None else "—"
+    bear_text = _bold(f"{bear} / 100") if bear is not None else "—"
 
     max_entry_text = _price(max_entry)
     cls = classification(item)
     action = action_text(item)
+    trigger_text = buy_trigger_text(item)
 
     return {
         "股票": stock,
@@ -236,9 +232,9 @@ def normalize_mobile_row(item: dict[str, Any]) -> dict[str, str]:
         "方向": direction_label(bull, bear, item),
         "多方評分": bull_text,
         "空方評分": bear_text,
-        "買進觸發": buy_trigger_text(item),
+        "買進觸發": _bold(trigger_text) if trigger_text != "—" else "—",
         "最高接受價": _bold(max_entry_text) if max_entry_text != "—" else "—",
-        "停損／失效": stop_text,
+        "停損／失效": _bold(stop_text) if stop_text != "—" else "—",
         "分類": _bold(cls),
         "現在動作": _bold(action),
     }
