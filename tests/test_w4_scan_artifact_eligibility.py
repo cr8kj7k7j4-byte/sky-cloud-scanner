@@ -62,3 +62,12 @@ def test_missing_symbol_does_not_count_as_evidence(tmp_path):
     ])
     out=audit_scan_artifacts(str(root))
     assert out["eligible_run_count"]==0
+
+
+def test_missing_scan_artifacts_are_not_reported_as_pass(tmp_path):
+    root=tmp_path/"shadow_history"
+    out=audit_scan_artifacts(str(root))
+    assert out["paper_files_scanned"]==0
+    assert out["eligible_run_count"]==0
+    assert out["status"]=="NO_INPUT_ARTIFACTS"
+    assert out["governance"]["zero_source_files_cannot_pass"] is True
