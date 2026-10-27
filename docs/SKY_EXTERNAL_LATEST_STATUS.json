@@ -1,8 +1,8 @@
 {
   "schema_version": "SKY_EXTERNAL_STATUS_SNAPSHOT_V1_0",
-  "generated_at_utc": "2026-10-26T09:23:03.374825+00:00",
+  "generated_at_utc": "2026-10-27T09:19:40.676601+00:00",
   "source": {
-    "dashboard_workflow_run_id": "40298299983",
+    "dashboard_workflow_run_id": "40479229478",
     "repository": "cr8kj7k7j4-byte/sky-cloud-scanner"
   },
   "production_baseline": {
@@ -125,7 +125,7 @@
     "note": "Dashboard 用於證據累積與升版治理，不是交易勝率、報酬預測或自動 Production Promotion。",
     "source": {
       "paper_dir": "shadow_history",
-      "files_scanned": 5,
+      "files_scanned": 6,
       "records_loaded": 0,
       "promotion_evidence_file": null
     },
@@ -135,7 +135,7 @@
       "collection_started": false,
       "ledger_start": "2026-10-24T23:28:08Z",
       "eligible_successful_scan_runs": 0,
-      "paper_files": 5,
+      "paper_files": 6,
       "records_loaded": 0,
       "blocking_items": [],
       "note": "Pipeline readiness only classifies evidence collection health. It does not imply strategy edge, profitability, or promotion readiness."
