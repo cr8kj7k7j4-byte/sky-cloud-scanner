@@ -71,8 +71,8 @@ _PATTERNS = [
         re.compile(r"^Sky\s*(?:當沖更新|波段更新|Swing\s*5D\s*更新|完整分析)\s+\d{4,6}$", re.I),
         CommandRoute(
             "SKY_SINGLE_STOCK_UPDATE", "SINGLE_STOCK_REALTIME", True, False, True,
-            "Fugle single-stock realtime quote + relevant market context",
-            "Always refresh latest quote/time before analysis."
+            "Fugle connector realtime quote + relevant market context",
+            "MANDATORY: fetch Fugle realtime quote first; stale public web data must never substitute for current price."
         ),
     ),
     (
