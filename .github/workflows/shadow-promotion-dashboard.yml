@@ -1,6 +1,11 @@
 name: Shadow Promotion Dashboard
 
 on:
+  workflow_run:
+    workflows:
+      - "Sky Cloud Scanner v0.5 + P0-R"
+      - "Shadow Outcome Backfill"
+    types: [completed]
   push:
     branches: [main]
     paths:
