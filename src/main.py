@@ -48,6 +48,7 @@ from .monitor_engine import evaluate_monitor_state
 from .state_store import MonitorStateStore
 from .premarket_state import load_premarket_event_snapshot
 from .structured_log import emit as structured_log
+from .sky_mobile_table import render_mobile_table
 from .paper_trading import (
     evaluate_paper_gate,
     build_paper_snapshot,
@@ -649,6 +650,14 @@ def run():
                 )
             if reasons != "無":
                 lines.append(f"   原因：{reasons}")
+
+        mobile_rows = list(deep) + list(rejected[:8]) + list(unverified[:8])
+        lines += [
+            "",
+            "【Sky 手機決策表】",
+            render_mobile_table(mobile_rows),
+            "多方／空方評分為證據評分，不是勝率或機率；缺少治理後買點、最高接受價或停損時顯示 —。",
+        ]
 
         transitions = st["monitor_engine"]["transitions"]
         lines += ["", "【P0-A 盤中警戒】"]
