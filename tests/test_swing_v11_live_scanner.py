@@ -1,7 +1,7 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from src.swing_v11_live_scanner import frozen_signal_pass, _entry_status, intraday_execution_decision
+from src.swing_v11_live_scanner import frozen_signal_pass, _entry_status, intraday_execution_decision, fetch_candidate_live_quotes
 
 TZ = ZoneInfo("Asia/Taipei")
 
@@ -60,3 +60,10 @@ def test_intraday_overlay_rejects_after_target_passed():
     status, action, _ = intraday_execution_decision(59.1, 50.0, 47.0, 59.0)
     assert status == "REJECT_TARGET_PASSED"
     assert action == "禁止交易"
+
+
+def test_candidate_live_quotes_short_circuits_when_no_frozen_candidates():
+    quotes, warnings, meta = fetch_candidate_live_quotes([], [])
+    assert quotes == {}
+    assert warnings == []
+    assert meta == {"requested": 0, "mis": 0, "fugle": 0, "missing": 0}
