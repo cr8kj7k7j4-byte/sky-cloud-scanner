@@ -188,3 +188,15 @@ Current critical path: **W4 → P0-R / W6 execution evidence → W0 / P0-G**.
   3. Paid purchase requires explicit user approval and does not itself satisfy validation gates.
 - TWSE order-type history and Broker Flow data are not authorized purchases at this stage.
 - W2, Overnight Reversal and Dynamic Lead-Lag remain HOLD while Gate 0 is unresolved.
+
+
+## Realtime command routing — 2026-10-27
+
+Canonical contract: `docs/SKY_REALTIME_COMMAND_CONTRACT_V1_0.md`.
+
+- Current/update/scan/position/alert/full-analysis Sky commands are realtime-first.
+- Whole-market scans use TWSE + TPEx official current universe plus TWSE MIS TSE + OTC operational quotes.
+- Single-stock and position updates require the latest obtainable quote and timestamp before decision output.
+- Unrecognized current-state Sky commands fail closed as `REALTIME_REQUIRED_UNROUTED`; they must not silently use stale web rankings.
+- Historical backtest and validation commands remain PIT historical workflows.
+- Realtime data connectivity does not change strategy promotion state, Alpha rules, stops, targets, or P0-R/P0-G governance.
