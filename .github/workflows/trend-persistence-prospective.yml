@@ -1,0 +1,93 @@
+name: W1 Trend Persistence V1.1 Prospective Evidence
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "20 6 * * 1-5"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  prospective:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: .
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt pytest
+
+      - name: Download canonical repaired Swing daily history
+        uses: dawidd6/action-download-artifact@v11
+        with:
+          run_id: 40252311345
+          name: w3-swing-canonical-daily-history-repaired-40252311345
+          path: _canonical
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Locate canonical history
+        id: data
+        shell: bash
+        run: |
+          set -euo pipefail
+          HIST_DIR=$(find _canonical -type f -name '*_D.json' -printf '%h\n' | sort -u | head -1)
+          test -n "$HIST_DIR"
+          echo "history_dir=$HIST_DIR" >> "$GITHUB_OUTPUT"
+
+      - name: Download latest prior prospective state
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p previous
+          run_id="$(gh run list             --workflow trend-persistence-prospective.yml             --status success             --limit 1             --json databaseId             --jq '.[0].databaseId // empty')"
+          if [ -n "$run_id" ]; then
+            gh run download "$run_id" -D previous || true
+          fi
+          state="$(find previous -type f -name state.json | head -1 || true)"
+          if [ -n "$state" ]; then
+            echo "PREVIOUS_STATE=$state" >> "$GITHUB_ENV"
+          else
+            echo "PREVIOUS_STATE=" >> "$GITHUB_ENV"
+          fi
+
+      - name: Unit tests
+        run: PYTHONPATH=. pytest -q tests/test_trend_persistence_prospective.py
+
+      - name: Run prospective evidence update
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=(
+            --history-dir "${{ steps.data.outputs.history_dir }}"
+            --out output/trend_persistence_prospective
+          )
+          if [ -n "${PREVIOUS_STATE:-}" ]; then
+            args+=(--previous-state "$PREVIOUS_STATE")
+          fi
+          python research/trend_persistence_prospective.py "${args[@]}"
+
+      - name: Publish dashboard
+        if: always()
+        run: |
+          if [ -f output/trend_persistence_prospective/latest.md ]; then
+            cat output/trend_persistence_prospective/latest.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload prospective evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trend-persistence-prospective-${{ github.run_id }}
+          path: output/trend_persistence_prospective/
+          if-no-files-found: error
+          retention-days: 120
