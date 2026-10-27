@@ -105,3 +105,8 @@ If the D+1 opening entry window has already passed:
 ## Unified display v1.3
 
 All Sky current-state tables use the same 10 columns. Bull and bear scores render as bold `XX / 100`. Current price, trigger text, valid max-entry, invalidation text, classification, and current action render bold when present. Missing governed values remain `—`. This is presentation-only and does not alter strategy logic or risk controls.
+
+
+## General scan/update table v1.5
+
+一般快掃、掃一次、單檔更新、完整分析等非持倉主決策表，固定使用：股票｜現價｜方向｜多方評分｜空方評分｜買進觸發｜最高接受價｜停損／失效｜分類｜現在動作。方向欄亦固定粗體；多空評分固定為 **XX / 100**；現價、買進觸發、最高接受價（若有）、停損／失效、分類、現在動作皆粗體。持倉更新仍使用 Position presentation v1.4，不與一般表混用。
