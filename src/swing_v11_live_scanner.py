@@ -9,6 +9,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from .official import fetch_mis_quotes, load_official_universe
+from .fugle import get_quote
 from .sky_mobile_table import render_mobile_table
 
 TZ = ZoneInfo("Asia/Taipei")
@@ -147,6 +148,68 @@ def intraday_execution_decision(current_price: float | None, entry_open: float |
     return "WAIT_PULLBACK", "等待", "現價高於 D+1 開盤參考價；等待回到開盤價或以下，不追價。"
 
 
+def fetch_candidate_live_quotes(frozen_pass: list[dict], universe: list[dict]):
+    """Fetch live quotes only for already-frozen V1.1 candidates.
+
+    The whole-market decision is completed on the canonical D-close cross-section.
+    Intraday data is only an execution-layer dependency for the small frozen set.
+    """
+    if not frozen_pass:
+        return {}, [], {"requested": 0, "mis": 0, "fugle": 0, "missing": 0}
+
+    universe_by_symbol = {str(x.get("symbol")): x for x in universe}
+    targets = [
+        universe_by_symbol[s["symbol"]]
+        for s in frozen_pass
+        if s["symbol"] in universe_by_symbol
+    ]
+    quotes, warnings = fetch_mis_quotes(targets, batch_size=20, sleep_s=0.25)
+    quote_by_symbol = {str(x.get("symbol")): x for x in quotes}
+    mis_count = len(quote_by_symbol)
+    fugle_count = 0
+
+    for target in targets:
+        sym = str(target["symbol"])
+        if sym in quote_by_symbol:
+            continue
+        try:
+            q = get_quote(sym)
+            last = _f(q.get("closePrice"))
+            open_ = _f(q.get("openPrice"))
+            prev = _f(q.get("previousClose"))
+            if last is None or open_ is None:
+                continue
+            volume = _f(q.get("totalTradeVolume")) or _f(q.get("volume")) or 0.0
+            change_pct = ((last / prev - 1.0) * 100.0) if prev not in (None, 0) else None
+            quote_by_symbol[sym] = {
+                **target,
+                "name": target.get("name", ""),
+                "last": last,
+                "open": open_,
+                "previous_close": prev,
+                "change_pct": change_pct,
+                "volume": volume,
+                "trade_value": last * volume * 1000.0,
+                "high": _f(q.get("highPrice")),
+                "low": _f(q.get("lowPrice")),
+                "bid": None,
+                "ask": None,
+                "quote_time": q.get("lastUpdated") or "",
+                "quote_source": "Fugle realtime fallback",
+            }
+            fugle_count += 1
+        except Exception as exc:
+            warnings.append(f"Fugle candidate {sym} failed: {type(exc).__name__}")
+
+    missing = max(0, len(targets) - len(quote_by_symbol))
+    return quote_by_symbol, warnings, {
+        "requested": len(targets),
+        "mis": mis_count,
+        "fugle": fugle_count,
+        "missing": missing,
+    }
+
+
 def run(history_dir: str, top_n: int = 20):
     now = datetime.now(TZ)
     OUT.mkdir(parents=True, exist_ok=True)
@@ -164,19 +227,19 @@ def run(history_dir: str, top_n: int = 20):
             frozen_pass.append(r)
 
     universe, universe_health = load_official_universe()
-    quotes, warnings = fetch_mis_quotes(universe)
-    quote_by_symbol = {str(x.get("symbol")): x for x in quotes}
+    quote_by_symbol, warnings, live_quote_meta = fetch_candidate_live_quotes(frozen_pass, universe)
 
-    twse_n = sum(x.get("exchange") == "TWSE" for x in quotes)
-    tpex_n = sum(x.get("exchange") == "TPEx" for x in quotes)
-    coverage = round(len(quotes) / len(universe) * 100.0, 2) if universe else 0.0
+    cross_required = max(20, int((date_meta.get("max_cross_section") or 0) * 0.80))
     operational_full_market_scan = bool(
-        universe
+        len(cross) >= cross_required
         and universe_health.get("twse", 0) >= 500
         and universe_health.get("tpex", 0) >= 400
-        and twse_n >= 400
-        and tpex_n >= 300
-        and coverage >= 80.0
+    )
+    requested_quotes = live_quote_meta["requested"]
+    candidate_quote_coverage = (
+        100.0
+        if requested_quotes == 0
+        else round(len(quote_by_symbol) / requested_quotes * 100.0, 2)
     )
 
     session_status, session_text = _entry_status(now)
@@ -250,11 +313,11 @@ def run(history_dir: str, top_n: int = 20):
         "date_selection": date_meta,
         "operational_full_market_scan": operational_full_market_scan,
         "strict_official_full_market_certified": False,
-        "quote_coverage_pct": coverage,
+        "quote_coverage_pct": candidate_quote_coverage,
+        "quote_scope": "FROZEN_SIGNAL_CANDIDATES_ONLY",
         "universe_count": len(universe),
-        "quote_count": len(quotes),
-        "twse_quote_count": twse_n,
-        "tpex_quote_count": tpex_n,
+        "quote_count": len(quote_by_symbol),
+        "candidate_quote_meta": live_quote_meta,
         "source_health": {
             "official_universe": universe_health,
             "intraday": {
@@ -271,6 +334,7 @@ def run(history_dir: str, top_n: int = 20):
         "candidates": candidates,
         "governance": [
             "V1.1 frozen rule is EOD signal at D close and D+1 open entry.",
+            "Whole-market selection is frozen on the canonical D-close cross-section; intraday quotes are fetched only for frozen candidates.",
             "Intraday current price never replaces the frozen D+1 open entry rule.",
             "V1.1 remains preregistered challenger / not Production.",
             "No threshold, stop, target, horizon, or ranking weight is changed by this live scanner.",
@@ -284,7 +348,8 @@ def run(history_dir: str, top_n: int = 20):
     lines = [
         f"Sky Swing V1.1｜現在掃一次｜{now:%Y-%m-%d %H:%M}",
         f"訊號日：{signal_date}｜執行日：{now:%Y-%m-%d}",
-        f"全市場實務掃描：{'是' if operational_full_market_scan else '否'}｜覆蓋率 {coverage}%｜母池 {len(universe)}｜即時報價 {len(quotes)}",
+        f"全市場訊號掃描：{'是' if operational_full_market_scan else '否'}｜D-close cross-section {len(cross)}｜母池 {len(universe)}",
+        f"盤中報價範圍：凍結候選 only｜要求 {requested_quotes}｜取得 {len(quote_by_symbol)}｜覆蓋率 {candidate_quote_coverage}%",
         f"V1.1 cross-section：{len(cross)}｜Breadth：{round((breadth or 0)*100,2)}%｜凍結規則通過：{len(frozen_pass)}｜今日有效候選：{len(candidates)}",
         f"交易時段：{session_status}｜{session_text}",
         "",
