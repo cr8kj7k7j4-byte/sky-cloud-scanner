@@ -45,7 +45,7 @@ def test_dashboard_waits_before_sufficiency():
     d = build_dashboard(state)
     assert d["decision"] == "WAITING_FOR_SUFFICIENCY"
     assert d["production_change"] is False
-    assert d["regime_gate"] == "DATA_BLOCKED"
+    assert d["regime_gate"] == "INCOMPLETE"
 
 
 def test_dashboard_rejects_after_sufficiency_when_cost_edge_fails():
@@ -118,8 +118,8 @@ def test_dashboard_requires_two_known_regimes_for_regime_coverage():
             "signal_date": "2026-11-01",
             "symbol": f"{1000 + (i % 50)}",
             "status": "EVALUATED",
-            "net_045": 0.01,
-            "net_065": 0.008,
+            "net_045": 0.01 if i % 5 else -0.002,
+            "net_065": 0.008 if i % 5 else -0.003,
             "regime": "BULL",
         })
     d = build_dashboard(state)
