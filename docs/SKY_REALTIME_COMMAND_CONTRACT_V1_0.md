@@ -76,3 +76,11 @@ If a Sky command contains `現在`, `更新`, `快掃`, `持倉`, `警戒`, `完
 - Sky Swing 5D remains research-only/HOLD unless promotion gates change.
 - Sky Swing V1.1 remains PREREGISTERED_CHALLENGER / NOT_PRODUCTION.
 - Connecting realtime data does not alter Alpha rules, thresholds, stops, targets, or promotion status.
+
+
+## Canonical presentation
+
+Current-state Sky outputs use `docs/SKY_MOBILE_RESULT_TABLE_V1_0.md` as the primary candidate table:
+`股票｜現價｜方向｜多方評分｜空方評分｜買進觸發｜最高接受價｜停損／失效｜分類｜現在動作`.
+
+Missing governed levels remain `—`; presentation must not invent prices just to fill the table.

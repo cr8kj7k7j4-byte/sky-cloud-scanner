@@ -200,3 +200,11 @@ Canonical contract: `docs/SKY_REALTIME_COMMAND_CONTRACT_V1_0.md`.
 - Unrecognized current-state Sky commands fail closed as `REALTIME_REQUIRED_UNROUTED`; they must not silently use stale web rankings.
 - Historical backtest and validation commands remain PIT historical workflows.
 - Realtime data connectivity does not change strategy promotion state, Alpha rules, stops, targets, or P0-R/P0-G governance.
+
+
+## Mobile result presentation — 2026-10-27
+
+- Canonical presentation contract: `docs/SKY_MOBILE_RESULT_TABLE_V1_0.md`.
+- Current-state scan/update outputs prioritize the unified 10-column mobile decision table.
+- Bull/bear scores are evidence-comparison scores, not statistical probability or win rate.
+- Missing governed trigger/max-entry/stop values remain `—`; no presentation layer may synthesize executable levels.

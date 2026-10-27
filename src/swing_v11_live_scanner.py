@@ -9,6 +9,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from .official import fetch_mis_quotes, load_official_universe
+from .sky_mobile_table import render_mobile_table
 
 TZ = ZoneInfo("Asia/Taipei")
 OUT = Path("output/swing_v11_live")
@@ -200,7 +201,7 @@ def run(history_dir: str, top_n: int = 20):
             "quote_time": q.get("quote_time"),
             "quote_source": q.get("quote_source"),
             "execution_status": status_code,
-            "current_action": "等待" if status_code != "OPEN_ENTRY_WINDOW" else "觀察",
+            "current_action": "禁止交易" if status_code == "OPEN_ENTRY_PASSED_NO_CHASE" else ("等待" if status_code != "OPEN_ENTRY_WINDOW" else "觀察"),
             "execution_note": status_text,
             "strategy_signal": True,
             "production_eligible": False,
@@ -265,22 +266,12 @@ def run(history_dir: str, top_n: int = 20):
         f"V1.1 cross-section：{len(cross)}｜Breadth：{round((breadth or 0)*100,2)}%｜凍結規則通過：{len(frozen_pass)}｜今日有效候選：{len(candidates)}",
         f"執行狀態：{status_code}｜{status_text}",
         "",
-        "【V1.1 即時候選】",
-    ]
-    if not candidates:
-        lines.append("目前沒有符合 V1.1 凍結規則且具今日有效開盤資料的新進場候選。")
-    for i, x in enumerate(candidates, 1):
-        lines.append(
-            f"{i}. {x['symbol']} {x.get('name','')}｜"
-            f"開盤 {x['entry_open']}｜現價 {x.get('current_price')}｜"
-            f"RS {x['rs_pct']*100:.1f}%｜停損 {x['stop']}｜3R目標 {x['target_3r']}｜"
-            f"{x['execution_status']}"
-        )
-    lines += [
+        render_mobile_table(candidates),
         "",
         "【治理】",
         "V1.1 仍為 PREREGISTERED_CHALLENGER / NOT_PRODUCTION；即時資料接通不等於 Promotion。",
         "盤中掃描不會把現價替代原凍結規則的 D+1 開盤進場。",
+        "多方／空方評分為證據評分，不是勝率或機率。",
     ]
     text = "\n".join(lines)
     (OUT / "latest.txt").write_text(text, encoding="utf-8")

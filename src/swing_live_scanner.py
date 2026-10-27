@@ -11,6 +11,7 @@ from .decision_engine import first_gate
 from .fugle import get_quote, get_ticker
 from .official import fetch_mis_quotes, load_official_universe
 from .ranking_engine import rank_screening_candidates
+from .sky_mobile_table import render_mobile_table
 
 TZ = ZoneInfo("Asia/Taipei")
 OUT = Path("output/swing_live")
@@ -196,20 +197,12 @@ def run(mode="swing5d", top_n=20, deep_n=8):
         f"TWSE {len(twse_rows)}｜TPEx/OTC {len(tpex_rows)}｜初篩通過 {len(eligible)}",
         f"策略狀態：{MODE_META[mode]['strategy_status']}",
         "",
-        "【候選】",
+        render_mobile_table(deep),
+        "",
+        "【治理】",
+        MODE_META[mode]["note"],
+        "多方／空方評分為證據評分，不是勝率或機率；無治理後買點/停損時以 — 顯示。",
     ]
-    if not deep:
-        lines.append("目前沒有符合條件的新進場標的。")
-    else:
-        for i, x in enumerate(deep, 1):
-            lines.append(
-                f"{i}. {x.get('symbol')} {x.get('name','')}｜"
-                f"現價 {x.get('fugle_close', x.get('last'))}｜"
-                f"漲跌 {round(_safe_float(x.get('change_pct')),2)}%｜"
-                f"相對市場 {x.get('relative_to_market_pct')}%｜"
-                f"{x.get('candidate_action')}｜{x.get('data_status')}"
-            )
-    lines += ["", "【治理】", MODE_META[mode]["note"]]
     text = "\n".join(lines)
     (OUT / f"latest_{suffix}.txt").write_text(text, encoding="utf-8")
     print(text)
