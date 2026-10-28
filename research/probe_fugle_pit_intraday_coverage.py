@@ -114,6 +114,31 @@ def select_probe(intervals, audit_dates, per_exchange: int, historical_closed_n:
     return selected
 
 
+def historical_probe_windows(start_d: date, end_d: date):
+    """Return non-overlapping in-listing probe windows, newest first.
+
+    The first window covers the last 30 calendar days before delisting. If that
+    period has no bars (for example because trading was suspended), older
+    windows are sampled without crossing the listed interval or Fugle's
+    documented minute-history start.
+    """
+    minute_start = date(2023, 5, 23)
+    effective_start = max(start_d, minute_start)
+    windows = []
+    for offset_days in (0, 60, 120, 240):
+        probe_end = date.fromordinal(end_d.toordinal() - offset_days)
+        if probe_end < effective_start:
+            continue
+        probe_start = max(
+            effective_start,
+            date.fromordinal(probe_end.toordinal() - 30),
+        )
+        window = (probe_start.isoformat(), probe_end.isoformat())
+        if window not in windows:
+            windows.append(window)
+    return windows
+
+
 def request_one(symbol: str, start: str, end: str, *, max_retries: int = 6):
     url = f"{BASE}/historical/candles/{symbol}"
     params = {
@@ -191,10 +216,32 @@ def main():
         probe_start = max(start_d, date(2023, 5, 23), date.fromordinal(probe_end.toordinal() - 30))
         query_from, query_to = probe_start.isoformat(), probe_end.isoformat()
 
+        attempted_windows = []
         try:
-            result = request_one(symbol, query_from, query_to)
+            windows = [(query_from, query_to)]
+            if item.get("probe_type") == "HISTORICAL_CLOSED":
+                windows = historical_probe_windows(start_d, probe_end) or windows
+
+            result = None
+            for window_from, window_to in windows:
+                attempt_result = request_one(symbol, window_from, window_to)
+                attempted_windows.append({
+                    "from": window_from,
+                    "to": window_to,
+                    "status": attempt_result.get("status"),
+                    "bars": attempt_result.get("bars", 0),
+                })
+                result = attempt_result
+                query_from, query_to = window_from, window_to
+                if attempt_result.get("status") == "OK":
+                    break
+                if attempt_result.get("status") not in {"NO_DATA_404", "EMPTY"}:
+                    break
+                if item.get("probe_type") != "HISTORICAL_CLOSED":
+                    break
         except Exception as e:
             result = {"status": f"ERROR_{type(e).__name__}", "bars": 0, "error": str(e)}
+
         rows.append({
             "symbol": symbol,
             "exchange": item.get("exchange"),
@@ -205,6 +252,8 @@ def main():
             "probe_exchange": item.get("probe_exchange"),
             "query_from": query_from,
             "query_to": query_to,
+            "attempted_windows": attempted_windows,
+            "resolved_on_fallback": len(attempted_windows) > 1 and result.get("status") == "OK",
             **result,
         })
         print(f"[{i}/{len(selected)}] {symbol}: {result['status']} bars={result.get('bars',0)}")
