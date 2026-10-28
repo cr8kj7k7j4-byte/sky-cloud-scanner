@@ -1,8 +1,8 @@
 {
   "schema_version": "SKY_EXTERNAL_STATUS_SNAPSHOT_V1_0",
-  "generated_at_utc": "2026-10-27T09:19:40.676601+00:00",
+  "generated_at_utc": "2026-10-28T09:27:31.494405+00:00",
   "source": {
-    "dashboard_workflow_run_id": "40479229478",
+    "dashboard_workflow_run_id": "40663349714",
     "repository": "cr8kj7k7j4-byte/sky-cloud-scanner"
   },
   "production_baseline": {
@@ -19,25 +19,26 @@
       "checks": {
         "sample_count": false,
         "trading_days": false,
-        "regime_coverage": false,
-        "outcome_completeness": false,
+        "regime_coverage": true,
+        "outcome_completeness": true,
         "symbol_concentration": true
       },
       "failed_checks": [
         "sample_count",
-        "trading_days",
-        "regime_coverage",
-        "outcome_completeness"
+        "trading_days"
       ],
       "observed": {
-        "samples": 0,
-        "trading_days": 0,
-        "regimes": [],
-        "regime_count": 0,
-        "outcome_complete": 0,
-        "outcome_complete_ratio": 0.0,
-        "unique_symbols": 0,
-        "top_symbol_share": 0.0
+        "samples": 24,
+        "trading_days": 1,
+        "regimes": [
+          "UNKNOWN_LOW",
+          "UNKNOWN_MEDIUM"
+        ],
+        "regime_count": 2,
+        "outcome_complete": 24,
+        "outcome_complete_ratio": 1.0,
+        "unique_symbols": 24,
+        "top_symbol_share": 0.041667
       },
       "thresholds": {
         "min_samples": 200,
@@ -49,10 +50,10 @@
       "note": "Shadow Sample Sufficiency 只判斷證據量與代表性，不代表勝率、獲利機率或策略有效性。"
     },
     "sample_gaps": {
-      "samples_remaining": 200,
-      "trading_days_remaining": 20,
-      "regimes_remaining": 2,
-      "outcome_completeness_gap": 0.95,
+      "samples_remaining": 176,
+      "trading_days_remaining": 19,
+      "regimes_remaining": 0,
+      "outcome_completeness_gap": 0.0,
       "symbol_concentration_excess": 0.0
     },
     "promotion_scorecard": {
@@ -101,8 +102,6 @@
     "blocking_items": [
       "sample:sample_count",
       "sample:trading_days",
-      "sample:regime_coverage",
-      "sample:outcome_completeness",
       "promotion:walk_forward",
       "promotion:oos",
       "promotion:cost_stress",
@@ -114,29 +113,29 @@
       "promotion:profit_factor"
     ],
     "summary": {
-      "samples": 0,
-      "trading_days": 0,
-      "regime_count": 0,
-      "outcome_complete_ratio": 0.0,
-      "top_symbol_share": 0.0,
+      "samples": 24,
+      "trading_days": 1,
+      "regime_count": 2,
+      "outcome_complete_ratio": 1.0,
+      "top_symbol_share": 0.041667,
       "promotion_score": 3.0,
       "promotable_to_governance_review": false
     },
     "note": "Dashboard 用於證據累積與升版治理，不是交易勝率、報酬預測或自動 Production Promotion。",
     "source": {
       "paper_dir": "shadow_history",
-      "files_scanned": 6,
-      "records_loaded": 0,
+      "files_scanned": 9,
+      "records_loaded": 24,
       "promotion_evidence_file": null
     },
     "pipeline_readiness": {
-      "status": "WAITING_FOR_FIRST_ELIGIBLE_SCAN",
+      "status": "COLLECTING",
       "healthy": true,
-      "collection_started": false,
+      "collection_started": true,
       "ledger_start": "2026-10-24T23:28:08Z",
-      "eligible_successful_scan_runs": 0,
-      "paper_files": 6,
-      "records_loaded": 0,
+      "eligible_successful_scan_runs": 2,
+      "paper_files": 9,
+      "records_loaded": 24,
       "blocking_items": [],
       "note": "Pipeline readiness only classifies evidence collection health. It does not imply strategy edge, profitability, or promotion readiness."
     },
@@ -150,7 +149,7 @@
         "capacity": null
       },
       "observed": {
-        "records": 0,
+        "records": 24,
         "eligible_strategy_records": 0,
         "complete_strategy_outcomes": 0,
         "cost_complete_ratio": 0.0,
@@ -173,13 +172,13 @@
     "w4_report": {
       "Sample Progress": {
         "status": "WAITING_FOR_FUTURE_SAMPLE",
-        "samples": 0,
-        "trading_days": 0,
-        "regime_count": 0
+        "samples": 24,
+        "trading_days": 1,
+        "regime_count": 2
       },
       "Data Completeness": {
-        "pipeline_status": "WAITING_FOR_FIRST_ELIGIBLE_SCAN",
-        "outcome_complete_ratio": 0.0,
+        "pipeline_status": "COLLECTING",
+        "outcome_complete_ratio": 1.0,
         "sample_gate_sufficient": false
       },
       "Strategy Performance": {
@@ -190,7 +189,7 @@
       },
       "Risk": {
         "portfolio_status": "NOT_EVALUABLE",
-        "top_symbol_share": 0.0,
+        "top_symbol_share": 0.041667,
         "cost_complete_ratio": 0.0,
         "production_eligible": false
       },
@@ -205,8 +204,6 @@
         "blocking_items": [
           "sample:sample_count",
           "sample:trading_days",
-          "sample:regime_coverage",
-          "sample:outcome_completeness",
           "promotion:walk_forward",
           "promotion:oos",
           "promotion:cost_stress",
@@ -219,10 +216,10 @@
         ]
       },
       "Outstanding Days / Samples": {
-        "samples_remaining": 200,
-        "trading_days_remaining": 20,
-        "regimes_remaining": 2,
-        "outcome_completeness_gap": 0.95,
+        "samples_remaining": 176,
+        "trading_days_remaining": 19,
+        "regimes_remaining": 0,
+        "outcome_completeness_gap": 0.0,
         "symbol_concentration_excess": 0.0
       }
     }
@@ -230,18 +227,39 @@
   "scan_eligibility": {
     "schema_version": "W4_SCAN_ARTIFACT_ELIGIBILITY_V1_0",
     "ledger_start": "2026-10-24T23:28:08Z",
-    "paper_files_scanned": 0,
-    "run_count": 0,
-    "eligible_run_count": 0,
-    "eligible_record_count": 0,
-    "eligible_run_ids": [],
+    "paper_files_scanned": 2,
+    "run_count": 2,
+    "eligible_run_count": 2,
+    "eligible_record_count": 24,
+    "eligible_run_ids": [
+      "40617528789",
+      "40623661597"
+    ],
     "ineligible_or_empty_runs": [],
-    "runs": [],
+    "runs": [
+      {
+        "run_id": "40617528789",
+        "files": 1,
+        "records": 12,
+        "eligible_records": 12,
+        "post_ledger_records": 12,
+        "valid_observation_records": 12
+      },
+      {
+        "run_id": "40623661597",
+        "files": 1,
+        "records": 12,
+        "eligible_records": 12,
+        "post_ledger_records": 12,
+        "valid_observation_records": 12
+      }
+    ],
     "malformed_files": [],
     "status": "PASS",
     "governance": {
       "workflow_success_alone_is_not_eligible_evidence": true,
       "nonempty_post_ledger_paper_record_required": true,
+      "zero_source_files_cannot_pass": true,
       "holiday_or_empty_scan_counts_as_eligible": false,
       "production_change": false
     }
