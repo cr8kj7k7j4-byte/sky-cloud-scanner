@@ -4,7 +4,7 @@ import argparse
 import json
 import statistics
 from collections import Counter
-from datetime import datetime, time as dtime
+from datetime import date, datetime, time as dtime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -68,6 +68,17 @@ def choose_signal_date(bysym: dict[str, list[dict]]) -> tuple[str | None, dict]:
         "selected_date_count": counts.get(signal_date, 0),
         "selection_threshold": threshold,
     }
+
+
+def signal_freshness(signal_date: str, today: date, max_calendar_age_days: int = 4) -> dict:
+    """Fail closed on stale canonical D-close history. Holidays need an audited exception."""
+    try:
+        age = (today - date.fromisoformat(signal_date)).days
+    except (ValueError, TypeError):
+        return {"fresh": False, "age_days": None, "reason": "INVALID_SIGNAL_DATE"}
+    fresh = 0 <= age <= max_calendar_age_days
+    return {"fresh": fresh, "age_days": age,
+            "reason": "OK" if fresh else "STALE_OR_FUTURE_SIGNAL_DATE"}
 
 
 def build_signal_cross_section(bysym: dict[str, list[dict]], signal_date: str):
@@ -219,6 +230,7 @@ def run(history_dir: str, top_n: int = 20):
     if not signal_date:
         raise RuntimeError("canonical daily history has no usable signal date")
 
+    freshness = signal_freshness(signal_date, now.date())
     cross, breadth = build_signal_cross_section(bysym, signal_date)
     frozen_pass = []
     for r in cross:
@@ -227,7 +239,11 @@ def run(history_dir: str, top_n: int = 20):
             frozen_pass.append(r)
 
     universe, universe_health = load_official_universe()
-    quote_by_symbol, warnings, live_quote_meta = fetch_candidate_live_quotes(frozen_pass, universe)
+    quote_by_symbol, warnings, live_quote_meta = fetch_candidate_live_quotes(
+        frozen_pass if freshness["fresh"] else [], universe
+    )
+    if not freshness["fresh"]:
+        warnings.append("STALE_DAILY_HISTORY: candidates blocked pending canonical daily refresh")
 
     cross_required = max(20, int((date_meta.get("max_cross_section") or 0) * 0.80))
     operational_full_market_scan = bool(
@@ -244,7 +260,7 @@ def run(history_dir: str, top_n: int = 20):
 
     session_status, session_text = _entry_status(now)
     candidates = []
-    for sig in frozen_pass:
+    for sig in (frozen_pass if freshness["fresh"] else []):
         q = quote_by_symbol.get(sig["symbol"])
         if not q:
             continue
@@ -305,6 +321,8 @@ def run(history_dir: str, top_n: int = 20):
         "strategy_status": "PREREGISTERED_CHALLENGER / NOT_PRODUCTION",
         "spec": "research/SKY_SWING_CHALLENGER_V1_1_PREREGISTRATION.md",
         "signal_date": signal_date,
+        "signal_freshness": freshness,
+        "trading_authorized": False,
         "execution_date": now.date().isoformat(),
         "historical_symbols_loaded": len(bysym),
         "signal_cross_section_count": len(cross),
@@ -334,6 +352,7 @@ def run(history_dir: str, top_n: int = 20):
         "candidates": candidates,
         "governance": [
             "V1.1 frozen rule is EOD signal at D close and D+1 open entry.",
+            "Stale canonical daily history blocks execution candidates.",
             "Whole-market selection is frozen on the canonical D-close cross-section; intraday quotes are fetched only for frozen candidates.",
             "Intraday current price never replaces the frozen D+1 open entry rule.",
             "V1.1 remains preregistered challenger / not Production.",
@@ -347,7 +366,7 @@ def run(history_dir: str, top_n: int = 20):
 
     lines = [
         f"Sky Swing V1.1｜現在掃一次｜{now:%Y-%m-%d %H:%M}",
-        f"訊號日：{signal_date}｜執行日：{now:%Y-%m-%d}",
+        f"訊號日：{signal_date}｜執行日：{now:%Y-%m-%d}｜資料狀態：{freshness['reason']}",
         f"全市場訊號掃描：{'是' if operational_full_market_scan else '否'}｜D-close cross-section {len(cross)}｜母池 {len(universe)}",
         f"盤中報價範圍：凍結候選 only｜要求 {requested_quotes}｜取得 {len(quote_by_symbol)}｜覆蓋率 {candidate_quote_coverage}%",
         f"V1.1 cross-section：{len(cross)}｜Breadth：{round((breadth or 0)*100,2)}%｜凍結規則通過：{len(frozen_pass)}｜今日有效候選：{len(candidates)}",
