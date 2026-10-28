@@ -1,6 +1,10 @@
 name: Sky Swing Live Whole-Market Scan
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "scan_requests/swing5d/**"
   workflow_dispatch:
     inputs:
       mode:
@@ -23,6 +27,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: swing-live-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: false
+
 jobs:
   scan:
     runs-on: ubuntu-latest
@@ -40,16 +48,49 @@ jobs:
           MAX_PRICE: "100"
           MIN_VOLUME: "500"
           MIN_TRADE_VALUE: "10000000"
+          SCAN_MODE: ${{ github.event_name == 'push' && 'swing5d' || inputs.mode || 'swing5d' }}
+          TOP_N: ${{ inputs.top_n || '20' }}
+          DEEP_N: ${{ inputs.deep_n || '8' }}
         run: |
           python -m src.swing_live_scanner \
-            --mode "${{ inputs.mode }}" \
-            --top-n "${{ inputs.top_n }}" \
-            --deep-n "${{ inputs.deep_n }}"
+            --mode "$SCAN_MODE" \
+            --top-n "$TOP_N" \
+            --deep-n "$DEEP_N"
+      - name: Verify scan output and publish summary
+        if: success()
+        env:
+          SCAN_MODE: ${{ github.event_name == 'push' && 'swing5d' || inputs.mode || 'swing5d' }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          mode = os.environ['SCAN_MODE']
+          p = Path(f'output/swing_live/latest_{mode}.json')
+          data = json.loads(p.read_text(encoding='utf-8'))
+          print('SCAN_RUN_ID:', os.environ['GITHUB_RUN_ID'])
+          print('SCAN_GENERATED_AT:', data.get('generated_at'))
+          print('FULL_MARKET_OPERATIONAL:', data.get('operational_full_market_scan'))
+          print('QUOTE_COVERAGE_PCT:', data.get('quote_coverage_pct'))
+          print('UNIVERSE_COUNT:', data.get('universe_count'))
+          print('QUOTE_COUNT:', data.get('quote_count'))
+          print('CANDIDATES:', data.get('candidate_count'))
+          print('RESEARCH_ONLY:', data.get('strategy_status'))
+          summary = Path(os.environ['GITHUB_STEP_SUMMARY'])
+          summary.write_text(
+              f"## {data.get('display_name')}\n"
+              f"資料時間：{data.get('generated_at')}\n\n"
+              f"全市場覆蓋：{data.get('quote_coverage_pct')}% "
+              f"({data.get('quote_count')}/{data.get('universe_count')})\n\n"
+              f"實務全市場掃描：{data.get('operational_full_market_scan')}\n\n"
+              f"研究狀態：{data.get('strategy_status')}；不是正式買進訊號。\n",
+              encoding='utf-8'
+          )
+          PY
       - name: Upload result
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sky-swing-live-${{ inputs.mode }}-${{ github.run_id }}
+          name: sky-swing-live-${{ github.run_id }}
           path: output/swing_live/
           if-no-files-found: warn
           retention-days: 30
