@@ -52,7 +52,8 @@ jobs:
             tests/test_structured_log.py \
             tests/test_risk_engine.py \
             tests/test_p0l_canonical_ledger.py \
-            tests/test_position_manager.py
+            tests/test_position_manager.py \
+            tests/test_w3a_fugle_probe_windows.py
       - name: Production E2E
         run: pytest -q tests/test_production_e2e_acceptance.py
 
