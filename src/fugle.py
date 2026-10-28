@@ -40,3 +40,17 @@ def snapshot_quotes(market):
     # Optional capability only. Snapshot is plan-dependent and must never be
     # required for the scanner to complete.
     return _get(f"/snapshot/quotes/{market}", {"type": "COMMONSTOCK"})
+
+def get_validated_live_quote(symbol, *, now=None, max_age_seconds=120):
+    """Read and verify a regular-session live quote, without changing get_quote callers.
+
+    Fail closed for missing, stale, closed, mismatched or invalid quotes.
+    This helper returns observed data only; it does not produce trade signals.
+    """
+    from .fugle_quote_validation import validate_fugle_quote
+
+    quote = get_quote(symbol)
+    validation = validate_fugle_quote(
+        quote, str(symbol), now=now, max_age_seconds=max_age_seconds
+    )
+    return {"quote": quote, "validation": validation}
