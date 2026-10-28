@@ -6,6 +6,7 @@ on:
     paths:
       - ".github/workflows/swing-v11-live-scan.yml"
       - "src/swing_v11_live_scanner.py"
+      - "src/swing_v11_market_observer.py"
       - "src/sky_command_router.py"
       - "research/SKY_SWING_V11_INTRADAY_EXECUTION_OVERLAY_V1.md"
   workflow_dispatch:
@@ -36,6 +37,10 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Observe whole market with intraday MIS (research context only)
+        continue-on-error: true
+        run: python -m src.swing_v11_market_observer
+
       - name: Download canonical Swing daily history
         uses: dawidd6/action-download-artifact@v11
         with:
@@ -65,6 +70,9 @@ jobs:
       - name: Publish summary
         if: always()
         run: |
+          if [ -f output/swing_v11_market/latest.txt ]; then
+            cat output/swing_v11_market/latest.txt >> "$GITHUB_STEP_SUMMARY"
+          fi
           if [ -f output/swing_v11_live/latest.txt ]; then
             cat output/swing_v11_live/latest.txt >> "$GITHUB_STEP_SUMMARY"
           fi
@@ -74,6 +82,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: sky-swing-v11-live-${{ github.run_id }}
-          path: output/swing_v11_live/
+          path: |
+            output/swing_v11_live/
+            output/swing_v11_market/
           if-no-files-found: warn
           retention-days: 30
