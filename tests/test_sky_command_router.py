@@ -59,3 +59,13 @@ def test_single_stock_update_requires_fugle_realtime_first():
     assert "Fugle" in route.execution_target
     assert "MANDATORY" in route.notes
     assert "stale public web data must never substitute" in route.notes
+
+
+def test_explicit_fugle_daytrade_update_alias():
+    route = route_command("Sky 富果當沖更新 6695")
+    assert route.command_family == "SKY_SINGLE_STOCK_UPDATE"
+    assert route.data_mode == "SINGLE_STOCK_REALTIME"
+    assert route.symbol_required and route.realtime_required
+    assert not route.whole_market_required
+    assert "Fugle connector" in route.execution_target
+    assert "MANDATORY" in route.notes
