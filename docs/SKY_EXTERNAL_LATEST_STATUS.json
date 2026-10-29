@@ -1,8 +1,8 @@
 {
   "schema_version": "SKY_EXTERNAL_STATUS_SNAPSHOT_V1_0",
-  "generated_at_utc": "2026-10-28T09:27:31.494405+00:00",
+  "generated_at_utc": "2026-10-29T09:30:27.560846+00:00",
   "source": {
-    "dashboard_workflow_run_id": "40663349714",
+    "dashboard_workflow_run_id": "40849082516",
     "repository": "cr8kj7k7j4-byte/sky-cloud-scanner"
   },
   "production_baseline": {
@@ -28,16 +28,16 @@
         "trading_days"
       ],
       "observed": {
-        "samples": 24,
-        "trading_days": 1,
+        "samples": 48,
+        "trading_days": 2,
         "regimes": [
           "UNKNOWN_LOW",
           "UNKNOWN_MEDIUM"
         ],
         "regime_count": 2,
-        "outcome_complete": 24,
+        "outcome_complete": 48,
         "outcome_complete_ratio": 1.0,
-        "unique_symbols": 24,
+        "unique_symbols": 45,
         "top_symbol_share": 0.041667
       },
       "thresholds": {
@@ -50,8 +50,8 @@
       "note": "Shadow Sample Sufficiency 只判斷證據量與代表性，不代表勝率、獲利機率或策略有效性。"
     },
     "sample_gaps": {
-      "samples_remaining": 176,
-      "trading_days_remaining": 19,
+      "samples_remaining": 152,
+      "trading_days_remaining": 18,
       "regimes_remaining": 0,
       "outcome_completeness_gap": 0.0,
       "symbol_concentration_excess": 0.0
@@ -113,8 +113,8 @@
       "promotion:profit_factor"
     ],
     "summary": {
-      "samples": 24,
-      "trading_days": 1,
+      "samples": 48,
+      "trading_days": 2,
       "regime_count": 2,
       "outcome_complete_ratio": 1.0,
       "top_symbol_share": 0.041667,
@@ -124,8 +124,8 @@
     "note": "Dashboard 用於證據累積與升版治理，不是交易勝率、報酬預測或自動 Production Promotion。",
     "source": {
       "paper_dir": "shadow_history",
-      "files_scanned": 9,
-      "records_loaded": 24,
+      "files_scanned": 12,
+      "records_loaded": 48,
       "promotion_evidence_file": null
     },
     "pipeline_readiness": {
@@ -133,9 +133,9 @@
       "healthy": true,
       "collection_started": true,
       "ledger_start": "2026-10-24T23:28:08Z",
-      "eligible_successful_scan_runs": 2,
-      "paper_files": 9,
-      "records_loaded": 24,
+      "eligible_successful_scan_runs": 4,
+      "paper_files": 12,
+      "records_loaded": 48,
       "blocking_items": [],
       "note": "Pipeline readiness only classifies evidence collection health. It does not imply strategy edge, profitability, or promotion readiness."
     },
@@ -149,7 +149,7 @@
         "capacity": null
       },
       "observed": {
-        "records": 24,
+        "records": 48,
         "eligible_strategy_records": 0,
         "complete_strategy_outcomes": 0,
         "cost_complete_ratio": 0.0,
@@ -172,8 +172,8 @@
     "w4_report": {
       "Sample Progress": {
         "status": "WAITING_FOR_FUTURE_SAMPLE",
-        "samples": 24,
-        "trading_days": 1,
+        "samples": 48,
+        "trading_days": 2,
         "regime_count": 2
       },
       "Data Completeness": {
@@ -216,8 +216,8 @@
         ]
       },
       "Outstanding Days / Samples": {
-        "samples_remaining": 176,
-        "trading_days_remaining": 19,
+        "samples_remaining": 152,
+        "trading_days_remaining": 18,
         "regimes_remaining": 0,
         "outcome_completeness_gap": 0.0,
         "symbol_concentration_excess": 0.0
@@ -227,13 +227,15 @@
   "scan_eligibility": {
     "schema_version": "W4_SCAN_ARTIFACT_ELIGIBILITY_V1_0",
     "ledger_start": "2026-10-24T23:28:08Z",
-    "paper_files_scanned": 2,
-    "run_count": 2,
-    "eligible_run_count": 2,
-    "eligible_record_count": 24,
+    "paper_files_scanned": 4,
+    "run_count": 4,
+    "eligible_run_count": 4,
+    "eligible_record_count": 48,
     "eligible_run_ids": [
       "40617528789",
-      "40623661597"
+      "40623661597",
+      "40803039175",
+      "40809230521"
     ],
     "ineligible_or_empty_runs": [],
     "runs": [
@@ -247,6 +249,22 @@
       },
       {
         "run_id": "40623661597",
+        "files": 1,
+        "records": 12,
+        "eligible_records": 12,
+        "post_ledger_records": 12,
+        "valid_observation_records": 12
+      },
+      {
+        "run_id": "40803039175",
+        "files": 1,
+        "records": 12,
+        "eligible_records": 12,
+        "post_ledger_records": 12,
+        "valid_observation_records": 12
+      },
+      {
+        "run_id": "40809230521",
         "files": 1,
         "records": 12,
         "eligible_records": 12,
