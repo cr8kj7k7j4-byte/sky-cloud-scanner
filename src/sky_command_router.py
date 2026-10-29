@@ -68,6 +68,15 @@ _PATTERNS = [
         ),
     ),
     (
+        re.compile(r"^Sky\\s*富果當沖更新\\s+\\d{4,6}$", re.I),
+        CommandRoute(
+            "SKY_SINGLE_STOCK_UPDATE", "SINGLE_STOCK_REALTIME", True, False, True,
+            "Fugle connector realtime quote + relevant market context",
+            "MANDATORY: fetch Fugle realtime quote first; no stale substitute; "
+            "apply the existing P0-C/P0-R gates; missing governed levels/scores remain unavailable."
+        ),
+    ),
+    (
         re.compile(r"^Sky\s*(?:當沖更新|波段更新|Swing\s*5D\s*更新|完整分析)\s+\d{4,6}$", re.I),
         CommandRoute(
             "SKY_SINGLE_STOCK_UPDATE", "SINGLE_STOCK_REALTIME", True, False, True,
