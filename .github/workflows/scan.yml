@@ -39,7 +39,9 @@ jobs:
           import json
           from pathlib import Path
           x=json.loads(Path("output/trading_calendar_status.json").read_text(encoding="utf-8"))
-          print("true" if x.get("should_scan") else "false")
+          if x.get("source_status") != "PASS":
+              raise SystemExit("Official trading calendar unavailable; scan withheld.")
+          print("true" if x.get("should_scan") is True else "false")
           PY
           )"
           echo "should_scan=$SHOULD_SCAN" >> "$GITHUB_OUTPUT"
