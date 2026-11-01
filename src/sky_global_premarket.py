@@ -35,7 +35,9 @@ def render(calendar, context, now):
         data = context.get(key) or {}
         item = data.get(itemkey)
         if key == 'adr_context' and isinstance(item, list):
-            item = next((q for q in item if str(q.get('symbol', '')).upper() in ('TSM', '2330')), None)
+            item = next((q for q in item if str(q.get('adr_symbol', '')).upper() == 'TSM'), None)
+            if item:
+                item = {**item, 'value': item.get('price'), 'as_of': item.get('latest_trading_day'), 'unit': 'USD'}
         if data.get('status') != 'CONNECTED' or not isinstance(item, dict) or item.get('value') is None or not item.get('as_of'):
             lines.append(f'{label}：待確認（未取得完整報價與時間）')
         else:
@@ -53,7 +55,6 @@ def render(calendar, context, now):
 
 def main():
     from .trading_calendar import check_trading_day
-    from .global_market_context import build_global_context
     now = datetime.now(TZ)
     calendar = check_trading_day(now.date())
     context = {}
@@ -67,17 +68,14 @@ def main():
 
 
 def collect_context(now):
-    from .global_market_context import build_global_context, fetch_fred_market_series
+    from concurrent.futures import ThreadPoolExecutor
+    from .global_market_context import (fetch_us10y, fetch_vix, fetch_ntdusd,
+                                        fetch_fred_market_series, FRED_SP500_CSV,
+                                        FRED_NASDAQ_CSV, FRED_WTI_CSV)
+    from .adr_context import fetch_taiwan_adr_context
+    from .gold_context import fetch_gold_context
     import requests
-    try:
-        context = build_global_context(now=now)
-    except Exception as exc:
-        context = {'error': type(exc).__name__}
-    try:
-        context['sox'] = fetch_fred_market_series('NASDAQSOX', '費城半導體指數', 'https://fred.stlouisfed.org/graph/fredgraph.csv?id=NASDAQSOX', 'index')
-    except Exception:
-        context['sox'] = None
-    try:
+    def night_fetch():
         url = 'https://openapi.taifex.com.tw/v1/DailyMarketReportFut'
         response = requests.get(url, timeout=15)
         response.raise_for_status()
@@ -86,9 +84,25 @@ def collect_context(now):
         if candidates:
             latest = max(r['Date'] for r in candidates)
             item = min((r for r in candidates if r['Date'] == latest), key=lambda r: r['ContractMonth(Week)'])
-            context['taifex_night'] = {'status': 'AVAILABLE_UNVERIFIED', 'last': item['Last'], 'date': item['Date'], 'contract_month': item['ContractMonth(Week)'], 'source_url': url}
-    except Exception:
-        context['taifex_night'] = {'status': 'UNAVAILABLE'}
+            return {'status': 'AVAILABLE_UNVERIFIED', 'last': item['Last'], 'date': item['Date'], 'contract_month': item['ContractMonth(Week)'], 'source_url': url}
+        return {'status': 'UNAVAILABLE'}
+    funcs = {
+        'vix': fetch_vix, 'us10y': fetch_us10y, 'ntdusd': fetch_ntdusd,
+        'sp500': lambda: fetch_fred_market_series('SP500', 'S&P 500', FRED_SP500_CSV, 'index'),
+        'nasdaq': lambda: fetch_fred_market_series('NASDAQCOM', 'Nasdaq', FRED_NASDAQ_CSV, 'index'),
+        'wti': lambda: fetch_fred_market_series('WTI', 'WTI', FRED_WTI_CSV, 'USD/barrel'),
+        'sox': lambda: fetch_fred_market_series('NASDAQSOX', '費半', 'https://fred.stlouisfed.org/graph/fredgraph.csv?id=NASDAQSOX', 'index'),
+        'adr_context': fetch_taiwan_adr_context, 'gold_context': fetch_gold_context,
+        'taifex_night': night_fetch,
+    }
+    context = {}
+    with ThreadPoolExecutor(max_workers=len(funcs)) as pool:
+        tasks = {name: pool.submit(fn) for name, fn in funcs.items()}
+        for name, future in tasks.items():
+            try:
+                context[name] = future.result()
+            except Exception:
+                context[name] = None
     return context
 
 
