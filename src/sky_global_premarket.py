@@ -80,7 +80,7 @@ def collect_context(now):
         response = requests.get(url, timeout=15)
         response.raise_for_status()
         rows = response.json()
-        candidates = [r for r in rows if str(r.get('Contract', '')).strip() == 'TX' and str(r.get('TradingSession', '')).strip() == '盤後' and len(str(r.get('ContractMonth(Week)', ''))) == 6 and str(r.get('ContractMonth(Week)', '')).isdigit() and str(r.get('Date', '')).isdigit() and str(r.get('Last', '')).replace(',', '').replace('.', '', 1).isdigit()]
+        candidates = [r for r in rows if str(r.get('Contract', '')).strip() == 'TX' and str(r.get('TradingSession', '')).strip() == '盤後' and len(str(r.get('ContractMonth(Week)', ''))) == 6 and str(r.get('ContractMonth(Week)', '')).isdigit() and str(r.get('Date', '')).strip() == now.strftime('%Y%m%d') and str(r.get('Last', '')).replace(',', '').replace('.', '', 1).isdigit()]
         if candidates:
             latest = max(r['Date'] for r in candidates)
             item = min((r for r in candidates if r['Date'] == latest), key=lambda r: r['ContractMonth(Week)'])
