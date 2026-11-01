@@ -1,0 +1,36 @@
+name: Telegram migration delivery check
+on:
+  pull_request:
+    types: [opened]
+    branches: [main]
+    paths: [".github/workflows/telegram-migration-check.yml"]
+permissions:
+  contents: read
+jobs:
+  delivery-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Send a single test notification
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python - <<'PY'
+          import json, os, sys, urllib.request
+          token, chat = os.getenv("TELEGRAM_BOT_TOKEN"), os.getenv("TELEGRAM_CHAT_ID")
+          if not token or not chat:
+              print("DELIVERY_CHECK: missing Telegram configuration")
+              sys.exit(1)
+          data = json.dumps({"chat_id": chat, "text": "Sky 雲端排程通知測試：這是一則連線測試，沒有交易訊號。"}).encode()
+          request = urllib.request.Request("https://api.telegram.org/bot" + token + "/sendMessage", data=data, headers={"Content-Type": "application/json"})
+          try:
+              with urllib.request.urlopen(request, timeout=20) as response:
+                  result = json.load(response)
+              if not result.get("ok"):
+                  raise RuntimeError("Telegram rejected request")
+              print("DELIVERY_CHECK: Telegram API accepted the test message")
+          except Exception as exc:
+              print("DELIVERY_CHECK: failed (" + type(exc).__name__ + ")")
+              sys.exit(1)
+          PY
