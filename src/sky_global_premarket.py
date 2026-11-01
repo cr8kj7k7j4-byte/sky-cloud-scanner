@@ -17,6 +17,7 @@ FIELDS = (('sp500', '標普500'), ('nasdaq', '那斯達克'),
 def render(calendar, context, now):
     lines = [f'Sky 全球盤前掃描｜{now:%Y-%m-%d %H:%M:%S %Z}',
              '用途：市場背景觀察；未經驗證的交易濾網，不構成買賣訊號。',
+             '歷史數值可能落後最近收盤；請先核對各項資料日期，勿視為即時報價。',
              f"交易日曆：{calendar.get('status', 'UNKNOWN')}｜來源狀態：{calendar.get('source_status', 'UNKNOWN')}"]
     if calendar.get('source_status') != 'PASS':
         lines.append('交易日曆來源異常，無法確認開市；停止行情判讀。')
