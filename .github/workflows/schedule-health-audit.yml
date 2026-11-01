@@ -1,0 +1,43 @@
+name: Sky Schedule Health Audit
+
+on:
+  pull_request:
+    paths:
+      - "research/schedule_health.py"
+      - "tests/test_schedule_health.py"
+      - ".github/workflows/schedule-health-audit.yml"
+  workflow_dispatch:
+  schedule:
+    - cron: "15 18 * * 1-5"
+      timezone: "Asia/Taipei"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PYTHONPATH: research
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install YAML parser
+        run: pip install "PyYAML>=6,<7"
+      - name: Test audit failure handling
+        run: python -m unittest discover -s tests -p test_schedule_health.py -v
+      - name: Read workflow status and scheduled runs
+        run: python research/schedule_health.py
+      - name: Upload schedule health report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: schedule-health-${{ github.run_id }}
+          path: output/schedule_health/
+          if-no-files-found: error
+          retention-days: 90
