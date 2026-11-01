@@ -12,7 +12,7 @@ spec.loader.exec_module(m)
 class CollectorTests(unittest.TestCase):
     def setUp(self):
         self.day = dt.date(2026, 10, 30)
-        self.twse = {'stat': 'OK', 'date': '20261030', 'tables': [{'fields':['證券代號'], 'data': [['2330']]*100}]}
+        self.twse = {'stat': 'OK', 'date': '20261030', 'tables': [{'fields':['代號','名稱'], 'data': [['2330','台積電']]*100}]}
         self.tpex = {'reportDate': '115/10/30', 'aaData': [['1234']]*100}
     def test_both_sources_and_hash(self):
         def fake(url):
