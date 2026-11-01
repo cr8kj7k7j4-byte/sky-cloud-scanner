@@ -75,5 +75,5 @@ jobs:
         with:
           name: sky-swing-v11-live-${{ github.run_id }}
           path: output/swing_v11_live/
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 30
