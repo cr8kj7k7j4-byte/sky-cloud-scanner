@@ -47,11 +47,21 @@ jobs:
           for name, url in [
               ('FRED_SOX', 'https://fred.stlouisfed.org/graph/fredgraph.csv?id=NASDAQSOX'),
               ('STOOQ_SP500', 'https://stooq.com/q/l/?s=%5Espx&f=sd2t2ohlcv&h&e=csv'),
+              ('YAHOO_SOX', 'https://query1.finance.yahoo.com/v8/finance/chart/%5ESOX?range=5d&interval=1d'),
+              ('YAHOO_TSM', 'https://query1.finance.yahoo.com/v8/finance/chart/TSM?range=5d&interval=1d'),
+              ('STOOQ_HISTORY', 'https://stooq.pl/q/d/l/?s=%5Espx&i=d'),
+              ('TWSE_CALENDAR', 'https://openapi.twse.com.tw/v1/holidaySchedule/holidaySchedule'),
               ('TAIFEX', 'https://openapi.taifex.com.tw/v1/DailyMarketReportFut'),
           ]:
               try:
                   response = requests.get(url, timeout=8)
                   print(f'probe_endpoint={name} http={response.status_code} bytes={len(response.content)}')
+                  if name.startswith('YAHOO') or name == 'STOOQ_HISTORY':
+                      print(f'probe_example={name} ' + response.text[:200].replace('\n', ' '))
+                  if name == 'TWSE_CALENDAR':
+                      rows = response.json()
+                      dates = [str(x.get('Date', '')) for x in rows if isinstance(x, dict)]
+                      print(f'calendar_rows={len(dates)} sample={dates[:3]}')
                   if name == 'FRED_SOX':
                       print('fred_content_type=' + str(response.headers.get('Content-Type', '')))
                       print('fred_first_line=' + response.text.splitlines()[0][:120])
