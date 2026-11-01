@@ -1,0 +1,81 @@
+name: Sky Swing postmarket research scan
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/swing-postmarket-research.yml"
+  schedule:
+    - cron: "0 16 * * 1-5"
+      timezone: "Asia/Taipei"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: swing-postmarket-research-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  research-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check scanner syntax
+        run: python -m py_compile src/swing_live_scanner.py src/trading_calendar.py
+      - name: Install dependencies
+        if: github.event_name != 'pull_request'
+        run: pip install -r requirements.txt
+      - name: Check official trading calendar
+        if: github.event_name != 'pull_request'
+        id: calendar
+        run: |
+          python -m src.trading_calendar --out output/trading_calendar_status.json
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          data = json.loads(Path("output/trading_calendar_status.json").read_text(encoding="utf-8"))
+          allowed = data.get("source_status") == "PASS" and data.get("should_scan") is True
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write("run_scan=" + str(allowed).lower() + "\n")
+          if data.get("source_status") != "PASS":
+              raise SystemExit("Official trading calendar unavailable; scan withheld.")
+          PY
+      - name: Run research-only swing scan
+        if: steps.calendar.outputs.run_scan == 'true'
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+          MAX_PRICE: "100"
+          MIN_VOLUME: "500"
+          MIN_TRADE_VALUE: "10000000"
+        run: python -m src.swing_live_scanner --mode swing --top-n 20 --deep-n 8
+      - name: Publish research-only summary
+        if: steps.calendar.outputs.run_scan == 'true'
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          data = json.loads(Path("output/swing_live/latest_swing.json").read_text(encoding="utf-8"))
+          text = (
+              "## 盤後波段研究掃描\n\n"
+              "本產物為研究觀察，不是正式 Swing V1.0 買進訊號或驗證通過。\n\n"
+              f"資料時間：{data.get('generated_at', '待確認')}\n\n"
+              f"實務掃描覆蓋率：{data.get('quote_coverage_pct', '待確認')}%\n\n"
+              f"候選數：{data.get('candidate_count', '待確認')}\n"
+          )
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as out:
+              out.write(text)
+          PY
+      - name: Preserve calendar and scan evidence
+        if: always() && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: swing-postmarket-research-${{ github.run_id }}
+          path: |
+            output/trading_calendar_status.json
+            output/swing_live/
+          if-no-files-found: warn
+          retention-days: 30
