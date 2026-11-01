@@ -14,6 +14,21 @@ FIELDS = (('sp500', '標普500'), ('nasdaq', '那斯達克'),
           ('ntdusd', '新台幣匯率'), ('wti', 'WTI原油'))
 
 
+def freshness(as_of, now):
+    raw = str(as_of or '').strip()
+    parsed = None
+    for pattern in ('%Y-%m-%d', '%m/%d/%Y', '%Y%m%d'):
+        try:
+            parsed = datetime.strptime(raw[:10], pattern).date()
+            break
+        except ValueError:
+            continue
+    if parsed is None or parsed > now.date():
+        return '日期無法確認'
+    age = (now.date() - parsed).days
+    return f'資料距今 {age} 天' + ('；可能過期，禁止作即時判斷' if age > 3 else '；是否為最新交易日仍待確認')
+
+
 def render(calendar, context, now):
     lines = [f'Sky 全球盤前掃描｜{now:%Y-%m-%d %H:%M:%S %Z}',
              '用途：市場背景觀察；未經驗證的交易濾網，不構成買賣訊號。',
@@ -31,7 +46,7 @@ def render(calendar, context, now):
         if value is None or not date or not source:
             lines.append(f'{label}：待確認（未取得完整數值、日期與來源）')
         else:
-            lines.append(f"{label}：{value} {item.get('unit', '')}｜資料日期 {date}｜來源 {source}｜即時性待確認｜{item.get('source_url', '')}")
+            lines.append(f"{label}：{value} {item.get('unit', '')}｜資料日期 {date}｜來源 {source}｜{freshness(date, now)}｜{item.get('source_url', '')}")
     for key, label, itemkey in [('adr_context', '台積電ADR', 'quotes'), ('gold_context', '黃金', 'quote')]:
         data = context.get(key) or {}
         item = data.get(itemkey)
