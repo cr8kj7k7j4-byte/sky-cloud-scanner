@@ -22,7 +22,7 @@ def validate(source, payload, day):
         if payload.get('stat') != 'OK' or str(payload.get('date', '')) != day.strftime('%Y%m%d'):
             raise ValueError('TWSE status or report date mismatch')
         tables = payload.get('tables', [])
-        valid = [t for t in tables if isinstance(t, dict) and isinstance(t.get('data'), list) and len(t['data']) >= 100 and any('證券代號' in str(x) for x in t.get('fields', []))]
+        valid = [t for t in tables if isinstance(t, dict) and isinstance(t.get('data'), list) and len(t['data']) >= 100 and t.get('fields', [])[:2] == ['代號', '名稱']]
         if not valid:
             raise ValueError('TWSE individual security table absent or incomplete: ' + repr([(t.get('title'), t.get('fields', [])[:3], len(t.get('data', []))) for t in tables if isinstance(t, dict)])[:700])
         return len(valid[0]['data'])
