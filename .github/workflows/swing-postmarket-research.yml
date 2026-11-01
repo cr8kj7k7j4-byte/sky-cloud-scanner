@@ -26,6 +26,8 @@ jobs:
           python-version: "3.12"
       - name: Check scanner syntax
         run: python -m py_compile src/swing_live_scanner.py src/trading_calendar.py
+      - name: Test failure notifications
+        run: PYTHONPATH=. python -m unittest discover -s tests -p "test_swing_scan_failure_alert.py"
       - name: Install dependencies
         if: github.event_name != 'pull_request'
         run: pip install -r requirements.txt
@@ -79,3 +81,9 @@ jobs:
             output/swing_live/
           if-no-files-found: warn
           retention-days: 30
+      - name: Notify Telegram on scan failure
+        if: failure() && github.event_name != 'pull_request'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: PYTHONPATH=. python research/swing_scan_failure_alert.py
