@@ -392,11 +392,12 @@ def run(history_dir: str, top_n: int = 20):
         json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
+    coverage_text = f"{candidate_quote_coverage}%" if candidate_quote_coverage is not None else "不適用"
     lines = [
         f"Sky Swing V1.1｜現在掃一次｜{now:%Y-%m-%d %H:%M}",
         f"訊號日：{signal_date}｜執行日：{now:%Y-%m-%d}｜日期檢查：{freshness['status']}｜預期訊號日：{freshness['expected_signal_date'] or '待確認'}",
         f"全市場訊號掃描：{'是' if operational_full_market_scan else '否'}｜D-close cross-section {len(cross)}｜母池 {len(universe)}",
-        f"盤中報價範圍：凍結候選 only｜要求 {requested_quotes}｜取得 {len(quote_by_symbol)}｜覆蓋率 {candidate_quote_coverage}%",
+        f"盤中報價範圍：凍結候選 only｜要求 {requested_quotes}｜取得 {len(quote_by_symbol)}｜覆蓋率 {coverage_text}",
         f"V1.1 cross-section：{len(cross)}｜Breadth：{round((breadth or 0)*100,2)}%｜凍結規則通過：{len(frozen_pass)}｜今日有效候選：{len(candidates)}",
         f"交易時段：{session_status}｜{session_text}",
         "",
