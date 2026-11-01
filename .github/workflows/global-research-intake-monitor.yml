@@ -1,0 +1,54 @@
+name: Sky global research intake monitor
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/global-research-intake-monitor.yml"
+      - "research/global_research_status_monitor.py"
+      - "tests/test_global_research_status_monitor.py"
+  schedule:
+    - cron: "0 18 * * 1-5"
+      timezone: "Asia/Taipei"
+permissions:
+  contents: read
+  issues: read
+  actions: read
+concurrency:
+  group: sky-global-research-intake
+  cancel-in-progress: false
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Test issue change detector
+        run: PYTHONPATH=. python -m unittest discover -s tests -p "test_global_research_status_monitor.py"
+      - name: Restore prior successful state
+        if: github.event_name != 'pull_request'
+        run: |
+          mkdir -p previous
+          run_id="$(gh run list --workflow global-research-intake-monitor.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')"
+          if [ -n "$run_id" ]; then
+            gh run download "$run_id" -n global-research-monitor-state -D previous || exit 1
+          fi
+      - name: Check research issue and notify on change
+        if: github.event_name != 'pull_request'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: PYTHONPATH=. python research/global_research_status_monitor.py
+      - name: Save state for next comparison
+        if: github.event_name != 'pull_request' && success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: global-research-monitor-state
+          path: output/global-research-state.json
+          if-no-files-found: error
+          retention-days: 90
