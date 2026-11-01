@@ -1,0 +1,31 @@
+name: Sky one-time workflow verification
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/one-time-dispatch-verification.yml"
+permissions:
+  actions: write
+  contents: read
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Dispatch three existing main workflows for verification
+        shell: bash
+        run: |
+          set -u
+          failed=0
+          for workflow in margin-evidence.yml revenue-pit-coverage-audit.yml swing-postmarket-research.yml; do
+            echo "Dispatching $workflow on main"
+            if gh workflow run "$workflow" --ref main; then
+              echo "ACCEPTED $workflow"
+            else
+              echo "FAILED $workflow"
+              failed=1
+            fi
+          done
+          exit "$failed"
