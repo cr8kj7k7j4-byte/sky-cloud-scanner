@@ -1,7 +1,7 @@
 import unittest
 from datetime import datetime
 from zoneinfo import ZoneInfo
-from src.sky_global_premarket import render
+from src.sky_global_premarket import render, freshness
 
 
 class ReportTests(unittest.TestCase):
@@ -27,6 +27,11 @@ class ReportTests(unittest.TestCase):
     def test_value_needs_provenance(self):
         report = render({'source_status': 'PASS', 'market_open': True}, {'vix': {'value': 17}}, self.now)
         self.assertIn('VIX：待確認', report)
+
+    def test_aged_data_is_flagged(self):
+        self.assertIn('可能過期', freshness('2026-10-29', self.now))
+        self.assertIn('最新交易日仍待確認', freshness('2026-10-30', self.now))
+        self.assertEqual('日期無法確認', freshness('2026-11-03', self.now))
 
 
 if __name__ == '__main__':
