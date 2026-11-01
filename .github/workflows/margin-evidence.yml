@@ -49,6 +49,9 @@ jobs:
         if: steps.calendar.outputs.open == 'true'
         id: collect
         run: python research/margin_evidence/collect.py
+      - name: Normalize and verify source hashes
+        if: steps.collect.outcome == 'success' || steps.probe.outcome == 'success'
+        run: python research/margin_evidence/normalize.py
       - name: Checkout isolated evidence branch
         if: (steps.collect.outcome == 'success' || steps.probe.outcome == 'success') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         uses: actions/checkout@v4
@@ -82,6 +85,7 @@ jobs:
               if record.get('status') != 'PASS' or Path(filename).name != filename:
                   raise SystemExit('Invalid source record')
               shutil.copyfile(src / filename, target / filename)
+          shutil.copyfile(src / 'normalized.json', target / 'normalized.json')
           manifest['github_event'] = os.environ['EVENT_NAME']
           manifest['snapshot_kind'] = 'historical_probe_not_pit' if os.environ['EVENT_NAME'] == 'pull_request' else 'contemporaneous_collection'
           (target / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
