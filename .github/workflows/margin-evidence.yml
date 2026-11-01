@@ -9,14 +9,14 @@ on:
     - cron: "30 11 * * 1-5"
 
 permissions:
-  contents: read
+  contents: write
 concurrency:
-  group: margin-evidence-${{ github.ref }}
+  group: sky-margin-evidence-writer
   cancel-in-progress: false
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -24,8 +24,9 @@ jobs:
           python-version: "3.12"
       - name: Test validation and failure handling
         run: python -m unittest discover -s research/margin_evidence -p 'test_*.py' -v
-      - name: Probe known historical reports in pull requests
+      - name: Probe official historical reports
         if: github.event_name == 'pull_request'
+        id: probe
         run: python research/margin_evidence/collect.py --date 2026-10-30
       - name: Install calendar dependency
         if: github.event_name != 'pull_request'
@@ -46,7 +47,54 @@ jobs:
           PY
       - name: Collect official margin evidence
         if: steps.calendar.outputs.open == 'true'
+        id: collect
         run: python research/margin_evidence/collect.py
+      - name: Checkout isolated evidence branch
+        if: (steps.collect.outcome == 'success' || steps.probe.outcome == 'success') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        uses: actions/checkout@v4
+        with:
+          ref: data/margin-evidence
+          path: evidence-store
+          fetch-depth: 0
+      - name: Persist immutable timestamped snapshot
+        if: (steps.collect.outcome == 'success' || steps.probe.outcome == 'success') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          python - <<'PY'
+          import json, os, shutil
+          from pathlib import Path
+          src = Path('output/margin_evidence')
+          manifest = json.loads((src / 'manifest.json').read_text(encoding='utf-8'))
+          if manifest.get('collection_status') != 'PASS':
+              raise SystemExit('Refusing to persist invalid snapshot')
+          date = manifest['requested_date']
+          if len(date) != 10 or date[4] != '-' or date[7] != '-':
+              raise SystemExit('Invalid date')
+          target = Path('evidence-store/margin-snapshots') / date / (os.environ['RUN_ID'] + '-' + os.environ['RUN_ATTEMPT'])
+          if target.exists():
+              raise SystemExit('Snapshot path already exists; refusing overwrite')
+          target.mkdir(parents=True)
+          for name, record in manifest['sources'].items():
+              filename = record.get('file', '')
+              if record.get('status') != 'PASS' or Path(filename).name != filename:
+                  raise SystemExit('Invalid source record')
+              shutil.copyfile(src / filename, target / filename)
+          manifest['github_event'] = os.environ['EVENT_NAME']
+          manifest['snapshot_kind'] = 'historical_probe_not_pit' if os.environ['EVENT_NAME'] == 'pull_request' else 'contemporaneous_collection'
+          (target / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          print('Evidence snapshot:', target)
+          PY
+          cd evidence-store
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add margin-snapshots/
+          git diff --cached --quiet && { echo "No snapshot changes"; exit 1; }
+          git commit -m "Archive margin evidence run ${RUN_ID}-${RUN_ATTEMPT}"
+          git push origin HEAD:data/margin-evidence
+          echo "Stored to data/margin-evidence; evidence is not a trade signal." >> "$GITHUB_STEP_SUMMARY"
       - name: Preserve source and diagnostic evidence
         if: always()
         uses: actions/upload-artifact@v4
