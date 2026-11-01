@@ -8,6 +8,11 @@ on:
       - "src/swing_v11_live_scanner.py"
       - "src/sky_command_router.py"
       - "research/SKY_SWING_V11_INTRADAY_EXECUTION_OVERLAY_V1.md"
+  pull_request:
+    paths:
+      - "src/swing_v11_live_scanner.py"
+      - "tests/test_swing_v11_freshness.py"
+      - ".github/workflows/swing-v11-live-scan.yml"
   workflow_dispatch:
     inputs:
       top_n:
@@ -24,7 +29,19 @@ permissions:
   contents: read
 
 jobs:
+  validate-freshness:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt pytest
+      - run: PYTHONPATH=. pytest -q tests/test_swing_v11_freshness.py tests/test_swing_v11_live_scanner.py
+
   live-scan:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
