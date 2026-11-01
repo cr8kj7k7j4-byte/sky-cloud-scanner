@@ -43,6 +43,17 @@ jobs:
           (out / 'probe.txt').write_text(report, encoding='utf-8')
           print(report)
           print('source_probe_complete')
+          import requests
+          for name, url in [
+              ('FRED_SOX', 'https://fred.stlouisfed.org/graph/fredgraph.csv?id=NASDAQSOX'),
+              ('STOOQ_SP500', 'https://stooq.com/q/l/?s=%5Espx&f=sd2t2ohlcv&h&e=csv'),
+              ('TAIFEX', 'https://openapi.taifex.com.tw/v1/DailyMarketReportFut'),
+          ]:
+              try:
+                  response = requests.get(url, timeout=8)
+                  print(f'probe_endpoint={name} http={response.status_code} bytes={len(response.content)}')
+              except Exception as exc:
+                  print(f'probe_endpoint={name} error={type(exc).__name__}')
           PY
       - name: Build report
         if: github.event_name != 'pull_request'
