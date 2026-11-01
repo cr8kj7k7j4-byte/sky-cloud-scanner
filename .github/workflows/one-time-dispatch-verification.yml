@@ -14,12 +14,12 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
     steps:
-      - name: Dispatch three existing main workflows for verification
+      - name: Dispatch global premarket and schedule health on main
         shell: bash
         run: |
           set -u
           failed=0
-          for workflow in margin-evidence.yml revenue-pit-coverage-audit.yml swing-postmarket-research.yml; do
+          for workflow in sky-global-premarket.yml schedule-health-audit.yml; do
             echo "Dispatching $workflow on main"
             if gh workflow run "$workflow" --ref main; then
               echo "ACCEPTED $workflow"
