@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 TZ = ZoneInfo('Asia/Taipei')
 OUTPUT = Path('output/global_premarket')
 FIELDS = (('sp500', '標普500'), ('nasdaq', '那斯達克'),
+          ('sox', '費城半導體指數'),
           ('vix', 'VIX'), ('us10y', '美國10年公債殖利率'),
           ('ntdusd', '新台幣匯率'), ('wti', 'WTI原油'))
 
@@ -39,8 +40,12 @@ def render(calendar, context, now):
             lines.append(f'{label}：待確認（未取得完整報價與時間）')
         else:
             lines.append(f"{label}：{item['value']} {item.get('unit', '')}｜{item['as_of']}｜來源 {item.get('source', data.get('provider', '待確認'))}｜延遲待確認")
-    lines.extend(['台指期夜盤：待確認（尚無經驗證的夜盤資料來源）',
-                  '費城半導體指數：待確認（尚無經驗證的資料來源）',
+    night = context.get('taifex_night') or {}
+    if night.get('status') == 'AVAILABLE_UNVERIFIED':
+        lines.append(f"台指期夜盤候選資料：{night['last']} 點｜契約 {night['contract_month']}｜期交所原始日期 {night['date']}｜日期歸屬及時效待驗證｜{night['source_url']}")
+    else:
+        lines.append('台指期夜盤：待確認（來源、時段或資料日期尚未驗證）')
+    lines.extend([
                   '判讀：資料不足時，市場方向與新進場條件均待確認；09:05 仍須由正式當沖流程獨立判斷。',
                   '不得將資料缺漏視為利多或低風險；不自動下單。'])
     return '\n'.join(lines) + '\n'
@@ -53,15 +58,38 @@ def main():
     calendar = check_trading_day(now.date())
     context = {}
     if calendar.get('source_status') == 'PASS' and calendar.get('market_open'):
-        try:
-            context = build_global_context(now=now)
-        except Exception as exc:
-            context = {'error': type(exc).__name__}
+        context = collect_context(now)
     report = render(calendar, context, now)
     OUTPUT.mkdir(parents=True, exist_ok=True)
     (OUTPUT / 'report.txt').write_text(report, encoding='utf-8')
     (OUTPUT / 'snapshot.json').write_text(json.dumps({'generated_at': now.isoformat(), 'calendar': calendar, 'context': context, 'trade_signal': False}, ensure_ascii=False, indent=2), encoding='utf-8')
     print(report)
+
+
+def collect_context(now):
+    from .global_market_context import build_global_context, fetch_fred_market_series
+    import requests
+    try:
+        context = build_global_context(now=now)
+    except Exception as exc:
+        context = {'error': type(exc).__name__}
+    try:
+        context['sox'] = fetch_fred_market_series('NASDAQSOX', '費城半導體指數', 'https://fred.stlouisfed.org/graph/fredgraph.csv?id=NASDAQSOX', 'index')
+    except Exception:
+        context['sox'] = None
+    try:
+        url = 'https://openapi.taifex.com.tw/v1/DailyMarketReportFut'
+        response = requests.get(url, timeout=15)
+        response.raise_for_status()
+        rows = response.json()
+        candidates = [r for r in rows if str(r.get('Contract', '')).strip() == 'TX' and str(r.get('TradingSession', '')).strip() == '盤後' and len(str(r.get('ContractMonth(Week)', ''))) == 6 and str(r.get('ContractMonth(Week)', '')).isdigit() and str(r.get('Date', '')).isdigit() and str(r.get('Last', '')).replace(',', '').replace('.', '', 1).isdigit()]
+        if candidates:
+            latest = max(r['Date'] for r in candidates)
+            item = min((r for r in candidates if r['Date'] == latest), key=lambda r: r['ContractMonth(Week)'])
+            context['taifex_night'] = {'status': 'AVAILABLE_UNVERIFIED', 'last': item['Last'], 'date': item['Date'], 'contract_month': item['ContractMonth(Week)'], 'source_url': url}
+    except Exception:
+        context['taifex_night'] = {'status': 'UNAVAILABLE'}
+    return context
 
 
 if __name__ == '__main__':
