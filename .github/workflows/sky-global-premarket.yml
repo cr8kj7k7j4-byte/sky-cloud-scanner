@@ -52,6 +52,10 @@ jobs:
               try:
                   response = requests.get(url, timeout=8)
                   print(f'probe_endpoint={name} http={response.status_code} bytes={len(response.content)}')
+                  if name == 'FRED_SOX':
+                      print('fred_content_type=' + str(response.headers.get('Content-Type', '')))
+                      print('fred_first_line=' + response.text.splitlines()[0][:120])
+                      print('fred_last_line=' + response.text.splitlines()[-1][:120])
               except Exception as exc:
                   print(f'probe_endpoint={name} error={type(exc).__name__}')
           PY
