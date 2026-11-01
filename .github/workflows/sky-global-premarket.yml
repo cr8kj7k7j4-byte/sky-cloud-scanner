@@ -1,0 +1,75 @@
+name: Sky Global Premarket Report
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'src/sky_global_premarket.py'
+      - 'tests/test_sky_global_premarket.py'
+      - '.github/workflows/sky-global-premarket.yml'
+  schedule:
+    - cron: '0 0 * * 1-5' # 08:00 Asia/Taipei
+permissions:
+  contents: read
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify report rules
+        run: python -m unittest discover -s tests -p 'test_sky_global_premarket.py' -v
+      - name: Install dependencies
+        run: pip install -r requirements.txt beautifulsoup4
+      - name: Probe external sources (test only, no trading signal)
+        if: github.event_name == 'pull_request'
+        env:
+          ALPHAVANTAGE_API_KEY: ${{ secrets.ALPHAVANTAGE_API_KEY }}
+          GOLDAPI_TOKEN: ${{ secrets.GOLDAPI_TOKEN }}
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime
+          from pathlib import Path
+          from src.sky_global_premarket import TZ, collect_context, render
+          now = datetime.now(TZ)
+          context = collect_context(now)
+          fake_calendar = {'source_status': 'PASS', 'market_open': True, 'status': 'TEST_ONLY'}
+          out = Path('output/global_premarket')
+          out.mkdir(parents=True, exist_ok=True)
+          report = '測試資料，非盤前交易報告。\n' + render(fake_calendar, context, now)
+          (out / 'probe.txt').write_text(report, encoding='utf-8')
+          print(report)
+          print('source_probe_complete')
+          import requests
+          for name, url in [
+              ('FRED_SOX', 'https://fred.stlouisfed.org/graph/fredgraph.csv?id=NASDAQSOX'),
+              ('STOOQ_SP500', 'https://stooq.com/q/l/?s=%5Espx&f=sd2t2ohlcv&h&e=csv'),
+              ('TAIFEX', 'https://openapi.taifex.com.tw/v1/DailyMarketReportFut'),
+          ]:
+              try:
+                  response = requests.get(url, timeout=8)
+                  print(f'probe_endpoint={name} http={response.status_code} bytes={len(response.content)}')
+                  if name == 'FRED_SOX':
+                      print('fred_content_type=' + str(response.headers.get('Content-Type', '')))
+                      print('fred_first_line=' + response.text.splitlines()[0][:120])
+                      print('fred_last_line=' + response.text.splitlines()[-1][:120])
+              except Exception as exc:
+                  print(f'probe_endpoint={name} error={type(exc).__name__}')
+          PY
+      - name: Build report
+        if: github.event_name != 'pull_request'
+        env:
+          ALPHAVANTAGE_API_KEY: ${{ secrets.ALPHAVANTAGE_API_KEY }}
+          GOLDAPI_TOKEN: ${{ secrets.GOLDAPI_TOKEN }}
+        run: python -m src.sky_global_premarket
+      - name: Preserve report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-global-premarket-${{ github.run_id }}
+          path: output/global_premarket/
+          if-no-files-found: error
+          retention-days: 14
