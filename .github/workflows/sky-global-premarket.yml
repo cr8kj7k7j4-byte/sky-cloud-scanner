@@ -22,8 +22,28 @@ jobs:
       - name: Verify report rules
         run: python -m unittest discover -s tests -p 'test_sky_global_premarket.py' -v
       - name: Install dependencies
-        if: github.event_name != 'pull_request'
         run: pip install -r requirements.txt beautifulsoup4
+      - name: Probe external sources (test only, no trading signal)
+        if: github.event_name == 'pull_request'
+        env:
+          ALPHAVANTAGE_API_KEY: ${{ secrets.ALPHAVANTAGE_API_KEY }}
+          GOLDAPI_TOKEN: ${{ secrets.GOLDAPI_TOKEN }}
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime
+          from pathlib import Path
+          from src.sky_global_premarket import TZ, collect_context, render
+          now = datetime.now(TZ)
+          context = collect_context(now)
+          fake_calendar = {'source_status': 'PASS', 'market_open': True, 'status': 'TEST_ONLY'}
+          out = Path('output/global_premarket')
+          out.mkdir(parents=True, exist_ok=True)
+          report = '測試資料，非盤前交易報告。\n' + render(fake_calendar, context, now)
+          (out / 'probe.txt').write_text(report, encoding='utf-8')
+          print(report)
+          print('source_probe_complete')
+          PY
       - name: Build report
         if: github.event_name != 'pull_request'
         env:
@@ -31,7 +51,7 @@ jobs:
           GOLDAPI_TOKEN: ${{ secrets.GOLDAPI_TOKEN }}
         run: python -m src.sky_global_premarket
       - name: Preserve report
-        if: github.event_name != 'pull_request'
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: sky-global-premarket-${{ github.run_id }}
