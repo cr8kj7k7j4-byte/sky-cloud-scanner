@@ -1,0 +1,40 @@
+name: Sky Global Premarket Report
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'src/sky_global_premarket.py'
+      - 'tests/test_sky_global_premarket.py'
+      - '.github/workflows/sky-global-premarket.yml'
+  schedule:
+    - cron: '0 0 * * 1-5' # 08:00 Asia/Taipei
+permissions:
+  contents: read
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify report rules
+        run: python -m unittest discover -s tests -p 'test_sky_global_premarket.py' -v
+      - name: Install dependencies
+        if: github.event_name != 'pull_request'
+        run: pip install -r requirements.txt beautifulsoup4
+      - name: Build report
+        if: github.event_name != 'pull_request'
+        env:
+          ALPHAVANTAGE_API_KEY: ${{ secrets.ALPHAVANTAGE_API_KEY }}
+          GOLDAPI_TOKEN: ${{ secrets.GOLDAPI_TOKEN }}
+        run: python -m src.sky_global_premarket
+      - name: Preserve report
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-global-premarket-${{ github.run_id }}
+          path: output/global_premarket/
+          if-no-files-found: error
+          retention-days: 14
