@@ -69,6 +69,8 @@ def main():
 
 def collect_context(now):
     from concurrent.futures import ThreadPoolExecutor
+    import csv
+    import io
     from .global_market_context import (fetch_us10y, fetch_vix, fetch_ntdusd,
                                         fetch_fred_market_series, FRED_SP500_CSV,
                                         FRED_NASDAQ_CSV, FRED_WTI_CSV)
@@ -103,6 +105,34 @@ def collect_context(now):
                 context[name] = future.result()
             except Exception:
                 context[name] = None
+    # Retry the official CSV directly when the existing client times out.
+    series = {'sox': ('NASDAQSOX', 'index'), 'sp500': ('SP500', 'index'),
+              'nasdaq': ('NASDAQCOM', 'index'), 'us10y': ('DGS10', '%'),
+              'wti': ('DCOILWTICO', 'USD/barrel')}
+    def fred_retry(pair):
+        series_id, unit = pair
+        url = f'https://fred.stlouisfed.org/graph/fredgraph.csv?id={series_id}'
+        response = requests.get(url, timeout=12)
+        response.raise_for_status()
+        rows = list(csv.DictReader(io.StringIO(response.text)))
+        for row in reversed(rows):
+            try:
+                value = float(row[series_id])
+                date = row.get('observation_date') or row.get('DATE')
+                if date:
+                    return {'value': value, 'as_of': date, 'source': 'FRED', 'unit': unit, 'source_url': url}
+            except (KeyError, ValueError, TypeError):
+                continue
+        return None
+    missing = {k: v for k, v in series.items() if not context.get(k)}
+    if missing:
+        with ThreadPoolExecutor(max_workers=len(missing)) as pool:
+            tasks = {k: pool.submit(fred_retry, v) for k, v in missing.items()}
+            for key, future in tasks.items():
+                try:
+                    context[key] = future.result()
+                except Exception:
+                    pass
     return context
 
 
