@@ -4,13 +4,14 @@ import argparse
 import json
 import statistics
 from collections import Counter
-from datetime import datetime, time as dtime
+from datetime import date, datetime, time as dtime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from .official import fetch_mis_quotes, load_official_universe
 from .fugle import get_quote
 from .sky_mobile_table import render_mobile_table
+from .trading_calendar import fetch_calendar, classify_date, _roc_to_iso
 
 TZ = ZoneInfo("Asia/Taipei")
 OUT = Path("output/swing_v11_live")
@@ -68,6 +69,45 @@ def choose_signal_date(bysym: dict[str, list[dict]]) -> tuple[str | None, dict]:
         "selected_date_count": counts.get(signal_date, 0),
         "selection_threshold": threshold,
     }
+
+
+def signal_date_guard(signal_date: str, today: date, rows: list[dict]) -> dict:
+    """Require a verified trading day and exactly its previous trading-day close."""
+    def result(status, expected=None):
+        return {"status": status, "fresh": status == "PASS", "expected_signal_date": expected}
+    try:
+        signal = date.fromisoformat(signal_date)
+    except (TypeError, ValueError):
+        return result("INVALID_SIGNAL_DATE")
+    parsed = [_roc_to_iso(row.get("Date")) for row in rows if isinstance(row, dict)]
+    covered_years = {int(d[:4]) for d in parsed if d}
+    if today.year not in covered_years:
+        return result("CALENDAR_YEAR_UNVERIFIED")
+    def is_open(day):
+        if day.year not in covered_years:
+            raise ValueError("calendar year unavailable")
+        day_info = classify_date(day, rows)
+        if day_info.get("matched") and day_info["status"] == "OPEN_REGULAR_WEEKDAY":
+            raise ValueError("ambiguous official calendar entry")
+        return day_info["market_open"] is True
+    try:
+        if not is_open(today):
+            return result("MARKET_CLOSED")
+        previous = today - timedelta(days=1)
+        for _ in range(31):
+            if is_open(previous):
+                return result("PASS" if signal == previous else "STALE_OR_FUTURE_SIGNAL", previous.isoformat())
+            previous -= timedelta(days=1)
+    except (TypeError, ValueError):
+        return result("CALENDAR_UNVERIFIED")
+    return result("CALENDAR_UNVERIFIED")
+
+
+def load_signal_date_guard(signal_date: str, today: date) -> dict:
+    try:
+        return signal_date_guard(signal_date, today, fetch_calendar())
+    except Exception:
+        return {"status": "CALENDAR_UNAVAILABLE", "fresh": False, "expected_signal_date": None}
 
 
 def build_signal_cross_section(bysym: dict[str, list[dict]], signal_date: str):
@@ -219,6 +259,7 @@ def run(history_dir: str, top_n: int = 20):
     if not signal_date:
         raise RuntimeError("canonical daily history has no usable signal date")
 
+    freshness = load_signal_date_guard(signal_date, now.date())
     cross, breadth = build_signal_cross_section(bysym, signal_date)
     frozen_pass = []
     for r in cross:
@@ -227,24 +268,28 @@ def run(history_dir: str, top_n: int = 20):
             frozen_pass.append(r)
 
     universe, universe_health = load_official_universe()
-    quote_by_symbol, warnings, live_quote_meta = fetch_candidate_live_quotes(frozen_pass, universe)
+    quote_by_symbol, warnings, live_quote_meta = fetch_candidate_live_quotes(
+        frozen_pass if freshness["fresh"] else [], universe
+    )
+    if not freshness["fresh"]:
+        warnings.append("SIGNAL_DATE_BLOCKED: " + freshness["status"])
 
     cross_required = max(20, int((date_meta.get("max_cross_section") or 0) * 0.80))
     operational_full_market_scan = bool(
-        len(cross) >= cross_required
+        freshness["fresh"] and len(cross) >= cross_required
         and universe_health.get("twse", 0) >= 500
         and universe_health.get("tpex", 0) >= 400
     )
     requested_quotes = live_quote_meta["requested"]
     candidate_quote_coverage = (
-        100.0
+        None
         if requested_quotes == 0
         else round(len(quote_by_symbol) / requested_quotes * 100.0, 2)
     )
 
     session_status, session_text = _entry_status(now)
     candidates = []
-    for sig in frozen_pass:
+    for sig in (frozen_pass if freshness["fresh"] else []):
         q = quote_by_symbol.get(sig["symbol"])
         if not q:
             continue
@@ -305,6 +350,7 @@ def run(history_dir: str, top_n: int = 20):
         "strategy_status": "PREREGISTERED_CHALLENGER / NOT_PRODUCTION",
         "spec": "research/SKY_SWING_CHALLENGER_V1_1_PREREGISTRATION.md",
         "signal_date": signal_date,
+        "signal_date_guard": freshness,
         "execution_date": now.date().isoformat(),
         "historical_symbols_loaded": len(bysym),
         "signal_cross_section_count": len(cross),
@@ -333,6 +379,7 @@ def run(history_dir: str, top_n: int = 20):
         "candidate_count": len(candidates),
         "candidates": candidates,
         "governance": [
+            "The official calendar must confirm the signal date is the previous trading day.",
             "V1.1 frozen rule is EOD signal at D close and D+1 open entry.",
             "Whole-market selection is frozen on the canonical D-close cross-section; intraday quotes are fetched only for frozen candidates.",
             "Intraday current price never replaces the frozen D+1 open entry rule.",
@@ -347,13 +394,13 @@ def run(history_dir: str, top_n: int = 20):
 
     lines = [
         f"Sky Swing V1.1｜現在掃一次｜{now:%Y-%m-%d %H:%M}",
-        f"訊號日：{signal_date}｜執行日：{now:%Y-%m-%d}",
+        f"訊號日：{signal_date}｜執行日：{now:%Y-%m-%d}｜日期檢查：{freshness['status']}｜預期訊號日：{freshness['expected_signal_date'] or '待確認'}",
         f"全市場訊號掃描：{'是' if operational_full_market_scan else '否'}｜D-close cross-section {len(cross)}｜母池 {len(universe)}",
         f"盤中報價範圍：凍結候選 only｜要求 {requested_quotes}｜取得 {len(quote_by_symbol)}｜覆蓋率 {candidate_quote_coverage}%",
         f"V1.1 cross-section：{len(cross)}｜Breadth：{round((breadth or 0)*100,2)}%｜凍結規則通過：{len(frozen_pass)}｜今日有效候選：{len(candidates)}",
         f"交易時段：{session_status}｜{session_text}",
         "",
-        render_mobile_table(candidates),
+        render_mobile_table(candidates) if freshness["fresh"] else "🔴 資料日期無法驗證或已過期，禁止交易；沒有產生可用候選。",
         "",
         "【治理】",
         "V1.1 仍為 PREREGISTERED_CHALLENGER / NOT_PRODUCTION；即時資料接通不等於 Promotion。",
