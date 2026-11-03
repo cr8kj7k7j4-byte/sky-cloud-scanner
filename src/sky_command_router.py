@@ -20,6 +20,30 @@ class CommandRoute:
 
 _PATTERNS = [
     (
+        re.compile(r"^Sky\\s*全市場掃描$", re.I),
+        CommandRoute(
+            "SKY_UNIFIED_MARKET_SCAN", "MULTI_MODEL_MARKET", True, True, False,
+            "sky-unified-commands.yml: all_market",
+            "Composite candidate report: intraday production baseline; swing and 5D research only; short research cannot imply authorization. No automatic orders."
+        ),
+    ),
+    (
+        re.compile(r"^Sky\\s*系統健康檢查$", re.I),
+        CommandRoute(
+            "SKY_UNIFIED_SYSTEM_HEALTH", "OPERATIONAL_EVIDENCE", False, False, False,
+            "sky-unified-commands.yml: system_health",
+            "Inspect data-source diagnostics, workflow health and artifacts; unknown checks must be shown as UNKNOWN."
+        ),
+    ),
+    (
+        re.compile(r"^Sky\\s*全模型驗證$", re.I),
+        CommandRoute(
+            "SKY_UNIFIED_MODEL_VALIDATION", "GOVERNED_RESEARCH_EVIDENCE", False, False, False,
+            "sky-unified-commands.yml: model_validation",
+            "Read governing registries and test evidence; no promotion or synthetic backtest."
+        ),
+    ),
+    (
         re.compile(r"^Sky\s*快掃(?:更新)?$", re.I),
         CommandRoute(
             "SKY_QUICK_SCAN", "WHOLE_MARKET_REALTIME", True, True, False,

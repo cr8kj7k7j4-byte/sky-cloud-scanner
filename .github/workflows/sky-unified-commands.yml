@@ -1,0 +1,41 @@
+name: Sky Unified Commands
+on:
+  workflow_dispatch:
+    inputs:
+      command:
+        description: Unified command
+        required: true
+        type: choice
+        options:
+          - all_market
+          - system_health
+          - model_validation
+permissions:
+  contents: read
+  actions: read
+jobs:
+  unified:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r requirements.txt pytest PyYAML
+      - name: Execute unified mode
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          MAX_PRICE: "100"
+          PYTHONPATH: .
+        run: python -m src.sky_unified_commands --mode "${{ inputs.command }}"
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-unified-${{ inputs.command }}-${{ github.run_id }}
+          path: output/unified/
+          if-no-files-found: warn
+          retention-days: 30
