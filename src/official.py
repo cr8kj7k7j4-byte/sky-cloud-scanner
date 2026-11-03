@@ -55,7 +55,8 @@ def fetch_mis_quotes(universe,batch_size=55,sleep_s=.18):
             r=s.get(MIS_URL,params={"ex_ch":ex_ch,"json":"1","delay":"0"},timeout=20)
             r.raise_for_status(); payload=r.json(); arr=payload.get("msgArray",[])
         except Exception as e:
-            warnings.append(f"MIS batch {i//batch_size+1} failed: {type(e).__name__}")
+            status = getattr(getattr(e, "response", None), "status_code", None)
+            warnings.append(f"MIS batch {i//batch_size+1} failed: {type(e).__name__}; HTTP status={status}")
             continue
         meta={x["symbol"]:x for x in batch}
         for q in arr:
