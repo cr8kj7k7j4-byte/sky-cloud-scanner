@@ -1,1 +1,6 @@
-{"command":"model_validation","requested_at":"2026-11-03","reason":"retest_after_router_fix"}
+{
+  "command": "all_market",
+  "requested_at": "2026-11-03T09:50:19+08:00",
+  "reason": "user_requested_sky_quickscan",
+  "execution_scope": "read_only_no_order"
+}
