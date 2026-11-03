@@ -37,3 +37,35 @@ def test_mis_missing_stays_missing_instead_of_fabricating(monkeypatch):
     rows,warnings=official.fetch_mis_quotes(universe)
     assert rows==[]
     assert any("MIS_LOW_COVERAGE" in x for x in warnings)
+
+def test_bulk_snapshot_prefers_last_executed_trade(monkeypatch):
+    from src import fugle
+    def fake(market):
+        if market=="TSE":
+            return {"date":"2026-11-03","data":[
+                {"symbol":"2330","name":"台積電","lastPrice":100,"closePrice":101,
+                 "tradeVolume":100,"tradeValue":10000000,"change":1,
+                 "highPrice":102,"lowPrice":99,"openPrice":100,"lastUpdated":123}]}
+        return {"date":"2026-11-03","data":[
+            {"symbol":"6488","lastPrice":80,"tradeVolume":50,"tradeValue":4000000,
+             "change":-1,"openPrice":81}]}
+    monkeypatch.setattr(fugle,"snapshot_quotes",fake)
+    universe=[
+        {"symbol":"2330","market":"TSE","exchange":"TWSE"},
+        {"symbol":"6488","market":"OTC","exchange":"TPEx"},
+    ]
+    rows,warnings=official.fetch_fugle_snapshot_quotes(universe,trading_date="2026-11-03")
+    assert len(rows)==2
+    assert rows[0]["last"]==100
+    assert rows[0]["previous_close"]==99
+    assert rows[1]["last"]==80
+    assert rows[1]["previous_close"]==81
+
+def test_bulk_snapshot_rejects_stale_or_untraded(monkeypatch):
+    from src import fugle
+    monkeypatch.setattr(fugle,"snapshot_quotes",lambda m:
+        {"date":"2026-11-02","data":[{"symbol":"2330","lastPrice":100,"tradeVolume":100}]})
+    rows,warnings=official.fetch_fugle_snapshot_quotes(
+        [{"symbol":"2330","market":"TSE"}],trading_date="2026-11-03")
+    assert rows==[]
+    assert any("STALE" in w for w in warnings)
