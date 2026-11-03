@@ -1,8 +1,8 @@
 {
   "schema_version": "SKY_EXTERNAL_STATUS_SNAPSHOT_V1_0",
-  "generated_at_utc": "2026-11-02T09:39:05.193803+00:00",
+  "generated_at_utc": "2026-11-03T09:31:58.366163+00:00",
   "source": {
-    "dashboard_workflow_run_id": "41421866218",
+    "dashboard_workflow_run_id": "41610513339",
     "repository": "cr8kj7k7j4-byte/sky-cloud-scanner"
   },
   "production_baseline": {
@@ -28,17 +28,17 @@
         "trading_days"
       ],
       "observed": {
-        "samples": 92,
-        "trading_days": 4,
+        "samples": 100,
+        "trading_days": 5,
         "regimes": [
           "UNKNOWN_LOW",
           "UNKNOWN_MEDIUM"
         ],
         "regime_count": 2,
-        "outcome_complete": 92,
+        "outcome_complete": 100,
         "outcome_complete_ratio": 1.0,
-        "unique_symbols": 78,
-        "top_symbol_share": 0.032609
+        "unique_symbols": 81,
+        "top_symbol_share": 0.03
       },
       "thresholds": {
         "min_samples": 200,
@@ -50,8 +50,8 @@
       "note": "Shadow Sample Sufficiency 只判斷證據量與代表性，不代表勝率、獲利機率或策略有效性。"
     },
     "sample_gaps": {
-      "samples_remaining": 108,
-      "trading_days_remaining": 16,
+      "samples_remaining": 100,
+      "trading_days_remaining": 15,
       "regimes_remaining": 0,
       "outcome_completeness_gap": 0.0,
       "symbol_concentration_excess": 0.0
@@ -113,19 +113,19 @@
       "promotion:profit_factor"
     ],
     "summary": {
-      "samples": 92,
-      "trading_days": 4,
+      "samples": 100,
+      "trading_days": 5,
       "regime_count": 2,
       "outcome_complete_ratio": 1.0,
-      "top_symbol_share": 0.032609,
+      "top_symbol_share": 0.03,
       "promotion_score": 3.0,
       "promotable_to_governance_review": false
     },
     "note": "Dashboard 用於證據累積與升版治理，不是交易勝率、報酬預測或自動 Production Promotion。",
     "source": {
       "paper_dir": "shadow_history",
-      "files_scanned": 18,
-      "records_loaded": 92,
+      "files_scanned": 20,
+      "records_loaded": 100,
       "promotion_evidence_file": null
     },
     "pipeline_readiness": {
@@ -134,8 +134,8 @@
       "collection_started": true,
       "ledger_start": "2026-10-24T23:28:08Z",
       "eligible_successful_scan_runs": 8,
-      "paper_files": 18,
-      "records_loaded": 92,
+      "paper_files": 20,
+      "records_loaded": 100,
       "blocking_items": [],
       "note": "Pipeline readiness only classifies evidence collection health. It does not imply strategy edge, profitability, or promotion readiness."
     },
@@ -149,7 +149,7 @@
         "capacity": null
       },
       "observed": {
-        "records": 92,
+        "records": 100,
         "eligible_strategy_records": 0,
         "complete_strategy_outcomes": 0,
         "cost_complete_ratio": 0.0,
@@ -172,8 +172,8 @@
     "w4_report": {
       "Sample Progress": {
         "status": "WAITING_FOR_FUTURE_SAMPLE",
-        "samples": 92,
-        "trading_days": 4,
+        "samples": 100,
+        "trading_days": 5,
         "regime_count": 2
       },
       "Data Completeness": {
@@ -189,7 +189,7 @@
       },
       "Risk": {
         "portfolio_status": "NOT_EVALUABLE",
-        "top_symbol_share": 0.032609,
+        "top_symbol_share": 0.03,
         "cost_complete_ratio": 0.0,
         "production_eligible": false
       },
@@ -216,8 +216,8 @@
         ]
       },
       "Outstanding Days / Samples": {
-        "samples_remaining": 108,
-        "trading_days_remaining": 16,
+        "samples_remaining": 100,
+        "trading_days_remaining": 15,
         "regimes_remaining": 0,
         "outcome_completeness_gap": 0.0,
         "symbol_concentration_excess": 0.0
@@ -227,10 +227,10 @@
   "scan_eligibility": {
     "schema_version": "W4_SCAN_ARTIFACT_ELIGIBILITY_V1_0",
     "ledger_start": "2026-10-24T23:28:08Z",
-    "paper_files_scanned": 8,
-    "run_count": 8,
+    "paper_files_scanned": 9,
+    "run_count": 9,
     "eligible_run_count": 8,
-    "eligible_record_count": 92,
+    "eligible_record_count": 88,
     "eligible_run_ids": [
       "40617528789",
       "40623661597",
@@ -239,9 +239,11 @@
       "40988513180",
       "40994511316",
       "41375168147",
+      "41558567647"
+    ],
+    "ineligible_or_empty_runs": [
       "41380460959"
     ],
-    "ineligible_or_empty_runs": [],
     "runs": [
       {
         "run_id": "40617528789",
@@ -302,10 +304,18 @@
       {
         "run_id": "41380460959",
         "files": 1,
-        "records": 12,
-        "eligible_records": 12,
-        "post_ledger_records": 12,
-        "valid_observation_records": 12
+        "records": 0,
+        "eligible_records": 0,
+        "post_ledger_records": 0,
+        "valid_observation_records": 0
+      },
+      {
+        "run_id": "41558567647",
+        "files": 1,
+        "records": 8,
+        "eligible_records": 8,
+        "post_ledger_records": 8,
+        "valid_observation_records": 8
       }
     ],
     "malformed_files": [],

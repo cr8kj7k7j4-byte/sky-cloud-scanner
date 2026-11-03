@@ -1,10 +1,10 @@
 # Sky External Latest Status
 
-- Generated (UTC): 2026-11-02T09:39:05.193803+00:00
-- Dashboard workflow run: 41421866218
+- Generated (UTC): 2026-11-03T09:31:58.366163+00:00
+- Dashboard workflow run: 41610513339
 - W4 status: **UNKNOWN**
 - Eligible scan runs: 8
-- Eligible records: 92
+- Eligible records: 88
 - Monitoring owner: **GitHub Actions / external infrastructure**
 - ChatGPT role: **on-demand reader / analysis only; no monitoring schedule required**
 
