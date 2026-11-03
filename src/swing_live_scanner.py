@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 
 from .decision_engine import first_gate
 from .fugle import get_quote, get_ticker
-from .official import fetch_mis_quotes, load_official_universe
+from .official import fetch_fugle_snapshot_quotes, fetch_mis_quotes, load_official_universe
 from .ranking_engine import rank_screening_candidates
 from .sky_mobile_table import render_mobile_table
 
@@ -86,7 +86,19 @@ def run(mode="swing5d", top_n=20, deep_n=8):
     OUT.mkdir(parents=True, exist_ok=True)
 
     universe, universe_health = load_official_universe()
-    rows, warnings = fetch_mis_quotes(universe)
+    rows, warnings = fetch_fugle_snapshot_quotes(universe, trading_date=now.date().isoformat())
+    snapshot_count = len(rows)
+    if not universe or (len(rows) / len(universe)) < 0.80:
+        fallback_rows, fallback_warnings = fetch_mis_quotes(universe)
+        merged = {r["symbol"]: r for r in fallback_rows}
+        # Prefer the validated bulk snapshot on duplicate symbols.
+        merged.update({r["symbol"]: r for r in rows})
+        rows = list(merged.values())
+        warnings.extend(fallback_warnings)
+    source_breakdown = {
+        "fugle_bulk_snapshot": snapshot_count,
+        "mis_fallback": sum(r.get("quote_source") == "TWSE MIS" for r in rows),
+    }
 
     twse_rows = [r for r in rows if r.get("exchange") == "TWSE"]
     tpex_rows = [r for r in rows if r.get("exchange") == "TPEx"]
@@ -167,6 +179,7 @@ def run(mode="swing5d", top_n=20, deep_n=8):
         "quote_coverage_pct": coverage_pct,
         "universe_count": len(universe),
         "quote_count": len(rows),
+        "quote_source_breakdown": source_breakdown,
         "twse_quote_count": len(twse_rows),
         "tpex_quote_count": len(tpex_rows),
         "eligible_after_first_gate": len(eligible),
@@ -175,7 +188,7 @@ def run(mode="swing5d", top_n=20, deep_n=8):
         "source_health": {
             "official_universe": universe_health,
             "intraday": {
-                "source": "TWSE MIS TSE + OTC operational fallback",
+                "source": "Fugle TSE/OTC bulk snapshot, TWSE MIS fallback",
                 "note": "OTC is operational fallback and is not labelled TPEx-official real-time certification.",
             },
         },
