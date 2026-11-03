@@ -132,6 +132,20 @@ def route_command(command: str) -> CommandRoute:
         if pattern.match(normalized):
             return route
 
+    # Natural-language single-stock questions must route through Fugle, too.
+    # Example: "1569 濱川 當沖要怎麼操作，請給我多空評分與停損".
+    if re.match(r"^\\d{4,6}(?:\\s+|$)", normalized) and any(
+        token in normalized for token in ("當沖", "即時", "買進", "停損", "多空", "最高接受價")
+    ):
+        return CommandRoute(
+            "SKY_SINGLE_STOCK_UPDATE", "SINGLE_STOCK_REALTIME",
+            True, False, True,
+            "Fugle connector realtime quote; cloud: sky-single-stock-realtime.yml",
+            "MANDATORY: refresh trade price, local trade timestamp, quote eligibility; "
+            "stale public web data must never substitute for a current quote; "
+            "missing intraday-bar or verified trigger data must not produce scores/entry/stop."
+        )
+
     # Fail closed: any unrecognized Sky command that sounds current must request
     # a fresh quote instead of silently falling back to stale public web data.
     if normalized.lower().startswith("sky"):
