@@ -1,5 +1,9 @@
 name: Sky Unified Commands
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'scan_requests/unified/latest.json'
   workflow_dispatch:
     inputs:
       command:
@@ -30,12 +34,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           MAX_PRICE: "100"
           PYTHONPATH: .
-        run: python -m src.sky_unified_commands --mode "${{ inputs.command }}"
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            COMMAND=$(python -c 'import json; print(json.load(open("scan_requests/unified/latest.json"))["command"])')
+          else
+            COMMAND="${{ inputs.command }}"
+          fi
+          python -m src.sky_unified_commands --mode "$COMMAND"
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sky-unified-${{ inputs.command }}-${{ github.run_id }}
+          name: sky-unified-${{ github.run_id }}
           path: output/unified/
           if-no-files-found: warn
           retention-days: 30
