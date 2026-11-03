@@ -28,4 +28,4 @@
 - [ ] W0/P0-G審查通過才修改 Production。不可因 tests 成功宣稱有正期望。
 
 ## 本分支實施
-P0-R `src/risk_engine.py` 新增「連續兩筆停損停止新進場」硬否決，配套 `tests/test_fugle_permission_risk_gate_20261103.py` 回歸測試；尚未合併、尚未取得GitHub CI通過證據。
+P0-R `src/risk_engine.py` 新增「連續兩筆停損停止新進場」硬否決，配套 `tests/test_fugle_permission_risk_gate_20261103.py` 回歸測試；尚未合併；GitHub P0-R CI Run #41553496562 已通過（含原始單元測試與新增硬否決回歸測試）；Production E2E #41553496442 及 Governance E2E #41553496338 已通過。這些僅證實程式測試，不證實富果資料權限或五模組正式上線。
