@@ -1,1 +1,1 @@
-{"command":"all_market","requested_at":"2026-11-03","reason":"initial_e2e_smoke_test"}
+{"command":"model_validation","requested_at":"2026-11-03","reason":"retest_after_router_fix"}
