@@ -20,7 +20,7 @@ class CommandRoute:
 
 _PATTERNS = [
     (
-        re.compile(r"^Sky\\s*全市場掃描$", re.I),
+        re.compile(r"^Sky\s*全市場掃描$", re.I),
         CommandRoute(
             "SKY_UNIFIED_MARKET_SCAN", "MULTI_MODEL_MARKET", True, True, False,
             "sky-unified-commands.yml: all_market",
@@ -28,7 +28,7 @@ _PATTERNS = [
         ),
     ),
     (
-        re.compile(r"^Sky\\s*系統健康檢查$", re.I),
+        re.compile(r"^Sky\s*系統健康檢查$", re.I),
         CommandRoute(
             "SKY_UNIFIED_SYSTEM_HEALTH", "OPERATIONAL_EVIDENCE", False, False, False,
             "sky-unified-commands.yml: system_health",
@@ -36,7 +36,7 @@ _PATTERNS = [
         ),
     ),
     (
-        re.compile(r"^Sky\\s*全模型驗證$", re.I),
+        re.compile(r"^Sky\s*全模型驗證$", re.I),
         CommandRoute(
             "SKY_UNIFIED_MODEL_VALIDATION", "GOVERNED_RESEARCH_EVIDENCE", False, False, False,
             "sky-unified-commands.yml: model_validation",
