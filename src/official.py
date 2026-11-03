@@ -92,6 +92,11 @@ def fetch_mis_quotes(universe, batch_size=55, sleep_s=.18):
             prev=_f(q.get("y"))
             if last is None or prev in (None,0):
                 stats["no_valid_trade"]+=1
+                if len(invalid_samples)<8:
+                    invalid_samples.append({"symbol":code,"market":m.get("exchange"),
+                      "z":q.get("z"),"pz":q.get("pz"),"tv":q.get("tv"),
+                      "o":q.get("o"),"h":q.get("h"),"l":q.get("l"),
+                      "v":q.get("v"),"t":q.get("t"),"y":q.get("y")})
                 continue
             vol=_i(q.get("v"))
             rows_by_symbol[code]={**m,"name":q.get("n") or m.get("name",""),
@@ -104,6 +109,7 @@ def fetch_mis_quotes(universe, batch_size=55, sleep_s=.18):
                 "quote_time":q.get("t",""),"quote_source":"TWSE MIS"}
 
     missing=[]
+    invalid_samples=[]
     # First pass: retain original batches for throughput.
     for i in range(0,len(universe),batch_size):
         batch=universe[i:i+batch_size]
@@ -125,6 +131,7 @@ def fetch_mis_quotes(universe, batch_size=55, sleep_s=.18):
         time.sleep(sleep_s)
 
     stats["missing_after_recovery"]=len(universe)-len(rows_by_symbol)
+    warnings.append("MIS_INVALID_PRICE_SAMPLES: "+repr(invalid_samples))
     warnings.append("MIS_COVERAGE_DIAGNOSTICS: "+", ".join(f"{k}={v}" for k,v in stats.items()))
     if len(universe)>0 and len(rows_by_symbol)/len(universe)<0.80:
         warnings.append("MIS_LOW_COVERAGE: data incomplete; must not certify full-market scan")
