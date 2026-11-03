@@ -32,6 +32,11 @@ class TestTwoLossKillSwitch(unittest.TestCase):
         self.assertEqual(result["status"], "BLOCK")
         self.assertEqual(result["recommended_shares"], 0)
 
+    def test_long_stop_above_entry_is_blocked(self):
+        result = self.base(stop=51.0)
+        self.assertEqual(result["status"], "BLOCK")
+        self.assertEqual(result["recommended_shares"], 0)
+
     def test_one_loss_does_not_alone_trigger_hard_stop(self):
         result = self.base(consecutive_losses=1)
         self.assertFalse(any("連續兩筆停損" in x for x in result["reasons"]))
