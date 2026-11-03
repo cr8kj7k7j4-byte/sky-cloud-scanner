@@ -89,7 +89,26 @@ jobs:
           MONITOR_STATE_BACKEND: ${{ vars.MONITOR_STATE_BACKEND || 'file' }}
           REDIS_URL: ${{ secrets.REDIS_URL }}
           MONITOR_STATE_REDIS_KEY: ${{ vars.MONITOR_STATE_REDIS_KEY || 'sky:p0a:monitor_state' }}
-        run: python -m src.main
+        run: |
+          python - <<'PY'
+          from src.official import load_official_universe, MIS_URL
+          from src.http_utils import session
+          u, st = load_official_universe()
+          s = session()
+          s.headers.update({"Referer":"https://mis.twse.com.tw/stock/index.jsp"})
+          seed = s.get("https://mis.twse.com.tw/stock/index.jsp", timeout=15)
+          print("seed_status", seed.status_code, flush=True)
+          tw = [x for x in u if x["market"] == "TSE"]
+          p = next(x for x in tw if x["symbol"] == "2330")
+          for label,batch in [("single", [p]), ("batch10", tw[:10]), ("batch55", tw[:55])]:
+              channels = "|".join(f'{x["mis_prefix"]}_{x["symbol"]}.tw' for x in batch)
+              resp = s.get(MIS_URL, params={"ex_ch":channels,"json":"1","delay":"0"}, timeout=20)
+              print(label, "status", resp.status_code, flush=True)
+              if resp.ok:
+                  data=resp.json()
+                  rows=data.get("msgArray", [])
+                  print(label, "requested", len(batch), "returned", len(rows), "valid_z", sum(q.get("z") not in (None,"","-","--","---") for q in rows), "first_items", [{k:q.get(k) for k in ("c","z","y","d","t")} for q in rows[:4]], "rtcode", data.get("rtcode"), flush=True)
+          PY
       - name: Save P0-A monitor state cache
         if: steps.calendar.outputs.should_scan == 'true' && always()
         uses: actions/cache/save@v4
