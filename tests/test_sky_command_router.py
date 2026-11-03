@@ -59,3 +59,17 @@ def test_single_stock_update_requires_fugle_realtime_first():
     assert "Fugle" in route.execution_target
     assert "MANDATORY" in route.notes
     assert "stale public web data must never substitute" in route.notes
+
+def test_natural_language_single_stock_daytrade_requires_realtime():
+    for cmd in [
+        "2371 當沖要怎麼操作，請給我買賣方的評分，及最高可接受買進價及停損",
+        "1569 濱川 當沖要怎麼操作，請給我買賣方的評分",
+        "2371 當沖怎麼操作",
+    ]:
+        route = route_command(cmd)
+        assert route.command_family == "SKY_SINGLE_STOCK_UPDATE"
+        assert route.realtime_required and route.symbol_required
+        assert route.data_mode == "SINGLE_STOCK_REALTIME"
+
+def test_natural_language_route_does_not_match_unrelated_requests():
+    assert route_command("2371 公司基本資料").command_family == "NON_SKY"
