@@ -94,6 +94,11 @@ def run(mode: str) -> dict:
         summary += "\n空方研究未有經確認的獨立執行入口，因此未執行且不得輸出空方交易訊號。\n"
     (BASE / "summary.md").write_text(summary, encoding="utf-8")
     print(summary)
+    for key, value in result.items():
+        if isinstance(value, dict) and value.get("exit_code", 0) != 0:
+            print(f"[FAILED CHECK] {key}: exit={value['exit_code']}")
+            print(value.get("stderr_tail", "")[-1600:])
+            print(value.get("stdout_tail", "")[-1600:])
     with open(os.environ.get("GITHUB_STEP_SUMMARY", os.devnull), "a", encoding="utf-8") as f:
         f.write(summary)
     return payload
