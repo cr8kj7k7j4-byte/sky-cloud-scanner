@@ -136,3 +136,62 @@ def fetch_mis_quotes(universe, batch_size=55, sleep_s=.18):
     if len(universe)>0 and len(rows_by_symbol)/len(universe)<0.80:
         warnings.append("MIS_LOW_COVERAGE: data incomplete; must not certify full-market scan")
     return list(rows_by_symbol.values()),warnings
+
+
+def fetch_fugle_snapshot_quotes(universe, trading_date=None):
+    """Bulk live quotes (TSE/OTC), with strict date and executed-trade checks.
+
+    This is an optional permission-dependent source. Never substitute reference,
+    bid, ask, or prior-close values for an absent last-traded price.
+    """
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    from .fugle import snapshot_quotes
+
+    today=trading_date or datetime.now(ZoneInfo("Asia/Taipei")).date().isoformat()
+    by_market={"TSE":{},"OTC":{}}
+    for item in universe:
+        by_market.get(item.get("market"),{}).update({str(item["symbol"]):item})
+    rows=[]
+    warnings=[]
+    for market in ("TSE","OTC"):
+        targets=by_market[market]
+        if not targets:
+            continue
+        try:
+            payload=snapshot_quotes(market)
+            date=str(payload.get("date") or "")
+            arr=payload.get("data")
+            if date!=today or not isinstance(arr,list):
+                warnings.append(f"FUGLE_SNAPSHOT_STALE_OR_INVALID {market}: date={date}, expected={today}")
+                continue
+            retained=0
+            for q in arr:
+                symbol=str(q.get("symbol") or "")
+                meta=targets.get(symbol)
+                if not meta or q.get("isTrial") is True:
+                    continue
+                volume=_i(q.get("tradeVolume"))
+                last=_f(q.get("lastPrice"))
+                if last is None and volume>0:
+                    last=_f(q.get("closePrice"))
+                delta=_f(q.get("change"))
+                prev=_f(q.get("previousClose"))
+                if prev is None and last is not None and delta is not None:
+                    prev=last-delta
+                if last is None or prev in (None,0) or volume<=0:
+                    continue
+                rows.append({**meta,"name":q.get("name") or meta.get("name",""),
+                    "last":last,"previous_close":prev,
+                    "change_pct":(last/prev-1)*100,
+                    "volume":volume,"trade_value":_f(q.get("tradeValue")) or 0,
+                    "high":_f(q.get("highPrice")),"low":_f(q.get("lowPrice")),
+                    "open":_f(q.get("openPrice")),
+                    "bid":None,"ask":None,
+                    "quote_time":str(q.get("lastUpdated") or payload.get("time") or ""),
+                    "quote_source":"Fugle bulk snapshot"})
+                retained+=1
+            warnings.append(f"FUGLE_SNAPSHOT {market}: returned={len(arr)}, valid={retained}, universe={len(targets)}")
+        except Exception as exc:
+            warnings.append(f"FUGLE_SNAPSHOT_UNAVAILABLE {market}: {type(exc).__name__}: {str(exc)[:150]}")
+    return rows,warnings
