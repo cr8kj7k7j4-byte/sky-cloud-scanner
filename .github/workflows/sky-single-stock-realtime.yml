@@ -1,5 +1,11 @@
 name: Sky Single-Stock Fugle Realtime
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/sky_single_stock_realtime.py'
+      - 'tests/test_sky_single_stock_realtime.py'
+      - '.github/workflows/sky-single-stock-realtime.yml'
   workflow_dispatch:
     inputs:
       symbol:
@@ -19,10 +25,12 @@ jobs:
           python-version: "3.12"
       - name: Install dependencies
         run: pip install -r requirements.txt
+      - name: Test realtime gating without remote API
+        run: python -m unittest tests.test_sky_single_stock_realtime -v
       - name: Query and validate realtime Fugle API quote
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
-          SYMBOL: ${{ inputs.symbol }}
+          SYMBOL: ${{ inputs.symbol || '1569' }}
         run: |
           python -m src.sky_single_stock_realtime --symbol "$SYMBOL"
       - name: Upload quote evidence even when unavailable
