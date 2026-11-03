@@ -1,0 +1,35 @@
+name: Sky Single-Stock Fugle Realtime
+on:
+  workflow_dispatch:
+    inputs:
+      symbol:
+        description: Taiwan equity symbol (4 to 6 digits)
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  quote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Query and validate realtime Fugle API quote
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+          SYMBOL: ${{ inputs.symbol }}
+        run: |
+          python -m src.sky_single_stock_realtime --symbol "$SYMBOL"
+      - name: Upload quote evidence even when unavailable
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fugle-single-stock-${{ github.run_id }}
+          path: output/single_stock/
+          if-no-files-found: warn
+          retention-days: 30
