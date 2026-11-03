@@ -50,6 +50,35 @@ def market_mode() -> dict:
         ("swing5d_research", [sys.executable, "-m", "src.swing_live_scanner", "--mode", "swing5d"]),
     ):
         results["strategies"][key] = execute(command)
+    # Preserve a single inspectable evidence index instead of silently merging
+    # research candidates into Production signals.
+    results["reports"] = {}
+    for label, filename in (
+        ("intraday", "output/latest.json"),
+        ("swing_research", "output/swing_live/latest_swing.json"),
+        ("swing5d_research", "output/swing_live/latest_swing5d.json"),
+    ):
+        item = {"file": filename, "available": False}
+        try:
+            report = json.loads(Path(filename).read_text(encoding="utf-8"))
+            item.update({
+                "available": True,
+                "data_timestamp": report.get("generated_at", report.get("scan_time")),
+                "operational_full_market_scan": report.get("operational_full_market_scan"),
+                "quote_coverage_pct": report.get("quote_coverage_pct"),
+                "candidate_count": report.get("candidate_count"),
+                "candidate_preview": [
+                    {"symbol": row.get("symbol"),
+                     "name": row.get("name"),
+                     "price": row.get("fugle_close", row.get("last")),
+                     "action": row.get("candidate_action", "觀察")}
+                    for row in report.get("deep_candidates", [])[:8]
+                ],
+                "research_only": label != "intraday",
+            })
+        except (OSError, ValueError, TypeError):
+            item["reason"] = "RESULT_NOT_AVAILABLE_OR_INVALID"
+        results["reports"][label] = item
     results["decision"] = ("PARTIAL_UNVERIFIED_NO_A_PLUS" if
                            all(x["exit_code"] == 0 for x in results["strategies"].values())
                            else "SCAN_FAILURE_NO_TRADE")
