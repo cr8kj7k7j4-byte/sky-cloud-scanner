@@ -85,8 +85,23 @@ jobs:
           REDIS_URL: ${{ secrets.REDIS_URL }}
           MONITOR_STATE_REDIS_KEY: ${{ vars.MONITOR_STATE_REDIS_KEY || 'sky:p0a:monitor_state' }}
         run: python -m src.main
+      - name: Verify operational market coverage
+        if: steps.calendar.outputs.should_scan == 'true'
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path("output/latest.json")
+          if not path.is_file():
+              raise SystemExit("Scan result missing; cannot verify market coverage.")
+          data = json.loads(path.read_text(encoding="utf-8"))
+          print("Operational full market:", data.get("operational_full_market_scan"))
+          print("Quote coverage percent:", data.get("quote_coverage_pct"))
+          if data.get("operational_full_market_scan") is not True:
+              raise SystemExit("Operational market quote coverage insufficient; scan withheld.")
+          PY
       - name: Save P0-A monitor state cache
-        if: steps.calendar.outputs.should_scan == 'true' && always()
+        if: steps.calendar.outputs.should_scan == 'true' && success()
         uses: actions/cache/save@v4
         with:
           path: output/monitor_state.json
