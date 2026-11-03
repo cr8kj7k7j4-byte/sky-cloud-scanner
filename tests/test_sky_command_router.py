@@ -59,3 +59,11 @@ def test_single_stock_update_requires_fugle_realtime_first():
     assert "Fugle" in route.execution_target
     assert "MANDATORY" in route.notes
     assert "stale public web data must never substitute" in route.notes
+
+
+def test_natural_language_daytrade_routes_to_realtime():
+    route = route_command("1569 濱川 當沖要怎麼操作，請給我多空評分與停損")
+    assert route.command_family == "SKY_SINGLE_STOCK_UPDATE"
+    assert route.realtime_required is True
+    assert route.data_mode == "SINGLE_STOCK_REALTIME"
+    assert "Fugle" in route.execution_target
