@@ -1,6 +1,9 @@
 name: Sky Cloud Scanner v0.5 + P0-R
 
 on:
+  push:
+    branches: [debug/mis-http-status-20261103]
+    paths: ['.github/workflows/scan.yml']
   workflow_dispatch:
   schedule:
     - cron: "5,15,30,50 9 * * 1-5"
@@ -29,6 +32,8 @@ jobs:
             sky-monitor-state-
       - name: Install dependencies
         run: pip install -r requirements.txt
+      - name: Check diagnostic syntax
+        run: python -m py_compile src/official.py
       - name: Check TWSE trading calendar
         id: calendar
         shell: bash
