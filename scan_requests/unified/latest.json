@@ -1,1 +1,1 @@
-{"command":"system_health","requested_at":"2026-11-03","reason":"initial_e2e_smoke_test"}
+{"command":"model_validation","requested_at":"2026-11-03","reason":"initial_e2e_smoke_test"}
