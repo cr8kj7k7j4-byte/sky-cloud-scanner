@@ -134,6 +134,10 @@ def evaluate_trade(
     if reward <= 0:
         reasons.append("Long 模式 Target 必須高於 Entry")
 
+    # P0-R user-approved hard stop: two consecutive realized stop losses.
+    # Never loosen this based on strategy strength, new data access or grading.
+    if int(consecutive_losses or 0) >= 2:
+        reasons.append("連續兩筆停損：停止新進場")
     if state == "LOCKDOWN":
         reasons.append("回撤達 LOCKDOWN 門檻，禁止新開倉")
     if state == "DEFENSIVE" and grade not in (None, "A+"):
