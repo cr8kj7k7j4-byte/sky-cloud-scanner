@@ -119,3 +119,24 @@ Execution order is mandatory:
 6. If Fugle realtime quote fails or permission is unavailable, fail closed as realtime data unavailable. Do not fall back to a stale prior-close or older web snapshot as if it were live.
 
 This requirement applies even if an older public source appears newer than the last completed daily market dataset.
+
+
+## Single-stock on-demand cloud bridge — 2026-11-03
+
+User intent:
+- `Sky 當沖更新 1569`
+- `1569 濱川 當沖要怎麼操作，請給我多空評分、最高接受價與停損`
+
+The router maps both to `SINGLE_STOCK_REALTIME`. Chat MUST query the connected Fugle realtime-quote tool first; the on-demand GitHub counterpart is `.github/workflows/sky-single-stock-realtime.yml`, with `workflow_dispatch.symbol` (4–6 digits). This workflow is manual/on-demand, not a streaming subscription or a new scheduled scan. It reads the repository secret `FUGLE_API_KEY`; the ChatGPT connector connection does not grant this secret or entitlements.
+
+Cloud evidence collector: `python -m src.sky_single_stock_realtime --symbol 1569`.
+Cloud evidence output: `output/single_stock/1569.json` uploaded as a workflow artifact.
+Cloud status `REALTIME_QUOTE_VERIFIED` requires same-day valid trade timestamp, age <=120s, not future by more than 30s, positive last trade, and `canDayTrade=true`. All failed gates MUST exit nonzero and publish a fail-closed artifact; the model never treats a completed action alone as a buy signal. Record source, last-trade time, last-update, current price, open/high/low, cumulative volume, best bid/ask and market eligibility. This is a snapshot, never a streaming or guaranteed exchange-latency claim.
+
+2026-11-03 Fugle connector permissions inspected:
+- Directly verified single-symbol quote: 1569 TPEx, quote + bid/ask + volume + day-trade eligibility.
+- Accessible content-spec metadata, but contents not yet validated for: FCNT000013 recent 3-day prices, FCNT000002 5-year prices, FCNT000003 margin, FCNT000005 institutions, FCNT000009 brokers, FCNT000004 material disclosures, FCNT000153 15-year prices, FCNT000154 adjusted history.
+- Connector entitlement and GitHub raw MarketData REST key entitlement are independently verified; do not infer one from the other.
+- Availability of 1m/5m intraday candles, full tick sequences, indicator-ready VWAP, historical depth, rate quotas and cloud scheduled runs MUST be separately verified before they become required decision inputs.
+
+A verified quote alone does NOT authorize A+ grading, a numerical bull/bear score, max entry, stop, target, net RR or position size. Require the governed P0-C setup/trigger + multi-timeframe liquidity and P0-R cost/risk rules. Missing evidence remains `—`/WAIT, never backfilled from prior close. This bridge is a data-source engineering change ONLY: no production strategy promotion, no automatic order placement, and no risk-rule alteration.
