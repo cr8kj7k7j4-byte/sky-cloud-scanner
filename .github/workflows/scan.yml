@@ -108,10 +108,16 @@ jobs:
                   data=resp.json()
                   rows=data.get("msgArray", [])
                   print(label, "requested", len(batch), "returned", len(rows), "valid_z", sum(q.get("z") not in (None,"","-","--","---") for q in rows), "first_items", [{k:q.get(k) for k in ("c","z","pz","y","d","t","tlong","v","tv")} for q in rows[:4]], "rtcode", data.get("rtcode"), flush=True)
-          from src.fugle import get_quote, get_tickers
+          from src.fugle import get_quote, get_tickers, _get
           for market in ("TSE","OTC"):
               payload=get_tickers(market)
               print("ticker_probe",market,"keys",list(payload.keys()),"data_count",len(payload.get("data",[])), "examples",payload.get("data",[])[:2], flush=True)
+          for path in ("/snapshot/movers/TSE", "/snapshot/movers/OTC", "/snapshot/actives/TSE", "/intraday/candles/2330", "/intraday/quote/5425"):
+              try:
+                  p = _get(path)
+                  print("capability", path, "ok", True, "date", p.get("date"), "data_count",len(p.get("data",[])), "keys",list(p.keys()), flush=True)
+              except Exception as exc:
+                  print("capability", path, "ok", False, "error_type",type(exc).__name__, flush=True)
           quote = get_quote("2330")
           print("fugle_2330", {k:quote.get(k) for k in ("symbol","date","lastPrice","closePrice","closeTime","lastUpdated","total")}, flush=True)
           PY
