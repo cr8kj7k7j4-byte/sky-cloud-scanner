@@ -77,6 +77,10 @@ def collect(symbol: str, now=None) -> dict:
                 result["status"] = "STALE_QUOTE"
             elif ticker.get("canDayTrade") is not True:
                 result["status"] = "DAY_TRADE_NOT_ELIGIBLE"
+            elif ticker.get("isDisposition") is True:
+                result["status"] = "DISPOSITION_NO_NEW_ENTRY"
+            elif last_price >= float(os.environ.get("MAX_PRICE", "100")):
+                result["status"] = "PRICE_CAP_EXCEEDED"
             else:
                 result["status"] = "REALTIME_QUOTE_VERIFIED"
         return result
