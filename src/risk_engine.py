@@ -125,6 +125,8 @@ def evaluate_trade(
     target = float(target)
     if entry <= 0 or stop <= 0 or target <= 0:
         reasons.append("價格輸入必須大於 0")
+    if entry > 0 and stop >= entry:
+        reasons.append("做多停損價必須低於買進價")
 
     unit_risk = abs(entry - stop)
     reward = target - entry
