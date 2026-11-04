@@ -114,13 +114,66 @@ def market_mode() -> dict:
     return results
 
 
+def source_health_verdict(source_report: dict, schedule_report: dict | None) -> dict:
+    """Separate API/process success from fresh trades and official quote coverage."""
+    checks = {}
+    for key in ("fugle_tickers_TSE", "fugle_tickers_OTC",
+                "fugle_quote_2330", "fugle_quote_8089_otc",
+                "fugle_snapshot_TSE", "fugle_snapshot_OTC"):
+        probe = source_report.get(key) or {}
+        checks[key] = {
+            "status": probe.get("status", "UNKNOWN"),
+            "ok": probe.get("ok") is True,
+            "fresh_executed_trade": probe.get("fresh_executed_trade"),
+            "api_accessible": probe.get("api_accessible"),
+        }
+    sample = source_report.get("mis_sample") or {}
+    official = source_report.get("official_universe") or {}
+    return {
+        "diagnostic_time": source_report.get("time"),
+        "official_universe": official,
+        "universe_count": source_report.get("universe_count"),
+        "mis_sample": {"requested": sample.get("requested"),
+                       "returned": sample.get("returned")},
+        "fugle": checks,
+        "schedule": {
+            "audited_at_utc": (schedule_report or {}).get("generated_at_utc"),
+            "workflow_count": len((schedule_report or {}).get("workflows", [])),
+            "attention": [
+                {"path": row.get("path"), "verdict": row.get("verdict")}
+                for row in (schedule_report or {}).get("workflows", [])
+                if row.get("verdict") not in ("RUN_SUCCEEDED",)
+            ][:50],
+        },
+        "all_checks_passed": False,
+        "note": "API access and workflow success do not certify live whole-market quote coverage.",
+    }
+
+
 def health_mode() -> dict:
     source = execute([sys.executable, "-m", "src.diagnose_sources"])
     schedule = execute([sys.executable, "research/schedule_health.py"])
+    source_data = {}
+    schedule_data = None
+    try:
+        source_data = json.loads(source.get("stdout_tail", ""))
+    except (ValueError, TypeError):
+        pass
+    try:
+        schedule_data = json.loads(
+            Path("output/schedule_health/latest.json").read_text(encoding="utf-8"))
+    except (ValueError, OSError):
+        pass
+    evidence = source_health_verdict(source_data, schedule_data)
+    sources_available = bool(source_data.get("official_universe"))
+    if source["exit_code"] != 0 or schedule["exit_code"] != 0:
+        decision = "HEALTH_CHECK_FAILED"
+    elif not sources_available or schedule_data is None:
+        decision = "HEALTH_EVIDENCE_INCOMPLETE"
+    else:
+        decision = "HEALTH_OBSERVED_NOT_FULLY_CERTIFIED"
     return {"sources": source, "schedule": schedule,
-            "decision": "CHECK_OUTPUTS_NOT_AUTOMATICALLY_HEALTHY" if
-            source["exit_code"] == 0 and schedule["exit_code"] == 0
-            else "HEALTH_CHECK_FAILED"}
+            "evidence": evidence, "decision": decision}
 
 
 def validation_mode() -> dict:
@@ -128,12 +181,46 @@ def validation_mode() -> dict:
     tests = execute([sys.executable, "-m", "pytest", "-q",
                      "tests/test_sky_command_router.py",
                      "tests/test_sky_unified_commands.py"])
+    snapshot_path = Path("docs/SKY_EXTERNAL_LATEST_STATUS.json")
+    snapshot = {}
+    try:
+        snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        pass
+    dashboard = snapshot.get("w4_dashboard") or {}
+    sufficiency = dashboard.get("sample_sufficiency") or {}
+    observed = sufficiency.get("observed") or {}
+    integrity = dashboard.get("strategy_evidence_integrity") or {}
+    provenance = dashboard.get("forward_trade_provenance") or {}
+    promotion = dashboard.get("promotion_scorecard") or {}
+    evidence = {
+        "snapshot_generated_at_utc": snapshot.get("generated_at_utc"),
+        "snapshot_source_run_id": (snapshot.get("source") or {}).get(
+            "dashboard_workflow_run_id"),
+        "sample_sufficient": sufficiency.get("sufficient"),
+        "sample_count": observed.get("samples"),
+        "trading_days": observed.get("trading_days"),
+        "regime_count": observed.get("regime_count"),
+        "eligible_strategy_records": integrity.get("eligible_strategy_records"),
+        "strategy_evidence_status": integrity.get("status"),
+        "authoritative_trade_provenance": provenance.get("status"),
+        "after_cost_expectancy_r": (promotion.get("metrics_used") or {}).get(
+            "expectancy_r") if integrity.get("eligible_strategy_records", 0) else None,
+        "promotable_to_governance_review": promotion.get(
+            "promotable_to_governance_review"),
+        "production_eligible": False,
+        "note": "Only existing forward evidence is summarized; no new backtest or performance certification.",
+    }
+    if missing or tests["exit_code"] != 0:
+        decision = "VALIDATION_CHECK_FAILED"
+    elif not snapshot or not dashboard:
+        decision = "VALIDATION_EVIDENCE_MISSING"
+    else:
+        decision = "VALIDATION_INSUFFICIENT_DATA_NO_PROMOTION"
     return {"missing_registry_files": missing, "route_tests": tests,
             "production_baselines": ["Sky Day Trading v1.4", "Sky Swing V1.0"],
             "research_promotion": "NOT_AUTHORIZED",
-            "after_cost_expectancy": "NOT_RECALCULATED",
-            "decision": "GOVERNANCE_CHECK_ONLY" if not missing and
-            tests["exit_code"] == 0 else "VALIDATION_CHECK_FAILED"}
+            "evidence": evidence, "decision": decision}
 
 
 def run(mode: str) -> dict:
@@ -170,7 +257,8 @@ def main() -> None:
     payload = run(mode)
     if payload["result"]["decision"] in (
         "SCAN_FAILURE_NO_TRADE", "DATA_COVERAGE_INSUFFICIENT_NO_TRADE",
-        "HEALTH_CHECK_FAILED", "VALIDATION_CHECK_FAILED",
+        "HEALTH_CHECK_FAILED", "HEALTH_EVIDENCE_INCOMPLETE",
+        "VALIDATION_CHECK_FAILED", "VALIDATION_EVIDENCE_MISSING",
         "NO_TRADE_CALENDAR_UNAVAILABLE", "NO_TRADE_INVALID_CALENDAR",
     ):
         raise SystemExit(1)
