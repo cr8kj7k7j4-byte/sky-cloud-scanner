@@ -49,3 +49,8 @@ def test_duplicate_stock_codes_rejected():
     p["tables"][0]["data"][1][0]=p["tables"][0]["data"][0][0]
     with pytest.raises(ValueError,match="duplicate"):
         _validated_market_table(p,market="TWSE",session=date(2026,10,30))
+
+
+def test_tpex_responds_in_gregorian_date_even_for_roc_query():
+    rows=_validated_market_table(tpex_table(date_str="20261030"),market="TPEx",session=date(2026,10,30))
+    assert len(rows)==400
