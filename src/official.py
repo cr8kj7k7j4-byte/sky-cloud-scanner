@@ -66,22 +66,46 @@ def fetch_mis_quotes(universe, batch_size=55, sleep_s=.18):
         if not batch:
             return []
         ex_ch="|".join(f'{x["mis_prefix"]}_{x["symbol"]}.tw' for x in batch)
-        try:
-            r=s.get(MIS_URL,params={"ex_ch":ex_ch,"json":"1","delay":"0"},timeout=20)
-            r.raise_for_status()
-            payload=r.json()
-            arr=payload.get("msgArray",[])
-            if not isinstance(arr,list):
-                raise ValueError("MIS msgArray is not a list")
-            requested={x["symbol"] for x in batch}
-            found=[q for q in arr if str(q.get("c","")).strip() in requested]
-            stats["recovery_returned" if recovery else "initial_returned"]+=len({str(q["c"]).strip() for q in found})
-            return found
-        except Exception as e:
-            stats["failed_requests"]+=1
-            if sum("batch failed" in w for w in warnings)<5:
-                warnings.append(f"MIS {'recovery' if recovery else 'initial'} batch failed: {type(e).__name__}: {str(e)[:120]}")
-            return []
+        # Retry only transient server/rate-limit responses, with a strict
+        # two-attempt budget. Never retry authorization denial or bad requests.
+        for attempt in range(2):
+            try:
+                r=s.get(MIS_URL,params={"ex_ch":ex_ch,"json":"1","delay":"0"},timeout=20)
+                r.raise_for_status()
+                payload=r.json()
+                arr=payload.get("msgArray",[])
+                if not isinstance(arr,list):
+                    raise ValueError("MIS msgArray is not a list")
+                requested={x["symbol"] for x in batch}
+                found=[q for q in arr if str(q.get("c","")).strip() in requested]
+                stats["recovery_returned" if recovery else "initial_returned"]+=len({str(q["c"]).strip() for q in found})
+                return found
+            except Exception as e:
+                status=getattr(getattr(e,"response",None),"status_code",None)
+                transient=(status in (429,500,502,503,504))
+                if transient and attempt==0:
+                    stats["http_retries"]=stats.get("http_retries",0)+1
+                    # Keep total network load bounded and respect Retry-After
+                    # without permitting an arbitrarily long provider delay.
+                    headers=getattr(getattr(e,"response",None),"headers",{}) or {}
+                    raw_retry=headers.get("Retry-After")
+                    try:
+                        retry_after=max(0.0,min(float(raw_retry),2.0))
+                    except (TypeError,ValueError):
+                        retry_after=0.5
+                    time.sleep(max(0.5,retry_after))
+                    continue
+                stats["failed_requests"]+=1
+                if status is not None:
+                    key=f"http_{status}"
+                    stats[key]=stats.get(key,0)+1
+                if sum("batch failed" in w for w in warnings)<5:
+                    detail=f"HTTP {status}" if status is not None else type(e).__name__
+                    warnings.append(
+                        f"MIS {'recovery' if recovery else 'initial'} batch failed: "
+                        f"{detail}: {str(e)[:100]}"
+                    )
+                return []
 
     def ingest(arr, meta):
         for q in arr:
