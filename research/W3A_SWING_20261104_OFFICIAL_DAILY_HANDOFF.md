@@ -63,3 +63,15 @@ Corporate action discovery (all raw JSON and SHA-256 attached to this run):
 - Current CA probe status: `CORPORATE_ACTION_AUDIT_PENDING` and `swing_v11_signal_eligible=false`.
 
 W1 may use this artifact for **data engineering/audit only**. Do not merge raw bars into the frozen V1.1 live entry chain or infer positive expectancy. Historical verification and 7-day coverage are not a future 20-day Shadow sample.
+
+
+## 2026-11-04 23:00 — PIT corporate-action candidate ledger CI result
+
+- Workflow run [41853015115](https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/41853015115): **SUCCESS**, **17 tests PASS**.
+- Artifact: `w3a-swing-official-delta-41853015115`, ID `13335228312`.
+- `output/swing_ca_source_probe/ca_candidate_ledger.json`: **12 ordinary-share event candidates** in this period after 4-digit symbol filtering and official TWSE/TPEx date-range validation.
+- Of those: **2 officially recorded event dates coincide with the market-wide 2026-10-23 typhoon closure** (2028 and 6931); the actual effective trading date is not inferred or auto-adjusted.
+- **1 capital-reduction resumption**: TPEx 8047. Must verify pre-suspension price and new-share conversion; never use a generic dividend factor blindly.
+- Candidate-only reference ratios are recorded with exact official pre-event and reference prices, source, source date and PIT exchange.
+- Audit status: `CORPORATE_ACTION_RECONCILIATION_HOLD`; all candidate event adjustment applications are `false`.
+- Remaining: validate TWSE capital-reduction / face-value / split event-source coverage, resolve two 10/23 ex-right entries, and apply as-of ratios only after official effective-date review and a complete canonical PIT replay.
