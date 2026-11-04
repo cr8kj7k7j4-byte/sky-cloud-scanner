@@ -129,3 +129,20 @@ def test_recovery_budget_caps_requests_and_never_invents_quotes(monkeypatch):
     assert len(fake.calls)<=4+10  # 4 initial, at most 80/8 recovery
     assert any("recovery_skipped=133" in s for s in warnings)
     assert any("MIS_LOW_COVERAGE" in s for s in warnings)
+
+def test_bulk_snapshot_close_price_is_not_last_trade(monkeypatch):
+    from src import fugle
+    monkeypatch.setattr(fugle, "snapshot_quotes", lambda market: {
+        "date": "2026-11-04",
+        "data": [{
+            "symbol": "2330", "closePrice": 100, "tradeVolume": 1000,
+            "previousClose": 99, "lastPrice": None,
+        }],
+    })
+    rows, warnings = official.fetch_fugle_snapshot_quotes(
+        [{"symbol": "2330", "market": "TSE", "exchange": "TWSE"}],
+        trading_date="2026-11-04",
+    )
+    assert rows == []
+    assert any("valid=0" in warning for warning in warnings)
+

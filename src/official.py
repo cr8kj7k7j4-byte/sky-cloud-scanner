@@ -192,8 +192,8 @@ def fetch_fugle_snapshot_quotes(universe, trading_date=None):
                     continue
                 volume=_i(q.get("tradeVolume"))
                 last=_f(q.get("lastPrice"))
-                if last is None and volume>0:
-                    last=_f(q.get("closePrice"))
+                # closePrice may be a reference/closing field, not evidence of
+                # a current executed trade. Never use it as lastPrice.
                 delta=_f(q.get("change"))
                 prev=_f(q.get("previousClose"))
                 if prev is None and last is not None and delta is not None:
