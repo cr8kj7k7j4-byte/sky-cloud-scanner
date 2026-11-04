@@ -1,0 +1,77 @@
+name: W3A Official Swing Daily PIT Delta (Research)
+
+on:
+  push:
+    branches: [engineering/w3a-swing-daily-official-delta-20261104]
+    paths:
+      - "research/collect_swing_official_daily_delta.py"
+      - "research/probe_swing_official_dated_bulk.py"
+      - "research/backfill_swing_official_dated_history.py"
+      - "research/probe_swing_ca_sources.py"
+      - "research/audit_swing_ca_candidate_ledger.py"
+      - "tests/test_swing_ca_candidate_ledger.py"
+      - "tests/test_swing_ca_source_probe.py tests/test_swing_ca_candidate_ledger.py"
+      - "tests/test_swing_official_dated_backfill.py"
+      - "src/trading_calendar.py"
+      - "tests/test_swing_official_daily_delta.py"
+      - ".github/workflows/w3a-swing-official-daily-delta.yml"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  delta:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install focused dependencies
+        run: python -m pip install requests pytest
+      - name: Verify PIT daily parsing and fail-closed date policy
+        run: python -m pytest -q tests/test_swing_official_daily_delta.py tests/test_swing_official_dated_backfill.py tests/test_trading_calendar.py tests/test_swing_ca_source_probe.py
+      - name: Download canonical PIT data authority (Run 40252311345)
+        uses: actions/download-artifact@v4
+        with:
+          name: w3-swing-canonical-daily-history-repaired-40252311345
+          path: _canonical
+          repository: cr8kj7k7j4-byte/sky-cloud-scanner
+          run-id: 40252311345
+          github-token: ${{ github.token }}
+      # Latest-only TWSE and TPEx may publish on different clocks; use explicitly
+      # dated sources instead of combining inconsistent latest sessions.
+      - name: Backfill missing historical daily sessions with dated official endpoints
+        run: >
+          python research/backfill_swing_official_dated_history.py
+          --start 2026-10-23
+          --end 2026-11-04
+          --pit-json _canonical/primary_bundle/canonical_pit/pit_intervals.json
+          --out output/swing_official_backfill
+      - name: Probe historical corporate action evidence (never promotes)
+        run: >
+          python research/probe_swing_ca_sources.py
+          --out output/swing_ca_source_probe
+      - name: Audit PIT corporate-action candidates with closed-session quarantine
+        run: >
+          python research/audit_swing_ca_candidate_ledger.py
+          --source-dir output/swing_ca_source_probe
+          --backfill-audit output/swing_official_backfill/backfill_audit.json
+          --pit-json _canonical/primary_bundle/canonical_pit/pit_intervals.json
+          --out output/swing_ca_source_probe/ca_candidate_ledger.json
+      - name: Upload official PIT daily delta and source dates
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: w3a-swing-official-delta-${{ github.run_id }}
+          path: |
+            output/swing_official_daily_delta/
+            output/swing_official_backfill/
+            output/swing_ca_source_probe/
+          retention-days: 90
+          if-no-files-found: warn
