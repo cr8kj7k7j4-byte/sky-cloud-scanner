@@ -98,8 +98,8 @@ jobs:
               encoding="utf-8",
           )
 
-          obs = dash.get("observed") or dash.get("sample_progress") or {}
-          status = dash.get("status") or dash.get("promotion_status") or "UNKNOWN"
+          obs = (dash.get("sample_sufficiency") or {}).get("observed") or {}
+          status = dash.get("stage") or dash.get("status") or "UNKNOWN"
           eligible_runs = elig.get("eligible_run_count")
           eligible_records = elig.get("eligible_record_count")
 
