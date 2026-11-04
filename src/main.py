@@ -21,6 +21,7 @@ from .config import (
     P0S_5M_BREAKOUT_ENABLED,
 )
 from .official import load_official_universe, fetch_mis_quotes
+from .market_coverage_gate import validate_operational_quote_coverage, require_operational_quote_coverage
 from .fugle import get_ticker, get_quote, get_candles
 from .decision_engine import first_gate, evaluate_decision
 from .feature_engine import build_features, enrich_candidate_context
@@ -296,6 +297,13 @@ def run():
             ),
             "fallback_count": len(otc_rows),
         }
+
+        # Fail-closed immediately after validating actual last-traded prices.
+        # The scanner must not deep-dive, publish candidates or issue the normal
+        # Telegram scan when most MIS 'z' fields are '-' (even if OHLC/volume
+        # and HTTP 200 responses are present).
+        st["market_quote_quality"] = validate_operational_quote_coverage(st)
+        require_operational_quote_coverage(st)
 
         if STRICT_OFFICIAL_MODE:
             st["full_market_scan"] = bool(
