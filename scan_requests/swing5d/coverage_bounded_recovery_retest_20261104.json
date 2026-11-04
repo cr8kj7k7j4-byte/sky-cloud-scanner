@@ -1,0 +1,5 @@
+{
+  "date": "2026-11-04",
+  "purpose": "retest bounded recovery with updated test",
+  "no_production_promotion": true
+}
