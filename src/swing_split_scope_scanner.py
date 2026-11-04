@@ -32,7 +32,7 @@ def _date(v):
     raise ValueError("missing or malformed official trading date")
 
 
-def parse_daily_rows(rows, market):
+def parse_daily_rows(rows, market, *, source_label=None):
     """Never infer a missing date or price; fail closed instead."""
     out = {}
     for r in rows if isinstance(rows, list) else []:
@@ -56,7 +56,7 @@ def parse_daily_rows(rows, market):
             "previous_close": close-change, "change_pct": 100*change/(close-change),
             "volume_shares": shares, "volume_lots": shares/1000,
             "trade_value": turnover, "market": market,
-            "source": "TWSE STOCK_DAY_ALL" if market == "TWSE" else "TPEx daily_close_quotes",
+            "source": source_label or ("TWSE STOCK_DAY_ALL" if market == "TWSE" else "TPEx daily_close_quotes"),
         }
     return out
 
@@ -120,13 +120,16 @@ def run(deep_n=8):
         tw={}
         errors.append(f"TWSE daily data: {type(e).__name__}")
     tp={}
+    tpex_used_source=None
     for label, url in (("daily_close", TPEX_DAILY), ("mainboard_quotes", TPEX_BACKUP)):
         if tp:
             break
         try:
-            tp=parse_daily_rows(get_json(url, timeout=12, retries=2), "TPEx")
+            tp=parse_daily_rows(get_json(url, timeout=12, retries=2), "TPEx", source_label=f"TPEx {label}")
             if not tp:
                 errors.append(f"TPEx {label}: returned no date-verified valid close rows")
+            else:
+                tpex_used_source=label
         except Exception as e:
             errors.append(f"TPEx {label}: {type(e).__name__}")
     # TPEx backup is official end-of-day quotes, never a substitute for
@@ -180,6 +183,7 @@ def run(deep_n=8):
         "universe_count":assessment["universe_count"],
         "official_daily_signal_date":assessment["signal_date"],
         "official_source_dates":assessment["source_dates"],
+        "official_tpex_source_used":tpex_used_source,
         "live_quote_scope":"CANDIDATES_ONLY",
         "live_quote_requested":len(candidates),
         "live_quote_available":sum(x["current_price"] is not None for x in candidates),
