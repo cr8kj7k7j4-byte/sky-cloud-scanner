@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 from src.model_registry import build_shadow_promotion_dashboard
-from src.w4_evidence_integrity import audit_forward_strategy_evidence
+from src.w4_evidence_integrity import audit_forward_strategy_evidence, audit_forward_trade_provenance
 from src.shadow_evidence import (
     evaluate_shadow_pipeline_readiness,
     evaluate_portfolio_cost_capacity_evidence,
@@ -77,6 +77,7 @@ def build_w4_report_sections(dashboard):
     observed = dict(portfolio.get("observed") or {})
     pipeline = dict(dashboard.get("pipeline_readiness") or {})
     sample_suff = dict(dashboard.get("sample_sufficiency") or {})
+    trade_provenance = dict(dashboard.get("forward_trade_provenance") or {})
 
     stage = dashboard.get("stage") or "WAITING_FOR_FUTURE_SAMPLE"
     drift_status = (
@@ -95,6 +96,12 @@ def build_w4_report_sections(dashboard):
             "pipeline_status": pipeline.get("status", "UNKNOWN"),
             "outcome_complete_ratio": s.get("outcome_complete_ratio", 0),
             "sample_gate_sufficient": bool(sample_suff.get("sufficient", False)),
+        },
+        "Forward Trade Provenance": {
+            "status": trade_provenance.get("status", "NOT_EVALUABLE"),
+            "canonical_observation_identity_count": trade_provenance.get("canonical_observation_identity_count", 0),
+            "can_certify_strategy_trades": False,
+            "governance_issue": trade_provenance.get("issue"),
         },
         "Strategy Performance": {
             "expectancy_r": observed.get("expectancy_r"),
@@ -214,6 +221,8 @@ def main():
     dashboard["pipeline_readiness"] = pipeline
     dashboard["portfolio_cost_capacity"] = portfolio
     dashboard["strategy_evidence_integrity"] = audit_forward_strategy_evidence(records)
+    dashboard["forward_trade_provenance"] = audit_forward_trade_provenance(records)
+    dashboard["blocking_items"].append("governance:PRODUCTION_DECISION_PROVENANCE_BLOCKED")
     dashboard["w4_report"] = build_w4_report_sections(dashboard)
 
     out = Path(args.out)
