@@ -24,3 +24,5 @@ jobs:
         run: python -m compileall -q src tests
       - name: Run P0-R unit tests
         run: python tests/test_risk_engine.py
+      - name: Validate two-stop and daily 2R risk hard gates
+        run: PYTHONPATH=. python -m unittest discover -s tests -p 'test_fugle_permission_risk_gate_20261103.py' -v
