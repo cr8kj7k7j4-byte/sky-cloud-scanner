@@ -143,3 +143,20 @@ def test_loader_prefers_enriched_outcome_record():
         rows, _ = load_shadow_records(root)
         assert len(rows) == 1
         assert rows[0]["outcome"]["ranking"]["status"] == "COMPLETE"
+
+
+def test_unknown_regimes_do_not_pass_w4_coverage():
+    rows = _records(n=200, days=20, symbols=10, regimes=("UNKNOWN_LOW", "UNKNOWN_MEDIUM"))
+    out = build_shadow_promotion_dashboard(rows)
+    assert out["sample_sufficiency"]["checks"]["sample_count"] is True
+    assert out["sample_sufficiency"]["checks"]["trading_days"] is True
+    assert out["sample_sufficiency"]["checks"]["regime_coverage"] is False
+    assert out["sample_sufficiency"]["observed"]["regime_count"] == 0
+    assert out["stage"] == "WAITING_FOR_FUTURE_SAMPLE"
+
+
+def test_verified_bull_neutral_bear_regimes_are_counted():
+    rows = _records(n=200, days=20, symbols=10, regimes=("BULL", "NEUTRAL", "BEAR"))
+    out = build_shadow_promotion_dashboard(rows)
+    assert out["sample_sufficiency"]["checks"]["regime_coverage"] is True
+    assert out["sample_sufficiency"]["observed"]["regime_count"] == 3

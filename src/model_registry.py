@@ -314,8 +314,11 @@ def evaluate_shadow_sample_sufficiency(
             "ml.regime.label",
             "regime",
         )
-        if regime not in (None, "", "UNKNOWN"):
-            regimes.add(str(regime))
+        # UNKNOWN_* buckets are data-quality placeholders, not validated
+        # Bull/Neutral/Bear market regimes. Fail closed for W4 sufficiency.
+        normalized_regime = str(regime or "").strip().upper()
+        if normalized_regime in {"BULL", "NEUTRAL", "BEAR"}:
+            regimes.add(normalized_regime)
 
         symbol = str(row.get("symbol") or "")
         if symbol:
