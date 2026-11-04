@@ -4,6 +4,7 @@ import json
 
 from .official import load_official_universe, fetch_mis_quotes
 from .fugle import get_tickers, get_quote, snapshot_quotes
+from .realtime_quote_evidence import fugle_executed_trade
 
 def _probe(name, fn):
     try:
@@ -29,7 +30,30 @@ def _probe(name, fn):
             "error": f"{type(e).__name__}: {e}",
         }
 
-def run():
+def _probe_executed_quote(symbol):
+    """Account entitlement alone is not proof of a fresh executed trade."""
+    try:
+        payload = get_quote(symbol)
+        quote = payload.get("data", payload) if isinstance(payload, dict) else payload
+        if not isinstance(quote, dict):
+            return {"ok": False, "status": "INVALID_QUOTE_PAYLOAD",
+                    "fresh_executed_trade": False}
+        _, trade_time, status = fugle_executed_trade(quote)
+        return {
+            "ok": status == "FRESH_EXECUTED_TRADE",
+            "status": status,
+            "api_accessible": True,
+            "fresh_executed_trade": status == "FRESH_EXECUTED_TRADE",
+            "last_trade_time": trade_time.isoformat() if trade_time else None,
+        }
+    except PermissionError:
+        return {"ok": False, "status": "PLAN_RESTRICTED",
+                "api_accessible": False, "fresh_executed_trade": False}
+    except Exception as e:
+        return {"ok": False, "status": "SOURCE_ERROR",
+                "error_type": type(e).__name__, "fresh_executed_trade": False}
+
+
     out = {"time": datetime.now(ZoneInfo("Asia/Taipei")).isoformat()}
 
     universe, st = load_official_universe()
@@ -50,9 +74,8 @@ def run():
     out["fugle_tickers_OTC"] = _probe(
         "fugle_tickers_OTC", lambda: get_tickers("OTC")
     )
-    out["fugle_quote_2330"] = _probe(
-        "fugle_quote_2330", lambda: get_quote("2330")
-    )
+    out["fugle_quote_2330"] = _probe_executed_quote("2330")
+    out["fugle_quote_8089_otc"] = _probe_executed_quote("8089")
 
     # Snapshot is diagnostic only. 403 is recorded as plan_restricted and is
     # not considered a scanner failure.
