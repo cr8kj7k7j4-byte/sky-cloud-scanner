@@ -4,10 +4,12 @@ on:
   pull_request:
     paths:
       - "src/main.py"
+      - "src/diagnose_sources.py"
       - "src/official.py"
       - "src/realtime_quote_evidence.py"
       - "src/swing_live_scanner.py"
       - "tests/test_full_market_executed_quote_gate.py"
+      - "tests/test_diagnose_sources_freshness.py"
       - "tests/test_swing_full_market_gate.py"
       - ".github/workflows/scan.yml"
       - ".github/workflows/swing-live-scan.yml"
@@ -31,6 +33,7 @@ jobs:
       - name: Run data and scanner safety regressions
         run: |
           PYTHONPATH=. python -m pytest -q \
+            tests/test_diagnose_sources_freshness.py \
             tests/test_full_market_executed_quote_gate.py \
             tests/test_swing_full_market_gate.py \
             tests/test_realtime_market_contract.py \
