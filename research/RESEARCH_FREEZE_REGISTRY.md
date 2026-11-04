@@ -24,6 +24,8 @@
 
 | Opening Retest Reclaim Baseline D | ARCHIVED_NO_RETUNE | 2026-01-01–2026-10-22 whole-market 1m PIT; n=12,967 evaluable 60m trades; gross expectancy +0.1032%, gross PF 1.312; 0.45% expectancy -0.3468%, PF 0.506; 0.65% expectancy -0.5468%, PF 0.372; open-stop rate 85.08%; both 2026-H1 and H2 negative after cost. Re-open only with a structurally different target/data/execution architecture, not retest/reclaim threshold, Tick, timing, stop/target, Top-N, or weighting tweaks. |
 
+| False-Reclaim Short Baseline E (2026-10-26 preregistration) | ARCHIVED_NO_RETUNE (proposed; W0 review pending) | Preregistered short-side 60m PIT proxy n=10,732; gross +0.2241%, 0.45% after-cost -0.2259% and PF 0.640; 0.65% -0.4259%, PF 0.458; both H1/H2 negative. No local tuning of timing, thresholds, 4-tick gate, stop/target, universe, ranking or costs; new structurally independent hypothesis requires new preregistration. No historical short eligibility/borrow proof; no Production change. Source: research/w2/SHORT_FALSE_RECLAIM_BASELINE_E_RESULT_20261104.md; W0 review Issue #220. |
+
 ## Active but blocked research
 
 | Candidate | Status | Blocker |
