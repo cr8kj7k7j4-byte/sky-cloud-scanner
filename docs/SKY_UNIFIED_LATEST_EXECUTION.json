@@ -1,0 +1,16 @@
+{
+  "schema": "SKY_UNIFIED_EXECUTION_VERIFICATION_V1",
+  "published_at_utc": "2026-11-04T01:33:20.442382+00:00",
+  "run_id": "41754808672",
+  "run_url": "https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/41754808672",
+  "head_sha": "12ee060088985bedc7228ad7a0d68a06dd73ad89",
+  "command": "model_validation",
+  "scan_step_outcome": "failure",
+  "report_exists": true,
+  "report_generated_at_utc": "2026-11-04T01:33:18.671864+00:00",
+  "decision": "VALIDATION_CHECK_FAILED",
+  "calendar_exit_code": null,
+  "strategy_exit_codes": {},
+  "reports": {},
+  "no_order_or_production_promotion": true
+}
