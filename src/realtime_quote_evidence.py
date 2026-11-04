@@ -78,3 +78,29 @@ def market_scope(report):
     if report.get("daily_scope_status") == "PASS_DAILY_CROSS_SECTION":
         return "OFFICIAL_DAILY_CROSS_SECTION"
     return "BLOCKED_OR_UNVERIFIED"
+
+
+def mis_executed_trade_row(row, now=None, *, max_age_seconds=180):
+    """Validate a fresh MIS executed quote using exchange date + local trade time.
+
+    A bare HH:MM:SS without an exchange-supplied date cannot certify a trade
+    on the current session. This affects candidate execution, not historical PIT.
+    """
+    now = now or datetime.now(TPE)
+    try:
+        price = float(row.get("last"))
+        if price <= 0:
+            raise ValueError()
+    except (ValueError, TypeError, AttributeError):
+        return False
+    raw_date = str(row.get("quote_date") or "").strip().replace("-", "").replace("/", "")
+    if raw_date != now.strftime("%Y%m%d"):
+        return False
+    raw_time = str(row.get("quote_time") or "").strip()
+    try:
+        trade_time = datetime.strptime(raw_time, "%H:%M:%S").time()
+        dt = datetime.combine(now.date(), trade_time, tzinfo=TPE)
+    except ValueError:
+        return False
+    age = (now - dt).total_seconds()
+    return -30 <= age <= max_age_seconds
