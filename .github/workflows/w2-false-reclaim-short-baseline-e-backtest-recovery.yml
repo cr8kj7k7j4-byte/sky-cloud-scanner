@@ -31,12 +31,25 @@ jobs:
           run-id: 40329668748
           pattern: baseline-e-shard-*-40329668748
           path: short_data
+      - name: Verify complete reusable historical short shards
+        shell: bash
+        run: |
+          set -euo pipefail
+          count="$(find short_data -type f -name '*_false_reclaim_short_1m.json' | wc -l | tr -d ' ')"
+          echo "historical_short_files=$count"
+          test "$count" -gt 0
       - name: Run Baseline E backtest only
         run: |
           python research/backtest_false_reclaim_short_baseline_e.py \
             --data-root short_data \
             --source-run-id 40329668748 \
             --out-dir research_output/false_reclaim_short_baseline_e
+      - name: Verify backtest evidence output
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s research_output/false_reclaim_short_baseline_e/false_reclaim_short_baseline_e_report.md
+          echo "backtest_report=present"
       - name: Publish result
         if: always()
         run: |
@@ -48,5 +61,5 @@ jobs:
         with:
           name: baseline-e-recovery-result-${{ github.run_id }}
           path: research_output/false_reclaim_short_baseline_e
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 30
