@@ -36,6 +36,18 @@ class SingleStockRealtimeTests(unittest.TestCase):
         self.assertIsNone(result["stop"])
         self.assertFalse(result["execution_authorized"])
 
+    def test_close_only_quote_cannot_be_accepted_as_live_trade(self):
+        quote, ticker = self.sample()
+        quote.pop("lastPrice")
+        quote["closePrice"] = 92.2
+        with patch("src.sky_single_stock_realtime.fugle.get_quote", return_value=quote), patch(
+            "src.sky_single_stock_realtime.fugle.get_ticker", return_value=ticker
+        ):
+            result = collect("1569", NOW)
+        self.assertEqual(result["status"], "INVALID_OR_MISSING_PRICE")
+        self.assertIsNone(result["last_price"])
+        self.assertFalse(result["execution_authorized"])
+
     def test_stale_quote_fail_closed(self):
         quote, ticker = self.sample(minutes=5)
         with patch("src.sky_single_stock_realtime.fugle.get_quote", return_value=quote), patch(
