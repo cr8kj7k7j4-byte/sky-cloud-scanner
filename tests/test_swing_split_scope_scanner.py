@@ -56,3 +56,38 @@ def test_same_day_quote_requires_fresh_timestamp():
     assert status=="FRESH" and stamp.startswith("2026-11-04")
     assert quote_time_freshness({"lastUpdated":microseconds-20*60*1_000_000},now)[1]=="STALE_OR_FUTURE_TIMESTAMP"
     assert quote_time_freshness({},now)[1]=="MISSING_OR_INVALID_TIMESTAMP"
+
+
+def test_closeprice_only_cannot_be_promoted_to_live_lastprice(monkeypatch, tmp_path):
+    from datetime import timedelta
+    from src import swing_split_scope_scanner as scanner
+
+    now=datetime.now(TZ)
+    previous=(now.date()-timedelta(days=1)).strftime("%Y%m%d")
+    # The daily-source date is prior day, and the candidate's closePrice is
+    # present; a missing lastPrice must still fail the live-price test.
+    monkeypatch.setattr(scanner, "OUT", tmp_path)
+    monkeypatch.setattr(scanner, "load_official_universe", lambda: (
+        [{"symbol":"2330","exchange":"TWSE"},
+         {"symbol":"6488","exchange":"TPEx"}],
+        {"twse":1,"tpex":1,"warnings":[]},
+    ))
+    def fake_daily(url, **_):
+        if url == scanner.TWSE_DAILY:
+            return [{"Code":"2330","Date":previous,"ClosingPrice":"50",
+                     "TradeVolume":"1000000","TradeValue":"50000000","Change":"1"}]
+        return [{"SecuritiesCompanyCode":"6488","Date":previous,"Close":"60",
+                 "TradingShares":"1000000","TransactionAmount":"60000000","Change":"2"}]
+    monkeypatch.setattr(scanner, "get_json", fake_daily)
+    monkeypatch.setattr(scanner, "get_quote", lambda _symbol: {
+        "date":now.date().isoformat(), "lastPrice":None, "closePrice":62,
+        "lastUpdated":int(now.timestamp()*1000),
+    })
+
+    report=scanner.run(deep_n=2)
+    assert report["daily_scope_status"] == "PASS_DAILY_CROSS_SECTION"
+    assert report["live_quote_requested"] == 2
+    assert report["live_quote_available"] == 0
+    assert report["live_quote_timestamp_verified"] == 0
+    assert all(x["current_price"] is None for x in report["candidates"])
+    assert report["live_whole_market_certified"] is False
