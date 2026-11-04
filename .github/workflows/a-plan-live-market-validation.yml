@@ -3,6 +3,9 @@ name: Sky A-Plan One-Time Live Market Validation
 
 on:
   workflow_dispatch:
+  schedule:
+    # Taiwan 09:20 weekday, UTC 01:20. Separate from 09:15/09:30 main scanner.
+    - cron: "20 1 * * 1-5"
   push:
     branches: [main]
     paths:
@@ -35,15 +38,31 @@ jobs:
         run: pip install -r requirements.txt pytest
       - name: Run MIS and quote freshness regression tests
         run: python -m pytest -q tests/test_official_mis_coverage.py tests/test_diagnose_sources_freshness.py tests/test_realtime_market_contract.py tests/test_full_market_executed_quote_gate.py
+      - name: Check TWSE official trading calendar
+        id: calendar
+        run: |
+          python -m src.trading_calendar --out output/trading_calendar_status.json
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=Path('output/trading_calendar_status.json')
+          j=json.loads(p.read_text(encoding='utf-8'))
+          if j.get('source_status') != 'PASS':
+              raise SystemExit('DATA_BLOCKED: trading calendar unavailable')
+          with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as out:
+              out.write('should_scan='+str(j.get('should_scan') is True).lower()+'\n')
+          PY
       - name: Diagnose real runner-side source permissions
+        if: steps.calendar.outputs.should_scan == 'true'
         run: |
           mkdir -p output/a_plan_validation
           python -m src.diagnose_sources > output/a_plan_validation/sources.json
           cat output/a_plan_validation/sources.json
       - name: Execute scanner read-only validation
+        if: steps.calendar.outputs.should_scan == 'true'
         run: python -m src.main
       - name: Record independent live-market acceptance
-        if: always()
+        if: always() && steps.calendar.outputs.should_scan == 'true'
         shell: bash
         run: |
           python - <<'PY'
@@ -99,5 +118,6 @@ jobs:
             output/a_plan_validation/
             output/latest.json
             output/latest.txt
+            output/trading_calendar_status.json
           if-no-files-found: warn
           retention-days: 30
