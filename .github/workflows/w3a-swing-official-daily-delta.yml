@@ -42,17 +42,13 @@ jobs:
           repository: cr8kj7k7j4-byte/sky-cloud-scanner
           run-id: 40252311345
           github-token: ${{ github.token }}
-      - name: Build official postmarket delta from live dated rows
-        run: >
-          python research/collect_swing_official_daily_delta.py
-          --date auto
-          --pit-json _canonical/primary_bundle/canonical_pit/pit_intervals.json
-          --out output/swing_official_daily_delta
+      # Latest-only TWSE and TPEx may publish on different clocks; use explicitly
+      # dated sources instead of combining inconsistent latest sessions.
       - name: Backfill missing historical daily sessions with dated official endpoints
         run: >
           python research/backfill_swing_official_dated_history.py
           --start 2026-10-23
-          --end 2026-11-03
+          --end 2026-11-04
           --pit-json _canonical/primary_bundle/canonical_pit/pit_intervals.json
           --out output/swing_official_backfill
       - name: Probe historical corporate action evidence (never promotes)
