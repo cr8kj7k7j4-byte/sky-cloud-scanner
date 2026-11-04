@@ -1,0 +1,95 @@
+name: Sky A-Plan One-Time Live Market Validation
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/a-plan-live-market-validation.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sky-a-plan-live-market-validation
+  cancel-in-progress: false
+
+jobs:
+  live-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: .
+      FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+      STRICT_OFFICIAL_MODE: "1"
+      ALLOW_MIS_OTC_FALLBACK: "1"
+      PAPER_TRADING_MODE: "shadow"
+      EXEC_ENFORCE_GATE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run MIS and quote freshness regression tests
+        run: python -m pytest -q tests/test_official_mis_coverage.py tests/test_diagnose_sources_freshness.py tests/test_realtime_market_contract.py tests/test_full_market_executed_quote_gate.py
+      - name: Diagnose real runner-side source permissions
+        run: |
+          mkdir -p output/a_plan_validation
+          python -m src.diagnose_sources > output/a_plan_validation/sources.json
+          cat output/a_plan_validation/sources.json
+      - name: Execute scanner read-only validation
+        run: python -m src.main
+      - name: Record independent live-market acceptance
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+          p = Path("output/latest.json")
+          out = Path("output/a_plan_validation")
+          out.mkdir(parents=True, exist_ok=True)
+          result = {"checked_at_tpe":datetime.now(ZoneInfo("Asia/Taipei")).isoformat(),
+                    "mode":"READ_ONLY_VALIDATION", "full_market_certified":False,
+                    "trade_authorized":False, "status":"DATA_BLOCKED"}
+          if p.exists():
+              data=json.loads(p.read_text(encoding="utf-8"))
+              audit=data.get("live_market_evidence") or {}
+              result.update({
+                  "scanner_run_time":data.get("run_time"),
+                  "official_universe":data.get("universe_count"),
+                  "mis_quote_count":data.get("mis_quote_count"),
+                  "live_valid_quote_count":audit.get("valid_quote_count"),
+                  "coverage_pct":audit.get("quote_coverage_pct"),
+                  "by_exchange":audit.get("by_exchange"),
+                  "quote_scope":data.get("quote_scope"),
+                  "market_data_gate":data.get("market_data_gate"),
+                  "strict_official_full_market":data.get("full_market_scan"),
+                  "operational_full_market":data.get("operational_full_market_scan"),
+                  "warnings":data.get("warnings",[])[:25],
+              })
+              if (data.get("market_data_gate")=="PASS_FULL_MARKET_LIVE"
+                  and data.get("full_market_scan") is True
+                  and data.get("operational_full_market_scan") is True):
+                  result["status"]="PASS_FULL_MARKET_LIVE"
+                  result["full_market_certified"]=True
+          (out/"acceptance.json").write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+          print(json.dumps(result,ensure_ascii=False,indent=2))
+          if result["status"] != "PASS_FULL_MARKET_LIVE":
+              raise SystemExit("DATA_BLOCKED: live whole-market acceptance not met; no executable signals")
+          PY
+      - name: Upload validation evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-a-plan-live-validation-${{ github.run_id }}
+          path: |
+            output/a_plan_validation/
+            output/latest.json
+            output/latest.txt
+          if-no-files-found: warn
+          retention-days: 30
