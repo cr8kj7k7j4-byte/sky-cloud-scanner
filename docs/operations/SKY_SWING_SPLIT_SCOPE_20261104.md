@@ -47,3 +47,15 @@ GitHub Actions Workflow summary 與 artifacts 為查驗入口。
 - `live_whole_market_coverage_pct=null`，`live_whole_market_certified=false`；原本盤中全市場 ≥80% 目標仍因權限／來源而 BLOCKED。
 - 新 workflow 的 GitHub cron 已設定 09:15 Asia/Taipei；**尚待下一個實際交易日排程觸發驗證**。此輪 push 成功不等於定時成功。
 - 此項目可作為**資料研究替代流程已完成**，但不得視為全市場即時行情或正式 Production 策略修復結案。
+
+
+## 2026-11-04 22:48 再驗證（台灣時間；最新證據）
+- 核對正式 GitHub Actions Run: https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/41850865342 ，head SHA `1115ed0d`。
+- **19項單元測試通過**，掃描及 Artifact 有實際產出；Workflow 最終 `failure` 是資料日期防護阻擋，非測試失敗。
+- 官方股票母池1,985；可解析日收盤1,967（99.09%）；但官方來源仍混合 **2026-11-03 與 2026-11-04**。不能用高覆蓋率掩蓋日期不一致。
+- 程式已加入 TPEx 官方備援來源日期對齊重查；本次 `official_tpex_source_used=mainboard_quotes`，`market_data_errors` 記錄 TPEx 主端點 `ConnectionError`。備援依然不能解除跨日不一致，故 `daily_scope_status=BLOCKED_DAILY_CROSS_SECTION`。
+- 當次候選即時查核 `0/0`（上游資料失效後不產生新候選），**不能沿用上午舊候選**。
+- 正式全市場即時行情 ≥80% 未通過；先前 MIS 盤中 4.53%（90/1,985）與 Fugle snapshot 403 的權限限制仍在。
+- 本次已增加備援來源識別及日期對齊測試；**不允許當日 TWSE/TPEx 來源日期不一致時強行通過**。
+- 09:15 Asia/Taipei schedule 於當日09:15之後才建置，**2026-11-05 為下一個待驗證交易日**（以官方日曆為準）。本次驗證為 push 事件，並非定時觸發成功證據。
+- **結案劃分**：資料路徑、來源追蹤與防護工程完成；11/04 夜間有效日收盤報告 BLOCKED；全市場盤中即時報價與下游 Swing V1.0 正式策略仍未完成。未經 W0 治理審查不得啟用交易。
