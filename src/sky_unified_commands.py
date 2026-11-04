@@ -9,6 +9,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .realtime_quote_evidence import market_scope
+
 BASE = Path("output/unified")
 REGISTRIES = (
     "SKY_SYSTEM_REGISTRY_V2_1.md",
@@ -35,6 +37,8 @@ def operational_market_evidence_ok(item: dict) -> bool:
     return (
         item.get("available") is True
         and item.get("operational_full_market_scan") is True
+        and item.get("quote_scope") == "WHOLE_MARKET_EXECUTED_LIVE"
+        and item.get("live_whole_market_certified") is True
         and 70.0 <= coverage <= 100.0
     )
 
@@ -76,14 +80,17 @@ def market_mode() -> dict:
             report = json.loads(Path(filename).read_text(encoding="utf-8"))
             item.update({
                 "available": True,
-                "data_timestamp": report.get("generated_at", report.get("scan_time")),
+                "data_timestamp": (report.get("generated_at") or report.get("run_time") or report.get("scan_time")),
+                "quote_scope": report.get("quote_scope"),
+                "source_scope": market_scope(report),
+                "live_whole_market_certified": report.get("live_whole_market_certified") is True,
                 "operational_full_market_scan": report.get("operational_full_market_scan"),
                 "quote_coverage_pct": report.get("quote_coverage_pct"),
                 "candidate_count": report.get("candidate_count"),
                 "candidate_preview": [
                     {"symbol": row.get("symbol"),
                      "name": row.get("name"),
-                     "price": row.get("fugle_close", row.get("last")),
+                     "price": (row.get("fugle_close") if row.get("data_status") == "VERIFIED_EXECUTED_TRADE" else None),
                      "action": row.get("candidate_action", "觀察")}
                     for row in report.get("deep_candidates", [])[:8]
                 ],
