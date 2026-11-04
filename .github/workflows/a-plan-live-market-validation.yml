@@ -1,5 +1,5 @@
 name: Sky A-Plan One-Time Live Market Validation
-# 2026-11-04: rerun after restoring diagnostics run() entrypoint.
+# 2026-11-04: immediate post-market rerun; technical acquisition != live trade certification.
 
 on:
   workflow_dispatch:
@@ -54,7 +54,12 @@ jobs:
           p = Path("output/latest.json")
           out = Path("output/a_plan_validation")
           out.mkdir(parents=True, exist_ok=True)
-          result = {"checked_at_tpe":datetime.now(ZoneInfo("Asia/Taipei")).isoformat(),
+          current_tpe = datetime.now(ZoneInfo("Asia/Taipei"))
+          market_session = ("REGULAR_TRADING" if current_tpe.weekday()<5 and
+              current_tpe.time().isoformat() >= "09:00:00" and
+              current_tpe.time().isoformat() < "13:30:00" else "OFF_SESSION")
+          result = {"checked_at_tpe":current_tpe.isoformat(),
+                    "market_session":market_session,
                     "mode":"READ_ONLY_VALIDATION", "full_market_certified":False,
                     "trade_authorized":False, "status":"DATA_BLOCKED"}
           if p.exists():
@@ -64,16 +69,18 @@ jobs:
                   "scanner_run_time":data.get("run_time"),
                   "official_universe":data.get("universe_count"),
                   "mis_quote_count":data.get("mis_quote_count"),
+                  "raw_mis_coverage_pct":round(100*data.get("mis_quote_count",0)/data["universe_count"],2) if data.get("universe_count") else 0,
                   "live_valid_quote_count":audit.get("valid_quote_count"),
                   "coverage_pct":audit.get("quote_coverage_pct"),
                   "by_exchange":audit.get("by_exchange"),
                   "quote_scope":data.get("quote_scope"),
                   "market_data_gate":data.get("market_data_gate"),
+                  "acquisition_status":"MIS_QUOTES_RETURNED" if data.get("mis_quote_count",0)>0 else "NO_MIS_QUOTES",
                   "strict_official_full_market":data.get("full_market_scan"),
                   "operational_full_market":data.get("operational_full_market_scan"),
                   "warnings":data.get("warnings",[])[:25],
               })
-              if (data.get("market_data_gate")=="PASS_FULL_MARKET_LIVE"
+              if (market_session=="REGULAR_TRADING" and data.get("market_data_gate")=="PASS_FULL_MARKET_LIVE"
                   and data.get("full_market_scan") is True
                   and data.get("operational_full_market_scan") is True):
                   result["status"]="PASS_FULL_MARKET_LIVE"
