@@ -1,46 +1,17 @@
 {
   "schema": "SKY_UNIFIED_EXECUTION_VERIFICATION_V1",
-  "published_at_utc": "2026-11-04T14:55:18.114497+00:00",
-  "run_id": "41852109331",
-  "run_url": "https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/41852109331",
-  "head_sha": "aa67c1dfdd507dd355b9c6f73844fed5f4635f10",
+  "published_at_utc": "2026-11-04T14:55:59.345422+00:00",
+  "run_id": "41852469617",
+  "run_url": "https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/41852469617",
+  "head_sha": "234bddfea867c59d9353c724698cdeb48ec6ce21",
   "command": "all_market",
-  "scan_step_outcome": "failure",
+  "scan_step_outcome": "success",
   "report_exists": true,
-  "report_generated_at_utc": "2026-11-04T14:53:50.982240+00:00",
-  "decision": "DATA_COVERAGE_INSUFFICIENT_NO_TRADE",
-  "calendar_exit_code": 0,
-  "strategy_exit_codes": {
-    "intraday": 0,
-    "swing_research": 0,
-    "swing5d_research": 0
-  },
-  "reports": {
-    "intraday": {
-      "available": true,
-      "data_timestamp": "2026-11-04T22:53:52.805592+08:00",
-      "operational_full_market_scan": false,
-      "quote_coverage_pct": 0.0,
-      "candidate_count": null,
-      "research_only": false
-    },
-    "swing_research": {
-      "available": true,
-      "data_timestamp": "2026-11-04T22:54:16.069786+08:00",
-      "operational_full_market_scan": false,
-      "quote_coverage_pct": 0.0,
-      "candidate_count": 0,
-      "research_only": true
-    },
-    "swing5d_research": {
-      "available": true,
-      "data_timestamp": "2026-11-04T22:54:40.390360+08:00",
-      "operational_full_market_scan": false,
-      "quote_coverage_pct": 0.0,
-      "candidate_count": 0,
-      "research_only": true
-    }
-  },
+  "report_generated_at_utc": "2026-11-04T14:55:58.099966+00:00",
+  "decision": "NO_TRADE_OUTSIDE_TW_REGULAR_SESSION",
+  "calendar_exit_code": null,
+  "strategy_exit_codes": {},
+  "reports": {},
   "evidence": {},
   "no_order_or_production_promotion": true
 }
