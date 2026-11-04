@@ -1,6 +1,1 @@
-{
-  "command": "all_market",
-  "reason": "postmerge_all_model_realtime_scope_fail_closed_validation_PR240",
-  "execution_scope": "read_only_no_order_no_production_promotion",
-  "scope_contract": "docs/SKY_UNIFIED_REALTIME_SCOPE_20261104.md"
-}
+{"command":"system_health","requested_at":"2026-11-04","reason":"post_merge_e2e_health_verification"}
