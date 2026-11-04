@@ -1,0 +1,6 @@
+{
+  "date": "2026-11-04",
+  "purpose": "verify bounded provider-friendly recovery / no false green",
+  "max_recovery_symbols": 80,
+  "mode": "swing5d"
+}
