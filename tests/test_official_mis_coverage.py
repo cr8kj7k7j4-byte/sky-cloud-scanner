@@ -174,3 +174,57 @@ def test_mis_exchange_coverage_is_diagnostic_not_fallback(monkeypatch):
     assert any("TWSE=1/1 (100.0%)" in x and "TPEx=0/1 (0.0%)" in x
                for x in warnings)
     assert any("MIS_LOW_COVERAGE" in x for x in warnings)
+
+
+def test_mis_503_retries_once_then_recovers(monkeypatch):
+    import requests
+
+    class TemporaryFailure(FakeSession):
+        def get(self, url, params=None, timeout=20):
+            if params is None:
+                return Response([])
+            self.calls.append(params["ex_ch"])
+            if len(self.calls) == 1:
+                response = requests.Response()
+                response.status_code = 503
+                response.url = url
+                raise requests.HTTPError("temporary provider outage", response=response)
+            return Response([{"c":"2330", "z":"30", "y":"29", "v":"1000"}])
+
+    fake = TemporaryFailure()
+    monkeypatch.setattr(official, "session", lambda: fake)
+    monkeypatch.setattr(official.time, "sleep", lambda _: None)
+    rows, warnings = official.fetch_mis_quotes([
+        {"symbol":"2330", "exchange":"TWSE", "mis_prefix":"tse"}
+    ])
+    assert len(rows) == 1
+    assert len(fake.calls) == 2
+    assert any("http_retries=1" in w for w in warnings)
+    assert any("failed_requests=0" in w for w in warnings)
+
+
+def test_mis_403_is_not_retried_and_never_fabricates(monkeypatch):
+    import requests
+
+    class ForbiddenSession(FakeSession):
+        def get(self, url, params=None, timeout=20):
+            if params is None:
+                return Response([])
+            self.calls.append(params["ex_ch"])
+            response = requests.Response()
+            response.status_code = 403
+            response.url = url
+            raise requests.HTTPError("forbidden", response=response)
+
+    fake = ForbiddenSession()
+    monkeypatch.setattr(official, "session", lambda: fake)
+    monkeypatch.setattr(official.time, "sleep", lambda _: None)
+    rows, warnings = official.fetch_mis_quotes([
+        {"symbol":"2330", "exchange":"TWSE", "mis_prefix":"tse"}
+    ])
+    assert rows == []
+    # One initial attempt plus one separate bounded missing-symbol recovery.
+    assert len(fake.calls) == 2
+    assert any("HTTP 403" in w for w in warnings)
+    assert any("http_403=2" in w for w in warnings)
+    assert any("MIS_LOW_COVERAGE" in w for w in warnings)
