@@ -9,6 +9,7 @@ from research.w6_execution_evidence import (
     decision_to_w6_evidence,
     paper_snapshot_to_w6_evidence,
     summarize_p1,
+    quote_time_integrity,
 )
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -114,6 +115,8 @@ def test_twenty_quote_only_rows_can_ready_spread_not_slippage():
             "bid": 49.95,
             "ask": 50.05,
             "fill_status": "UNKNOWN",
+            "quote_source": "FUGLE_INTRADAY_QUOTE",
+            "quote_timestamp": "2026-10-26T09:05:00+08:00",
             "risk_per_share": 0.5,
         })
     out = summarize_p1(rows)
@@ -155,3 +158,54 @@ def test_w6_quote_evidence_preserves_observation_identity_not_execution_claim():
     assert row["decision_provenance_status"] == "RANKING_OBSERVATION_ONLY"
     assert row["fill_status"] == "UNKNOWN"
     assert row["fill_price"] is None
+
+def test_w6_microsecond_quote_after_scan_is_not_retroactive():
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    quote_microseconds = int(datetime(2026, 10, 28, 9, 53, tzinfo=ZoneInfo("Asia/Taipei")).timestamp() * 1_000_000)
+    row = {
+        "symbol": "2409", "observation_timestamp": "2026-10-28T09:51:00+08:00",
+        "quote_timestamp": quote_microseconds, "quote_source": "FUGLE_INTRADAY_QUOTE",
+        "bid": 49.95, "ask": 50.05, "reference_price": 50.0,
+        "fill_status": "UNKNOWN", "execution_type": "QUOTE_ONLY",
+    }
+    quality = quote_time_integrity(row)
+    assert quality["quote_after_scan_observation"]
+    assert not quality["quote_spread_time_valid"]
+    assert not quality["decision_time_quote_valid"]
+    out = summarize_p1([dict(row, symbol=str(2400 + i)) for i in range(20)])
+    assert out["spread_status"] == "INSUFFICIENT_DATA"
+    assert out["quote_after_scan_observation_count"] == 20
+    assert out["spread_sample_count"] == 0
+
+
+def test_w6_quote_acquisition_can_establish_quote_spread_not_decision_quote():
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    quote_microseconds = int(datetime(2026, 10, 28, 9, 53, tzinfo=ZoneInfo("Asia/Taipei")).timestamp() * 1_000_000)
+    row = {
+        "symbol": "2409", "observation_timestamp": "2026-10-28T09:51:00+08:00",
+        "quote_observation_timestamp": "2026-10-28T09:53:01+08:00",
+        "quote_timestamp": quote_microseconds, "quote_source": "FUGLE_INTRADAY_QUOTE",
+        "bid": 49.95, "ask": 50.05, "reference_price": 50.0,
+        "fill_status": "UNKNOWN", "execution_type": "QUOTE_ONLY",
+    }
+    quality = quote_time_integrity(row)
+    assert quality["quote_spread_time_valid"]
+    assert not quality["decision_time_quote_valid"]
+    out = summarize_p1([dict(row, symbol=str(2400 + i)) for i in range(20)])
+    assert out["spread_status"] == "BASELINE_READY"
+    assert out["decision_time_quote_valid_count"] == 0
+    assert out["fill_evaluable_sample"] == 0
+
+
+def test_w6_invalid_time_and_missing_source_fail_closed():
+    row = {
+        "observation_timestamp": "2026-10-28T09:51:00+08:00",
+        "quote_observation_timestamp": "2026-10-28T09:53:01+08:00",
+        "quote_timestamp": "2026-10-28T09:53:00",  # timezone-naive
+        "quote_source": "",
+    }
+    quality = quote_time_integrity(row)
+    assert not quality["quote_spread_time_valid"]
+    assert not quality["quote_timestamp_valid"]
