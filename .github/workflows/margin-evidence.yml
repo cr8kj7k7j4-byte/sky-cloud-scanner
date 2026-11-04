@@ -6,7 +6,8 @@ on:
       - ".github/workflows/margin-evidence.yml"
   workflow_dispatch:
   schedule:
-    - cron: "30 11 * * 1-5"
+    # Taiwan 23:30; allow postmarket official reports time to publish.
+    - cron: "30 15 * * 1-5"
 
 permissions:
   contents: write
@@ -48,7 +49,18 @@ jobs:
       - name: Collect official margin evidence
         if: steps.calendar.outputs.open == 'true'
         id: collect
-        run: python research/margin_evidence/collect.py
+        run: |
+          # Preserve fail-closed report-date checks; retry publication lag only.
+          for attempt in 1 2 3; do
+            if python research/margin_evidence/collect.py; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Official reports still unavailable or unverified after retries" >&2
+              exit 1
+            fi
+            sleep 90
+          done
       - name: Normalize and verify source hashes
         if: steps.collect.outcome == 'success' || steps.probe.outcome == 'success'
         run: python research/margin_evidence/normalize.py
