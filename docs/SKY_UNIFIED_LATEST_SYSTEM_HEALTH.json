@@ -1,0 +1,103 @@
+{
+  "schema": "SKY_UNIFIED_EXECUTION_VERIFICATION_V1",
+  "published_at_utc": "2026-11-04T14:53:50.794078+00:00",
+  "run_id": "41852057535",
+  "run_url": "https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/41852057535",
+  "head_sha": "f9dafcfe3ff9c6dcabb21b61e09af00ba6e70363",
+  "command": "system_health",
+  "scan_step_outcome": "success",
+  "report_exists": true,
+  "report_generated_at_utc": "2026-11-04T14:53:30.423759+00:00",
+  "decision": "HEALTH_OBSERVED_NOT_FULLY_CERTIFIED",
+  "calendar_exit_code": null,
+  "strategy_exit_codes": {},
+  "reports": {},
+  "evidence": {
+    "diagnostic_time": "2026-11-04T22:53:30.545808+08:00",
+    "official_universe": {
+      "twse": 1092,
+      "tpex": 893,
+      "warnings": []
+    },
+    "universe_count": 1985,
+    "mis_sample": {
+      "requested": 120,
+      "returned": 104
+    },
+    "fugle": {
+      "fugle_tickers_TSE": {
+        "status": "available",
+        "ok": true,
+        "fresh_executed_trade": null,
+        "api_accessible": null
+      },
+      "fugle_tickers_OTC": {
+        "status": "available",
+        "ok": true,
+        "fresh_executed_trade": null,
+        "api_accessible": null
+      },
+      "fugle_quote_2330": {
+        "status": "STALE_EXECUTED_TRADE",
+        "ok": false,
+        "fresh_executed_trade": false,
+        "api_accessible": true
+      },
+      "fugle_quote_8089_otc": {
+        "status": "STALE_EXECUTED_TRADE",
+        "ok": false,
+        "fresh_executed_trade": false,
+        "api_accessible": true
+      },
+      "fugle_snapshot_TSE": {
+        "status": "plan_restricted",
+        "ok": false,
+        "fresh_executed_trade": null,
+        "api_accessible": null
+      },
+      "fugle_snapshot_OTC": {
+        "status": "plan_restricted",
+        "ok": false,
+        "fresh_executed_trade": null,
+        "api_accessible": null
+      }
+    },
+    "schedule": {
+      "audited_at_utc": "2026-11-04T14:53:39.294430+00:00",
+      "workflow_count": 22,
+      "attention": [
+        {
+          "path": ".github/workflows/a-plan-live-market-validation.yml",
+          "verdict": "UNVERIFIED"
+        },
+        {
+          "path": ".github/workflows/margin-evidence.yml",
+          "verdict": "ATTENTION"
+        },
+        {
+          "path": ".github/workflows/p0ops-provider-preflight.yml",
+          "verdict": "UNVERIFIED"
+        },
+        {
+          "path": ".github/workflows/publish-external-status-snapshot.yml",
+          "verdict": "ATTENTION"
+        },
+        {
+          "path": ".github/workflows/revenue-pit-coverage-audit.yml",
+          "verdict": "UNVERIFIED"
+        },
+        {
+          "path": ".github/workflows/scan.yml",
+          "verdict": "ATTENTION"
+        },
+        {
+          "path": ".github/workflows/swing-split-scope-research.yml",
+          "verdict": "UNVERIFIED"
+        }
+      ]
+    },
+    "all_checks_passed": false,
+    "note": "API access and workflow success do not certify live whole-market quote coverage."
+  },
+  "no_order_or_production_promotion": true
+}
