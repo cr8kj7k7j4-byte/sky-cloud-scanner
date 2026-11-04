@@ -206,16 +206,39 @@ jobs:
           MSG="$(cat /tmp/sky_material_message.txt)"
           curl --fail --silent --show-error             --retry 3             -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage"             -H "Content-Type: application/json"             --data "$(python -c 'import json,os; print(json.dumps({"chat_id":os.environ["TELEGRAM_CHAT_ID"],"text":open("/tmp/sky_material_message.txt",encoding="utf-8").read(),"disable_web_page_preview":True},ensure_ascii=False))')"
 
-      - name: Commit snapshot when changed
+      - name: Publish snapshot through GitHub contents API
         shell: bash
         run: |
           set -euo pipefail
-          git config user.name "sky-evidence-bot"
-          git config user.email "sky-evidence-bot@users.noreply.github.com"
-          git add docs/SKY_EXTERNAL_LATEST_STATUS.json docs/SKY_EXTERNAL_LATEST_STATUS.md
-          if git diff --cached --quiet; then
-            echo "No status change to commit."
-            exit 0
-          fi
-          git commit -m "W4: publish external latest status snapshot [skip ci]"
-          git push origin HEAD:main
+          # Git push has been rejected by remote commit_refs even when the
+          # dashboard itself succeeded. Use the authorized contents API and
+          # retain a failing workflow if GitHub rejects the update.
+          # A status snapshot is informational, never a promotion signal.
+          for FILE in docs/SKY_EXTERNAL_LATEST_STATUS.json docs/SKY_EXTERNAL_LATEST_STATUS.md; do
+            TARGET="repos/${GH_REPO}/contents/${FILE}"
+            CONTENT="$(base64 -w0 "${FILE}")"
+            PUBLISHED=false
+            for ATTEMPT in 1 2 3; do
+              SHA="$(gh api "${TARGET}" --jq '.sha' 2>/dev/null || true)"
+              if [ -n "${SHA}" ]; then
+                if gh api --method PUT "${TARGET}" \
+                  -f message="W4: publish external latest status snapshot [skip ci]" \
+                  -f content="${CONTENT}" -f sha="${SHA}" -f branch=main >/dev/null; then
+                  PUBLISHED=true
+                  break
+                fi
+              else
+                if gh api --method PUT "${TARGET}" \
+                  -f message="W4: publish external latest status snapshot [skip ci]" \
+                  -f content="${CONTENT}" -f branch=main >/dev/null; then
+                  PUBLISHED=true
+                  break
+                fi
+              fi
+              sleep $((ATTEMPT * 2))
+            done
+            if [ "${PUBLISHED}" != true ]; then
+              echo "::error::Unable to publish ${FILE}; dashboard artifact remains source of evidence."
+              exit 1
+            fi
+          done
