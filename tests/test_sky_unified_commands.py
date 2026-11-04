@@ -96,3 +96,15 @@ def test_validation_only_reads_existing_provenance(monkeypatch, tmp_path):
     assert result["evidence"]["sample_count"] == 100
     assert result["evidence"]["after_cost_expectancy_r"] is None
     assert result["evidence"]["production_eligible"] is False
+
+
+def test_live_market_guard_taiwan_hours():
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    from src.sky_unified_commands import market_session_open
+    tz = ZoneInfo("Asia/Taipei")
+    assert not market_session_open(datetime(2026, 11, 4, 8, 59, tzinfo=tz))
+    assert market_session_open(datetime(2026, 11, 4, 9, 5, tzinfo=tz))
+    assert market_session_open(datetime(2026, 11, 4, 13, 29, tzinfo=tz))
+    assert not market_session_open(datetime(2026, 11, 4, 13, 30, tzinfo=tz))
+    assert not market_session_open(datetime(2026, 11, 7, 10, 0, tzinfo=tz))
