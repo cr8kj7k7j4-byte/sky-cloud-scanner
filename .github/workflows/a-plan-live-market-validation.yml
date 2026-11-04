@@ -1,4 +1,5 @@
 name: Sky A-Plan One-Time Live Market Validation
+# 2026-11-04: rerun after restoring diagnostics run() entrypoint.
 
 on:
   workflow_dispatch:
