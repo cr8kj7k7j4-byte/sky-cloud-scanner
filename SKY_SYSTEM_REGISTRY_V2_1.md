@@ -35,7 +35,7 @@ Research namespaces:
 | vol20 market-residual relationship | FEATURE_ONLY | P0-F contextual feature; not a standalone long-only trigger. |
 | drawdown20 residual evidence | FEATURE_ONLY | Research evidence only. |
 | market breadth / relative strength | FEATURE_ONLY / CONTEXT | Market and ranking context; not standalone production alpha. |
-| Top100 gainers universe | FEATURE_ONLY / CANDIDATE_POOL | Candidate-universe context only. Two independently preregistered Top100 Velocity selector variants failed after cost; Top100 membership alone is not a trade signal. |ndidate-universe context only. Frozen Baseline A velocity selector was rejected; Top100 membership alone is not a trade signal. |
+| Top100 gainers universe | FEATURE_ONLY / CANDIDATE_POOL | Candidate-universe context only. Two independently preregistered Top100 Velocity selector variants failed after cost; Top100 membership alone is not a trade signal. |
 
 ## Rejected candidate families
 
