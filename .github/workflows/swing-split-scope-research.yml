@@ -1,0 +1,69 @@
+name: Sky Swing Split-Scope Research Scan
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scan_requests/swing_split_scope/**"
+      - "src/swing_split_scope_scanner.py"
+      - "tests/test_swing_split_scope_scanner.py"
+      - ".github/workflows/swing-split-scope-research.yml"
+  schedule:
+    - cron: "15 9 * * 1-5"
+      timezone: "Asia/Taipei"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: swing-split-scope-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r requirements.txt pytest
+      - name: Run split-scope and MIS safety tests
+        run: python -m pytest -q tests/test_swing_split_scope_scanner.py tests/test_official_mis_coverage.py
+      - name: Run research-only D-close plus candidate intraday scan
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+        run: python -m src.swing_split_scope_scanner --deep-n 8
+      - name: Publish independent coverage metrics
+        if: always()
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          path=Path('output/swing_split_scope/latest.json')
+          if not path.exists():
+              raise SystemExit('No scanner output')
+          d=json.loads(path.read_text(encoding='utf-8'))
+          text=(
+            '## Sky 波段分層研究掃描（非正式交易訊號）\n\n'
+            f'官方日收盤日期：{d.get("official_daily_signal_date")}\n\n'
+            f'官方日收盤橫斷面覆蓋率：{d.get("official_daily_coverage_pct")}%\n\n'
+            f'來源與市場覆蓋：{d.get("official_daily_market_coverage_pct")}\n\n'
+            f'富果候選個股：{d.get("live_quote_available")}/{d.get("live_quote_requested")}\n\n'
+            '全市場盤中即時覆蓋率：未驗證／不得視為已通過。\n\n'
+            f'資料品質：{d.get("daily_scope_status")}\n'
+          )
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a',encoding='utf-8') as f:
+              f.write(text)
+          PY
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-swing-split-scope-${{ github.run_id }}
+          path: output/swing_split_scope/
+          if-no-files-found: warn
+          retention-days: 30
