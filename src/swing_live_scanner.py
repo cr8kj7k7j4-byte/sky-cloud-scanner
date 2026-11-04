@@ -23,7 +23,7 @@ MODE_META = {
         "strategy_status": "PRODUCTION_BASELINE_ACTIVE_RULE_SPEC_BLOCKED",
         "production_strategy": "Sky Swing V1.0",
         "candidate_label": "波段觀察候選",
-        "note": "全市場即時資料可用；Sky Swing V1.0 exact executable rule spec 仍受 W0 governance blocker 約束，因此本掃描只產生可深查候選，不冒充完整 V1.0 買進訊號。",
+        "note": "Sky Swing V1.0 exact executable rule spec 仍受 W0 governance blocker 約束，因此本掃描只產生可深查候選，不冒充完整 V1.0 買進訊號。",
     },
     "swing5d": {
         "display_name": "Sky Swing 5D 快掃",
@@ -34,6 +34,17 @@ MODE_META = {
         "note": "Swing 5D 為研究候選/HOLD；即時資料接通不代表策略已通過完整穩定性與 Promotion Gates。",
     },
 }
+
+
+def coverage_governance_notice(operational_full_market_scan, coverage_pct):
+    """Only certify operational quote coverage after the existing market gate."""
+    if operational_full_market_scan:
+        return "全市場實務報價覆蓋驗證通過；OTC MIS 仍僅為操作備援，非 TPEx 官方完整即時行情。"
+    return (
+        f"全市場即時行情資料未通過驗證（有效報價覆蓋率 {coverage_pct}%）；"
+        "候選僅供觀察，不可據此產生 A+ 或可執行買進價。"
+        "OTC MIS 僅為操作備援，非 TPEx 官方完整即時行情。"
+    )
 
 
 def _safe_float(v, default=0.0):
@@ -113,6 +124,8 @@ def run(mode="swing5d", top_n=20, deep_n=8):
         and coverage_pct >= 80.0
     )
 
+    coverage_notice = coverage_governance_notice(operational_full_market_scan, coverage_pct)
+
     eligible = []
     rejected = 0
     for row in rows:
@@ -156,7 +169,7 @@ def run(mode="swing5d", top_n=20, deep_n=8):
                 x["candidate_reason"] = "漲停／追高否決"
             else:
                 x["candidate_action"] = "觀察"
-                x["candidate_reason"] = MODE_META[mode]["note"]
+                x["candidate_reason"] = coverage_notice + " " + MODE_META[mode]["note"]
         except PermissionError as exc:
             x["data_status"] = "PARTIAL_FUGLE_PERMISSION"
             x["candidate_action"] = "觀察"
@@ -196,7 +209,7 @@ def run(mode="swing5d", top_n=20, deep_n=8):
         "candidate_count": min(top_n, len(candidates)),
         "candidates": candidates[:top_n],
         "deep_candidates": deep,
-        "governance_note": MODE_META[mode]["note"],
+        "governance_note": coverage_notice + " " + MODE_META[mode]["note"],
     }
 
     suffix = "swing5d" if mode == "swing5d" else "swing"
@@ -213,6 +226,7 @@ def run(mode="swing5d", top_n=20, deep_n=8):
         render_mobile_table(deep),
         "",
         "【治理】",
+        coverage_notice,
         MODE_META[mode]["note"],
         "多方／空方評分為證據評分，不是勝率或機率；無治理後買點/停損時以 — 顯示。",
     ]
