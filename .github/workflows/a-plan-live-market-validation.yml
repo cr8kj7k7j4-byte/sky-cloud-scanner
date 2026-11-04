@@ -1,5 +1,5 @@
-name: Sky A-Plan One-Time Live Market Validation
-# 2026-11-04: immediate post-market rerun; technical acquisition != live trade certification.
+name: Sky A-Plan Live Market Acceptance
+# Scheduled read-only diagnostics; source acquisition does not imply trade certification.
 
 on:
   workflow_dispatch:
