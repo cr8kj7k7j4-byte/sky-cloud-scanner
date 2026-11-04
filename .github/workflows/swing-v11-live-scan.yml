@@ -79,6 +79,24 @@ jobs:
             --history-dir "${{ steps.data.outputs.history_dir }}" \
             --top-n "${{ inputs.top_n || '20' }}"
 
+      - name: Verify canonical signal date is fresh
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path("output/swing_v11_live/latest.json")
+          if not path.is_file():
+              raise SystemExit("BLOCKED_STALE_SIGNAL: Swing V1.1 report is missing")
+          report = json.loads(path.read_text(encoding="utf-8"))
+          guard = report.get("signal_date_guard") or {}
+          print("signal_date:", report.get("signal_date"))
+          print("expected_signal_date:", guard.get("expected_signal_date"))
+          print("freshness:", guard.get("status"))
+          if guard.get("status") != "PASS" or guard.get("fresh") is not True:
+              raise SystemExit("BLOCKED_STALE_SIGNAL: historical signal date is not the previous trading day")
+          PY
+
       - name: Publish summary
         if: always()
         run: |
