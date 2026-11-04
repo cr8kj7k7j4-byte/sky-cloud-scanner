@@ -91,6 +91,24 @@ def evaluate_daily_scope(universe, twse, tpex, now):
     }
 
 
+def quote_time_freshness(q, now, max_age_seconds=900):
+    """Return verified quote timestamp, or an explicit reason to withhold recency."""
+    raw=q.get("lastUpdated")
+    try:
+        timestamp=float(raw)
+        if timestamp > 10**14:
+            timestamp/=1_000_000  # Fugle epoch microseconds
+        elif timestamp > 10**11:
+            timestamp/=1000  # milliseconds
+        updated=datetime.fromtimestamp(timestamp, TZ)
+        age=(now-updated).total_seconds()
+        if -120<=age<=max_age_seconds:
+            return updated.isoformat(), "FRESH"
+        return updated.isoformat(), "STALE_OR_FUTURE_TIMESTAMP"
+    except (TypeError, ValueError, OverflowError, OSError):
+        return None, "MISSING_OR_INVALID_TIMESTAMP"
+
+
 def run(deep_n=8):
     now=datetime.now(TZ)
     OUT.mkdir(parents=True,exist_ok=True)
@@ -133,12 +151,14 @@ def run(deep_n=8):
             qdate=str(q.get("date") or "")
             last=_f(q.get("lastPrice") or q.get("closePrice"))
             # During market hours accept only a quote explicitly dated today.
-            if qdate==now.date().isoformat() and last is not None and last>0:
+            updated_at, freshness=quote_time_freshness(q, now)
+            candidate["current_price_updated_at"]=updated_at
+            if qdate==now.date().isoformat() and last is not None and last>0 and q.get("isTrial") is not True and freshness=="FRESH":
                 candidate.update({"current_price":last,"current_price_date":qdate,
                     "current_price_source":"Fugle single-symbol intraday",
-                    "live_quote_status":"DATE_MATCH_ONLY_NOT_TIME_FRESHNESS_CERTIFIED"})
+                    "live_quote_status":"FRESH_DATE_AND_TIMESTAMP_VERIFIED"})
             else:
-                candidate["live_quote_status"]="STALE_OR_MISSING_TRADE"
+                candidate["live_quote_status"]=freshness if freshness!="FRESH" else "STALE_OR_MISSING_TRADE"
         except Exception as e:
             candidate["live_quote_status"]=f"UNAVAILABLE_{type(e).__name__}"
         candidates.append(candidate)
@@ -158,6 +178,7 @@ def run(deep_n=8):
         "live_quote_scope":"CANDIDATES_ONLY",
         "live_quote_requested":len(candidates),
         "live_quote_available":sum(x["current_price"] is not None for x in candidates),
+        "live_quote_timestamp_verified":sum(x["live_quote_status"]=="FRESH_DATE_AND_TIMESTAMP_VERIFIED" for x in candidates),
         "live_whole_market_coverage_pct":None,
         "live_whole_market_certified":False,
         "strict_official_full_market_certified":False,
