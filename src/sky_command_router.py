@@ -20,6 +20,32 @@ class CommandRoute:
 
 _PATTERNS = [
     (
+        re.compile(r"^Sky\s*(?:全市場即時行情|全市場即時行情檢查)$", re.I),
+        CommandRoute(
+            "SKY_WHOLE_MARKET_LIVE_DATA_AUDIT", "WHOLE_MARKET_REALTIME",
+            True, True, False, "sky-unified-commands.yml: all_market",
+            "Require verified current-session executed trades across TWSE/TPEx. "
+            "Daily cross-sections and shortlisted live quotes are not full-market live."
+        ),
+    ),
+    (
+        re.compile(r"^Sky\s*(?:當沖空方研究|空方研究)(?:\s*掃一下|\s*現在掃一次)?$", re.I),
+        CommandRoute(
+            "SKY_SHORT_RESEARCH", "WHOLE_MARKET_REALTIME_RESEARCH_BLOCKED",
+            True, True, False, "W2 short research; standalone realtime runner not verified",
+            "Research only; requires independent short structures, short eligibility, "
+            "full-market quotes, causal evidence and W6 cost gate. No short signal."
+        ),
+    ),
+    (
+        re.compile(r"^Sky\s*v1\.4\s*Dynamic\s*Capital\s*Rotation\s*掃一下$", re.I),
+        CommandRoute(
+            "SKY_DAYTRADE_SCAN", "WHOLE_MARKET_REALTIME",
+            True, True, False, "src.main",
+            "Alias to Sky 當沖現在掃一次, with strict missing-market-data rejection."
+        ),
+    ),
+    (
         re.compile(r"^Sky\s*全市場掃描$", re.I),
         CommandRoute(
             "SKY_UNIFIED_MARKET_SCAN", "MULTI_MODEL_MARKET", True, True, False,
@@ -108,7 +134,7 @@ _PATTERNS = [
         ),
     ),
     (
-        re.compile(r"^Sky\s*(?:持倉|警戒)$", re.I),
+        re.compile(r"^Sky\s*(?:持倉|持倉監控|警戒)$", re.I),
         CommandRoute(
             "SKY_MONITOR", "WATCHLIST_OR_POSITION_REALTIME", True, False, False,
             "P0-A/PMS realtime refresh",

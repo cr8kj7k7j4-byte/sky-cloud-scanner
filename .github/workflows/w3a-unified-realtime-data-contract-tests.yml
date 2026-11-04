@@ -1,0 +1,46 @@
+name: W3A Unified Sky Realtime Data Contract Tests
+
+on:
+  pull_request:
+    paths:
+      - "src/realtime_quote_evidence.py"
+      - "src/sky_command_router.py"
+      - "src/sky_unified_commands.py"
+      - "src/official.py"
+      - "src/swing_v11_live_scanner.py"
+      - "src/swing_live_scanner.py"
+      - "src/swing_split_scope_scanner.py"
+      - "src/sky_single_stock_realtime.py"
+      - "tests/test_realtime_market_contract.py"
+      - "tests/test_sky_unified_commands.py"
+      - "tests/test_sky_command_router.py"
+      - "tests/test_sky_single_stock_realtime.py"
+      - ".github/workflows/w3a-unified-realtime-data-contract-tests.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  data-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test dependencies
+        run: pip install -r requirements.txt pytest
+      - name: Test realtime data evidence and all current command routes
+        run: |
+          PYTHONPATH=. python -m pytest -q \
+            tests/test_realtime_market_contract.py \
+            tests/test_sky_command_router.py \
+            tests/test_sky_unified_commands.py \
+            tests/test_sky_single_stock_realtime.py \
+            tests/test_swing_v11_live_scanner.py \
+            tests/test_swing_v11_freshness.py \
+            tests/test_swing_live_scanner.py \
+            tests/test_swing_split_scope_scanner.py \
+            tests/test_official_mis_coverage.py

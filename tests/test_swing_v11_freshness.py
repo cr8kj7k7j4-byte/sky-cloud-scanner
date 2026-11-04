@@ -46,7 +46,7 @@ def test_stale_history_produces_no_tradable_candidates(monkeypatch, tmp_path):
     monkeypatch.setattr(scan, "frozen_signal_pass", lambda _: (True, []))
     monkeypatch.setattr(scan, "load_official_universe", lambda: ([{"symbol": "1111"}], {"twse": 1091, "tpex": 892}))
     calls = []
-    def quotes(candidates, universe):
+    def quotes(candidates, universe, now=None):
         calls.append(candidates)
         return {}, [], {"requested": 0, "mis": 0, "fugle": 0, "missing": 0}
     monkeypatch.setattr(scan, "fetch_candidate_live_quotes", quotes)

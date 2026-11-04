@@ -107,7 +107,7 @@ def fetch_mis_quotes(universe, batch_size=55, sleep_s=.18):
                 "high":_f(q.get("h")),"low":_f(q.get("l")),"open":_f(q.get("o")),
                 "bid":_f((q.get("b") or "").split("_")[0]),
                 "ask":_f((q.get("a") or "").split("_")[0]),
-                "quote_time":q.get("t",""),"quote_source":"TWSE MIS"}
+                "quote_date":q.get("d"),"quote_time":q.get("t",""),"quote_source":"TWSE MIS"}
 
     missing=[]
     invalid_samples=[]

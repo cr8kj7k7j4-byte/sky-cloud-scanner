@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 
 from .official import fetch_mis_quotes, load_official_universe
 from .fugle import get_quote
+from .realtime_quote_evidence import fugle_executed_trade, mis_executed_trade_row
 from .sky_mobile_table import render_mobile_table
 from .trading_calendar import fetch_calendar, classify_date, _roc_to_iso
 
@@ -188,7 +189,7 @@ def intraday_execution_decision(current_price: float | None, entry_open: float |
     return "WAIT_PULLBACK", "等待", "現價高於 D+1 開盤參考價；等待回到開盤價或以下，不追價。"
 
 
-def fetch_candidate_live_quotes(frozen_pass: list[dict], universe: list[dict]):
+def fetch_candidate_live_quotes(frozen_pass: list[dict], universe: list[dict], now=None):
     """Fetch live quotes only for already-frozen V1.1 candidates.
 
     The whole-market decision is completed on the canonical D-close cross-section.
@@ -196,6 +197,7 @@ def fetch_candidate_live_quotes(frozen_pass: list[dict], universe: list[dict]):
     """
     if not frozen_pass:
         return {}, [], {"requested": 0, "mis": 0, "fugle": 0, "missing": 0}
+    now = now or datetime.now(TZ)
 
     universe_by_symbol = {str(x.get("symbol")): x for x in universe}
     targets = [
@@ -204,7 +206,15 @@ def fetch_candidate_live_quotes(frozen_pass: list[dict], universe: list[dict]):
         if s["symbol"] in universe_by_symbol
     ]
     quotes, warnings = fetch_mis_quotes(targets, batch_size=20, sleep_s=0.25)
-    quote_by_symbol = {str(x.get("symbol")): x for x in quotes}
+    quote_by_symbol = {
+        str(x.get("symbol")): x for x in quotes
+        if mis_executed_trade_row(x, now)
+    }
+    if len(quote_by_symbol) != len(quotes):
+        warnings.append(
+            "MIS_CANDIDATE_QUOTE_UNVERIFIED_DATE_OR_TRADE_TIME:"
+            f" withheld={len(quotes) - len(quote_by_symbol)}"
+        )
     mis_count = len(quote_by_symbol)
     fugle_count = 0
 
@@ -214,10 +224,11 @@ def fetch_candidate_live_quotes(frozen_pass: list[dict], universe: list[dict]):
             continue
         try:
             q = get_quote(sym)
-            last = _f(q.get("closePrice"))
+            last, trade_dt, trade_status = fugle_executed_trade(q, now)
             open_ = _f(q.get("openPrice"))
             prev = _f(q.get("previousClose"))
-            if last is None or open_ is None:
+            if trade_status != "FRESH_EXECUTED_TRADE" or last is None or open_ is None:
+                warnings.append(f"Fugle candidate {sym} withheld: {trade_status}")
                 continue
             volume = _f(q.get("totalTradeVolume")) or _f(q.get("volume")) or 0.0
             change_pct = ((last / prev - 1.0) * 100.0) if prev not in (None, 0) else None
@@ -234,7 +245,8 @@ def fetch_candidate_live_quotes(frozen_pass: list[dict], universe: list[dict]):
                 "low": _f(q.get("lowPrice")),
                 "bid": None,
                 "ask": None,
-                "quote_time": q.get("lastUpdated") or "",
+                "quote_time": trade_dt.isoformat(),
+                "quote_date": now.date().isoformat(),
                 "quote_source": "Fugle realtime fallback",
             }
             fugle_count += 1
@@ -269,17 +281,20 @@ def run(history_dir: str, top_n: int = 20):
 
     universe, universe_health = load_official_universe()
     quote_by_symbol, warnings, live_quote_meta = fetch_candidate_live_quotes(
-        frozen_pass if freshness["fresh"] else [], universe
+        frozen_pass if freshness["fresh"] else [], universe, now=now
     )
     if not freshness["fresh"]:
         warnings.append("SIGNAL_DATE_BLOCKED: " + freshness["status"])
 
     cross_required = max(20, int((date_meta.get("max_cross_section") or 0) * 0.80))
-    operational_full_market_scan = bool(
+    # The frozen cross-section is daily; only a few frozen signals have
+    # live quotes. Never advertise this as whole-market intraday coverage.
+    daily_cross_section_operational = bool(
         freshness["fresh"] and len(cross) >= cross_required
         and universe_health.get("twse", 0) >= 500
         and universe_health.get("tpex", 0) >= 400
     )
+    operational_full_market_scan = False
     requested_quotes = live_quote_meta["requested"]
     candidate_quote_coverage = (
         None
@@ -358,6 +373,9 @@ def run(history_dir: str, top_n: int = 20):
         "frozen_signal_count": len(frozen_pass),
         "date_selection": date_meta,
         "operational_full_market_scan": operational_full_market_scan,
+        "daily_cross_section_operational": daily_cross_section_operational,
+        "live_whole_market_certified": False,
+        "live_whole_market_coverage_pct": None,
         "strict_official_full_market_certified": False,
         "quote_coverage_pct": candidate_quote_coverage,
         "quote_scope": "FROZEN_SIGNAL_CANDIDATES_ONLY",
@@ -396,7 +414,8 @@ def run(history_dir: str, top_n: int = 20):
     lines = [
         f"Sky Swing V1.1｜現在掃一次｜{now:%Y-%m-%d %H:%M}",
         f"訊號日：{signal_date}｜執行日：{now:%Y-%m-%d}｜日期檢查：{freshness['status']}｜預期訊號日：{freshness['expected_signal_date'] or '待確認'}",
-        f"全市場訊號掃描：{'是' if operational_full_market_scan else '否'}｜D-close cross-section {len(cross)}｜母池 {len(universe)}",
+        f"全市場前日訊號橫斷面：{'是' if daily_cross_section_operational else '否'}｜D-close {len(cross)}｜母池 {len(universe)}",
+        "全市場盤中即時報價：未認證；只取得凍結候選的已成交價。",
         f"盤中報價範圍：凍結候選 only｜要求 {requested_quotes}｜取得 {len(quote_by_symbol)}｜覆蓋率 {coverage_text}",
         f"V1.1 cross-section：{len(cross)}｜Breadth：{round((breadth or 0)*100,2)}%｜凍結規則通過：{len(frozen_pass)}｜今日有效候選：{len(candidates)}",
         f"交易時段：{session_status}｜{session_text}",

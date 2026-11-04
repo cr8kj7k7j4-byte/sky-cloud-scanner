@@ -47,7 +47,7 @@ def collect(symbol: str, now=None) -> dict:
         if not isinstance(quote, dict) or not isinstance(ticker, dict):
             raise ValueError("Invalid Fugle response payload")
         trade = quote.get("lastTrade") or {}
-        last_price = quote.get("lastPrice") or trade.get("price") or quote.get("closePrice")
+        last_price = trade.get("price") if trade.get("price") is not None else quote.get("lastPrice")
         last_time = timestamp_tpe(trade.get("time") or quote.get("closeTime"))
         updated_time = timestamp_tpe(quote.get("lastUpdated"))
         result.update({
