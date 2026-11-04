@@ -118,14 +118,31 @@ def main():
     ap.add_argument("--pit-json",required=True)
     ap.add_argument("--out",required=True)
     args=ap.parse_args()
-    day=date.fromisoformat(args.date).isoformat()
+    day = args.date
+    if day != "auto":
+        day = date.fromisoformat(day).isoformat()
     pit=json.loads(Path(args.pit_json).read_text(encoding="utf-8"))
     if pit.get("historical_universe_gate_pass") is not True or (pit.get("interval_validation") or {}).get("valid") is not True:
         raise SystemExit("canonical PIT gate not PASS")
     all_rows=[]
     diags=[]
     for market,url in (("TWSE",TWSE),("TPEx",TPEX)):
-        rows, diag=parse_market(get_json(url,retries=3,timeout=30),market,day)
+        payload=get_json(url,retries=3,timeout=30)
+        if day == "auto":
+            valid_dates=[]
+            for row in payload if isinstance(payload,list) else []:
+                if SYMBOL.fullmatch(str(row.get("Code") or row.get("SecuritiesCompanyCode") or "").strip()):
+                    try:
+                        valid_dates.append(roc_day(row.get("Date")))
+                    except ValueError:
+                        pass
+            if not valid_dates:
+                raise SystemExit(f"{market}: no verified official dated common stock records")
+            day=max(valid_dates)
+            age=(datetime.now(ZoneInfo("Asia/Taipei")).date()-date.fromisoformat(day)).days
+            if not 0 <= age <= 4:
+                raise SystemExit(f"official daily source stale/future: {market}={day}, age={age}")
+        rows, diag=parse_market(payload,market,day)
         all_rows.extend(rows)
         diags.append(diag)
     joined, quarantined=join_pit(all_rows,pit["intervals"])
