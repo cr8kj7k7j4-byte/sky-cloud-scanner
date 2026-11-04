@@ -134,7 +134,7 @@ def route_command(command: str) -> CommandRoute:
 
     # Natural-language single-stock questions must route through Fugle, too.
     # Example: "1569 濱川 當沖要怎麼操作，請給我多空評分與停損".
-    if re.match(r"^\\d{4,6}(?:\\s+|$)", normalized) and any(
+    if re.match(r"^\d{4,6}(?:\s+|$)", normalized) and any(
         token in normalized for token in ("當沖", "即時", "買進", "停損", "多空", "最高接受價")
     ):
         return CommandRoute(
