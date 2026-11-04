@@ -206,6 +206,18 @@ jobs:
           MSG="$(cat /tmp/sky_material_message.txt)"
           curl --fail --silent --show-error             --retry 3             -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage"             -H "Content-Type: application/json"             --data "$(python -c 'import json,os; print(json.dumps({"chat_id":os.environ["TELEGRAM_CHAT_ID"],"text":open("/tmp/sky_material_message.txt",encoding="utf-8").read(),"disable_web_page_preview":True},ensure_ascii=False))')"
 
+      # Preserve the actual dashboard-derived report even when GitHub rejects
+      # a repository write. A green dashboard job must never hide a stale SSOT.
+      - name: Upload immutable latest-status evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-external-status-${{ github.run_id }}
+          path: |
+            docs/SKY_EXTERNAL_LATEST_STATUS.json
+            docs/SKY_EXTERNAL_LATEST_STATUS.md
+          if-no-files-found: error
+          retention-days: 90
+
       - name: Commit snapshot when changed
         shell: bash
         run: |
@@ -218,4 +230,22 @@ jobs:
             exit 0
           fi
           git commit -m "W4: publish external latest status snapshot [skip ci]"
-          git push origin HEAD:main
+          # Handle stale main checkout / concurrent commits without force-push.
+          # If remote commit_refs itself rejects every attempt, fail closed;
+          # the evidence artifact above is still available for incident review.
+          for attempt in 1 2 3; do
+            git fetch origin main
+            if ! git rebase origin/main; then
+              git rebase --abort || true
+              echo "::error::Snapshot rebase conflict. No forced update allowed."
+              exit 1
+            fi
+            if git push origin HEAD:main; then
+              echo "Latest status published to main."
+              exit 0
+            fi
+            echo "::warning::Snapshot publish attempt ${attempt}/3 rejected by GitHub."
+            sleep $((attempt * 3))
+          done
+          echo "::error::Snapshot not committed to main; artifact preserved. SSOT remains stale."
+          exit 1
