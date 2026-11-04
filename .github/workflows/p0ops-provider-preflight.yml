@@ -1,0 +1,50 @@
+name: Sky P0-OPS Market Data Permission Preflight
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/p0ops-provider-preflight.yml"
+      - "research/p0ops_provider_capability.py"
+      - "tests/test_p0ops_provider_capability.py"
+  schedule:
+    # 08:55 Asia/Taipei weekdays; permission probe only, NOT a live coverage certification.
+    - cron: "55 0 * * 1-5"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sky-provider-preflight
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Validate preflight classification
+        run: python -m unittest discover -s tests -p test_p0ops_provider_capability.py -v
+      - name: Check runner market data permissions and official universe
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+        run: python -m research.p0ops_provider_capability
+      - name: Upload sanitized permissions report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p0ops-provider-capability-${{ github.run_id }}
+          path: output/p0ops/provider_capability.json
+          if-no-files-found: error
+          retention-days: 30
