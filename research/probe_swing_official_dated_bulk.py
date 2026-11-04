@@ -31,10 +31,12 @@ def run():
                 "type":type(obj).__name__,
                 "keys":list(obj.keys())[:25] if isinstance(obj,dict) else [],
                 "stat":obj.get("stat") if isinstance(obj,dict) else None,
+                "table_summaries":[{"fields":t.get("fields"),"rows":len(t.get("data") or [])} for t in obj.get("tables",[]) if isinstance(t,dict)] if isinstance(obj,dict) else [],
+                "payload_date":obj.get("date") if isinstance(obj,dict) else None,
                 "tables":[
                     {"fields":t.get("fields"),"rows":len(t.get("data") or []),"first":(t.get("data") or [])[:1]}
                     for t in obj.get("tables",[]) if isinstance(t,dict)
-                ][:8] if isinstance(obj,dict) else [],
+                if isinstance(t,dict) and any("代號" in str(f) for f in (t.get("fields") or []))][:2] if isinstance(obj,dict) else [],
                 "fields":obj.get("fields") if isinstance(obj,dict) else None,
                 "data_count":len(obj.get("data") or []) if isinstance(obj,dict) else len(obj) if isinstance(obj,list) else None,
                 "aaData_count":len(obj.get("aaData") or []) if isinstance(obj,dict) else None,
