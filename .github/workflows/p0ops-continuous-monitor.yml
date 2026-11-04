@@ -34,9 +34,40 @@ jobs:
         with:
           python-version: "3.12"
       - name: Unit tests
-        run: python -m unittest -v tests.test_p0ops_actions_monitor
+        run: python -m unittest discover -s tests -p test_p0ops_actions_monitor.py -v
       - name: Measure GitHub Actions latency
         run: python -m research.p0ops_actions_monitor
+      - name: Notify Telegram on operational warnings
+        if: success()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import urllib.request
+          from pathlib import Path
+          payload = json.loads(Path("output/p0ops/actions_latency.json").read_text())
+          if payload.get("monitor_status") != "WARNING":
+              print("P0-OPS: no warnings")
+              raise SystemExit(0)
+          alerts = [f"{name}: {', '.join(values)}" for name, values
+                    in payload.get("warnings", {}).items() if values]
+          if not os.getenv("TELEGRAM_BOT_TOKEN") or not os.getenv("TELEGRAM_CHAT_ID"):
+              print("Telegram unavailable; warnings recorded:", alerts)
+              raise SystemExit(0)
+          message = "Sky P0-OPS latency/scan warnings\\n" + "\\n".join(alerts)
+          message += "\\nhttps://github.com/" + os.environ["GITHUB_REPOSITORY"] + "/actions/runs/" + os.environ["GITHUB_RUN_ID"]
+          data = json.dumps({"chat_id": os.environ["TELEGRAM_CHAT_ID"], "text": message,
+                             "disable_web_page_preview": True}).encode()
+          req = urllib.request.Request("https://api.telegram.org/bot" + os.environ["TELEGRAM_BOT_TOKEN"]
+                                       + "/sendMessage", data=data,
+                                       headers={"Content-Type": "application/json"}, method="POST")
+          with urllib.request.urlopen(req, timeout=15) as resp:
+              print("telegram_warning_notification_status:", resp.status)
+          PY
       - name: Upload durable evidence
         if: always()
         uses: actions/upload-artifact@v4
