@@ -1,43 +1,43 @@
 {
   "schema": "SKY_UNIFIED_EXECUTION_VERIFICATION_V1",
-  "published_at_utc": "2026-11-04T01:44:03.112367+00:00",
-  "run_id": "41753213785",
-  "run_url": "https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/41753213785",
-  "head_sha": "1420458d309bb303f7f5a3f7ccdfdcdeb15334a0",
+  "published_at_utc": "2026-11-04T02:50:43.225174+00:00",
+  "run_id": "41762174665",
+  "run_url": "https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/41762174665",
+  "head_sha": "b244e6fdd44f8777c822d470611f5b755fa7b816",
   "command": "all_market",
   "scan_step_outcome": "failure",
   "report_exists": true,
-  "report_generated_at_utc": "2026-11-04T01:19:20.375198+00:00",
-  "decision": "SCAN_FAILURE_NO_TRADE",
+  "report_generated_at_utc": "2026-11-04T02:39:44.529880+00:00",
+  "decision": "DATA_COVERAGE_INSUFFICIENT_NO_TRADE",
   "calendar_exit_code": 0,
   "strategy_exit_codes": {
     "intraday": 0,
-    "swing_research": 125,
+    "swing_research": 0,
     "swing5d_research": 0
   },
   "reports": {
     "intraday": {
       "available": true,
-      "data_timestamp": null,
+      "data_timestamp": "2026-11-04T10:39:46.459710+08:00",
       "operational_full_market_scan": false,
-      "quote_coverage_pct": 6.05,
+      "quote_coverage_pct": 7.15,
       "candidate_count": null,
       "research_only": false
     },
     "swing_research": {
-      "available": false,
-      "data_timestamp": null,
-      "operational_full_market_scan": null,
-      "quote_coverage_pct": null,
-      "candidate_count": null,
-      "research_only": null
+      "available": true,
+      "data_timestamp": "2026-11-04T10:44:02.917177+08:00",
+      "operational_full_market_scan": false,
+      "quote_coverage_pct": 6.9,
+      "candidate_count": 20,
+      "research_only": true
     },
     "swing5d_research": {
       "available": true,
-      "data_timestamp": "2026-11-04T09:34:15.012230+08:00",
+      "data_timestamp": "2026-11-04T10:47:23.490167+08:00",
       "operational_full_market_scan": false,
-      "quote_coverage_pct": 0.0,
-      "candidate_count": 0,
+      "quote_coverage_pct": 6.05,
+      "candidate_count": 20,
       "research_only": true
     }
   },
