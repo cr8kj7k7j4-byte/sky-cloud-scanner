@@ -91,3 +91,11 @@ def test_closeprice_only_cannot_be_promoted_to_live_lastprice(monkeypatch, tmp_p
     assert report["live_quote_timestamp_verified"] == 0
     assert all(x["current_price"] is None for x in report["candidates"])
     assert report["live_whole_market_certified"] is False
+
+
+def test_tpex_backup_source_is_distinct_in_daily_evidence():
+    rows=parse_daily_rows([
+        {"Date":"1151104","SecuritiesCompanyCode":"6488","Close":"85",
+         "TradingShares":"100,000","TransactionAmount":"8,500,000","Change":"-1"}
+    ], "TPEx", source_label="TPEx mainboard_quotes")
+    assert rows["6488"]["source"]=="TPEx mainboard_quotes"
