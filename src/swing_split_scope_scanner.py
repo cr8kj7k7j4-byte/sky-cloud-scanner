@@ -62,33 +62,71 @@ def parse_daily_rows(rows, market, *, source_label=None):
 
 
 def evaluate_daily_scope(universe, twse, tpex, now):
+    """Select one *complete* official trading-date cohort, never splice dates.
+
+    Late or mixed-date rows may be present during exchange publication. A
+    cohort is accepted only if BOTH exchanges independently supply sufficient
+    valid rows for that SAME date. Never patch missing rows with older closes.
+    """
     by_symbol = {item["symbol"]: item for item in universe}
-    wanted = {"TWSE": sum(x.get("exchange")=="TWSE" for x in universe),
-              "TPEx": sum(x.get("exchange")=="TPEx" for x in universe)}
-    a = {k:v for k,v in twse.items() if k in by_symbol and by_symbol[k].get("exchange")=="TWSE"}
-    b = {k:v for k,v in tpex.items() if k in by_symbol and by_symbol[k].get("exchange")=="TPEx"}
+    wanted = {"TWSE": sum(x.get("exchange") == "TWSE" for x in universe),
+              "TPEx": sum(x.get("exchange") == "TPEx" for x in universe)}
+    a = {k: v for k, v in twse.items()
+         if k in by_symbol and by_symbol[k].get("exchange") == "TWSE"}
+    b = {k: v for k, v in tpex.items()
+         if k in by_symbol and by_symbol[k].get("exchange") == "TPEx"}
     dates = {v["date"] for v in [*a.values(), *b.values()]}
-    # Do not accidentally use a not-yet-finalized current-day close.
     current = now.date()
-    date_ok = len(dates)==1
-    signal_date = next(iter(dates)) if date_ok else None
-    if signal_date:
-        d = date.fromisoformat(signal_date)
-        age=(current-d).days
-        date_ok = 0 <= age <= 4 and not (age == 0 and now.hour < 14)
-    coverage = round(100*(len(a)+len(b))/len(universe),2) if universe else 0.
-    market_coverage = { "TWSE":round(100*len(a)/wanted["TWSE"],2) if wanted["TWSE"] else 0.,
-                        "TPEx":round(100*len(b)/wanted["TPEx"],2) if wanted["TPEx"] else 0.}
-    qualified = bool(date_ok and coverage>=80 and all(v>=70 for v in market_coverage.values()))
+
+    def valid_date(value):
+        try:
+            d = date.fromisoformat(value)
+            age = (current - d).days
+            return 0 <= age <= 4 and not (age == 0 and now.hour < 14)
+        except (TypeError, ValueError):
+            return False
+
+    by_date = {}
+    for d in sorted(dates):
+        left = [v for v in a.values() if v["date"] == d]
+        right = [v for v in b.values() if v["date"] == d]
+        market_coverage = {
+            "TWSE": round(100 * len(left) / wanted["TWSE"], 2) if wanted["TWSE"] else 0.,
+            "TPEx": round(100 * len(right) / wanted["TPEx"], 2) if wanted["TPEx"] else 0.,
+        }
+        coverage = round(100 * (len(left) + len(right)) / len(universe), 2) if universe else 0.
+        by_date[d] = {
+            "date_allowed": valid_date(d),
+            "market_coverage_pct": market_coverage,
+            "coverage_pct": coverage,
+            "twse_count": len(left),
+            "tpex_count": len(right),
+            "qualified": bool(
+                valid_date(d) and coverage >= 80
+                and all(wanted.values())
+                and all(rate >= 70 for rate in market_coverage.values())
+            ),
+        }
+    # Latest *complete* cohort, never latest isolated TWSE-only date.
+    eligible_dates = [d for d, info in by_date.items() if info["qualified"]]
+    signal_date = max(eligible_dates) if eligible_dates else None
+    selected_a = [v for v in a.values() if v["date"] == signal_date] if signal_date else []
+    selected_b = [v for v in b.values() if v["date"] == signal_date] if signal_date else []
+    selected = selected_a + selected_b
+    qualified = signal_date is not None
+
     return {
-        "status":"PASS_DAILY_CROSS_SECTION" if qualified else "BLOCKED_DAILY_CROSS_SECTION",
-        "daily_scope_qualified":qualified,
-        "daily_cross_section_coverage_pct":coverage,
-        "market_coverage_pct":market_coverage,
-        "universe_count":len(universe),"daily_count":len(a)+len(b),
-        "daily_twse_count":len(a),"daily_tpex_count":len(b),
-        "signal_date":signal_date,"source_dates":sorted(dates),
-        "records":list(a.values())+list(b.values()),
+        "status": "PASS_DAILY_CROSS_SECTION" if qualified else "BLOCKED_DAILY_CROSS_SECTION",
+        "daily_scope_qualified": qualified,
+        "daily_cross_section_coverage_pct": by_date[signal_date]["coverage_pct"] if qualified else 0.,
+        "market_coverage_pct": by_date[signal_date]["market_coverage_pct"] if qualified else {"TWSE": 0., "TPEx": 0.},
+        "universe_count": len(universe), "daily_count": len(selected),
+        "daily_twse_count": len(selected_a), "daily_tpex_count": len(selected_b),
+        "signal_date": signal_date, "source_dates": sorted(dates),
+        "source_date_cohorts": by_date,
+        "raw_daily_count": len(a) + len(b),
+        "excluded_mismatched_date_rows": len(a) + len(b) - len(selected),
+        "records": selected,
     }
 
 
@@ -201,6 +239,9 @@ def run(deep_n=8):
         "universe_count":assessment["universe_count"],
         "official_daily_signal_date":assessment["signal_date"],
         "official_source_dates":assessment["source_dates"],
+        "official_source_date_cohorts":assessment["source_date_cohorts"],
+        "official_raw_daily_count":assessment["raw_daily_count"],
+        "official_excluded_mismatched_date_rows":assessment["excluded_mismatched_date_rows"],
         "official_tpex_source_used":tpex_used_source,
         "live_quote_scope":"CANDIDATES_ONLY",
         "live_quote_requested":len(candidates),
