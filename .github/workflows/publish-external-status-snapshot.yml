@@ -206,6 +206,17 @@ jobs:
           MSG="$(cat /tmp/sky_material_message.txt)"
           curl --fail --silent --show-error             --retry 3             -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage"             -H "Content-Type: application/json"             --data "$(python -c 'import json,os; print(json.dumps({"chat_id":os.environ["TELEGRAM_CHAT_ID"],"text":open("/tmp/sky_material_message.txt",encoding="utf-8").read(),"disable_web_page_preview":True},ensure_ascii=False))')"
 
+      - name: Preserve refreshed snapshot as immutable run artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-external-status-${{ github.run_id }}
+          path: |
+            docs/SKY_EXTERNAL_LATEST_STATUS.json
+            docs/SKY_EXTERNAL_LATEST_STATUS.md
+          if-no-files-found: error
+          retention-days: 90
+
       - name: Commit snapshot when changed
         shell: bash
         run: |
