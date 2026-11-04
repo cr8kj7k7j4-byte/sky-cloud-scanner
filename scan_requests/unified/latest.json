@@ -1,1 +1,1 @@
-{"command":"system_health","requested_at":"2026-11-04","reason":"verify_per_command_latest_artifact"}
+{"command":"model_validation","requested_at":"2026-11-04","reason":"verify_per_command_latest_artifact"}
