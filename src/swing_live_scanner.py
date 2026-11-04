@@ -12,7 +12,7 @@ from .fugle import get_quote, get_ticker
 from .official import fetch_fugle_snapshot_quotes, fetch_mis_quotes, load_official_universe
 from .ranking_engine import rank_screening_candidates
 from .sky_mobile_table import render_mobile_table
-from .realtime_quote_evidence import fugle_executed_trade
+from .realtime_quote_evidence import fugle_executed_trade, validate_whole_market_rows
 
 TZ = ZoneInfo("Asia/Taipei")
 OUT = Path("output/swing_live")
@@ -107,6 +107,16 @@ def run(mode="swing5d", top_n=20, deep_n=8):
         merged.update({r["symbol"]: r for r in rows})
         rows = list(merged.values())
         warnings.extend(fallback_warnings)
+    quote_audit = validate_whole_market_rows(
+        universe, rows, now=datetime.now(TZ),
+        min_coverage_pct=80.0, min_exchange_pct=70.0,
+    )
+    rows = quote_audit["accepted_rows"]
+    if not quote_audit["valid_whole_market_operational"]:
+        warnings.append(
+            "BLOCKED_EXTERNAL_DATA: full-market fresh executed-trade coverage "
+            "failed; withhold all broad-market ranked candidate signals."
+        )
     source_breakdown = {
         "fugle_bulk_snapshot": snapshot_count,
         "mis_fallback": sum(r.get("quote_source") == "TWSE MIS" for r in rows),
@@ -117,7 +127,8 @@ def run(mode="swing5d", top_n=20, deep_n=8):
     coverage_pct = round((len(rows) / len(universe) * 100.0), 2) if universe else 0.0
 
     operational_full_market_scan = bool(
-        universe
+        quote_audit["valid_whole_market_operational"]
+        and universe
         and universe_health.get("twse", 0) >= 500
         and universe_health.get("tpex", 0) >= 400
         and len(twse_rows) >= 400
@@ -141,6 +152,10 @@ def run(mode="swing5d", top_n=20, deep_n=8):
             continue
         eligible.append(row)
 
+    # Market-relative rankings require the actual live universe denominator.
+    # Incomplete feeds cannot generate broad-market candidate decisions.
+    if not operational_full_market_scan:
+        eligible = []
     changes = sorted(_safe_float(r.get("change_pct")) for r in rows if r.get("change_pct") is not None)
     market_median = median(changes) if changes else 0.0
 
@@ -205,6 +220,15 @@ def run(mode="swing5d", top_n=20, deep_n=8):
         "production_strategy": MODE_META[mode]["production_strategy"],
         "operational_full_market_scan": operational_full_market_scan,
         "strict_official_full_market_certified": False,
+        "live_whole_market_certified": operational_full_market_scan,
+        "quote_scope": quote_audit["quote_scope"],
+        "live_market_evidence": {
+            k: v for k, v in quote_audit.items() if k != "accepted_rows"
+        },
+        "market_data_gate": (
+            "PASS_OPERATIONAL_WHOLE_MARKET_LIVE_RESEARCH_ONLY"
+            if operational_full_market_scan else "BLOCKED_EXTERNAL_DATA_NO_TRADE"
+        ),
         "quote_coverage_pct": coverage_pct,
         "universe_count": len(universe),
         "quote_count": len(rows),
