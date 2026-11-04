@@ -16,6 +16,18 @@ SOURCES = {
         "https://www.twse.com.tw/exchangeReport/TWT49U",
         {"response":"json", "strDate":"20261023","endDate":"20261104"},
     ),
+    "TWSE_EXRIGHT_ALT_START": (
+        "https://www.twse.com.tw/exchangeReport/TWT49U",
+        {"response":"json", "startDate":"20261023","endDate":"20261104"},
+    ),
+    "TWSE_EXRIGHT_RWD_STR": (
+        "https://www.twse.com.tw/rwd/zh/exRight/TWT49U",
+        {"response":"json", "strDate":"20261023","endDate":"20261104"},
+    ),
+    "TWSE_EXRIGHT_RWD_START": (
+        "https://www.twse.com.tw/rwd/zh/exRight/TWT49U",
+        {"response":"json", "startDate":"20261023","endDate":"20261104"},
+    ),
     "TPEX_EXRIGHT_REFERENCE": (
         "https://www.tpex.org.tw/www/zh-tw/bulletin/exDailyQ",
         {"startDate":"2026/10/23","endDate":"2026/11/04"},
@@ -40,7 +52,7 @@ def summarize(name: str, payload: object) -> dict:
         "requested_end": "20261104",
         "reported_start": str(payload.get("strDate") or "").replace("/", ""),
         "reported_end": str(payload.get("endDate") or "").replace("/", ""),
-    } if name == "TWSE_EXRIGHT_REFERENCE" else None
+    } if name.startswith("TWSE_EXRIGHT") else None
     range_verified = (
         response_range["reported_start"] == response_range["requested_start"]
         and response_range["reported_end"] == response_range["requested_end"]
@@ -72,7 +84,8 @@ def collect(out_dir: str):
             summaries[key]={**summarize(key,obj),"sha256":hashlib.sha256(raw).hexdigest()}
         except Exception as exc:
             summaries[key]={"source":key,"status":"SOURCE_UNVERIFIED","error":f"{type(exc).__name__}: {str(exc)[:260]}"}
-    twse_ok = summaries.get("TWSE_EXRIGHT_REFERENCE",{}).get("source_range_verified") is True
+    twse_ok = any(s.get("source_range_verified") is True
+                  for k,s in summaries.items() if k.startswith("TWSE_EXRIGHT"))
     manifest={
         "twse_exright_requested_range_verified":twse_ok,
         "twse_range_status":"VERIFIED" if twse_ok else "TWSE_RANGE_NOT_VERIFIED_DO_NOT_ASSUME_NO_ACTIONS",
