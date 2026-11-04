@@ -1,0 +1,32 @@
+name: Sky Fast Report Read Only CI
+on:
+  pull_request:
+    paths:
+      - 'src/sky_fast_report_gateway.py'
+      - 'tests/test_sky_fast_report_gateway.py'
+      - 'docs/SKY_FAST_REPORT_GATEWAY_V1.md'
+      - '.github/workflows/sky-fast-report-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test-and-read:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run isolated fast-report tests
+        run: python -m pytest tests/test_sky_fast_report_gateway.py -q
+      - name: Read latest status without new market fetch
+        run: python -m src.sky_fast_report_gateway --command 'Sky 系統快報'
+      - name: Publish diagnostic artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-fast-report-${{ github.run_id }}
+          path: output/fast_reports/latest.json
+          if-no-files-found: warn
+          retention-days: 7
