@@ -29,3 +29,10 @@
 - `.github/workflows/backtest-catalyst-event-oos.yml` — Stage 6B / Event Catalyst OOS 相關封存策略；不再重跑原始無效假設
 
 以上僅移除 GitHub Actions 工作入口，不更動研究與凍結證據。保留 `vnext-residual-ranking-governance.yml` 等防止舊策略重啟的治理測試，不以刪除封存入口放寬治理。
+
+## 第三批：遺漏的凍結 D/E 入口（另兩項）
+
+- `.github/workflows/w2-opening-retest-reclaim-baseline-d.yml` — Baseline D 已在 RESEARCH_FREEZE_REGISTRY 標為 ARCHIVED_NO_RETUNE。
+- `.github/workflows/w3a-w2-false-reclaim-short-baseline-e.yml` — False-Reclaim Short Baseline E 已封存，不再重新下載或跑原始歷史研究；原始程式與結果保留。
+
+本批只移除 GitHub Actions 的兩個過時入口。研究程式、凍結登錄、歷史證據與 Production 完整保留，且增加持續回歸測試。
