@@ -11,6 +11,7 @@ on:
       - "infra/gcp/**"
       - ".github/workflows/w3b-production-hardening.yml"
       - ".github/workflows/scan.yml"
+      - ".github/workflows/publish-external-status-snapshot.yml"
       - "PRODUCTION_E2E_ACCEPTANCE.md"
       - "docs/W3B_**"
   workflow_dispatch:
@@ -55,7 +56,8 @@ jobs:
             tests/test_position_manager.py \
             tests/test_w3a_fugle_probe_windows.py \
             tests/test_official_mis_coverage.py \
-            tests/test_swing_live_coverage_notice.py
+            tests/test_swing_live_coverage_notice.py \
+            tests/test_external_status_publisher_contract.py
       - name: Production E2E
         run: pytest -q tests/test_production_e2e_acceptance.py
 
