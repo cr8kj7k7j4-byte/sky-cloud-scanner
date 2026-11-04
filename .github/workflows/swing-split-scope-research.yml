@@ -22,6 +22,17 @@ concurrency:
 
 jobs:
   scan:
+    # Do not rerun a heavy scan when an old one-off request is removed.
+    # The calendar schedule and manual dispatch continue unchanged.
+    if: >-
+      github.event_name != 'push' ||
+      contains(toJSON(github.event.commits.*.added), 'scan_requests/swing_split_scope/') ||
+      contains(toJSON(github.event.commits.*.modified), 'scan_requests/swing_split_scope/') ||
+      contains(toJSON(github.event.commits.*.added), 'src/swing_split_scope_scanner.py') ||
+      contains(toJSON(github.event.commits.*.modified), 'src/swing_split_scope_scanner.py') ||
+      contains(toJSON(github.event.commits.*.added), 'tests/test_swing_split_scope_scanner.py') ||
+      contains(toJSON(github.event.commits.*.modified), 'tests/test_swing_split_scope_scanner.py') ||
+      contains(toJSON(github.event.commits.*.modified), '.github/workflows/swing-split-scope-research.yml')
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
