@@ -12,7 +12,7 @@ with tempfile.TemporaryDirectory() as temp:
  p=Path(temp)/"TWSE";p.mkdir()
  for i in range(102):
     symbol=str(1000+i)
-    ret=-0.02 if i==0 else (-0.01 if i<51 else 0.01)
+    ret=-0.02 if i==0 else (-0.01 if i<80 else 0.01)
     obj={"schema_version":"FALSE_RECLAIM_SHORT_1M_COMPACT_V1_0","symbol":symbol,"exchange":"TWSE",
       "days":[{"date":"2026-05-01","session_open":10.0,"bars":{"09:05":{"close":10*(1+ret)}}}]}
     (p/f"{symbol}_false_reclaim_short_1m.json").write_text(json.dumps(obj))
