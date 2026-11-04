@@ -264,7 +264,7 @@ def run():
         # A returned HTTP quote is not automatically a current executed trade.
         # Check actual MIS exchange session date + last-trade timestamp first.
         quote_audit = validate_whole_market_rows(
-            universe, rows, now=datetime.now(TZ), min_coverage_pct=70.0,
+            universe, rows, now=datetime.now(TZ), min_coverage_pct=80.0,
             min_exchange_pct=70.0,
         )
         st["live_market_evidence"] = {
@@ -295,7 +295,7 @@ def run():
             and official_universe_ok
             and twse_intraday_ok
             and otc_operational_ok
-            and st["quote_coverage_pct"] >= 70.0
+            and st["quote_coverage_pct"] >= 80.0
         )
 
         # Free/public TPEx official full-market real-time feed is not certified
