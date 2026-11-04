@@ -14,6 +14,8 @@ on:
       - "src/model_registry.py"
       - "src/paper_trading.py"
       - "src/shadow_evidence.py"
+      - "src/w4_evidence_integrity.py"
+      - "tests/test_w4_evidence_integrity.py"
       - "research/w4_scan_artifact_eligibility.py"
       - "tests/test_w4_scan_artifact_eligibility.py"
   pull_request:
@@ -65,6 +67,7 @@ jobs:
           tests/test_shadow_promotion_dashboard.py
           tests/test_evidence_promotion_gates.py
           tests/test_shadow_evidence.py
+          tests/test_w4_evidence_integrity.py
           tests/test_w4_scan_artifact_eligibility.py
 
       - name: Download recent successful scan artifacts

@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 from src.model_registry import build_shadow_promotion_dashboard
+from src.w4_evidence_integrity import audit_forward_strategy_evidence
 from src.shadow_evidence import (
     evaluate_shadow_pipeline_readiness,
     evaluate_portfolio_cost_capacity_evidence,
@@ -212,6 +213,7 @@ def main():
     }
     dashboard["pipeline_readiness"] = pipeline
     dashboard["portfolio_cost_capacity"] = portfolio
+    dashboard["strategy_evidence_integrity"] = audit_forward_strategy_evidence(records)
     dashboard["w4_report"] = build_w4_report_sections(dashboard)
 
     out = Path(args.out)
