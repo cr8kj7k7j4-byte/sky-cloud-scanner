@@ -51,17 +51,20 @@ def quote_time_integrity(row):
     """
     qt = _timestamp(row.get("quote_timestamp"))
     decision = _timestamp(row.get("observation_timestamp"))
-    capture = (
-        _timestamp(row.get("quote_observation_timestamp"))
-        if row.get("quote_observation_timestamp") is not None else decision
-    )
+    # Legacy scan-start timestamps are not quote acquisition evidence.
+    capture = _timestamp(row.get("quote_observation_timestamp"))
     has_source = bool(row.get("quote_source"))
     age = (capture - qt).total_seconds() if capture is not None and qt is not None else None
     decision_age = (decision - qt).total_seconds() if decision is not None and qt is not None else None
     # A conservative 60-second quote freshness cap is an integrity condition,
     # not a strategy parameter, and does not establish fillability.
     quote_valid = bool(has_source and age is not None and 0 <= age <= 60)
-    decision_valid = bool(has_source and decision_age is not None and 0 <= decision_age <= 60)
+    # The quote must have been RECEIVED by the claimed decision time.
+    decision_valid = bool(
+        has_source and capture is not None and decision is not None
+        and capture <= decision and decision_age is not None
+        and 0 <= decision_age <= 60
+    )
     return {
         "quote_timestamp_valid": qt is not None,
         "quote_source_present": has_source,
