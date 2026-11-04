@@ -46,3 +46,13 @@ def test_same_day_unclosed_snapshot_blocks():
     rows={"2330":{"date":"2026-11-04","symbol":"2330"}}
     out=evaluate_daily_scope(universe,rows,{},datetime(2026,11,4,9,30,tzinfo=TZ))
     assert not out["daily_scope_qualified"]
+
+
+def test_same_day_quote_requires_fresh_timestamp():
+    from src.swing_split_scope_scanner import quote_time_freshness
+    now=datetime(2026,11,4,9,35,tzinfo=TZ)
+    microseconds=int(now.timestamp()*1_000_000)
+    stamp,status=quote_time_freshness({"lastUpdated":microseconds},now)
+    assert status=="FRESH" and stamp.startswith("2026-11-04")
+    assert quote_time_freshness({"lastUpdated":microseconds-20*60*1_000_000},now)[1]=="STALE_OR_FUTURE_TIMESTAMP"
+    assert quote_time_freshness({},now)[1]=="MISSING_OR_INVALID_TIMESTAMP"
