@@ -12,6 +12,7 @@ from .fugle import get_quote, get_ticker
 from .official import fetch_fugle_snapshot_quotes, fetch_mis_quotes, load_official_universe
 from .ranking_engine import rank_screening_candidates
 from .sky_mobile_table import render_mobile_table
+from .realtime_quote_evidence import fugle_executed_trade
 
 TZ = ZoneInfo("Asia/Taipei")
 OUT = Path("output/swing_live")
@@ -153,17 +154,32 @@ def run(mode="swing5d", top_n=20, deep_n=8):
         try:
             ticker = get_ticker(x["symbol"])
             quote = get_quote(x["symbol"])
-            x["fugle_close"] = quote.get("closePrice")
+            verified_last, trade_time, evidence_status = fugle_executed_trade(
+                quote, now, max_age_seconds=180
+            )
+            if evidence_status != "FRESH_EXECUTED_TRADE":
+                x["fugle_close"] = None
+                x["fugle_last_updated"] = (
+                    trade_time.isoformat() if trade_time else None
+                )
+                x["data_status"] = "UNVERIFIED_EXECUTED_TRADE"
+                x["candidate_action"] = "等待"
+                x["candidate_reason"] = (
+                    "無可驗證的當日最新成交價／成交時間：" + evidence_status
+                )
+                deep.append(x)
+                continue
+            x["fugle_close"] = verified_last
             x["fugle_high"] = quote.get("highPrice")
             x["fugle_low"] = quote.get("lowPrice")
             x["fugle_avg_price"] = quote.get("avgPrice")
-            x["fugle_last_updated"] = quote.get("lastUpdated")
+            x["fugle_last_updated"] = trade_time.isoformat()
             x["limit_up_price"] = ticker.get("limitUpPrice")
             x["industry"] = ticker.get("industry")
             close = _safe_float(x.get("fugle_close"))
             limit_up = _safe_float(x.get("limit_up_price"))
             x["is_limit_up"] = bool(close > 0 and limit_up > 0 and close >= limit_up)
-            x["data_status"] = "VERIFIED"
+            x["data_status"] = "VERIFIED_EXECUTED_TRADE"
             if x["is_limit_up"]:
                 x["candidate_action"] = "禁止交易"
                 x["candidate_reason"] = "漲停／追高否決"
