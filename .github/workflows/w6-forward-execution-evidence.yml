@@ -12,9 +12,11 @@ on:
       - "src/paper_trading.py"
       - "research/w6_execution_baseline.py"
       - "research/w6_execution_evidence.py"
+      - "research/w6_execution_attempts.py"
       - "research/w6_collect_forward_l1.py"
       - "research/w6_p1_report.py"
       - "tests/test_w6_execution_research.py"
+      - "tests/test_w6_execution_attempts.py"
       - ".github/workflows/w6-forward-execution-evidence.yml"
 
 permissions:
@@ -41,7 +43,7 @@ jobs:
         run: python -m compileall -q src research tests
 
       - name: W6 unit tests
-        run: PYTHONPATH=. pytest -q tests/test_w6_execution_research.py
+        run: PYTHONPATH=. pytest -q tests/test_w6_execution_research.py tests/test_w6_execution_attempts.py
 
       - name: Download forward scan artifacts
         if: github.event_name != 'pull_request'
