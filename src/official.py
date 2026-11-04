@@ -79,7 +79,8 @@ def fetch_mis_quotes(universe, batch_size=55, sleep_s=.18):
             return found
         except Exception as e:
             stats["failed_requests"]+=1
-            warnings.append(f"MIS {'recovery' if recovery else 'initial'} batch failed: {type(e).__name__}: {e}")
+            if sum("batch failed" in w for w in warnings)<5:
+                warnings.append(f"MIS {'recovery' if recovery else 'initial'} batch failed: {type(e).__name__}: {str(e)[:120]}")
             return []
 
     def ingest(arr, meta):
@@ -123,12 +124,28 @@ def fetch_mis_quotes(universe, batch_size=55, sleep_s=.18):
 
     # One bounded recovery pass: the MIS endpoint may silently truncate ex_ch.
     # A recovery chunk of 8 keeps the query short; no infinite retries.
+    # Bounded diagnostic recovery: do not flood MIS when z is unavailable
+    # across most of the market. This is NOT a substitute for licensed quotes.
     recovery_size=8
-    for i in range(0,len(missing),recovery_size):
-        batch=missing[i:i+recovery_size]
+    recovery_limit=80
+    sample_step=max(1, (len(missing)+recovery_limit-1)//recovery_limit)
+    sampled_missing=missing[::sample_step][:recovery_limit]
+    stats["recovery_skipped"]=len(missing)-len(sampled_missing)
+    consecutive_failures=0
+    for i in range(0,len(sampled_missing),recovery_size):
+        batch=sampled_missing[i:i+recovery_size]
         stats["recovery_requested"]+=len(batch)
+        prior_failures=stats["failed_requests"]
         arr=request(batch,recovery=True)
+        if stats["failed_requests"]>prior_failures:
+            consecutive_failures+=1
+        else:
+            consecutive_failures=0
         ingest(arr,{x["symbol"]:x for x in batch})
+        if consecutive_failures>=3:
+            stats["recovery_stopped_after_failures"]=True
+            warnings.append("MIS_RECOVERY_CIRCUIT_BREAKER: three consecutive failures")
+            break
         time.sleep(sleep_s)
 
     stats["missing_after_recovery"]=len(universe)-len(rows_by_symbol)
