@@ -237,6 +237,29 @@ def run(mode: str) -> dict:
     summary += "此報告為執行與治理證據，不代表有合格買進訊號或通過正期望驗證。\n"
     if mode == "all_market":
         summary += "\n空方研究未有經確認的獨立執行入口，因此未執行且不得輸出空方交易訊號。\n"
+    if mode == "system_health":
+        evidence = result.get("evidence") or {}
+        summary += "\n## 來源權限與行情證據\n"
+        for name, check in (evidence.get("fugle") or {}).items():
+            summary += f"- {name}：{check.get('status', 'UNKNOWN')}\n"
+        sched = evidence.get("schedule") or {}
+        summary += f"\nGitHub 排程檢查數：{sched.get('workflow_count', '待確認')}\n"
+        summary += f"排程異常或待確認數：{len(sched.get('attention') or [])}\n"
+        summary += "\n流程完成不代表上市＋上櫃全市場即時成交價完整。\n"
+    if mode == "model_validation":
+        evidence = result.get("evidence") or {}
+        summary += "\n## W4 前瞻證據（並非真實獲利）\n"
+        for name, key in (
+            ("證據來源時間 UTC", "snapshot_generated_at_utc"),
+            ("觀察樣本", "sample_count"),
+            ("真正交易日", "trading_days"),
+            ("市場環境數", "regime_count"),
+            ("可辨識策略交易筆數", "eligible_strategy_records"),
+            ("交易決策溯源", "authoritative_trade_provenance"),
+            ("是否符合升版條件", "production_eligible"),
+        ):
+            summary += f"- {name}：{evidence.get(key, '待確認')}\n"
+        summary += "\n未重跑完整成本後回測；策略正期望仍待正式驗證。\n"
     (BASE / "summary.md").write_text(summary, encoding="utf-8")
     print(summary)
     for key, value in result.items():
