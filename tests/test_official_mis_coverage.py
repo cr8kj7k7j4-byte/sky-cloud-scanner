@@ -146,3 +146,31 @@ def test_bulk_snapshot_close_price_is_not_last_trade(monkeypatch):
     assert rows == []
     assert any("valid=0" in warning for warning in warnings)
 
+
+
+def test_mis_exchange_coverage_is_diagnostic_not_fallback(monkeypatch):
+    """Missing executed trades remain excluded; both exchanges are reported."""
+    class OneMarketSession(FakeSession):
+        def get(self, url, params=None, timeout=20):
+            if params is None:
+                return Response([])
+            symbols = [v.split("_")[1].split(".")[0]
+                       for v in params["ex_ch"].split("|")]
+            self.calls.append(symbols)
+            return Response([
+                {"c":sym, "z":"33" if sym=="2330" else "-",
+                 "y":"32","v":"1000","o":"33","h":"34","l":"31"}
+                for sym in symbols
+            ])
+    fake=OneMarketSession()
+    monkeypatch.setattr(official,"session",lambda:fake)
+    monkeypatch.setattr(official.time,"sleep",lambda _:None)
+    universe=[
+        {"symbol":"2330","exchange":"TWSE","mis_prefix":"tse"},
+        {"symbol":"6488","exchange":"TPEx","mis_prefix":"otc"},
+    ]
+    rows,warnings=official.fetch_mis_quotes(universe,batch_size=2)
+    assert [x["symbol"] for x in rows]==["2330"]
+    assert any("TWSE=1/1 (100.0%)" in x and "TPEx=0/1 (0.0%)" in x
+               for x in warnings)
+    assert any("MIS_LOW_COVERAGE" in x for x in warnings)
