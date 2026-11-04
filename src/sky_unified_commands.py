@@ -39,7 +39,7 @@ def operational_market_evidence_ok(item: dict) -> bool:
         and item.get("operational_full_market_scan") is True
         and item.get("quote_scope") == "WHOLE_MARKET_EXECUTED_LIVE"
         and item.get("live_whole_market_certified") is True
-        and 70.0 <= coverage <= 100.0
+        and 80.0 <= coverage <= 100.0
     )
 
 
