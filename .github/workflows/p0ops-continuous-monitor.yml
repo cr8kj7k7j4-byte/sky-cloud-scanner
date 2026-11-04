@@ -1,0 +1,77 @@
+name: Sky P0-OPS Continuous Latency Monitor
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/p0ops-continuous-monitor.yml"
+      - "research/p0ops_actions_monitor.py"
+      - "tests/test_p0ops_actions_monitor.py"
+  schedule:
+    # Asia/Taipei UTC+8: 10:40 and 16:50 Monday-Friday.
+    - cron: "40 2 * * 1-5"
+    - cron: "50 8 * * 1-5"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: sky-p0ops-latency-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Unit tests
+        run: python -m unittest -v tests.test_p0ops_actions_monitor
+      - name: Measure GitHub Actions latency
+        run: python -m research.p0ops_actions_monitor
+      - name: Upload durable evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p0ops-latency-${{ github.run_id }}
+          path: output/p0ops/actions_latency.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Notify Telegram on monitoring errors
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${TELEGRAM_BOT_TOKEN:-}" ] || [ -z "${TELEGRAM_CHAT_ID:-}" ]; then
+            echo "Telegram unavailable; GitHub failure and artifact remain visible"
+            exit 0
+          fi
+          python - <<'PY'
+          import json
+          import os
+          import urllib.request
+          body = json.dumps({
+              "chat_id": os.environ["TELEGRAM_CHAT_ID"],
+              "text": "Sky P0-OPS monitor failed; check https://github.com/"
+                      + os.environ["GITHUB_REPOSITORY"] + "/actions/runs/"
+                      + os.environ["GITHUB_RUN_ID"],
+              "disable_web_page_preview": True,
+          }).encode()
+          req = urllib.request.Request(
+              "https://api.telegram.org/bot" + os.environ["TELEGRAM_BOT_TOKEN"] + "/sendMessage",
+              data=body, headers={"Content-Type": "application/json"}, method="POST"
+          )
+          with urllib.request.urlopen(req, timeout=15) as resp:
+              print("telegram_error_notification_status:", resp.status)
+          PY
