@@ -54,6 +54,7 @@ def _probe_executed_quote(symbol):
                 "error_type": type(e).__name__, "fresh_executed_trade": False}
 
 
+def run():
     out = {"time": datetime.now(ZoneInfo("Asia/Taipei")).isoformat()}
 
     universe, st = load_official_universe()
