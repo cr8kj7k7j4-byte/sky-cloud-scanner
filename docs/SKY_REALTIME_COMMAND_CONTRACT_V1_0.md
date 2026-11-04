@@ -140,3 +140,17 @@ Cloud status `REALTIME_QUOTE_VERIFIED` requires same-day valid trade timestamp, 
 - Availability of 1m/5m intraday candles, full tick sequences, indicator-ready VWAP, historical depth, rate quotas and cloud scheduled runs MUST be separately verified before they become required decision inputs.
 
 A verified quote alone does NOT authorize A+ grading, a numerical bull/bear score, max entry, stop, target, net RR or position size. Require the governed P0-C setup/trigger + multi-timeframe liquidity and P0-R cost/risk rules. Missing evidence remains `—`/WAIT, never backfilled from prior close. This bridge is a data-source engineering change ONLY: no production strategy promotion, no automatic order placement, and no risk-rule alteration.
+
+
+## 2026-11-04 W3A consolidated realtime provenance supplement
+
+Authoritative matrix: `docs/SKY_UNIFIED_REALTIME_SCOPE_20261104.md`.
+
+- `Sky 全市場即時行情` and `Sky 全市場掃描` require proof of actual current-session executed prices across TWSE+TPEx. An official full-market **daily** universe is not intraday full-market execution data.
+- `Sky 當沖空方研究 掃一下` is a **research-only blocked** route until independent live short-execution eligibility and model evidence are verified.
+- `Sky 持倉監控` uses individual fresh quotes for the currently verified portfolio; no inferred historical holdings.
+- `Sky Swing V1.1｜現在掃一次` uses a frozen D-close cross-section and live **candidate-only** quotes. Its previous `operational_full_market_scan` label may not be used to assert whole-market realtime prices; the data scope is explicit.
+- A quote's `closePrice` / `lastUpdated` without a corroborating executed trade price and trade timestamp is not sufficient for live execution.
+- Historical validation must continue using true PIT data; combining live evidence does not reset historical OOS or lift research freezes.
+- GitHub REST bulk snapshot entitlement remains independently blocked by HTTP 403 in the last verified runtime. The connected ChatGPT Fugle realtime quote does not grant that secret scope.
+- The 2026-11-04 verified MIS executed quote coverage was 90/1,985 (4.53%). Until a legitimate full-market source is validated, all whole-market realtime commands fail closed or explicitly report split-scope research. Do not buy a data plan without verifying entitlement/need.
