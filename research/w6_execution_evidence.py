@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 import json
+import math
+from datetime import datetime, timezone
 from typing import Iterable
 
 from research.w6_execution_baseline import (
@@ -20,6 +22,52 @@ def _finite(value):
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+
+# Source timestamps may be ISO 8601, or Fugle Unix epoch microseconds.
+# Invalid, timezone-naive, or future-dated quote evidence cannot pass the PIT gate.
+def _timestamp(value):
+    try:
+        if isinstance(value, (int, float)) or (isinstance(value, str) and value.strip().isdigit()):
+            v = float(value)
+            if not math.isfinite(v) or v <= 0:
+                return None
+            seconds = v / 1_000_000 if v >= 1e14 else v / 1_000 if v >= 1e11 else v
+            return datetime.fromtimestamp(seconds, timezone.utc)
+        if isinstance(value, str) and value:
+            t = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            return t if t.tzinfo is not None else None
+    except (ValueError, TypeError, OverflowError, OSError):
+        pass
+    return None
+
+
+def quote_time_integrity(row):
+    """Distinguish a quote captured later from a quote available at decision time.
+
+    Quote-only spreads can be audited at their own acquisition time, never
+    retroactively attached to the scan-start/decision timestamp.
+    """
+    qt = _timestamp(row.get("quote_timestamp"))
+    decision = _timestamp(row.get("observation_timestamp"))
+    capture = _timestamp(row.get("quote_observation_timestamp")) or decision
+    has_source = bool(row.get("quote_source"))
+    age = (capture - qt).total_seconds() if capture is not None and qt is not None else None
+    decision_age = (decision - qt).total_seconds() if decision is not None and qt is not None else None
+    # A conservative 60-second quote freshness cap is an integrity condition,
+    # not a strategy parameter, and does not establish fillability.
+    quote_valid = bool(has_source and age is not None and 0 <= age <= 60)
+    decision_valid = bool(has_source and decision_age is not None and 0 <= decision_age <= 60)
+    return {
+        "quote_timestamp_valid": qt is not None,
+        "quote_source_present": has_source,
+        "quote_age_seconds": age,
+        "quote_after_scan_observation": decision_age is not None and decision_age < 0,
+        "quote_spread_time_valid": quote_valid,
+        "decision_time_quote_valid": decision_valid,
+        "time_basis": "QUOTE_ACQUISITION" if row.get("quote_observation_timestamp") else "LEGACY_SCAN_OBSERVATION",
+    }
 
 
 def decision_to_w6_evidence(decision: dict) -> dict:
@@ -60,6 +108,7 @@ def decision_to_w6_evidence(decision: dict) -> dict:
         "bid_size": _finite(market.get("bid_size")),
         "ask_size": _finite(market.get("ask_size")),
         "quote_timestamp": market.get("l1_quote_time") or market.get("quote_time"),
+        "quote_observation_timestamp": market.get("l1_observed_at"),
         "quote_serial": market.get("l1_quote_serial"),
         "quote_source": market.get("l1_quote_source") or market.get("quote_source"),
         "fill_status": fill_status,
@@ -194,9 +243,18 @@ def summarize_p1(rows: Iterable[dict]) -> dict:
     adverse = {1: [], 3: [], 5: []}
     by_time = {}
     by_price = {}
+    quote_time_valid_count = 0
+    quote_decision_time_valid_count = 0
+    quote_after_scan_count = 0
+    quote_missing_or_invalid_count = 0
 
     for row in items:
         metrics = validate_evidence_row(row)
+        quote_quality = quote_time_integrity(row)
+        quote_time_valid_count += int(quote_quality["quote_spread_time_valid"])
+        quote_decision_time_valid_count += int(quote_quality["decision_time_quote_valid"])
+        quote_after_scan_count += int(quote_quality["quote_after_scan_observation"])
+        quote_missing_or_invalid_count += int(not quote_quality["quote_spread_time_valid"])
         if metrics.get("status") == "OK":
             valid += 1
         sample = W6L1ExecutionSample(
@@ -215,7 +273,7 @@ def summarize_p1(rows: Iterable[dict]) -> dict:
         )
         samples.append(sample)
 
-        if metrics.get("spread_bps") is not None:
+        if metrics.get("spread_bps") is not None and quote_quality["quote_spread_time_valid"]:
             spread_values.append(metrics["spread_bps"])
         if metrics.get("entry_slippage_bps") is not None:
             slippage_values.append(metrics["entry_slippage_bps"])
@@ -253,6 +311,11 @@ def summarize_p1(rows: Iterable[dict]) -> dict:
         "fill_rate": fill.get("fill_rate"),
         "missed_trade_rate": fill.get("missed_trade_rate"),
         "spread_sample_count": len(spread_values),
+        "quote_spread_pit_valid_count": quote_time_valid_count,
+        "decision_time_quote_valid_count": quote_decision_time_valid_count,
+        "quote_after_scan_observation_count": quote_after_scan_count,
+        "quote_missing_or_invalid_count": quote_missing_or_invalid_count,
+        "quote_time_integrity_policy": "Source + parseable timezone-aware quote/acquisition timestamps; quote age 0-60s; no future quote for its acquisition timestamp. Decision-time validity is reported separately.",
         "avg_spread_bps": _mean(spread_values),
         "slippage_sample_count": len(slippage_values),
         "avg_entry_slippage_bps": _mean(slippage_values),
@@ -265,7 +328,7 @@ def summarize_p1(rows: Iterable[dict]) -> dict:
         "price_bucket_fill": {k: aggregate_fill_rates(v) for k, v in sorted(by_price.items())},
         "note": (
             "Spread evidence and slippage evidence are gated separately. Quote-only "
-            "rows may establish a Spread baseline but can never establish Slippage, "
+            "rows may establish a quote-time Spread baseline (only when timestamp-valid) but can never establish Slippage, "
             "Fill Rate or Adverse Selection without explicit fill evidence."
         ),
     }
