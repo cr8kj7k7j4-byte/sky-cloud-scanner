@@ -16,6 +16,35 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+      - name: Record the exact scheduled cron and runner start evidence
+        shell: bash
+        run: |
+          mkdir -p output
+          python - <<'PY'
+          import json, os
+          from datetime import datetime, timezone
+          from pathlib import Path
+          event_path = Path(os.environ["GITHUB_EVENT_PATH"])
+          payload = json.loads(event_path.read_text(encoding="utf-8"))
+          now = datetime.now(timezone.utc)
+          record = {
+              "schema": "SKY_INTRADAY_SCHEDULE_EVIDENCE_V1",
+              "event_name": os.environ["GITHUB_EVENT_NAME"],
+              "event_schedule_cron_utc": payload.get("schedule"),
+              "job_started_at_utc": now.isoformat(),
+              "run_id": os.environ["GITHUB_RUN_ID"],
+              "run_attempt": os.environ["GITHUB_RUN_ATTEMPT"],
+              "source": "GitHub event payload and runner clock",
+              "cron_utc": [
+                  "5,15,30,50 1 * * 1-5",
+                  "15 2 * * 1-5"
+              ],
+              "note": "Run/job start may be delayed; cron proves schedule rule identity, not punctuality. A cron entry contains multiple local slots; compare run times with expected Asia/Taipei schedule and check missed slots separately."
+          }
+          path = Path("output/schedule_trigger.json")
+          path.write_text(json.dumps(record, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          print(json.dumps(record, ensure_ascii=False))
+          PY
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
