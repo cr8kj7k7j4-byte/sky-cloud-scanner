@@ -104,3 +104,81 @@ def mis_executed_trade_row(row, now=None, *, max_age_seconds=180):
         return False
     age = (now - dt).total_seconds()
     return -30 <= age <= max_age_seconds
+
+
+def validate_whole_market_rows(universe, rows, now=None, *, min_coverage_pct=80.0,
+                               min_exchange_pct=70.0, max_age_seconds=180):
+    """Evaluate real executed-quote coverage independently for TSE and OTC.
+
+    This checks operational *executed trade* validity only. It does not grant
+    TPEx-official certification to MIS OTC or change strategy eligibility.
+    No stale daily prices, quotes with missing trade time, or synthetic last.
+    """
+    now = now or datetime.now(TPE)
+    by_symbol = {str(x.get("symbol")): x for x in universe}
+    target = {
+        "TWSE": sum(x.get("exchange") == "TWSE" for x in universe),
+        "TPEx": sum(x.get("exchange") == "TPEx" for x in universe),
+    }
+    accepted = {}
+    rejection = {}
+    for row in rows:
+        symbol = str(row.get("symbol") or "")
+        meta = by_symbol.get(symbol)
+        if not meta or meta.get("exchange") not in target:
+            rejection["NOT_IN_OFFICIAL_UNIVERSE"] = rejection.get("NOT_IN_OFFICIAL_UNIVERSE", 0) + 1
+            continue
+        # A bulk snapshot is acceptable only when it explicitly carries a
+        # verified last-executed timestamp, not the snapshot download time.
+        if row.get("quote_source") == "Fugle bulk snapshot":
+            ts = timestamp_tpe(row.get("last_trade_timestamp"))
+            try:
+                price = float(row.get("last"))
+            except (ValueError, TypeError):
+                price = 0.0
+            age = (now - ts).total_seconds() if ts else None
+            valid = (
+                price > 0 and ts is not None
+                and str(row.get("quote_date") or "") == now.date().isoformat()
+                and ts.date() == now.date()
+                and age is not None and -30 <= age <= max_age_seconds
+            )
+        else:
+            valid = mis_executed_trade_row(row, now, max_age_seconds=max_age_seconds)
+        if valid:
+            accepted[symbol] = row
+        else:
+            rejection["STALE_OR_UNVERIFIED_EXECUTED_TRADE"] = rejection.get(
+                "STALE_OR_UNVERIFIED_EXECUTED_TRADE", 0
+            ) + 1
+
+    counts = {
+        k: sum(by_symbol[s].get("exchange") == k for s in accepted)
+        for k in target
+    }
+    rates = {
+        k: round(100 * counts[k] / target[k], 2) if target[k] else 0.0
+        for k in target
+    }
+    total = len(by_symbol)
+    coverage = round(100 * len(accepted) / total, 2) if total else 0.0
+    passed = bool(
+        total and all(target[k] > 0 and rates[k] >= min_exchange_pct for k in target)
+        and coverage >= min_coverage_pct
+    )
+    return {
+        "status": "PASS_VALID_EXECUTED_LIVE" if passed else "BLOCKED_EXTERNAL_DATA",
+        "valid_whole_market_operational": passed,
+        "universe_count": total,
+        "valid_quote_count": len(accepted),
+        "quote_coverage_pct": coverage,
+        "by_exchange": {
+            k: {"universe": target[k], "valid": counts[k], "coverage_pct": rates[k]}
+            for k in target
+        },
+        "rejected": rejection,
+        "data_time": now.isoformat(),
+        "quote_scope": "WHOLE_MARKET_EXECUTED_LIVE" if passed else "PARTIAL_EXECUTED_LIVE",
+        "otc_mis_is_official_tpex_live": False,
+        "accepted_rows": list(accepted.values()),
+    }
