@@ -79,9 +79,17 @@ def market_mode() -> dict:
         except (OSError, ValueError, TypeError):
             item["reason"] = "RESULT_NOT_AVAILABLE_OR_INVALID"
         results["reports"][label] = item
-    results["decision"] = ("PARTIAL_UNVERIFIED_NO_A_PLUS" if
-                           all(x["exit_code"] == 0 for x in results["strategies"].values())
-                           else "SCAN_FAILURE_NO_TRADE")
+    if any(x["exit_code"] != 0 for x in results["strategies"].values()):
+        results["decision"] = "SCAN_FAILURE_NO_TRADE"
+    elif not all(
+        report.get("available") is True
+        and report.get("operational_full_market_scan") is True
+        for report in results["reports"].values()
+    ):
+        # A successful script does not certify complete real-time market data.
+        results["decision"] = "INCOMPLETE_FULL_MARKET_COVERAGE_NO_TRADE"
+    else:
+        results["decision"] = "PARTIAL_UNVERIFIED_NO_A_PLUS"
     return results
 
 
@@ -142,6 +150,7 @@ def main() -> None:
     if payload["result"]["decision"] in (
         "SCAN_FAILURE_NO_TRADE", "HEALTH_CHECK_FAILED", "VALIDATION_CHECK_FAILED",
         "NO_TRADE_CALENDAR_UNAVAILABLE", "NO_TRADE_INVALID_CALENDAR",
+        "INCOMPLETE_FULL_MARKET_COVERAGE_NO_TRADE",
     ):
         raise SystemExit(1)
 
