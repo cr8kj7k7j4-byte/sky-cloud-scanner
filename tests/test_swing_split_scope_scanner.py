@@ -134,3 +134,42 @@ def test_primary_tpex_date_mismatch_uses_only_date_matching_official_backup(monk
     assert report["official_tpex_source_used"]=="mainboard_quotes"
     assert report["live_whole_market_certified"] is False
     assert report["live_quote_available"]==0
+
+
+def test_minor_previous_day_stale_rows_excluded_without_mixing():
+    universe=[{"symbol":str(1000+i),"exchange":"TWSE"} for i in range(10)]
+    universe += [{"symbol":str(2000+i),"exchange":"TPEx"} for i in range(10)]
+    twse={str(1000+i):{"symbol":str(1000+i),"date":"2026-11-04"} for i in range(9)}
+    twse["1009"]={"symbol":"1009","date":"2026-11-03"}
+    tpex={str(2000+i):{"symbol":str(2000+i),"date":"2026-11-04"} for i in range(9)}
+    tpex["2009"]={"symbol":"2009","date":"2026-11-03"}
+    out=evaluate_daily_scope(universe,twse,tpex,datetime(2026,11,4,22,45,tzinfo=TZ))
+    assert out["status"] == "PASS_DAILY_CROSS_SECTION"
+    assert out["signal_date"] == "2026-11-04"
+    assert out["daily_count"] == 18
+    assert out["daily_cross_section_coverage_pct"] == 90
+    assert out["excluded_mismatched_date_rows"] == 2
+    assert len(out["source_date_cohorts"]) == 2
+    assert all(row["date"] == "2026-11-04" for row in out["records"])
+
+
+def test_no_cross_exchange_date_splicing():
+    universe=[{"symbol":str(1000+i),"exchange":"TWSE"} for i in range(10)]
+    universe += [{"symbol":str(2000+i),"exchange":"TPEx"} for i in range(10)]
+    twse={str(1000+i):{"symbol":str(1000+i),"date":"2026-11-04"} for i in range(10)}
+    tpex={str(2000+i):{"symbol":str(2000+i),"date":"2026-11-03"} for i in range(10)}
+    out=evaluate_daily_scope(universe,twse,tpex,datetime(2026,11,4,22,45,tzinfo=TZ))
+    assert out["status"] == "BLOCKED_DAILY_CROSS_SECTION"
+    assert out["signal_date"] is None
+    assert out["daily_count"] == 0
+    assert out["daily_cross_section_coverage_pct"] == 0
+    assert out["source_date_cohorts"]["2026-11-04"]["market_coverage_pct"]["TPEx"] == 0
+
+
+def test_current_day_close_cannot_pass_before_market_close_even_if_complete():
+    universe=[{"symbol":"2330","exchange":"TWSE"},{"symbol":"6488","exchange":"TPEx"}]
+    twse={"2330":{"symbol":"2330","date":"2026-11-04"}}
+    tpex={"6488":{"symbol":"6488","date":"2026-11-04"}}
+    out=evaluate_daily_scope(universe,twse,tpex,datetime(2026,11,4,11,0,tzinfo=TZ))
+    assert out["daily_scope_qualified"] is False
+    assert out["signal_date"] is None
