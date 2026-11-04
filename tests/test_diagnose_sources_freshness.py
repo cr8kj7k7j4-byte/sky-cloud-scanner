@@ -29,3 +29,24 @@ def test_plan_restricted_is_distinct_from_stale_quote(monkeypatch):
     result = diagnose_sources._probe_executed_quote("2330")
     assert result["status"] == "PLAN_RESTRICTED"
     assert result["api_accessible"] is False
+
+
+def test_diagnostics_entrypoint_runs_with_stubbed_sources(monkeypatch, capsys):
+    import json
+    monkeypatch.setattr(diagnose_sources, "load_official_universe",
+                        lambda: ([{"symbol":"2330","exchange":"TWSE","mis_prefix":"tse"}],
+                                 {"twse":1,"tpex":0,"warnings":[]}))
+    monkeypatch.setattr(diagnose_sources, "fetch_mis_quotes",
+                        lambda universe: ([], ["MIS_LOW_COVERAGE"]))
+    monkeypatch.setattr(diagnose_sources, "get_tickers",
+                        lambda market: {"data":[],"date":"2026-11-04"})
+    monkeypatch.setattr(diagnose_sources, "snapshot_quotes",
+                        lambda market: (_ for _ in ()).throw(PermissionError("plan")))
+    monkeypatch.setattr(diagnose_sources, "_probe_executed_quote",
+                        lambda symbol: {"ok":False,"status":"MISSING_EXECUTED_TRADE_TIME"})
+    diagnose_sources.run()
+    report=json.loads(capsys.readouterr().out)
+    assert report["mis_sample"]["returned"] == 0
+    assert report["fugle_snapshot_TSE"]["status"] == "plan_restricted"
+    assert report["fugle_snapshot_OTC"]["status"] == "plan_restricted"
+    assert report["fugle_quote_8089_otc"]["ok"] is False
