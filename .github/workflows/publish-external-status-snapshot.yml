@@ -93,8 +93,8 @@ jobs:
               encoding="utf-8",
           )
 
-          obs = dash.get("observed") or dash.get("sample_progress") or {}
-          status = dash.get("status") or dash.get("promotion_status") or "UNKNOWN"
+          obs = (dash.get("sample_sufficiency") or {}).get("observed") or {}
+          status = dash.get("stage") or dash.get("status") or "UNKNOWN"
           eligible_runs = elig.get("eligible_run_count")
           eligible_records = elig.get("eligible_record_count")
 
@@ -206,6 +206,17 @@ jobs:
           MSG="$(cat /tmp/sky_material_message.txt)"
           curl --fail --silent --show-error             --retry 3             -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage"             -H "Content-Type: application/json"             --data "$(python -c 'import json,os; print(json.dumps({"chat_id":os.environ["TELEGRAM_CHAT_ID"],"text":open("/tmp/sky_material_message.txt",encoding="utf-8").read(),"disable_web_page_preview":True},ensure_ascii=False))')"
 
+      - name: Upload latest status snapshot artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-external-latest-status-${{ github.run_id }}
+          path: |
+            docs/SKY_EXTERNAL_LATEST_STATUS.json
+            docs/SKY_EXTERNAL_LATEST_STATUS.md
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Commit snapshot when changed
         shell: bash
         run: |
@@ -218,4 +229,22 @@ jobs:
             exit 0
           fi
           git commit -m "W4: publish external latest status snapshot [skip ci]"
-          git push origin HEAD:main
+          # A GitHub backend push rejection or concurrent main update should not
+          # discard the already uploaded audit artifact. Retry only the publish.
+          for attempt in 1 2 3; do
+            if git push origin HEAD:main; then
+              echo "Latest status committed to main."
+              exit 0
+            fi
+            echo "::warning::Snapshot push failed (attempt ${attempt}/3)."
+            if [ "$attempt" -lt 3 ]; then
+              sleep "$((attempt * 5))"
+              git fetch origin main
+              if ! git rebase origin/main; then
+                echo "::error::Snapshot rebase conflict; artifact remains available."
+                exit 1
+              fi
+            fi
+          done
+          echo "::error::Snapshot publish failed after three tries; artifact remains available."
+          exit 1
