@@ -1,6 +1,6 @@
 {
-  "command": "system_health",
-  "requested_at": "2026-11-04T09:16:00+08:00",
-  "reason": "P0_OPS_216_verify_intraday_data_coverage_and_schedule_health",
-  "execution_scope": "read_only_no_order_no_production_promotion"
+  "command": "all_market",
+  "requested_at": "2026-11-04T09:18:00+08:00",
+  "reason": "end_to_end_validation_after_result_publisher",
+  "execution_scope": "read_only_no_order"
 }
