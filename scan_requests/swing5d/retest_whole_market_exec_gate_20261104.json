@@ -1,0 +1,7 @@
+{
+  "purpose": "W3B postmerge full-market executed quote safety verification",
+  "requested_at": "2026-11-04T10:50:00+08:00",
+  "mode": "swing5d",
+  "no_order": true,
+  "production_promotion": false
+}
