@@ -1,0 +1,72 @@
+name: Margin 2026 historical data audit
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/margin-2026-history-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  historical-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Collect historical official reports for research
+        run: |
+          python - <<'PY'
+          import datetime as dt
+          import json
+          import sys
+          import time
+          from pathlib import Path
+          sys.path.insert(0, 'research/margin_evidence')
+          from collect import run
+          from normalize import normalize
+          start = dt.date(2026, 1, 1)
+          end = dt.date(2026, 10, 31)
+          root = Path('output/margin_history_2026')
+          root.mkdir(parents=True, exist_ok=True)
+          rows = []
+          day = start
+          while day <= end:
+              if day.weekday() < 5:
+                  folder = root / day.isoformat()
+                  manifest = run(day, folder)
+                  item = {'date': day.isoformat(), 'status': manifest['collection_status'],
+                          'sources': {k: {'status': v['status'], 'error': v.get('error'),
+                                          'rows': v.get('rows')} for k, v in manifest['sources'].items()}}
+                  if manifest['collection_status'] == 'PASS':
+                      try:
+                          out = normalize(folder)
+                          item['normalized_rows'] = len(out['records'])
+                      except Exception as exc:
+                          item['status'] = 'NORMALIZE_FAIL'
+                          item['error'] = str(exc)[:300]
+                  rows.append(item)
+                  print(day, item['status'], flush=True)
+                  time.sleep(0.5)
+              day += dt.timedelta(days=1)
+          report = {'start': start.isoformat(), 'end': end.isoformat(),
+                    'historical_data': True, 'historical_pit_verified': False,
+                    'nontrading_days_not_classified': True, 'trade_signal': False,
+                    'backtest_performed': False, 'days_checked': len(rows),
+                    'both_sources_pass': sum(x['status'] == 'PASS' for x in rows),
+                    'other_days': sum(x['status'] != 'PASS' for x in rows),
+                    'days': rows}
+          (root / 'audit.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
+          print(json.dumps({k:v for k,v in report.items() if k != 'days'}, ensure_ascii=False))
+          PY
+      - name: Upload historical research audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: margin-history-2026-audit-${{ github.run_id }}-${{ github.run_attempt }}
+          path: output/margin_history_2026/
+          if-no-files-found: error
+          retention-days: 90
