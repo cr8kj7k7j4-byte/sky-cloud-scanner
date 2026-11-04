@@ -48,3 +48,18 @@ The W3 base data previously passed the older registered 2023+ price-coverage gat
 - Keep PRs draft until reviewed; W1–W7 may not independently change Production.
 - Sky Swing V1.0 and Day Trading v1.4 remain Production.
 - This is engineering/data evidence, not strategy profitability, trading eligibility, or a Production upgrade.
+
+
+## Nightly 22:54 update — latest verified official source evidence
+
+Live run: [41852098249](https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/41852098249), **SUCCESS**. Official dated 2026-11-04 daily history added **1,969 PIT-aligned common stocks**, taking the repaired missing-session raw backfill to **7/7 open sessions**, with **0 failed open sessions**. Price-source synchronization defect solved in research by using explicit dated TWSE MI_INDEX + TPEx otc_quotes_no1430 instead of incorrectly combining latest-only snapshots.
+
+Corporate action discovery (all raw JSON and SHA-256 attached to this run):
+- TWSE ex-rights canonical query MUST use `startDate=20261023&endDate=20261104`, not `strDate`; original `strDate` query silently returned only 2026-11-04. Corrected query echoed the full requested dates and returned **17 rows** (including ETFs and other non-common-stock codes; must filter by canonical PIT).
+- TPEx `bulletin/exDailyQ`: **13 rows** in the requested window.
+- TPEx `bulletin/revivt`: **1 capital-reduction/resumption event**, symbol **8047** dated 2026-10-27.
+- Examples of ordinary-share corporate actions: **8467 (TWSE 11/04), 3691 and 2063 (TPEx ex-rights)**; separate capital reduction **8047**.
+- TWSE `TWT49U` explicitly does **not** cover some capital reductions / stock splits. Additional official capital-change event sources and per-symbol as-of ratio reconciliation are required before adjusted Swing history can be declared complete.
+- Current CA probe status: `CORPORATE_ACTION_AUDIT_PENDING` and `swing_v11_signal_eligible=false`.
+
+W1 may use this artifact for **data engineering/audit only**. Do not merge raw bars into the frozen V1.1 live entry chain or infer positive expectancy. Historical verification and 7-day coverage are not a future 20-day Shadow sample.
