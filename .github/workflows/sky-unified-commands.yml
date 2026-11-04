@@ -99,12 +99,13 @@ jobs:
                   name: item.get("exit_code") for name, item in
                   result.get("strategies", {}).items() if isinstance(item, dict)},
               "reports": safe_reports,
+              "evidence": result.get("evidence", {}),
               "no_order_or_production_promotion": True
           }
           Path("/tmp/sky_unified_status.json").write_text(
               json.dumps(safe, ensure_ascii=False, indent=2) + chr(10))
           PY
-          TARGET="repos/${GITHUB_REPOSITORY}/contents/docs/SKY_UNIFIED_LATEST_EXECUTION.json"
+          TARGET="repos/${GITHUB_REPOSITORY}/contents/docs/SKY_UNIFIED_LATEST_$(python -c 'import json; print(json.load(open("/tmp/sky_unified_status.json"))["command"].upper())').json"
           CONTENT=$(base64 -w0 /tmp/sky_unified_status.json)
           for ATTEMPT in 1 2 3; do
             SHA=$(gh api "$TARGET" --jq '.sha' 2>/dev/null || true)
