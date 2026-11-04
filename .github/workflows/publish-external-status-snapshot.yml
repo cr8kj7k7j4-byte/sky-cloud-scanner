@@ -222,6 +222,17 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
+      # Preserve the derived W4 report even if GitHub refuses to update main.
+      - name: Upload immutable latest-status report
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-external-status-${{ github.run_id }}
+          path: |
+            docs/SKY_EXTERNAL_LATEST_STATUS.json
+            docs/SKY_EXTERNAL_LATEST_STATUS.md
+          if-no-files-found: error
+          retention-days: 90
+
       - name: Commit snapshot when changed
         shell: bash
         run: |
