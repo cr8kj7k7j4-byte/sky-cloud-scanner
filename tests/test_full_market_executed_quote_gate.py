@@ -85,3 +85,22 @@ def test_a_stale_duplicate_never_overwrites_a_fresh_quote():
     )
     assert results["valid_quote_count"] == 1
     assert results["accepted_rows"][0]["quote_time"] == "10:14:45"
+
+
+def test_unknown_quote_source_is_not_eligible():
+    q = mis("1001")
+    q["quote_source"] = "UNATTRIBUTED_VENDOR"
+    result = validate_whole_market_rows(universe(), [q], NOW)
+    assert result["valid_quote_count"] == 0
+    assert result["valid_whole_market_operational"] is False
+
+
+def test_main_market_contract_uses_eighty_percent_minimum():
+    from src.sky_unified_commands import operational_market_evidence_ok
+    baseline = {
+        "available": True, "operational_full_market_scan": True,
+        "quote_scope": "WHOLE_MARKET_EXECUTED_LIVE",
+        "live_whole_market_certified": True,
+    }
+    assert not operational_market_evidence_ok({**baseline, "quote_coverage_pct": 79.99})
+    assert operational_market_evidence_ok({**baseline, "quote_coverage_pct": 80.0})

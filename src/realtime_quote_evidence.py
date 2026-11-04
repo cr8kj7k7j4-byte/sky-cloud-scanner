@@ -143,8 +143,10 @@ def validate_whole_market_rows(universe, rows, now=None, *, min_coverage_pct=80.
                 and ts.date() == now.date()
                 and age is not None and -30 <= age <= max_age_seconds
             )
-        else:
+        elif row.get("quote_source") == "TWSE MIS":
             valid = mis_executed_trade_row(row, now, max_age_seconds=max_age_seconds)
+        else:
+            valid = False
         if valid:
             accepted[symbol] = row
         else:
