@@ -6,9 +6,16 @@ on:
       - "research/w6_execution_baseline.py"
       - "research/w6_execution_evidence.py"
       - "research/w6_execution_attempts.py"
+      - "research/w4_w6_lineage_audit.py"
       - "research/w6_p1_report.py"
       - "tests/test_w6_execution_research.py"
       - "tests/test_w6_execution_attempts.py"
+      - "tests/test_w4_w6_lineage_audit.py"
+      - ".github/workflows/test-w6-execution-research.yml"
+  pull_request:
+    paths:
+      - "research/w4_w6_lineage_audit.py"
+      - "tests/test_w4_w6_lineage_audit.py"
       - ".github/workflows/test-w6-execution-research.yml"
   workflow_dispatch:
 
@@ -23,4 +30,4 @@ jobs:
       - name: Install test dependencies
         run: python -m pip install pytest
       - name: Run W6 unit tests
-        run: python -m pytest -q tests/test_w6_execution_research.py tests/test_w6_execution_attempts.py
+        run: python -m pytest -q tests/test_w6_execution_research.py tests/test_w6_execution_attempts.py tests/test_w4_w6_lineage_audit.py
