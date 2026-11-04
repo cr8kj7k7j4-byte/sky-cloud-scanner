@@ -132,12 +132,6 @@ jobs:
           print(f"SKY_SCANNER_RUNTIME_SECONDS={elapsed}")
           sys.exit(proc.returncode)
           PY
-      - name: Diagnose sources on scanner failure only
-        if: steps.calendar.outputs.should_scan == 'true' && failure()
-        env:
-          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
-        run: python -m src.diagnose_sources | tee source-diagnostics.json
-        continue-on-error: true
       - name: Verify operational market coverage
         if: steps.calendar.outputs.should_scan == 'true'
         run: |
@@ -159,6 +153,12 @@ jobs:
               or data.get("market_data_gate") != "PASS_FULL_MARKET_LIVE"):
               raise SystemExit("BLOCKED_EXTERNAL_DATA: full-market actual executed quotes not verified; no trades.")
           PY
+      - name: Diagnose sources on scanner or coverage failure
+        if: steps.calendar.outputs.should_scan == 'true' && failure()
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+        run: python -m src.diagnose_sources | tee source-diagnostics.json
+        continue-on-error: true
       - name: Save P0-A monitor state cache
         if: steps.calendar.outputs.should_scan == 'true' && success()
         uses: actions/cache/save@v4
