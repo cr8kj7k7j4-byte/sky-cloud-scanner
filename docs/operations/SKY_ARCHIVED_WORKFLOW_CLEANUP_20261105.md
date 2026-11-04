@@ -20,3 +20,12 @@
 - 保留 Sky v1.4 Production、Sky Swing V1.0、前瞻 W4、P0-R、正式資料驗收與故障告警。
 - 清理只代表停止提供這九項 GitHub Actions 工作入口，不代表已取得合法即時報價、策略正期望或治理升版。
 - 其他 Workflow 不得僅依名稱老舊或測試曾失敗而誤刪，仍須確認是否被其他 Workflow、排程或證據追溯所依賴。
+
+## 第二批：已拒絕 OOS 回測工作入口（另四項）
+
+- `.github/workflows/backtest-event-driven-rank-oos.yml` — Event-driven Intraday Ranking / Catalyst Stack：`ARCHIVED_NO_RETUNE`
+- `.github/workflows/backtest-event-stack-oos.yml` — Event-driven Intraday Ranking / Catalyst Stack：`ARCHIVED_NO_RETUNE`
+- `.github/workflows/backtest-intraday-rank-oos.yml` — Fixed-time Intraday Ranking：`ARCHIVED_NO_RETUNE`
+- `.github/workflows/backtest-catalyst-event-oos.yml` — Stage 6B / Event Catalyst OOS 相關封存策略；不再重跑原始無效假設
+
+以上僅移除 GitHub Actions 工作入口，不更動研究與凍結證據。保留 `vnext-residual-ranking-governance.yml` 等防止舊策略重啟的治理測試，不以刪除封存入口放寬治理。
