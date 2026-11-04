@@ -18,6 +18,7 @@ from .fugle import get_quote
 TZ = ZoneInfo("Asia/Taipei")
 TWSE_DAILY = TWSE_UNIVERSE_URL
 TPEX_DAILY = "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes"
+TPEX_BACKUP = TPEX_UNIVERSE_URL
 OUT = Path("output/swing_split_scope")
 
 
@@ -95,14 +96,22 @@ def run(deep_n=8):
     OUT.mkdir(parents=True,exist_ok=True)
     universe, health=load_official_universe()
     errors=[]
-    try: tw=parse_daily_rows(get_json(TWSE_DAILY), "TWSE")
+    try: tw=parse_daily_rows(get_json(TWSE_DAILY, timeout=12, retries=2), "TWSE")
     except Exception as e:
         tw={}
         errors.append(f"TWSE daily data: {type(e).__name__}")
-    try: tp=parse_daily_rows(get_json(TPEX_DAILY), "TPEx")
-    except Exception as e:
-        tp={}
-        errors.append(f"TPEx daily data: {type(e).__name__}")
+    tp={}
+    for label, url in (("daily_close", TPEX_DAILY), ("mainboard_quotes", TPEX_BACKUP)):
+        if tp:
+            break
+        try:
+            tp=parse_daily_rows(get_json(url, timeout=12, retries=2), "TPEx")
+            if not tp:
+                errors.append(f"TPEx {label}: returned no date-verified valid close rows")
+        except Exception as e:
+            errors.append(f"TPEx {label}: {type(e).__name__}")
+    # TPEx backup is official end-of-day quotes, never a substitute for
+    # intraday executed-price coverage. Missing dates remain missing.
 
     assessment=evaluate_daily_scope(universe,tw,tp,now)
     # Market-wide is historical D-close; a quote for one candidate does not
