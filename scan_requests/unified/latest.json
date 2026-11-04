@@ -1,6 +1,6 @@
 {
   "command": "all_market",
-  "requested_at": "2026-11-04T09:35:00+08:00",
-  "reason": "verify_fail_closed_operational_coverage_guard_issue_216",
-  "execution_scope": "read_only_no_order_no_production_promotion"
+  "reason": "postmerge_all_model_realtime_scope_fail_closed_validation_PR240",
+  "execution_scope": "read_only_no_order_no_production_promotion",
+  "scope_contract": "docs/SKY_UNIFIED_REALTIME_SCOPE_20261104.md"
 }
