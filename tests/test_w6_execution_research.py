@@ -117,6 +117,7 @@ def test_twenty_quote_only_rows_can_ready_spread_not_slippage():
             "fill_status": "UNKNOWN",
             "quote_source": "FUGLE_INTRADAY_QUOTE",
             "quote_timestamp": "2026-10-26T09:05:00+08:00",
+            "quote_observation_timestamp": "2026-10-26T09:05:00+08:00",
             "risk_per_share": 0.5,
         })
     out = summarize_p1(rows)
@@ -219,4 +220,33 @@ def test_w6_invalid_acquisition_time_cannot_fallback_to_scan_time():
     }
     quality = quote_time_integrity(row)
     assert not quality["quote_spread_time_valid"]
-    assert quality["decision_time_quote_valid"]
+    assert not quality["decision_time_quote_valid"]
+
+def test_w6_legacy_quote_without_capture_does_not_pass_pit():
+    quote_only = {
+        "observation_timestamp": "2026-10-28T09:05:00+08:00",
+        "quote_timestamp": "2026-10-28T09:04:59+08:00",
+        "quote_source": "FUGLE_INTRADAY_QUOTE",
+        "symbol": "2409", "bid": 49.95, "ask": 50.05,
+        "reference_price": 50.0, "fill_status": "UNKNOWN",
+        "execution_type": "QUOTE_ONLY",
+    }
+    q = quote_time_integrity(quote_only)
+    assert not q["quote_spread_time_valid"]
+    assert not q["decision_time_quote_valid"]
+    rows = [dict(quote_only, symbol=str(2400 + i)) for i in range(20)]
+    result = summarize_p1(rows)
+    assert result["spread_sample_count"] == 0
+    assert result["spread_status"] == "INSUFFICIENT_DATA"
+
+
+def test_w6_quote_acquired_after_scan_start_is_not_decision_evidence():
+    row = {
+        "observation_timestamp": "2026-10-28T09:05:00+08:00",
+        "quote_observation_timestamp": "2026-10-28T09:05:25+08:00",
+        "quote_timestamp": "2026-10-28T09:04:59+08:00",
+        "quote_source": "FUGLE_INTRADAY_QUOTE",
+    }
+    q = quote_time_integrity(row)
+    assert q["quote_spread_time_valid"]
+    assert not q["decision_time_quote_valid"]
