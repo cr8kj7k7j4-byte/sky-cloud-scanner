@@ -8,7 +8,9 @@ on:
       - "research/probe_swing_official_dated_bulk.py"
       - "research/backfill_swing_official_dated_history.py"
       - "research/probe_swing_ca_sources.py"
-      - "tests/test_swing_ca_source_probe.py"
+      - "research/audit_swing_ca_candidate_ledger.py"
+      - "tests/test_swing_ca_candidate_ledger.py"
+      - "tests/test_swing_ca_source_probe.py tests/test_swing_ca_candidate_ledger.py"
       - "tests/test_swing_official_dated_backfill.py"
       - "src/trading_calendar.py"
       - "tests/test_swing_official_daily_delta.py"
@@ -55,6 +57,13 @@ jobs:
         run: >
           python research/probe_swing_ca_sources.py
           --out output/swing_ca_source_probe
+      - name: Audit PIT corporate-action candidates with closed-session quarantine
+        run: >
+          python research/audit_swing_ca_candidate_ledger.py
+          --source-dir output/swing_ca_source_probe
+          --backfill-audit output/swing_official_backfill/backfill_audit.json
+          --pit-json _canonical/primary_bundle/canonical_pit/pit_intervals.json
+          --out output/swing_ca_source_probe/ca_candidate_ledger.json
       - name: Upload official PIT daily delta and source dates
         if: always()
         uses: actions/upload-artifact@v4
