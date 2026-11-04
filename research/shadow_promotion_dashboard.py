@@ -223,6 +223,12 @@ def main():
     dashboard["strategy_evidence_integrity"] = audit_forward_strategy_evidence(records)
     dashboard["forward_trade_provenance"] = audit_forward_trade_provenance(records)
     dashboard["blocking_items"].append("governance:PRODUCTION_DECISION_PROVENANCE_BLOCKED")
+    # Fail closed even if a Ranking-only scorecard happens to reach every
+    # numerical threshold: it is not an approved v1.4 strategy-trade review.
+    dashboard["promotion_scorecard"]["promotable_to_governance_review"] = False
+    dashboard["summary"]["promotable_to_governance_review"] = False
+    if dashboard["stage"] == "GOVERNANCE_REVIEW_READY":
+        dashboard["stage"] = "PRODUCTION_DECISION_PROVENANCE_BLOCKED"
     dashboard["w4_report"] = build_w4_report_sections(dashboard)
 
     out = Path(args.out)
