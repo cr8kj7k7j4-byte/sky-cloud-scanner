@@ -23,7 +23,7 @@ def execute(argv: list[str]) -> dict:
     try:
         proc = subprocess.run(argv, capture_output=True, text=True, timeout=600, check=False)
         return {"command": argv, "exit_code": proc.returncode,
-                "stdout_tail": proc.stdout[-3000:], "stderr_tail": proc.stderr[-3000:]}
+                "stdout_tail": proc.stdout[-20000:], "stderr_tail": proc.stderr[-3000:]}
     except (OSError, subprocess.TimeoutExpired) as exc:
         return {"command": argv, "exit_code": 125, "error": str(exc)}
 
