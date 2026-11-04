@@ -66,6 +66,26 @@ def main():
     assert dd_lock["state"] == "LOCKDOWN"
     assert dd_lock["status"] == "BLOCK"
 
+    # Two consecutive losses must hard-block new positions even when
+    # the legacy 3-loss caution state is still NORMAL.
+    two_loss_stop = evaluate_trade(
+        entry=50, stop=48.5, target=53,
+        account_equity=500000, consecutive_losses=2,
+        grade="A+", policy=p,
+    )
+    assert two_loss_stop["state"] == "NORMAL"
+    assert two_loss_stop["status"] == "BLOCK"
+    assert two_loss_stop["portfolio_allowed"] is False
+    assert two_loss_stop["recommended_shares"] == 0
+    assert "連續兩筆虧損，停止新進場" in two_loss_stop["reasons"]
+
+    single_loss = evaluate_trade(
+        entry=50, stop=48.5, target=53,
+        account_equity=500000, consecutive_losses=1,
+        grade="A+", policy=p,
+    )
+    assert single_loss["status"] == "ALLOW"
+
     print("PASS P0-R risk engine tests")
 
 
