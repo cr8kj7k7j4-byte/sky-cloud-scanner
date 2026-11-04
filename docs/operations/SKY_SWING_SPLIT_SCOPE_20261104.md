@@ -36,3 +36,14 @@ https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/41755149811
 每日盤後官方來源請求失敗、日期不同、上市上櫃涵蓋不足： fail closed，不沿用舊候選。
 富果候選個股缺報價或時間戳記過期：只顯示未驗證，不輸出可買訊號。
 GitHub Actions Workflow summary 與 artifacts 為查驗入口。
+
+
+## 最終重驗證（2026-11-04 09:39～09:40 Asia/Taipei）
+- GitHub Run： https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/41755405440
+- **13/13 單元／安全測試全部通過；全部 Workflow 步驟通過；Artifact 已上傳**。
+- 每日收盤資料日期：2026-11-03；全市場日收盤涵蓋 **1,959／1,985（98.69%）**，TWSE **99.45%**、TPEx **97.76%**。
+- 候選單檔 Fugle 查核 **8／8**，同日且可驗證的 `lastUpdated` 時間戳記 **8／8**；單檔報價不等於全市場即時覆蓋率。
+- 資料來源錯誤 0；`daily_scope_status=PASS_DAILY_CROSS_SECTION`。
+- `live_whole_market_coverage_pct=null`，`live_whole_market_certified=false`；原本盤中全市場 ≥80% 目標仍因權限／來源而 BLOCKED。
+- 新 workflow 的 GitHub cron 已設定 09:15 Asia/Taipei；**尚待下一個實際交易日排程觸發驗證**。此輪 push 成功不等於定時成功。
+- 此項目可作為**資料研究替代流程已完成**，但不得視為全市場即時行情或正式 Production 策略修復結案。
