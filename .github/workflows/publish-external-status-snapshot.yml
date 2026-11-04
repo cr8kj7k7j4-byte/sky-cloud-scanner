@@ -14,6 +14,11 @@ permissions:
   contents: write
   actions: read
 
+# Serialize snapshot publication on main; never cancel a run mid-write.
+concurrency:
+  group: sky-external-status-publish-main
+  cancel-in-progress: false
+
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -218,4 +223,19 @@ jobs:
             exit 0
           fi
           git commit -m "W4: publish external latest status snapshot [skip ci]"
-          git push origin HEAD:main
+          # A concurrent writer or GitHub transient ref lock can reject the
+          # first push. Retry with a fresh remote base; NEVER force-push.
+          # If the generated status files conflict, fail visibly rather than
+          # overwriting a newer result from another run.
+          for attempt in 1 2 3 4; do
+            git fetch origin main
+            git rebase origin/main
+            if git push origin HEAD:main; then
+              echo "Published status snapshot on attempt $attempt."
+              exit 0
+            fi
+            echo "Snapshot push rejected (attempt $attempt); retrying."
+            sleep $((attempt * 3))
+          done
+          echo "::error::Failed to publish status snapshot after bounded retries."
+          exit 1
