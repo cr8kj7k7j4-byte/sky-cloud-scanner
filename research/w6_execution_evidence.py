@@ -51,7 +51,10 @@ def quote_time_integrity(row):
     """
     qt = _timestamp(row.get("quote_timestamp"))
     decision = _timestamp(row.get("observation_timestamp"))
-    capture = _timestamp(row.get("quote_observation_timestamp")) or decision
+    capture = (
+        _timestamp(row.get("quote_observation_timestamp"))
+        if row.get("quote_observation_timestamp") is not None else decision
+    )
     has_source = bool(row.get("quote_source"))
     age = (capture - qt).total_seconds() if capture is not None and qt is not None else None
     decision_age = (decision - qt).total_seconds() if decision is not None and qt is not None else None
