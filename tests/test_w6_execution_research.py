@@ -209,3 +209,14 @@ def test_w6_invalid_time_and_missing_source_fail_closed():
     quality = quote_time_integrity(row)
     assert not quality["quote_spread_time_valid"]
     assert not quality["quote_timestamp_valid"]
+
+def test_w6_invalid_acquisition_time_cannot_fallback_to_scan_time():
+    row = {
+        "observation_timestamp": "2026-10-28T09:53:01+08:00",
+        "quote_observation_timestamp": "bad-timestamp",
+        "quote_timestamp": "2026-10-28T09:53:00+08:00",
+        "quote_source": "FUGLE_INTRADAY_QUOTE",
+    }
+    quality = quote_time_integrity(row)
+    assert not quality["quote_spread_time_valid"]
+    assert quality["decision_time_quote_valid"]
