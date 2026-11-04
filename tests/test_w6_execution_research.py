@@ -138,3 +138,20 @@ def test_p1_requires_observed_slippage_sufficiency():
     out = summarize_p1(rows)
     assert out["status"] == "INSUFFICIENT_DATA"
     assert out["sample"] == 1
+
+
+def test_w6_quote_evidence_preserves_observation_identity_not_execution_claim():
+    from research.w6_execution_evidence import paper_snapshot_to_w6_evidence
+    row = paper_snapshot_to_w6_evidence({
+        "record_id": "canonical-r1", "observation_record_id": "canonical-r1",
+        "decision_id": None, "decision_provenance_status": "RANKING_OBSERVATION_ONLY",
+        "run_id": "r1", "symbol": "2330",
+        "observed_at": "2026-11-04T09:05:00+08:00",
+        "market": {"last": 50.0, "bid": 49.9, "ask": 50.1},
+    })
+    assert row["record_id"] == "canonical-r1"
+    assert row["observation_record_id"] == "canonical-r1"
+    assert row["decision_id"] is None
+    assert row["decision_provenance_status"] == "RANKING_OBSERVATION_ONLY"
+    assert row["fill_status"] == "UNKNOWN"
+    assert row["fill_price"] is None
