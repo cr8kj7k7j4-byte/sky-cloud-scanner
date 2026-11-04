@@ -6,6 +6,8 @@ on:
     paths:
       - "research/collect_swing_official_daily_delta.py"
       - "research/probe_swing_official_dated_bulk.py"
+      - "research/backfill_swing_official_dated_history.py"
+      - "tests/test_swing_official_dated_backfill.py"
       - "tests/test_swing_official_daily_delta.py"
       - ".github/workflows/w3a-swing-official-daily-delta.yml"
   workflow_dispatch:
@@ -28,9 +30,7 @@ jobs:
       - name: Install focused dependencies
         run: python -m pip install requests pytest
       - name: Verify PIT daily parsing and fail-closed date policy
-        run: python -m pytest -q tests/test_swing_official_daily_delta.py
-      - name: Probe official historical whole-market daily archives
-        run: python -m research.probe_swing_official_dated_bulk
+        run: python -m pytest -q tests/test_swing_official_daily_delta.py tests/test_swing_official_dated_backfill.py
       - name: Download canonical PIT data authority (Run 40252311345)
         uses: actions/download-artifact@v4
         with:
@@ -45,11 +45,20 @@ jobs:
           --date auto
           --pit-json _canonical/primary_bundle/canonical_pit/pit_intervals.json
           --out output/swing_official_daily_delta
+      - name: Backfill missing historical daily sessions with dated official endpoints
+        run: >
+          python research/backfill_swing_official_dated_history.py
+          --start 2026-10-23
+          --end 2026-11-03
+          --pit-json _canonical/primary_bundle/canonical_pit/pit_intervals.json
+          --out output/swing_official_backfill
       - name: Upload official PIT daily delta and source dates
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: w3a-swing-official-delta-${{ github.run_id }}
-          path: output/swing_official_daily_delta/
+          path: |
+            output/swing_official_daily_delta/
+            output/swing_official_backfill/
           retention-days: 90
           if-no-files-found: warn
