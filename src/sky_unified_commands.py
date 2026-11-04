@@ -26,6 +26,19 @@ def execute(argv: list[str]) -> dict:
         return {"command": argv, "exit_code": 125, "error": str(exc)}
 
 
+def operational_market_evidence_ok(item: dict) -> bool:
+    """A successful process or uploaded artifact is not market coverage."""
+    try:
+        coverage = float(item.get("quote_coverage_pct"))
+    except (TypeError, ValueError):
+        return False
+    return (
+        item.get("available") is True
+        and item.get("operational_full_market_scan") is True
+        and 70.0 <= coverage <= 100.0
+    )
+
+
 def market_mode() -> dict:
     calendar = execute([sys.executable, "-m", "src.trading_calendar",
                         "--out", str(BASE / "calendar.json")])
@@ -79,9 +92,18 @@ def market_mode() -> dict:
         except (OSError, ValueError, TypeError):
             item["reason"] = "RESULT_NOT_AVAILABLE_OR_INVALID"
         results["reports"][label] = item
-    results["decision"] = ("PARTIAL_UNVERIFIED_NO_A_PLUS" if
-                           all(x["exit_code"] == 0 for x in results["strategies"].values())
-                           else "SCAN_FAILURE_NO_TRADE")
+    # Process exit zero is not verified whole-market data.
+    # Operational coverage alone still never certifies an A+ trade signal.
+    results["operational_coverage_verified"] = operational_market_evidence_ok(
+        results["reports"]["intraday"]
+    )
+    results["decision"] = (
+        "SCAN_FAILURE_NO_TRADE"
+        if any(x["exit_code"] != 0 for x in results["strategies"].values())
+        else "DATA_COVERAGE_INSUFFICIENT_NO_TRADE"
+        if not results["operational_coverage_verified"]
+        else "OPERATIONAL_COVERAGE_ONLY_NO_A_PLUS"
+    )
     return results
 
 
@@ -140,7 +162,8 @@ def main() -> None:
     mode = parser.parse_args().mode
     payload = run(mode)
     if payload["result"]["decision"] in (
-        "SCAN_FAILURE_NO_TRADE", "HEALTH_CHECK_FAILED", "VALIDATION_CHECK_FAILED",
+        "SCAN_FAILURE_NO_TRADE", "DATA_COVERAGE_INSUFFICIENT_NO_TRADE",
+        "HEALTH_CHECK_FAILED", "VALIDATION_CHECK_FAILED",
         "NO_TRADE_CALENDAR_UNAVAILABLE", "NO_TRADE_INVALID_CALENDAR",
     ):
         raise SystemExit(1)
