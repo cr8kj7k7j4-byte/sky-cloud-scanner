@@ -1,0 +1,28 @@
+{
+  "research_status": "HOLD",
+  "trade_signal": false,
+  "requested_date": "2026-11-02",
+  "generated_at": "2026-11-04T10:12:04.133004+08:00",
+  "historical_pit_verified": false,
+  "sources": {
+    "TWSE": {
+      "url": "https://www.twse.com.tw/rwd/zh/marginTrading/MI_MARGN?date=20261102&response=json&selectType=ALL",
+      "status": "PASS",
+      "retrieved_at": "2026-11-04T10:12:05.743078+08:00",
+      "rows": 1305,
+      "sha256": "7c020dfb4d264a9d17eed326b21e9c7a9069c31be9603885ec49f3b1fb7c4747",
+      "file": "twse-2026-11-02.json"
+    },
+    "TPEx": {
+      "url": "https://www.tpex.org.tw/web/stock/margin_trading/margin_balance/margin_bal_result.php?d=115%2F11%2F02&l=zh-tw&o=json",
+      "status": "PASS",
+      "retrieved_at": "2026-11-04T10:12:07.283233+08:00",
+      "rows": 919,
+      "sha256": "da87c62ba86d4b2c04d37dae38114b7260f41f2fa2e3903868b8010c301fee49",
+      "file": "tpex-2026-11-02.json"
+    }
+  },
+  "collection_status": "PASS",
+  "github_event": "pull_request",
+  "snapshot_kind": "historical_probe_not_pit"
+}
