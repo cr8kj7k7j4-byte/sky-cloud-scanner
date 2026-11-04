@@ -132,8 +132,26 @@ def run(deep_n=8):
                 tpex_used_source=label
         except Exception as e:
             errors.append(f"TPEx {label}: {type(e).__name__}")
-    # TPEx backup is official end-of-day quotes, never a substitute for
-    # intraday executed-price coverage. Missing dates remain missing.
+    # On source update boundaries, TPEx primary and TWSE may publish at
+    # different times. Try the independent official TPEx backup ONCE if the
+    # primary's date is inconsistent. Keep fail-closed if still mismatched.
+    tw_dates={v["date"] for v in tw.values()}
+    tp_dates={v["date"] for v in tp.values()}
+    if tp and tw and tp_dates != tw_dates and tpex_used_source != "mainboard_quotes":
+        try:
+            alternate=parse_daily_rows(
+                get_json(TPEX_BACKUP, timeout=12, retries=2), "TPEx",
+                source_label="TPEx mainboard_quotes"
+            )
+            if alternate and {v["date"] for v in alternate.values()} == tw_dates:
+                tp=alternate
+                tpex_used_source="mainboard_quotes"
+            else:
+                errors.append("TPEx fallback did not match TWSE trading date")
+        except Exception as e:
+            errors.append(f"TPEx date-alignment fallback: {type(e).__name__}")
+    # Neither backup nor timestamp alignment promotes these EOD closes to
+    # intraday executed prices or TPEx-certified realtime quotes.
 
     assessment=evaluate_daily_scope(universe,tw,tp,now)
     # Market-wide is historical D-close; a quote for one candidate does not
