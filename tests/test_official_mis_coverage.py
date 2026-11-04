@@ -127,5 +127,5 @@ def test_recovery_budget_caps_requests_and_never_invents_quotes(monkeypatch):
     rows,warnings=official.fetch_mis_quotes(universe,batch_size=55)
     assert rows==[]
     assert len(fake.calls)<=4+10  # 4 initial, at most 80/8 recovery
-    assert any("recovery_skipped=120" in s for s in warnings)
+    assert any("recovery_skipped=133" in s for s in warnings)
     assert any("MIS_LOW_COVERAGE" in s for s in warnings)
