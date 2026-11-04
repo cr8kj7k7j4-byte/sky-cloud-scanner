@@ -14,6 +14,7 @@ from zoneinfo import ZoneInfo
 from .official import COMMON, TWSE_UNIVERSE_URL, TPEX_UNIVERSE_URL, load_official_universe, _f
 from .http_utils import get_json
 from .fugle import get_quote
+from .realtime_quote_evidence import fugle_executed_trade
 
 TZ = ZoneInfo("Asia/Taipei")
 TWSE_DAILY = TWSE_UNIVERSE_URL
@@ -151,16 +152,18 @@ def run(deep_n=8):
             qdate=str(q.get("date") or "")
             # closePrice is not guaranteed to be the most recent executed trade.
             # Never promote it to a live last price if lastPrice is missing.
-            last=_f(q.get("lastPrice"))
+            last, trade_dt, evidence_status = fugle_executed_trade(
+                q, now, max_age_seconds=900
+            )
             # During market hours accept only a quote explicitly dated today.
-            updated_at, freshness=quote_time_freshness(q, now)
+            updated_at = trade_dt.isoformat() if trade_dt else None
             candidate["current_price_updated_at"]=updated_at
-            if qdate==now.date().isoformat() and last is not None and last>0 and q.get("isTrial") is not True and freshness=="FRESH":
+            if evidence_status == "FRESH_EXECUTED_TRADE" and last is not None:
                 candidate.update({"current_price":last,"current_price_date":qdate,
                     "current_price_source":"Fugle single-symbol intraday",
                     "live_quote_status":"FRESH_DATE_AND_TIMESTAMP_VERIFIED"})
             else:
-                candidate["live_quote_status"]=freshness if freshness!="FRESH" else "STALE_OR_MISSING_TRADE"
+                candidate["live_quote_status"]=evidence_status
         except Exception as e:
             candidate["live_quote_status"]=f"UNAVAILABLE_{type(e).__name__}"
         candidates.append(candidate)
