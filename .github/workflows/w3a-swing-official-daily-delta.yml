@@ -8,6 +8,7 @@ on:
       - "research/probe_swing_official_dated_bulk.py"
       - "research/backfill_swing_official_dated_history.py"
       - "tests/test_swing_official_dated_backfill.py"
+      - "src/trading_calendar.py"
       - "tests/test_swing_official_daily_delta.py"
       - ".github/workflows/w3a-swing-official-daily-delta.yml"
   workflow_dispatch:
@@ -30,7 +31,7 @@ jobs:
       - name: Install focused dependencies
         run: python -m pip install requests pytest
       - name: Verify PIT daily parsing and fail-closed date policy
-        run: python -m pytest -q tests/test_swing_official_daily_delta.py tests/test_swing_official_dated_backfill.py
+        run: python -m pytest -q tests/test_swing_official_daily_delta.py tests/test_swing_official_dated_backfill.py tests/test_trading_calendar.py
       - name: Download canonical PIT data authority (Run 40252311345)
         uses: actions/download-artifact@v4
         with:
