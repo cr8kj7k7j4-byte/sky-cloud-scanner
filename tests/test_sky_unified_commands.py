@@ -35,4 +35,16 @@ def test_operational_coverage_gate_fails_closed():
     assert not operational_market_evidence_ok({"available": True, "operational_full_market_scan": True, "quote_coverage_pct": 7.3})
     assert not operational_market_evidence_ok({"available": False, "operational_full_market_scan": True, "quote_coverage_pct": 95.0})
     assert not operational_market_evidence_ok({"available": True, "operational_full_market_scan": True, "quote_coverage_pct": None})
-    assert operational_market_evidence_ok({"available": True, "operational_full_market_scan": True, "quote_coverage_pct": 85.0})
+    # A broad daily signal universe or MIS operational count is not a
+    # certified whole-market executed-live quote set.
+    assert not operational_market_evidence_ok({"available": True, "operational_full_market_scan": True, "quote_coverage_pct": 85.0})
+    assert not operational_market_evidence_ok({
+        "available": True, "operational_full_market_scan": True,
+        "quote_coverage_pct": 85.0, "quote_scope": "CANDIDATES_ONLY",
+        "live_whole_market_certified": True,
+    })
+    assert operational_market_evidence_ok({
+        "available": True, "operational_full_market_scan": True,
+        "quote_coverage_pct": 85.0, "quote_scope": "WHOLE_MARKET_EXECUTED_LIVE",
+        "live_whole_market_certified": True,
+    })
