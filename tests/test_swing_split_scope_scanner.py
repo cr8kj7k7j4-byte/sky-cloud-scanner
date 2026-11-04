@@ -99,3 +99,38 @@ def test_tpex_backup_source_is_distinct_in_daily_evidence():
          "TradingShares":"100,000","TransactionAmount":"8,500,000","Change":"-1"}
     ], "TPEx", source_label="TPEx mainboard_quotes")
     assert rows["6488"]["source"]=="TPEx mainboard_quotes"
+
+
+def test_primary_tpex_date_mismatch_uses_only_date_matching_official_backup(monkeypatch, tmp_path):
+    from datetime import timedelta
+    from src import swing_split_scope_scanner as scanner
+    now=datetime.now(TZ)
+    wanted=(now.date()-timedelta(days=1)).strftime("%Y%m%d")
+    stale=(now.date()-timedelta(days=2)).strftime("%Y%m%d")
+    monkeypatch.setattr(scanner, "OUT", tmp_path)
+    monkeypatch.setattr(scanner, "load_official_universe", lambda: (
+        [{"symbol":"2330","exchange":"TWSE"},
+         {"symbol":"6488","exchange":"TPEx"}],
+        {"twse":1,"tpex":1,"warnings":[]},
+    ))
+    seen=[]
+    def fake_get_json(url, **_):
+        seen.append(url)
+        if url==scanner.TWSE_DAILY:
+            return [{"Code":"2330","Date":wanted,"ClosingPrice":"50",
+                     "TradeVolume":"1000000","TradeValue":"50000000","Change":"1"}]
+        if url==scanner.TPEX_DAILY:
+            return [{"SecuritiesCompanyCode":"6488","Date":stale,"Close":"60",
+                     "TradingShares":"1000000","TransactionAmount":"60000000","Change":"2"}]
+        if url==scanner.TPEX_BACKUP:
+            return [{"SecuritiesCompanyCode":"6488","Date":wanted,"Close":"60",
+                     "TradingShares":"1000000","TransactionAmount":"60000000","Change":"2"}]
+        raise AssertionError(url)
+    monkeypatch.setattr(scanner, "get_json", fake_get_json)
+    monkeypatch.setattr(scanner, "get_quote", lambda _: {})
+    report=scanner.run(deep_n=1)
+    assert scanner.TPEX_BACKUP in seen
+    assert report["daily_scope_status"]=="PASS_DAILY_CROSS_SECTION"
+    assert report["official_tpex_source_used"]=="mainboard_quotes"
+    assert report["live_whole_market_certified"] is False
+    assert report["live_quote_available"]==0
