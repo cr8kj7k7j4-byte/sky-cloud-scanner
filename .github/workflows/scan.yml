@@ -76,12 +76,6 @@ jobs:
           )"
           echo "should_scan=$SHOULD_SCAN" >> "$GITHUB_OUTPUT"
 
-      - name: Diagnose data sources
-        if: steps.calendar.outputs.should_scan == 'true'
-        env:
-          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
-        run: python -m src.diagnose_sources | tee source-diagnostics.json
-        continue-on-error: true
       - name: Run scanner
         if: steps.calendar.outputs.should_scan == 'true'
         env:
@@ -114,7 +108,36 @@ jobs:
           MONITOR_STATE_BACKEND: ${{ vars.MONITOR_STATE_BACKEND || 'file' }}
           REDIS_URL: ${{ secrets.REDIS_URL }}
           MONITOR_STATE_REDIS_KEY: ${{ vars.MONITOR_STATE_REDIS_KEY || 'sky:p0a:monitor_state' }}
-        run: python -m src.main
+        run: |
+          python - <<'PY'
+          import json
+          import subprocess
+          import sys
+          import time
+          from datetime import datetime, timezone
+          from pathlib import Path
+          started = datetime.now(timezone.utc)
+          start = time.monotonic()
+          proc = subprocess.run([sys.executable, "-m", "src.main"], check=False)
+          elapsed = round(time.monotonic() - start, 3)
+          Path("output").mkdir(exist_ok=True)
+          Path("output/scan_runtime.json").write_text(
+              json.dumps({
+                  "schema": "SKY_SCANNER_RUNTIME_V1",
+                  "started_at_utc": started.isoformat(),
+                  "elapsed_seconds": elapsed,
+                  "exit_code": proc.returncode,
+                  "run_id": __import__("os").getenv("GITHUB_RUN_ID"),
+              }, indent=2) + "\n", encoding="utf-8")
+          print(f"SKY_SCANNER_RUNTIME_SECONDS={elapsed}")
+          sys.exit(proc.returncode)
+          PY
+      - name: Diagnose sources on scanner failure only
+        if: steps.calendar.outputs.should_scan == 'true' && failure()
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+        run: python -m src.diagnose_sources | tee source-diagnostics.json
+        continue-on-error: true
       - name: Verify operational market coverage
         if: steps.calendar.outputs.should_scan == 'true'
         run: |
