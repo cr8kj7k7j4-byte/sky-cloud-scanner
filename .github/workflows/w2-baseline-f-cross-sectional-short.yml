@@ -1,0 +1,69 @@
+name: W2 Baseline F Cross-sectional Short Exploratory
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/w2-baseline-f-cross-sectional-short.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python tests/test_baseline_f_cross_sectional_short.py
+      - name: Read frozen PIT historical short source from E
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: 40329668748
+          pattern: baseline-e-shard-*-40329668748
+          path: short_data
+      - name: Require 1m historical PIT evidence
+        run: |
+          set -euo pipefail
+          count="$(find short_data -type f -name '*_false_reclaim_short_1m.json' | wc -l | tr -d ' ')"
+          echo "short_input_files=$count"
+          test "$count" -ge 1900
+      - name: Execute preregistered F cross-sectional research
+        run: |
+          python research/backtest_baseline_f_cross_sectional_short.py \
+            --data-root short_data \
+            --source-run-id 40329668748 \
+            --out-dir research_output/baseline_f_cross_sectional
+      - name: Assert structured report and decision
+        run: |
+          python - <<'PY'
+          import json
+          p="research_output/baseline_f_cross_sectional/baseline_f_report.json"
+          x=json.load(open(p,encoding="utf-8"))
+          assert x["input"]["files"]>=1900
+          assert x["fresh_oos"] is False
+          assert x["production_changed"] is False
+          assert x["decision"] in {"REJECT_AFTER_COST_EXPECTANCY","REJECT_AFTER_COST_PF","HOLD_INSUFFICIENT_SAMPLE","HOLD_REQUIRES_FRESH_OOS_SHORT_ELIGIBILITY"}
+          print("decision=",x["decision"],"n=",x["net_cost_045"]["n"])
+          PY
+      - name: Publish concise result
+        if: always()
+        run: |
+          if [ -f research_output/baseline_f_cross_sectional/baseline_f_report.md ]; then
+            cat research_output/baseline_f_cross_sectional/baseline_f_report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: baseline-f-cross-sectional-result-${{ github.run_id }}
+          path: research_output/baseline_f_cross_sectional
+          if-no-files-found: error
+          retention-days: 30
