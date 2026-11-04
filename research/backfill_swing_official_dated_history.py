@@ -34,7 +34,7 @@ def _validated_market_table(payload: dict, *, market: str, session: date) -> lis
     expected_twse=session.strftime("%Y%m%d")
     expected_tpex=f"{session.year-1911:03d}{session.month:02d}{session.day:02d}"
     expected=expected_twse if market=="TWSE" else expected_tpex
-    if sent_date != expected:
+    if sent_date not in ({expected, expected_twse} if market=="TPEx" else {expected}):
         raise ValueError(f"{market} stale/wrong day: payload date={sent_date}, requested={expected}")
 
     required=("證券代號","開盤價","最高價","最低價","收盤價","成交股數") if market=="TWSE" else ("代號","開盤 ","最高 ","最低","收盤 ","成交股數  ")
@@ -112,6 +112,17 @@ def collect(start: date,end: date,pit: dict,out: Path,calendar: list[dict]) -> d
     failed=[]
     day=start
     while day<=end:
+        # Extraordinary market-wide typhoon closure. Not part of the annual
+        # preannounced TWSE holiday schedule; TWSE and TPEx confirmed a
+        # complete closure for 2026-10-23 on 2026-10-22.
+        if day.isoformat()=="2026-10-23":
+            closed.append({
+                "date":day.isoformat(),
+                "reason":"CLOSED_EXTRAORDINARY_TYPOON_BOTH_EXCHANGES",
+                "evidence":"https://www.cna.com.tw/news/afe/202610220388.aspx",
+            })
+            day+=timedelta(days=1)
+            continue
         cal=classify_date(day,calendar)
         if not cal["market_open"]:
             closed.append({"date":day.isoformat(),"reason":cal["status"]})
