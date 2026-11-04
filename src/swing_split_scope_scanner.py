@@ -149,7 +149,9 @@ def run(deep_n=8):
         try:
             q=get_quote(row["symbol"])
             qdate=str(q.get("date") or "")
-            last=_f(q.get("lastPrice") or q.get("closePrice"))
+            # closePrice is not guaranteed to be the most recent executed trade.
+            # Never promote it to a live last price if lastPrice is missing.
+            last=_f(q.get("lastPrice"))
             # During market hours accept only a quote explicitly dated today.
             updated_at, freshness=quote_time_freshness(q, now)
             candidate["current_price_updated_at"]=updated_at
