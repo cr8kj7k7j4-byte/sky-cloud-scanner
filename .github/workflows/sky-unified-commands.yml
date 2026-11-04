@@ -15,7 +15,7 @@ on:
           - system_health
           - model_validation
 permissions:
-  contents: read
+  contents: write
   actions: read
 jobs:
   unified:
@@ -29,6 +29,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt pytest PyYAML
       - name: Execute unified mode
+        id: scan
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
           GH_TOKEN: ${{ github.token }}
@@ -49,3 +50,69 @@ jobs:
           path: output/unified/
           if-no-files-found: warn
           retention-days: 30
+      - name: Publish sanitized execution verification
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SCAN_OUTCOME: ${{ steps.scan.outcome }}
+          COMMAND_INPUT: ${{ inputs.command }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from datetime import datetime, timezone
+          from pathlib import Path
+          command = os.environ.get("COMMAND_INPUT") or ""
+          if not command:
+              try:
+                  command = json.loads(Path("scan_requests/unified/latest.json").read_text())["command"]
+              except (OSError, ValueError, KeyError):
+                  command = "UNKNOWN"
+          payload = {}
+          report_file = Path("output/unified") / f"{command}.json"
+          if report_file.is_file():
+              try:
+                  payload = json.loads(report_file.read_text())
+              except (OSError, ValueError):
+                  pass
+          result = payload.get("result", {})
+          reports = result.get("reports", {})
+          safe_reports = {
+              name: {key: report.get(key) for key in
+                     ("available", "data_timestamp", "operational_full_market_scan",
+                      "quote_coverage_pct", "candidate_count", "research_only")}
+              for name, report in reports.items() if isinstance(report, dict)
+          }
+          safe = {
+              "schema": "SKY_UNIFIED_EXECUTION_VERIFICATION_V1",
+              "published_at_utc": datetime.now(timezone.utc).isoformat(),
+              "run_id": os.environ.get("GITHUB_RUN_ID"),
+              "run_url": "https://github.com/{}/actions/runs/{}".format(
+                  os.environ.get("GITHUB_REPOSITORY"), os.environ.get("GITHUB_RUN_ID")),
+              "head_sha": os.environ.get("GITHUB_SHA"),
+              "command": command,
+              "scan_step_outcome": os.environ.get("SCAN_OUTCOME"),
+              "report_exists": bool(payload),
+              "report_generated_at_utc": payload.get("utc_generated_at"),
+              "decision": result.get("decision", "REPORT_MISSING_OR_INVALID"),
+              "calendar_exit_code": result.get("calendar", {}).get("exit_code"),
+              "strategy_exit_codes": {
+                  name: item.get("exit_code") for name, item in
+                  result.get("strategies", {}).items() if isinstance(item, dict)},
+              "reports": safe_reports,
+              "no_order_or_production_promotion": True
+          }
+          Path("/tmp/sky_unified_status.json").write_text(
+              json.dumps(safe, ensure_ascii=False, indent=2) + chr(10))
+          PY
+          TARGET="repos/${GITHUB_REPOSITORY}/contents/docs/SKY_UNIFIED_LATEST_EXECUTION.json"
+          CONTENT=$(base64 -w0 /tmp/sky_unified_status.json)
+          for ATTEMPT in 1 2 3; do
+            SHA=$(gh api "$TARGET" --jq '.sha' 2>/dev/null || true)
+            if [ -n "$SHA" ]; then
+              gh api --method PUT "$TARGET" -f message="ops: publish sanitized scan status [skip ci]" -f content="$CONTENT" -f sha="$SHA" -f branch=main >/dev/null && break
+            else
+              gh api --method PUT "$TARGET" -f message="ops: publish sanitized scan status [skip ci]" -f content="$CONTENT" -f branch=main >/dev/null && break
+            fi
+            if [ "$ATTEMPT" = 3 ]; then exit 1; fi
+            sleep 2
+          done
