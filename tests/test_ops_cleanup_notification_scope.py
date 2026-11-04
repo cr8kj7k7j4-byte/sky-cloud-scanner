@@ -29,3 +29,15 @@ def test_intraday_and_monitoring_failure_notifications_remain():
     monitor = (WF / "p0ops-continuous-monitor.yml").read_text(encoding="utf-8")
     assert "Notify Telegram when intraday scan fails" in intraday
     assert "Notify Telegram on monitoring errors" in monitor
+
+
+def test_split_scope_deletion_does_not_retrigger_research_scan():
+    text = (WF / "swing-split-scope-research.yml").read_text(encoding="utf-8")
+    job = text.split("\njobs:", 1)[1].split("\n    runs-on:", 1)[0]
+    assert "github.event_name != 'push'" in job
+    assert "github.event.commits.*.added" in job
+    assert "github.event.commits.*.modified" in job
+    assert "github.event.commits.*.removed" not in job
+    # Keep scheduled research and manual verification possible.
+    assert 'schedule:' in text
+    assert 'workflow_dispatch:' in text
