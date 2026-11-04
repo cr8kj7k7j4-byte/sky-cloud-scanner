@@ -148,6 +148,28 @@ def fetch_mis_quotes(universe, batch_size=55, sleep_s=.18):
             break
         time.sleep(sleep_s)
 
+    # Exchange-aware observability only. Never change qualification of a
+    # source quote merely to improve a coverage metric.
+    for exchange in ("TWSE", "TPEx"):
+        target_symbols = {
+            str(x["symbol"]) for x in universe
+            if x.get("exchange") == exchange
+        }
+        valid_symbols = target_symbols.intersection(rows_by_symbol)
+        stats[f"{exchange.lower()}_requested"] = len(target_symbols)
+        stats[f"{exchange.lower()}_valid_trade"] = len(valid_symbols)
+        stats[f"{exchange.lower()}_coverage_pct"] = round(
+            len(valid_symbols) * 100.0 / len(target_symbols), 2
+        ) if target_symbols else 0.0
+    warnings.append(
+        "MIS_EXCHANGE_COVERAGE: "
+        + ", ".join(
+            f"{exchange}={stats[f'{exchange.lower()}_valid_trade']}"
+            f"/{stats[f'{exchange.lower()}_requested']}"
+            f" ({stats[f'{exchange.lower()}_coverage_pct']}%)"
+            for exchange in ("TWSE", "TPEx")
+        )
+    )
     stats["missing_after_recovery"]=len(universe)-len(rows_by_symbol)
     stats["recovery_valid_quotes"]=len(rows_by_symbol) - (stats["initial_requested"] - len(missing))
     warnings.append("MIS_INVALID_PRICE_SAMPLES: "+repr(invalid_samples))
