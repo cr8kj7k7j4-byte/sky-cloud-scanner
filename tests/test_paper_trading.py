@@ -119,3 +119,31 @@ def test_paper_snapshot_preserves_gainer_rank_context():
     assert snap["gainer_rank_source"] == "current_snapshot_change_pct"
     assert snap["research_context"]["gainer_rank"] == 37
     assert snap["research_context"]["top100_gainer_member"] is True
+
+
+def test_paper_snapshot_receives_canonical_observation_id_but_no_trade_authorization():
+    from src.trade_logger import build_trade_decision_record
+    from datetime import datetime
+    gate = evaluate_paper_gate("shadow", "RESEARCH_ONLY")
+    observed = "2026-11-04T09:05:00+08:00"
+    item = {"symbol": "2330", "strategy_version": "v1.4", "risk": {"status": "BLOCK"}}
+    snap = build_paper_snapshot(run_id="run-1", observed_at=observed, item=item, gate=gate)
+    canonical = build_trade_decision_record(
+        item=item, run_id="run-1", observed_at=datetime.fromisoformat(observed),
+        mode="SHADOW_OBSERVATION",
+    )
+    assert snap["record_id"] == canonical.record_id
+    assert snap["observation_record_id"] == canonical.record_id
+    assert snap["decision_id"] is None
+    assert snap["decision_provenance_status"] == "RANKING_OBSERVATION_ONLY"
+    assert snap["action"] == "SHADOW_OBSERVE"
+    assert build_paper_snapshot(run_id="run-1", observed_at=observed, item=item, gate=gate)["record_id"] == canonical.record_id
+
+
+def test_paper_observation_id_changes_with_run_or_symbol():
+    gate = evaluate_paper_gate("shadow", "RESEARCH_ONLY")
+    obs = "2026-11-04T09:05:00+08:00"
+    a = build_paper_snapshot(run_id="one", observed_at=obs, item={"symbol": "2330"}, gate=gate)
+    b = build_paper_snapshot(run_id="two", observed_at=obs, item={"symbol": "2330"}, gate=gate)
+    c = build_paper_snapshot(run_id="one", observed_at=obs, item={"symbol": "2317"}, gate=gate)
+    assert len({a["record_id"], b["record_id"], c["record_id"]}) == 3

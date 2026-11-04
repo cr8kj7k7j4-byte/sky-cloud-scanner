@@ -5,6 +5,8 @@ from datetime import datetime
 from pathlib import Path
 import json
 
+from .trade_logger import build_trade_decision_record
+
 
 PASS_VERDICT = "PASS_TO_PAPER_TRADING"
 
@@ -70,6 +72,12 @@ def build_paper_snapshot(*, run_id: str, observed_at: str, item: dict, gate: Pap
     monitor = dict(item.get("monitor") or {})
     decision = dict(item.get("decision") or {})
     plan = dict(item.get("strategy_plan") or {})
+    # Canonical P0-L identity for traceability only. Without a W0-approved
+    # forward trade rule provider this is a ranking observation, not a trade.
+    timestamp = datetime.fromisoformat(str(observed_at).replace("Z", "+00:00"))
+    observation = build_trade_decision_record(
+        item=item, run_id=str(run_id), observed_at=timestamp, mode="SHADOW_OBSERVATION"
+    )
 
     trigger = plan.get("trigger")
     stop = plan.get("stop")
@@ -82,6 +90,10 @@ def build_paper_snapshot(*, run_id: str, observed_at: str, item: dict, gate: Pap
 
     return {
         "schema_version": "1.2",
+        "record_id": observation.record_id,
+        "observation_record_id": observation.record_id,
+        "decision_id": None,
+        "decision_provenance_status": "RANKING_OBSERVATION_ONLY",
         "run_id": str(run_id),
         "observed_at": str(observed_at),
         "observation_timestamp": str(observed_at),

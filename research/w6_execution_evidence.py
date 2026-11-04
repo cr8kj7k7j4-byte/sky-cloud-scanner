@@ -44,6 +44,9 @@ def decision_to_w6_evidence(decision: dict) -> dict:
     return {
         "schema_version": SCHEMA_VERSION,
         "record_id": row.get("record_id"),
+        "observation_record_id": row.get("observation_record_id"),
+        "decision_id": row.get("decision_id"),
+        "decision_provenance_status": row.get("decision_provenance_status"),
         "run_id": row.get("run_id"),
         "strategy_id": row.get("strategy_id"),
         "strategy_version": row.get("strategy_version"),
@@ -95,6 +98,9 @@ def paper_snapshot_to_w6_evidence(snapshot: dict) -> dict:
     return {
         "schema_version": SCHEMA_VERSION,
         "record_id": row.get("record_id"),
+        "observation_record_id": row.get("observation_record_id"),
+        "decision_id": row.get("decision_id"),
+        "decision_provenance_status": row.get("decision_provenance_status"),
         "run_id": row.get("run_id"),
         "strategy_id": row.get("strategy_id"),
         "strategy_version": row.get("strategy_version"),
