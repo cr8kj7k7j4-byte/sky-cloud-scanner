@@ -2,7 +2,7 @@
 
 Date: 2026-11-04
 Research owner: W5 / W2
-Decision recommendation: **REJECT_AFTER_COST_EXPECTANCY → ARCHIVED_NO_RETUNE**, pending W0 research-governance review.
+Decision: **REJECT_AFTER_COST_EXPECTANCY → ARCHIVED_NO_RETUNE**, approved for research closure by user instruction on 2026-11-04; no Production promotion.
 Production impact: **NONE**; do not alter Sky Day Trading v1.4, automated trading, or risk settings.
 
 ## Frozen hypothesis and data
@@ -39,7 +39,7 @@ Production impact: **NONE**; do not alter Sky Day Trading v1.4, automated tradin
 - Proposed status: `REJECT` for the tested version; `ARCHIVED_NO_RETUNE` to prevent threshold / Top-N / time / weights / stop-target changes to rescue this exact architecture.
 - This does **not** reject all short-side strategies. A successor requires a materially independent, prospectively preregistered target/label/data or execution architecture with untouched evaluation period.
 - No additional Baseline E tuning, Production deployment, trade signals, new short-side schedule, or automatic orders are authorized.
-- W0 to review the archival decision and decide whether/how to modify canonical registries. This document is a proposed research closure, not a claim of W0 approval.
+- W0 governance conclusion: archive the tested Baseline E short research family as `ARCHIVED_NO_RETUNE`; keep Production unchanged. The user's explicit instruction to execute the proposed W0 review on 2026-11-04 is the authorization for this archival documentation, not an authorization for trading.
 
 ## Validation checklist
 - [x] Preregistration located.
@@ -47,5 +47,5 @@ Production impact: **NONE**; do not alter Sky Day Trading v1.4, automated tradin
 - [x] Produced result artifacts verified by GitHub Actions metadata.
 - [x] Primary, stress, half-year and failure statistics read from real job logs.
 - [x] Cost gate outcome matches the preregistration's explicit REJECT rule.
-- [ ] W0 governance approval and canonical registry update.
+- [x] W0 archival documentation authorized by user on 2026-11-04; canonical registry changes staged in PR #221 (must confirm main read-back after merge).
 - [ ] New structural short candidate — not implied or required by this rejected baseline.
