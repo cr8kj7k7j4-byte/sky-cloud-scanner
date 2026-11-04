@@ -8,6 +8,7 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from .realtime_quote_evidence import market_scope
 
@@ -43,7 +44,24 @@ def operational_market_evidence_ok(item: dict) -> bool:
     )
 
 
+def market_session_open(now: datetime | None = None) -> bool:
+    """Conservative TWSE/TPEx regular-session guard; calendar also required."""
+    current = (now or datetime.now(ZoneInfo("Asia/Taipei"))).astimezone(
+        ZoneInfo("Asia/Taipei"))
+    minutes = current.hour * 60 + current.minute
+    return current.weekday() < 5 and 9 * 60 <= minutes < 13 * 60 + 30
+
+
 def market_mode() -> dict:
+    if not market_session_open():
+        return {
+            "decision": "NO_TRADE_OUTSIDE_TW_REGULAR_SESSION",
+            "market_session": "TWSE_TPEx_REGULAR_09_00_13_30",
+            "notes": "No live quote scan outside regular trading hours. Research replay is separate.",
+            "strategies": {},
+            "reports": {},
+            "short_strategy": "NOT_EXECUTED_NO_VERIFIED_STANDALONE_RUNNER",
+        }
     calendar = execute([sys.executable, "-m", "src.trading_calendar",
                         "--out", str(BASE / "calendar.json")])
     results = {"calendar": calendar, "strategies": {},
