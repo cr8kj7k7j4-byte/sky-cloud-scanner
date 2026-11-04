@@ -218,4 +218,22 @@ jobs:
             exit 0
           fi
           git commit -m "W4: publish external latest status snapshot [skip ci]"
-          git push origin HEAD:main
+          # Multiple writers can update main concurrently (e.g. MOPS PIT collector).
+          # Avoid force-push; reconcile the latest main before each bounded retry.
+          for attempt in 1 2 3 4; do
+            git fetch origin main
+            if ! git rebase origin/main; then
+              git rebase --abort || true
+              echo "Snapshot rebase conflict; refusing to overwrite newer evidence." >&2
+              exit 1
+            fi
+            if git push origin HEAD:main; then
+              echo "Snapshot published on attempt $attempt"
+              exit 0
+            fi
+            if [ "$attempt" -eq 4 ]; then
+              echo "Snapshot push failed after bounded retries; artifact/logs require review." >&2
+              exit 1
+            fi
+            sleep 20
+          done
