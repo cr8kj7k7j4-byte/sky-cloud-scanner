@@ -53,6 +53,8 @@ Research namespaces:
 
 | Opening Retest Reclaim Baseline D | REJECTED_STANDALONE / ARCHIVED_NO_RETUNE | 2026-01-01–2026-10-22 whole-market 1m PIT; n=12,967; gross 60m expectancy +0.1032%, PF 1.312; 0.45% expectancy -0.3468%, PF 0.506; 0.65% expectancy -0.5468%, PF 0.372; open-stop rate 85.08%; H1/H2 both negative after cost. |
 
+| False-Reclaim Short Baseline E (2026-10-26 preregistration) | REJECT_AFTER_COST_EXPECTANCY / ARCHIVED_NO_RETUNE (proposed; W0 review pending) | 2026-01-01–2026-10-22 PIT research; 60m short proxy n=10,732; gross expectancy +0.2241%, PF 1.792; 0.45% cost expectancy -0.2259%, PF 0.640; 0.65% cost expectancy -0.4259%, PF 0.458; H1/H2 both negative; original short eligibility/borrowability unresolved. Evidence: research/w2/SHORT_FALSE_RECLAIM_BASELINE_E_RESULT_20261104.md; Run 41752940845; Issue #220. Research-only; not Production. |
+
 ## Historical Universe / Survivorship audit
 
 - Main-native live audit run: GitHub Actions #40177304792 (2026-10-25)
