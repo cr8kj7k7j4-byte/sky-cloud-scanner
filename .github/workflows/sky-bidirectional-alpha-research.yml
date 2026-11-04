@@ -1,5 +1,10 @@
 name: Sky Bidirectional Alpha Research
 on:
+  pull_request:
+    paths:
+      - 'research/sky_bidirectional_alpha_v1.py'
+      - 'tests/test_sky_bidirectional_alpha_v1.py'
+      - '.github/workflows/sky-bidirectional-alpha-research.yml'
   workflow_dispatch:
 permissions:
   contents: read
