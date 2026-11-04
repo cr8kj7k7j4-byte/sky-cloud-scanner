@@ -1,8 +1,8 @@
 {
   "schema_version": "SKY_EXTERNAL_STATUS_SNAPSHOT_V1_0",
-  "generated_at_utc": "2026-11-03T09:31:58.366163+00:00",
+  "generated_at_utc": "2026-11-04T14:45:09.926369+00:00",
   "source": {
-    "dashboard_workflow_run_id": "41610513339",
+    "dashboard_workflow_run_id": "41807638949",
     "repository": "cr8kj7k7j4-byte/sky-cloud-scanner"
   },
   "production_baseline": {
@@ -19,22 +19,20 @@
       "checks": {
         "sample_count": false,
         "trading_days": false,
-        "regime_coverage": true,
+        "regime_coverage": false,
         "outcome_completeness": true,
         "symbol_concentration": true
       },
       "failed_checks": [
         "sample_count",
-        "trading_days"
+        "trading_days",
+        "regime_coverage"
       ],
       "observed": {
         "samples": 100,
         "trading_days": 5,
-        "regimes": [
-          "UNKNOWN_LOW",
-          "UNKNOWN_MEDIUM"
-        ],
-        "regime_count": 2,
+        "regimes": [],
+        "regime_count": 0,
         "outcome_complete": 100,
         "outcome_complete_ratio": 1.0,
         "unique_symbols": 81,
@@ -52,7 +50,7 @@
     "sample_gaps": {
       "samples_remaining": 100,
       "trading_days_remaining": 15,
-      "regimes_remaining": 0,
+      "regimes_remaining": 2,
       "outcome_completeness_gap": 0.0,
       "symbol_concentration_excess": 0.0
     },
@@ -102,6 +100,7 @@
     "blocking_items": [
       "sample:sample_count",
       "sample:trading_days",
+      "sample:regime_coverage",
       "promotion:walk_forward",
       "promotion:oos",
       "promotion:cost_stress",
@@ -110,12 +109,13 @@
       "promotion:regime_stability",
       "promotion:paper_trade",
       "promotion:positive_expectancy",
-      "promotion:profit_factor"
+      "promotion:profit_factor",
+      "governance:PRODUCTION_DECISION_PROVENANCE_BLOCKED"
     ],
     "summary": {
       "samples": 100,
       "trading_days": 5,
-      "regime_count": 2,
+      "regime_count": 0,
       "outcome_complete_ratio": 1.0,
       "top_symbol_share": 0.03,
       "promotion_score": 3.0,
@@ -124,7 +124,7 @@
     "note": "Dashboard 用於證據累積與升版治理，不是交易勝率、報酬預測或自動 Production Promotion。",
     "source": {
       "paper_dir": "shadow_history",
-      "files_scanned": 20,
+      "files_scanned": 23,
       "records_loaded": 100,
       "promotion_evidence_file": null
     },
@@ -134,7 +134,7 @@
       "collection_started": true,
       "ledger_start": "2026-10-24T23:28:08Z",
       "eligible_successful_scan_runs": 8,
-      "paper_files": 20,
+      "paper_files": 23,
       "records_loaded": 100,
       "blocking_items": [],
       "note": "Pipeline readiness only classifies evidence collection health. It does not imply strategy edge, profitability, or promotion readiness."
@@ -169,17 +169,59 @@
       },
       "note": "Portfolio/Cost/Capacity evidence is descriptive Shadow validation. No result here is a win rate, profit guarantee, or automatic Production promotion."
     },
+    "strategy_evidence_integrity": {
+      "schema_version": "W4_STRATEGY_EVIDENCE_INTEGRITY_V1",
+      "status": "INSUFFICIENT_DATA",
+      "ranking_rows_loaded": 100,
+      "post_ledger_valid_rows": 100,
+      "eligible_strategy_records": 0,
+      "complete_strategy_outcomes_with_modelled_costs": 0,
+      "modelled_cost_complete_ratio": 0.0,
+      "observed_execution_fills": 0,
+      "observed_execution_fill_ratio": 0.0,
+      "unknown_regime_rows": 100,
+      "reasons": {
+        "monitor_not_triggered": 100,
+        "risk_not_allow": 100,
+        "stop_missing": 100,
+        "target_missing": 100,
+        "trigger_missing": 100
+      },
+      "production_eligible": false,
+      "note": "Modelled costs and counterfactual R are not L1 observed slippage, actual fills or realized PnL. Unknown regimes do not prove bull/neutral/bear coverage."
+    },
+    "forward_trade_provenance": {
+      "status": "PRODUCTION_DECISION_PROVENANCE_BLOCKED",
+      "issue": 227,
+      "ranking_observations": 100,
+      "canonical_observation_identity_count": 0,
+      "unverified_trade_provenance_claims": 0,
+      "provenance_status_counts": {
+        "LEGACY_UNSPECIFIED": 100
+      },
+      "authoritative_forward_rule_source_verified": false,
+      "can_certify_strategy_trades": false,
+      "can_certify_production_promotion": false,
+      "next_gate": "W0_P0G_AUTHORITATIVE_FORWARD_RULE_SOURCE_DECISION",
+      "note": "P0-L observation record_id is not an approved Production decision_id. Claims remain unverified until an independently versioned W0/P0-G decision-time source and compatible lineage are formally accepted."
+    },
     "w4_report": {
       "Sample Progress": {
         "status": "WAITING_FOR_FUTURE_SAMPLE",
         "samples": 100,
         "trading_days": 5,
-        "regime_count": 2
+        "regime_count": 0
       },
       "Data Completeness": {
         "pipeline_status": "COLLECTING",
         "outcome_complete_ratio": 1.0,
         "sample_gate_sufficient": false
+      },
+      "Forward Trade Provenance": {
+        "status": "PRODUCTION_DECISION_PROVENANCE_BLOCKED",
+        "canonical_observation_identity_count": 0,
+        "can_certify_strategy_trades": false,
+        "governance_issue": 227
       },
       "Strategy Performance": {
         "expectancy_r": null,
@@ -204,6 +246,7 @@
         "blocking_items": [
           "sample:sample_count",
           "sample:trading_days",
+          "sample:regime_coverage",
           "promotion:walk_forward",
           "promotion:oos",
           "promotion:cost_stress",
@@ -212,13 +255,14 @@
           "promotion:regime_stability",
           "promotion:paper_trade",
           "promotion:positive_expectancy",
-          "promotion:profit_factor"
+          "promotion:profit_factor",
+          "governance:PRODUCTION_DECISION_PROVENANCE_BLOCKED"
         ]
       },
       "Outstanding Days / Samples": {
         "samples_remaining": 100,
         "trading_days_remaining": 15,
-        "regimes_remaining": 0,
+        "regimes_remaining": 2,
         "outcome_completeness_gap": 0.0,
         "symbol_concentration_excess": 0.0
       }
