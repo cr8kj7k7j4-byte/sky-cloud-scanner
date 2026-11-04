@@ -33,6 +33,12 @@ concurrency:
 
 jobs:
   scan:
+    # A cleanup push that only deletes consumed request files must never launch
+    # another whole-market scan. Manual workflow_dispatch remains available.
+    if: >-
+      github.event_name != 'push' ||
+      contains(toJSON(github.event.commits.*.added), 'scan_requests/swing5d/') ||
+      contains(toJSON(github.event.commits.*.modified), 'scan_requests/swing5d/')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
