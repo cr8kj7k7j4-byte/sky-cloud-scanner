@@ -71,3 +71,26 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+def test_two_consecutive_losses_hard_block_even_a_plus():
+    p = RiskPolicy(risk_per_trade_pct=0.01, daily_loss_limit_pct=0.02, lot_size=1000)
+    base = dict(entry=50, stop=48.5, target=54, account_equity=500000,
+                daily_pnl=0, open_risk=0, concurrent_positions=0,
+                correlated_open_risk=0, grade="A+", policy=p)
+    one = evaluate_trade(consecutive_losses=1, **base)
+    two = evaluate_trade(consecutive_losses=2, **base)
+    assert one["status"] == "ALLOW"
+    assert two["status"] == "BLOCK"
+    assert two["portfolio_allowed"] is False
+    assert two["recommended_shares"] == 0
+    assert any("連續兩筆" in reason for reason in two["reasons"])
+
+
+def test_daily_loss_two_r_hard_block():
+    p = RiskPolicy(risk_per_trade_pct=0.01, daily_loss_limit_pct=0.02, lot_size=1000)
+    result = evaluate_trade(entry=50, stop=48.5, target=54,
+                            account_equity=500000, daily_pnl=-10000,
+                            consecutive_losses=0, grade="A+", policy=p)
+    assert result["status"] == "BLOCK"
+    assert result["recommended_shares"] == 0
