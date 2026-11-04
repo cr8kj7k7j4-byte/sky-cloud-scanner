@@ -110,3 +110,22 @@ def test_mis_blank_z_without_recovery_stays_missing(monkeypatch):
     assert rows==[]
     assert any("recovery_requested=1" in w for w in warnings)
     assert any("MIS_LOW_COVERAGE" in w for w in warnings)
+
+
+def test_recovery_budget_caps_requests_and_never_invents_quotes(monkeypatch):
+    class AlwaysBlank(FakeSession):
+        def get(self, url, params=None, timeout=20):
+            if params is None:
+                return Response([])
+            symbols=[v.split("_")[1].split(".")[0] for v in params["ex_ch"].split("|")]
+            self.calls.append(symbols)
+            return Response([{"c":sym,"z":"-","y":"30","v":"1000"} for sym in symbols])
+    fake=AlwaysBlank()
+    monkeypatch.setattr(official,"session",lambda:fake)
+    monkeypatch.setattr(official.time,"sleep",lambda _:None)
+    universe=[{"symbol":str(1000+i),"name":"x","exchange":"TWSE","mis_prefix":"tse"} for i in range(200)]
+    rows,warnings=official.fetch_mis_quotes(universe,batch_size=55)
+    assert rows==[]
+    assert len(fake.calls)<=4+10  # 4 initial, at most 80/8 recovery
+    assert any("recovery_skipped=120" in s for s in warnings)
+    assert any("MIS_LOW_COVERAGE" in s for s in warnings)
