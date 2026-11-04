@@ -79,3 +79,32 @@ def test_missing_zero_cost_is_allowed_if_explicitly_sourced():
         },
     }
     assert audit_forward_strategy_evidence([row])["modelled_cost_complete_ratio"] == 1.0
+
+
+def test_forward_trade_provenance_blocks_ranking_only():
+    from src.w4_evidence_integrity import audit_forward_trade_provenance
+    row = record()
+    row.update(record_id="observation-1", observation_record_id="observation-1",
+               decision_id=None, decision_provenance_status="RANKING_OBSERVATION_ONLY")
+    result = audit_forward_trade_provenance([row])
+    assert result["status"] == "PRODUCTION_DECISION_PROVENANCE_BLOCKED"
+    assert result["canonical_observation_identity_count"] == 1
+    assert result["can_certify_strategy_trades"] is False
+    assert result["unverified_trade_provenance_claims"] == 0
+
+
+def test_unverified_claims_never_automatically_pass():
+    from src.w4_evidence_integrity import audit_forward_trade_provenance
+    row = record()
+    row.update(decision_id="claimed-123", decision_provenance_status="APPROVED")
+    result = audit_forward_trade_provenance([row])
+    assert result["status"] == "PRODUCTION_DECISION_PROVENANCE_BLOCKED"
+    assert result["unverified_trade_provenance_claims"] == 1
+    assert result["authoritative_forward_rule_source_verified"] is False
+
+
+def test_legacy_ranking_without_id_stays_blocked():
+    from src.w4_evidence_integrity import audit_forward_trade_provenance
+    result = audit_forward_trade_provenance([record()])
+    assert result["canonical_observation_identity_count"] == 0
+    assert result["provenance_status_counts"]["LEGACY_UNSPECIFIED"] == 1

@@ -117,3 +117,45 @@ def audit_forward_strategy_evidence(records):
         "production_eligible": False,
         "note": "Modelled costs and counterfactual R are not L1 observed slippage, actual fills or realized PnL. Unknown regimes do not prove bull/neutral/bear coverage."
     }
+
+
+def audit_forward_trade_provenance(records):
+    """Read-only W0/P0-G gate; record IDs alone cannot authorize trade evidence.
+
+    Without an independently approved current-v1.4 decision rule provider,
+    no provided row may be certified as Production trade evidence.
+    """
+    rows = [row for row in (records or []) if isinstance(row, dict)]
+    status_counts = Counter(
+        str(row.get("decision_provenance_status") or "LEGACY_UNSPECIFIED")
+        for row in rows
+    )
+    canonical_observations = sum(
+        bool(row.get("observation_record_id"))
+        and row.get("observation_record_id") == row.get("record_id")
+        for row in rows
+    )
+    trade_claims = sum(
+        row.get("decision_id") is not None
+        or str(row.get("decision_provenance_status") or "") not in {
+            "", "RANKING_OBSERVATION_ONLY"
+        }
+        for row in rows
+    )
+    return {
+        "status": "PRODUCTION_DECISION_PROVENANCE_BLOCKED",
+        "issue": 227,
+        "ranking_observations": len(rows),
+        "canonical_observation_identity_count": canonical_observations,
+        "unverified_trade_provenance_claims": trade_claims,
+        "provenance_status_counts": dict(sorted(status_counts.items())),
+        "authoritative_forward_rule_source_verified": False,
+        "can_certify_strategy_trades": False,
+        "can_certify_production_promotion": False,
+        "next_gate": "W0_P0G_AUTHORITATIVE_FORWARD_RULE_SOURCE_DECISION",
+        "note": (
+            "P0-L observation record_id is not an approved Production decision_id. "
+            "Claims remain unverified until an independently versioned W0/P0-G "
+            "decision-time source and compatible lineage are formally accepted."
+        ),
+    }
