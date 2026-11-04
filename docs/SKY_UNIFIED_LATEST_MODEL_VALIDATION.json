@@ -1,0 +1,31 @@
+{
+  "schema": "SKY_UNIFIED_EXECUTION_VERIFICATION_V1",
+  "published_at_utc": "2026-11-04T14:53:39.453168+00:00",
+  "run_id": "41852082248",
+  "run_url": "https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/41852082248",
+  "head_sha": "d0ce1db7f6011027903e55cc828ae3bfe4dfe0a5",
+  "command": "model_validation",
+  "scan_step_outcome": "success",
+  "report_exists": true,
+  "report_generated_at_utc": "2026-11-04T14:53:37.774087+00:00",
+  "decision": "VALIDATION_INSUFFICIENT_DATA_NO_PROMOTION",
+  "calendar_exit_code": null,
+  "strategy_exit_codes": {},
+  "reports": {},
+  "evidence": {
+    "snapshot_generated_at_utc": "2026-11-04T14:48:46.292961+00:00",
+    "snapshot_source_run_id": "41807638949",
+    "sample_sufficient": false,
+    "sample_count": 100,
+    "trading_days": 5,
+    "regime_count": 0,
+    "eligible_strategy_records": 0,
+    "strategy_evidence_status": "INSUFFICIENT_DATA",
+    "authoritative_trade_provenance": "PRODUCTION_DECISION_PROVENANCE_BLOCKED",
+    "after_cost_expectancy_r": null,
+    "promotable_to_governance_review": false,
+    "production_eligible": false,
+    "note": "Only existing forward evidence is summarized; no new backtest or performance certification."
+  },
+  "no_order_or_production_promotion": true
+}
