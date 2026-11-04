@@ -116,8 +116,9 @@ def fetch_mis_quotes(universe, batch_size=55, sleep_s=.18):
         meta={x["symbol"]:x for x in batch}
         arr=request(batch)
         ingest(arr,meta)
-        returned={str(q.get("c","")).strip() for q in arr}
-        missing.extend(x for x in batch if x["symbol"] not in returned)
+        # A response can contain a symbol while z='-'. Such symbols still lack
+        # a verified executed price and must be retried in a smaller request.
+        missing.extend(x for x in batch if x["symbol"] not in rows_by_symbol)
         time.sleep(sleep_s)
 
     # One bounded recovery pass: the MIS endpoint may silently truncate ex_ch.
@@ -131,6 +132,7 @@ def fetch_mis_quotes(universe, batch_size=55, sleep_s=.18):
         time.sleep(sleep_s)
 
     stats["missing_after_recovery"]=len(universe)-len(rows_by_symbol)
+    stats["recovery_valid_quotes"]=len(rows_by_symbol) - (stats["initial_requested"] - len(missing))
     warnings.append("MIS_INVALID_PRICE_SAMPLES: "+repr(invalid_samples))
     warnings.append("MIS_COVERAGE_DIAGNOSTICS: "+", ".join(f"{k}={v}" for k,v in stats.items()))
     if len(universe)>0 and len(rows_by_symbol)/len(universe)<0.80:
