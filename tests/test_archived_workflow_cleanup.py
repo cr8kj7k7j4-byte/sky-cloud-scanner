@@ -4,6 +4,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 FROZEN = (
     "w2-baseline-d-false-start-reclaim.yml",
+    "w2-opening-retest-reclaim-baseline-d.yml",
+    "w3a-w2-false-reclaim-short-baseline-e.yml",
     "w2-false-reclaim-short-baseline-e-backtest-recovery.yml",
     "w2-top100-velocity-baseline.yml",
     "w2-top100-velocity-baseline-a.yml",
