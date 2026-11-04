@@ -21,6 +21,7 @@ from .config import (
     P0S_5M_BREAKOUT_ENABLED,
 )
 from .official import load_official_universe, fetch_mis_quotes
+from .realtime_quote_evidence import validate_whole_market_rows
 from .fugle import get_ticker, get_quote, get_candles
 from .decision_engine import first_gate, evaluate_decision
 from .feature_engine import build_features, enrich_candidate_context
@@ -260,6 +261,25 @@ def run():
         rows, miswarn = fetch_mis_quotes(universe)
         st["warnings"].extend(miswarn)
         st["mis_quote_count"] = len(rows)
+        # A returned HTTP quote is not automatically a current executed trade.
+        # Check actual MIS exchange session date + last-trade timestamp first.
+        quote_audit = validate_whole_market_rows(
+            universe, rows, now=datetime.now(TZ), min_coverage_pct=70.0,
+            min_exchange_pct=70.0,
+        )
+        st["live_market_evidence"] = {
+            k: v for k, v in quote_audit.items() if k != "accepted_rows"
+        }
+        st["quote_scope"] = quote_audit["quote_scope"]
+        st["live_whole_market_certified"] = False
+        st["live_whole_market_coverage_pct"] = quote_audit["quote_coverage_pct"]
+        st["mis_unverified_quote_count"] = len(rows) - quote_audit["valid_quote_count"]
+        rows = quote_audit["accepted_rows"]
+        if not quote_audit["valid_whole_market_operational"]:
+            st["warnings"].append(
+                "BLOCKED_EXTERNAL_DATA: whole-market current-session executed "
+                "trade coverage missing; do not issue current-state trade decisions."
+            )
 
         twse_rows = [x for x in rows if x["exchange"] == "TWSE"]
         otc_rows = [x for x in rows if x["exchange"] == "TPEx"]
@@ -271,7 +291,8 @@ def run():
             (len(rows) / len(universe) * 100.0), 2
         ) if universe else 0.0
         st["operational_full_market_scan"] = bool(
-            official_universe_ok
+            quote_audit["valid_whole_market_operational"]
+            and official_universe_ok
             and twse_intraday_ok
             and otc_operational_ok
             and st["quote_coverage_pct"] >= 70.0
@@ -320,7 +341,20 @@ def run():
                 "TPEx 官方認證即時來源。"
             )
 
-        working_rows = rows if ALLOW_MIS_OTC_FALLBACK else twse_rows
+        # Data-quality gate occurs before ranking, P0-C/P0-R decisions,
+        # monitor transitions or Shadow/Paper evidence recording.
+        # Incomplete live-market feeds may appear only in diagnostics, never
+        # in a strategy candidate list.
+        market_evidence_eligible = (
+            st["operational_full_market_scan"] and st["full_market_scan"]
+        )
+        st["market_data_gate"] = (
+            "PASS_FULL_MARKET_LIVE" if market_evidence_eligible
+            else "BLOCKED_EXTERNAL_DATA_NO_TRADE"
+        )
+        working_rows = (
+            rows if ALLOW_MIS_OTC_FALLBACK else twse_rows
+        ) if market_evidence_eligible else []
         st["market_intelligence"] = summarize_market(working_rows)
 
         premarket_state = load_premarket_event_snapshot(
