@@ -1,45 +1,16 @@
 {
   "schema": "SKY_UNIFIED_EXECUTION_VERIFICATION_V1",
-  "published_at_utc": "2026-11-04T02:50:43.225174+00:00",
-  "run_id": "41762174665",
-  "run_url": "https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/41762174665",
-  "head_sha": "b244e6fdd44f8777c822d470611f5b755fa7b816",
-  "command": "all_market",
-  "scan_step_outcome": "failure",
+  "published_at_utc": "2026-11-04T14:51:14.438867+00:00",
+  "run_id": "41851672449",
+  "run_url": "https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/41851672449",
+  "head_sha": "3276df1be4f541b1dd19349d3c8d5b93a3bfaa55",
+  "command": "model_validation",
+  "scan_step_outcome": "success",
   "report_exists": true,
-  "report_generated_at_utc": "2026-11-04T02:39:44.529880+00:00",
-  "decision": "DATA_COVERAGE_INSUFFICIENT_NO_TRADE",
-  "calendar_exit_code": 0,
-  "strategy_exit_codes": {
-    "intraday": 0,
-    "swing_research": 0,
-    "swing5d_research": 0
-  },
-  "reports": {
-    "intraday": {
-      "available": true,
-      "data_timestamp": "2026-11-04T10:39:46.459710+08:00",
-      "operational_full_market_scan": false,
-      "quote_coverage_pct": 7.15,
-      "candidate_count": null,
-      "research_only": false
-    },
-    "swing_research": {
-      "available": true,
-      "data_timestamp": "2026-11-04T10:44:02.917177+08:00",
-      "operational_full_market_scan": false,
-      "quote_coverage_pct": 6.9,
-      "candidate_count": 20,
-      "research_only": true
-    },
-    "swing5d_research": {
-      "available": true,
-      "data_timestamp": "2026-11-04T10:47:23.490167+08:00",
-      "operational_full_market_scan": false,
-      "quote_coverage_pct": 6.05,
-      "candidate_count": 20,
-      "research_only": true
-    }
-  },
+  "report_generated_at_utc": "2026-11-04T14:51:13.010724+00:00",
+  "decision": "VALIDATION_INSUFFICIENT_DATA_NO_PROMOTION",
+  "calendar_exit_code": null,
+  "strategy_exit_codes": {},
+  "reports": {},
   "no_order_or_production_promotion": true
 }
