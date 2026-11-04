@@ -145,6 +145,7 @@ def build_paper_snapshot(*, run_id: str, observed_at: str, item: dict, gate: Pap
             "bid_size": item.get("l1_bid_size"),
             "ask_size": item.get("l1_ask_size"),
             "l1_quote_time": item.get("l1_quote_time"),
+            "l1_observed_at": item.get("l1_observed_at"),
             "l1_quote_serial": item.get("l1_quote_serial"),
             "l1_quote_source": item.get("l1_quote_source"),
         },
