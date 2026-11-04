@@ -1,3 +1,5 @@
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from dataclasses import dataclass, asdict
 from statistics import mean, pstdev
 
@@ -113,6 +115,11 @@ def enrich_candidate_context(row, ticker, quote, candles):
     o["l1_bid_size"] = bid_size
     o["l1_ask_size"] = ask_size
     o["l1_quote_time"] = quote.get("lastUpdated")
+    # W6-only acquisition timestamp: this is distinct from the scan start / decision time.
+    o["l1_observed_at"] = (
+        datetime.now(ZoneInfo("Asia/Taipei")).isoformat()
+        if bid is not None and ask is not None else None
+    )
     o["l1_quote_serial"] = quote.get("serial")
     o["l1_quote_source"] = "FUGLE_INTRADAY_QUOTE"
 
