@@ -229,6 +229,12 @@ def fetch_fugle_snapshot_quotes(universe, trading_date=None):
                     "high":_f(q.get("highPrice")),"low":_f(q.get("lowPrice")),
                     "open":_f(q.get("openPrice")),
                     "bid":None,"ask":None,
+                    "quote_date": date,
+                    "last_trade_timestamp": (
+                        (q.get("lastTrade") or {}).get("time")
+                        if isinstance(q.get("lastTrade"), dict)
+                        else q.get("closeTime")
+                    ),
                     "quote_time":str(q.get("lastUpdated") or payload.get("time") or ""),
                     "quote_source":"Fugle bulk snapshot"})
                 retained+=1

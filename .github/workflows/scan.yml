@@ -98,8 +98,14 @@ jobs:
           data = json.loads(path.read_text(encoding="utf-8"))
           print("Operational full market:", data.get("operational_full_market_scan"))
           print("Quote coverage percent:", data.get("quote_coverage_pct"))
-          if data.get("operational_full_market_scan") is not True:
-              raise SystemExit("Operational market quote coverage insufficient; scan withheld.")
+          gate = data.get("live_market_evidence") or {}
+          print("Verified live market evidence:", {k:v for k,v in gate.items() if k != "accepted_rows"})
+          print("Market decision gate:", data.get("market_data_gate"))
+          if (data.get("operational_full_market_scan") is not True
+              or gate.get("valid_whole_market_operational") is not True
+              or data.get("quote_scope") != "WHOLE_MARKET_EXECUTED_LIVE"
+              or data.get("market_data_gate") != "PASS_FULL_MARKET_LIVE"):
+              raise SystemExit("BLOCKED_EXTERNAL_DATA: full-market actual executed quotes not verified; no trades.")
           PY
       - name: Save P0-A monitor state cache
         if: steps.calendar.outputs.should_scan == 'true' && success()

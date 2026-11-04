@@ -80,8 +80,14 @@ jobs:
           print('CANDIDATES:', data.get('candidate_count'))
           print('RESEARCH_ONLY:', data.get('strategy_status'))
           print('SOURCE_WARNINGS:', data.get('warnings'))
-          if not data.get('operational_full_market_scan'):
-              raise SystemExit('BLOCKED: incomplete quote coverage; not a valid whole-market scan')
+          gate = data.get('live_market_evidence') or {}
+          print('EXCHANGE_LIVE_EVIDENCE:', gate.get('by_exchange'))
+          print('MARKET_DATA_GATE:', data.get('market_data_gate'))
+          if (not data.get('operational_full_market_scan')
+              or gate.get('valid_whole_market_operational') is not True
+              or data.get('quote_scope') != 'WHOLE_MARKET_EXECUTED_LIVE'
+              or data.get('market_data_gate') != 'PASS_OPERATIONAL_WHOLE_MARKET_LIVE_RESEARCH_ONLY'):
+              raise SystemExit('BLOCKED_EXTERNAL_DATA: no valid full-market live executed quotes, no trade candidate signal')
           summary = Path(os.environ['GITHUB_STEP_SUMMARY'])
           summary.write_text(
               f"## {data.get('display_name')}\n"
