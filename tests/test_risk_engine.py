@@ -73,8 +73,6 @@ def main():
     print("PASS P0-R risk engine tests")
 
 
-if __name__ == "__main__":
-    main()
 
 
 def test_two_consecutive_losses_hard_block_even_a_plus():
@@ -98,3 +96,7 @@ def test_daily_loss_two_r_hard_block():
                             consecutive_losses=0, grade="A+", policy=p)
     assert result["status"] == "BLOCK"
     assert result["recommended_shares"] == 0
+
+
+if __name__ == "__main__":
+    main()
