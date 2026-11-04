@@ -66,6 +66,10 @@ def main():
     assert dd_lock["state"] == "LOCKDOWN"
     assert dd_lock["status"] == "BLOCK"
 
+    # This workflow runs the module as a script, not via pytest discovery.
+    # Explicitly invoke the added hard-stop regression checks.
+    test_two_consecutive_losses_hard_block_even_a_plus()
+    test_daily_loss_two_r_hard_block()
     print("PASS P0-R risk engine tests")
 
 
