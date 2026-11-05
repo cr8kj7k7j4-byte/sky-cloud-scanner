@@ -1,1 +1,1 @@
-{"command":"system_health","requested_at":"2026-11-06","reason":"user_requested_full_system_audit"}
+{"command":"model_validation","requested_at":"2026-11-06","reason":"user_requested_model_and_command_audit"}
