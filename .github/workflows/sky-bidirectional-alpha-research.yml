@@ -1,0 +1,36 @@
+name: Sky Bidirectional Alpha Research
+on:
+  pull_request:
+    paths:
+      - 'research/sky_bidirectional_alpha_v1.py'
+      - 'tests/test_sky_bidirectional_alpha_v1.py'
+      - '.github/workflows/sky-bidirectional-alpha-research.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  observer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: pip install -r requirements.txt pytest
+      - name: Unit tests
+        run: python -m pytest tests/test_sky_bidirectional_alpha_v1.py -q
+      - name: Run research observer (never trades)
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+          PYTHONPATH: .
+        run: python -m research.sky_bidirectional_alpha_v1
+      - name: Evidence artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-bidirectional-research-${{ github.run_id }}
+          path: output/bidirectional/
+          if-no-files-found: warn
+          retention-days: 30
