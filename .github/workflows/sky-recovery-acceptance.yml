@@ -1,6 +1,9 @@
 name: Sky Recovery Read-Only Acceptance
 on:
   workflow_dispatch:
+  schedule:
+    # 18:20 Asia/Taipei = 10:20 UTC; read-only after regular session.
+    - cron: '20 10 * * 1-5'
   pull_request:
     paths:
       - 'research/sky_recovery_gate.py'
@@ -15,6 +18,9 @@ on:
       - '.github/workflows/sky-recovery-acceptance.yml'
 permissions:
   contents: read
+concurrency:
+  group: sky-recovery-acceptance-readonly
+  cancel-in-progress: false
 jobs:
   acceptance:
     runs-on: ubuntu-latest
@@ -28,6 +34,24 @@ jobs:
         run: PYTHONPATH=. python -m unittest discover -s tests -p test_sky_recovery_gate.py -v
       - name: Publish audit verdict (NOT trading approval)
         run: PYTHONPATH=. python -m research.sky_recovery_gate
+      - name: Publish explicit readiness summary
+        if: always()
+        shell: bash
+        run: |
+          if [ -f output/recovery/acceptance.json ]; then
+            python - <<'PY'
+          import json, os
+          from pathlib import Path
+          data = json.loads(Path('output/recovery/acceptance.json').read_text(encoding='utf-8'))
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as summary:
+              summary.write('## Sky Recovery — '+data['readiness']+'\n\n')
+              summary.write('**交易允許：否**；**Production 升版：否**。\n\n')
+              for reason in data.get('reasons', []):
+                  summary.write('- '+reason+'\n')
+          PY
+          else
+            echo 'Recovery acceptance output missing' >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Persist audit output
         if: always()
         uses: actions/upload-artifact@v4
