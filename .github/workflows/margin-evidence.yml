@@ -52,7 +52,11 @@ jobs:
         run: |
           # Preserve fail-closed report-date checks; retry publication lag only.
           for attempt in 1 2 3; do
-            if python research/margin_evidence/collect.py; then
+            if [ "${GITHUB_EVENT_NAME}" = "schedule" ]; then
+              # The 15:30 UTC cron targets that UTC day (23:30 Taiwan).
+              # Runner delays past 00:00 Taiwan must not advance report date.
+              python research/margin_evidence/collect.py --scheduled-utc-day && exit 0
+            elif python research/margin_evidence/collect.py; then
               exit 0
             fi
             if [ "$attempt" -eq 3 ]; then
