@@ -59,7 +59,8 @@ jobs:
             tests/test_swing_live_coverage_notice.py \
             tests/test_external_status_stage_contract.py \
             tests/test_ops_cleanup_notification_scope.py \
-            tests/test_mops_revenue_pit_collector.py
+            tests/test_mops_revenue_pit_collector.py \
+            tests/test_mops_workflow_source_smoke.py
       - name: Production E2E
         run: pytest -q tests/test_production_e2e_acceptance.py
 
