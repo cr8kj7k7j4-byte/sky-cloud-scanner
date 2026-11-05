@@ -134,6 +134,10 @@ def evaluate_trade(
     if reward <= 0:
         reasons.append("Long 模式 Target 必須高於 Entry")
 
+    # P0-R confirmed hard stop: two consecutive losing trades prohibit new entry.
+    # A caution/defensive tier alone must not weaken this portfolio kill switch.
+    if int(consecutive_losses or 0) >= 2:
+        reasons.append("連續兩筆虧損，停止新進場")
     if state == "LOCKDOWN":
         reasons.append("回撤達 LOCKDOWN 門檻，禁止新開倉")
     if state == "DEFENSIVE" and grade not in (None, "A+"):
