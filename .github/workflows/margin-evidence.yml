@@ -32,11 +32,30 @@ jobs:
       - name: Install calendar dependency
         if: github.event_name != 'pull_request'
         run: python -m pip install requests
+      - name: Resolve one immutable target date for calendar and collector
+        if: github.event_name != 'pull_request'
+        id: report_date
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
+            TARGET_DATE="$(python - <<'PY'
+          from research.margin_evidence.collect import scheduled_utc_report_date
+          print(scheduled_utc_report_date().isoformat())
+          PY
+          )"
+          else
+            TARGET_DATE="$(TZ=Asia/Taipei date +%F)"
+          fi
+          echo "date=$TARGET_DATE" >> "$GITHUB_OUTPUT"
+          echo "Margin target reporting session: $TARGET_DATE" >> "$GITHUB_STEP_SUMMARY"
       - name: Check official trading calendar
         if: github.event_name != 'pull_request'
         id: calendar
+        env:
+          TARGET_DATE: ${{ steps.report_date.outputs.date }}
         run: |
-          python -m src.trading_calendar --out output/calendar.json
+          python -m src.trading_calendar --date "$TARGET_DATE" --out output/calendar.json
           python - <<'PY'
           import json, os
           from pathlib import Path
@@ -49,14 +68,12 @@ jobs:
       - name: Collect official margin evidence
         if: steps.calendar.outputs.open == 'true'
         id: collect
+        env:
+          TARGET_DATE: ${{ steps.report_date.outputs.date }}
         run: |
-          # Preserve fail-closed report-date checks; retry publication lag only.
+          # One frozen report date for every retry, even across another midnight.
           for attempt in 1 2 3; do
-            if [ "${GITHUB_EVENT_NAME}" = "schedule" ]; then
-              # The 15:30 UTC cron targets that UTC day (23:30 Taiwan).
-              # Runner delays past 00:00 Taiwan must not advance report date.
-              python research/margin_evidence/collect.py --scheduled-utc-day && exit 0
-            elif python research/margin_evidence/collect.py; then
+            if python research/margin_evidence/collect.py --date "$TARGET_DATE"; then
               exit 0
             fi
             if [ "$attempt" -eq 3 ]; then
