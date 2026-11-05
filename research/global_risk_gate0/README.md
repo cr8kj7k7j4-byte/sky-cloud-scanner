@@ -1,0 +1,9 @@
+# Global Risk Filter — Gate 0 intake (Issue #190)
+
+Research-only input sanity check. This is not a data collector, calendar service, backtest, preregistration, trading signal, or a Gate 0 approval. Complete-looking evidence is unverified and always returns REVIEW_REQUIRED / NOT_PROVEN. Missing or malformed evidence returns HOLD; no market records are supplied.
+
+Run: `python -m research.global_risk_gate0.audit path/to/manifest.json`. The JSON object contains a sources list and observations list. Source records require name (SOX, NASDAQ100, VIX, TW_INDEX_0900_0930), provider, symbol, license_evidence, availability_evidence, calendar_evidence, coverage_evidence and adjustment_policy. Evidence fields are nonempty references for human verification, never proof by themselves. Each US input observation needs name, taiwan_session and us_session (ISO dates), published_at and available_at (timezone-aware ISO timestamps) and record_evidence. Each represented Taiwan session requires all three inputs. A prior US calendar date does not prove the correct previous US trading session: independent calendar/DST/early-close checks remain mandatory. Taiwan outcome values, origin and availability, source updates/revisions, license, historical coverage, alignment, leakage and survivorship are not validated here.
+
+The 08:30 check only rejects records whose declared availability is after that time; it does not authenticate the timestamp. The checker deliberately does not compute vote thresholds or returns. Prior US daily closes published after the as-of time cannot be assumed available. Formal research requires Gate 0 and W0/P0-G preregistration; the existing v1.4 historical-rule limitation is unchanged. No source purchase, automated orders, or Production changes are authorized by this tool.
+
+Run tests: `python -m unittest discover -s tests -p 'test_global_risk_gate0_intake.py' -v`.
