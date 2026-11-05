@@ -1,0 +1,37 @@
+name: Sky TSE OTC Selected Quote Viewer
+on:
+  workflow_dispatch:
+    inputs:
+      symbols:
+        description: "1–20 comma-separated codes e.g. 2330,6488"
+        required: true
+        default: "2330,6488"
+        type: string
+permissions:
+  contents: read
+jobs:
+  quote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install and unit test
+        run: |
+          pip install -r requirements.txt
+          python -m unittest tests.test_sky_market_quote_view -v
+      - name: Retrieve selected executed trade quotes (no orders)
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+          INPUT_SYMBOLS: ${{ inputs.symbols }}
+        run: python -m src.sky_market_quote_view --symbols "$INPUT_SYMBOLS"
+      - name: Upload evidence even if quotes unavailable
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-selected-quotes-${{ github.run_id }}
+          path: output/market_quote_view/
+          if-no-files-found: warn
+          retention-days: 30
