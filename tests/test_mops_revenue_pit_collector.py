@@ -109,3 +109,71 @@ def test_jsonl_dedup(tmp_path):
     assert first["added"] == 1
     assert second["added"] == 0
     assert second["total"] == 1
+
+
+def test_mops_transient_non_json_recovery(monkeypatch):
+    import io
+    import research.collect_mops_revenue_pit as collector
+
+    class FakeResponse:
+        def __init__(self, content):
+            self.content = content
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self, n=-1):
+            return self.content[:n]
+
+    attempts = []
+    response = iter([b"<html>temporarily unavailable</html>",
+                     b'{"code":200,"result":{"data":[]},"datetime":"115/11/05 12:05:00"}'])
+    def fake_open(req, timeout=20):
+        attempts.append(timeout)
+        return FakeResponse(next(response))
+    monkeypatch.setattr(collector.urllib.request, "urlopen", fake_open)
+    sleeps = []
+    result = collector.fetch_json_post("https://example.invalid", {"count": 5},
+                                       attempts=3, sleeper=sleeps.append)
+    assert result["code"] == 200
+    assert len(attempts) == 2
+    assert sleeps == [1]
+
+
+def test_mops_persistent_bad_body_fails_closed(monkeypatch):
+    import pytest
+    import research.collect_mops_revenue_pit as collector
+    class BadResponse:
+        def __enter__(self): return self
+        def __exit__(self, *args): return False
+        def read(self, n=-1): return b""
+    monkeypatch.setattr(collector.urllib.request, "urlopen",
+                        lambda req, timeout=20: BadResponse())
+    slept = []
+    with pytest.raises(RuntimeError, match="MOPS fetch failed after 3 attempts"):
+        collector.fetch_json_post("https://example.invalid", {"count": 5},
+                                  sleeper=slept.append)
+    assert slept == [1, 2]
+
+
+def test_mops_failures_leave_ledger_unchanged_and_create_snapshot(monkeypatch, tmp_path):
+    import research.collect_mops_revenue_pit as collector
+    import pytest
+    monkeypatch.setattr(collector, "collect_all_markets",
+                        lambda count=500: (_ for _ in ()).throw(RuntimeError("MOPS unreachable")))
+    ledger = tmp_path / "ledger.jsonl"
+    ledger.write_text('{"keep":"existing"}\\n', encoding="utf-8")
+    snapshot = tmp_path / "failure.json"
+    monkeypatch.setattr(sys, "argv", ["collect_mops_revenue_pit.py",
+                         "--out", str(ledger), "--snapshot", str(snapshot)])
+    with pytest.raises(SystemExit, match="PIT ledger unchanged"):
+        collector.main()
+    assert ledger.read_text(encoding="utf-8") == '{"keep":"existing"}\\n'
+    import json
+    data = json.loads(snapshot.read_text())
+    assert data["collection_status"] == "SOURCE_UNAVAILABLE"
+    assert data["point_in_time_verified"] is False
+    assert data["records"] == []
