@@ -147,6 +147,8 @@ def buy_trigger_text(item: dict[str, Any]) -> str:
 
 
 def classification(item: dict[str, Any]) -> str:
+    if item.get("execution_status") == "OPEN_ENTRY_PASSED_NO_CHASE":
+        return "X"
     decision = item.get("decision") or {}
     action = str(
         item.get("current_action")
