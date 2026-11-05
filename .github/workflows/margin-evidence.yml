@@ -32,11 +32,30 @@ jobs:
       - name: Install calendar dependency
         if: github.event_name != 'pull_request'
         run: python -m pip install requests
+      - name: Resolve intended official report date
+        if: github.event_name != 'pull_request'
+        id: report_date
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The 15:30 UTC schedule targets Taiwan 23:30 of the SAME UTC date.
+          # GitHub may dispatch after Taiwan midnight, e.g. 00:33 next day.
+          # Never substitute the delayed runner's Taipei calendar date.
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            REPORT_DATE="$(date -u +%F)"
+            DATE_BASIS="SCHEDULED_UTC_DATE_TAIPEI_2330"
+          else
+            REPORT_DATE="$(TZ=Asia/Taipei date +%F)"
+            DATE_BASIS="MANUAL_TAIPEI_DATE"
+          fi
+          echo "report_date=$REPORT_DATE" >> "$GITHUB_OUTPUT"
+          echo "date_basis=$DATE_BASIS" >> "$GITHUB_OUTPUT"
+          echo "Margin evidence target: $REPORT_DATE ($DATE_BASIS)"
       - name: Check official trading calendar
         if: github.event_name != 'pull_request'
         id: calendar
         run: |
-          python -m src.trading_calendar --out output/calendar.json
+          python -m src.trading_calendar --date "${{ steps.report_date.outputs.report_date }}" --out output/calendar.json
           python - <<'PY'
           import json, os
           from pathlib import Path
@@ -52,7 +71,7 @@ jobs:
         run: |
           # Preserve fail-closed report-date checks; retry publication lag only.
           for attempt in 1 2 3; do
-            if python research/margin_evidence/collect.py; then
+            if python research/margin_evidence/collect.py --date "${{ steps.report_date.outputs.report_date }}"; then
               exit 0
             fi
             if [ "$attempt" -eq 3 ]; then
