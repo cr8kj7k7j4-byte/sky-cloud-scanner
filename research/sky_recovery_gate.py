@@ -1,7 +1,7 @@
 """Fail-closed, read-only recovery acceptance. Never grants trading permission."""
 import argparse
 import json
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 
@@ -14,7 +14,15 @@ def _timestamp_ok(raw):
         return False
 
 
-def evaluate(status, health=None, validation=None):
+def _fresh_timestamp(raw, now, max_age_hours=36):
+    if not _timestamp_ok(raw):
+        return False
+    timestamp = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    age = now - timestamp
+    return timedelta(minutes=-5) <= age <= timedelta(hours=max_age_hours)
+
+
+def evaluate(status, health=None, validation=None, *, now=None):
     status, health, validation = status or {}, health or {}, validation or {}
     w4 = status.get("w4_dashboard") or {}
     integrity = w4.get("strategy_evidence_integrity") or {}
@@ -23,8 +31,23 @@ def evaluate(status, health=None, validation=None):
     eligible = int(integrity.get("eligible_strategy_records") or 0)
     complete = int(integrity.get("complete_strategy_outcomes_with_modelled_costs") or 0)
     reasons = []
-    if not _timestamp_ok(status.get("generated_at_utc")):
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        raise ValueError("now must be timezone aware")
+    status_time = status.get("generated_at_utc")
+    if not _timestamp_ok(status_time):
         reasons.append("STATUS_TIMESTAMP_MISSING_OR_INVALID")
+    elif not _fresh_timestamp(status_time, now):
+        reasons.append("STATUS_STALE_OR_FUTURE")
+    # Published diagnostics are a separate evidence layer. A green health
+    # verdict is invalid when its published snapshot cannot be dated.
+    if health.get("decision") == "HEALTH_FULLY_CERTIFIED":
+        health_time = health.get("published_at_utc")
+        if not _fresh_timestamp(health_time, now):
+            reasons.append("HEALTH_STATUS_STALE_OR_UNDATED")
+    if (validation.get("evidence") or {}).get("after_cost_expectancy_r") is not None:
+        if not _fresh_timestamp(validation.get("published_at_utc"), now):
+            reasons.append("MODEL_VALIDATION_STALE_OR_UNDATED")
     if health.get("decision") != "HEALTH_FULLY_CERTIFIED":
         reasons.append("LIVE_MARKET_NOT_CERTIFIED")
     if not (source.get("authoritative_forward_rule_source_verified") is True
@@ -47,6 +70,7 @@ def evaluate(status, health=None, validation=None):
     return {
         "schema": "SKY_RECOVERY_ACCEPTANCE_V1",
         "audit_completed": True,
+        "audit_timestamp_utc": now.astimezone(timezone.utc).isoformat(),
         "readiness": "BLOCKED" if reasons else "READY_FOR_W0_P0G_REVIEW_ONLY",
         "trade_authorized": False,
         "production_promoted": False,
