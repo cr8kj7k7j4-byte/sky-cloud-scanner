@@ -134,6 +134,13 @@ def evaluate_trade(
     if reward <= 0:
         reasons.append("Long 模式 Target 必須高於 Entry")
 
+    # W0 P0-R safety candidate: fail closed for two consecutive losing trades.
+    # The present portfolio interface exposes consecutive_losses, not a
+    # separately verified consecutive_stop_losses counter. Treating all losses
+    # as stops is conservative; production promotion requires account-ledger
+    # provenance verification by W0/P0-G.
+    if int(consecutive_losses or 0) >= 2:
+        reasons.append("連續兩筆虧損觸發新進場硬性停止；須確認實際成交與停損紀錄")
     if state == "LOCKDOWN":
         reasons.append("回撤達 LOCKDOWN 門檻，禁止新開倉")
     if state == "DEFENSIVE" and grade not in (None, "A+"):
