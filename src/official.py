@@ -144,8 +144,8 @@ def fetch_mis_quotes(universe, batch_size=55, sleep_s=.18):
         arr=request(batch)
         responded={str(q.get("c","")).strip() for q in arr}
         # Missing JSON rows and present rows with z='-' are different failures.
-        # The latter are not repaired by querying the same unavailable trade
-        # price repeatedly; retries waste quota and can induce rate limiting.
+        # Blank-z responses may recover in small requests; bounded recovery
+        # still cannot invent trades that the provider never publishes.
         stats["initial_missing_response"]+=sum(
             x["symbol"] not in responded for x in batch
         )
@@ -155,10 +155,11 @@ def fetch_mis_quotes(universe, batch_size=55, sleep_s=.18):
             for q in arr
         )
         ingest(arr,meta)
-        # Retry only symbols absent from the provider response, never symbols
-        # present without an executed last trade. This does NOT alter accepted
-        # quote eligibility, fill missing prices, or upgrade market coverage.
-        missing.extend(x for x in batch if x["symbol"] not in responded)
+        # A large MIS response can contain a symbol with z='-' even when
+        # a smaller chunk later returns a real last-traded price. Preserve
+        # bounded small-batch recovery for both omitted and blank-z records.
+        # Only a genuine executed last price can enter rows_by_symbol.
+        missing.extend(x for x in batch if x["symbol"] not in rows_by_symbol)
         time.sleep(sleep_s)
 
     # One bounded recovery pass: the MIS endpoint may silently truncate ex_ch.
