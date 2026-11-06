@@ -1,0 +1,21 @@
+name: P0-OPS Scanner Fastpath Regression
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/scan.yml'
+      - '.github/workflows/p0ops-scan-fastpath-regression.yml'
+      - 'tests/test_p0ops_scan_fastpath.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate P0-OPS scanner critical-path invariants
+        run: python -m unittest discover -s tests -p 'test_p0ops_scan_fastpath.py' -v
