@@ -80,6 +80,7 @@ def run():
     out["mis_sample"] = {
         "scope": "STRATIFIED_DIAGNOSTIC_SAMPLE_NOT_WHOLE_MARKET",
         "requested": len(sample),
+        "returned": len(q),  # legacy diagnostic contract: parsed MIS quotes, not fresh trades
         "returned_with_parseable_last": len(q),
         "verified_current_session_trade_count": audit["valid_quote_count"],
         "by_exchange": audit["by_exchange"],
