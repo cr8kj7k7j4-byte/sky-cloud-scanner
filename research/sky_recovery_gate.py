@@ -65,8 +65,17 @@ def evaluate(status, health=None, validation=None, *, now=None):
         reasons.append("SYMBOL_CONCENTRATION_UNVERIFIED_OR_EXCESS")
     if int(integrity.get("observed_execution_fills") or 0) <= 0:
         reasons.append("EXECUTION_FILL_EVIDENCE_MISSING")
-    if (validation.get("evidence") or {}).get("after_cost_expectancy_r") is None:
+    expectancy = (validation.get("evidence") or {}).get("after_cost_expectancy_r")
+    if expectancy is None:
         reasons.append("AFTER_COST_EXPECTANCY_UNVERIFIED")
+    else:
+        try:
+            import math
+            value = float(expectancy)
+            if not math.isfinite(value) or value <= 0:
+                reasons.append("AFTER_COST_EXPECTANCY_NOT_POSITIVE")
+        except (ValueError, TypeError):
+            reasons.append("AFTER_COST_EXPECTANCY_INVALID")
     return {
         "schema": "SKY_RECOVERY_ACCEPTANCE_V1",
         "audit_completed": True,
