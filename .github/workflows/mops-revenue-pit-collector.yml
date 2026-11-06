@@ -10,11 +10,12 @@ on:
     # corrections / late filings. 04:05 UTC = 12:05 Asia/Taipei.
     - cron: '5 4 16-31 * *'
   push:
+    # Safe one-shot source smoke after a collector/workflow update on main.
+    # A ledger data commit does not match these paths and cannot loop.
     branches:
-      - 'feature/mops-revenue-pit-collector'
+      - main
     paths:
       - 'research/collect_mops_revenue_pit.py'
-      - 'tests/test_mops_revenue_pit_collector.py'
       - '.github/workflows/mops-revenue-pit-collector.yml'
 
 permissions:

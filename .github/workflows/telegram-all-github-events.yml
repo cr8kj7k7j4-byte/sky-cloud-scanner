@@ -1,12 +1,6 @@
-name: Sky GitHub 全事件 Telegram 通知
+name: Sky GitHub PR Issue and Release Telegram Notification
 
 on:
-  workflow_run:
-    workflows:
-      - "**"
-      - "!Sky GitHub 全事件 Telegram 通知"
-    types: [completed]
-  push:
   pull_request:
     types: [opened, closed, reopened, synchronize, ready_for_review, converted_to_draft, review_requested, review_request_removed]
   issues:
@@ -36,7 +30,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: telegram-all-events-${{ github.event_name }}-${{ github.run_id }}
+  group: telegram-event-${{ github.event_name }}-${{ github.event.action || 'none' }}-${{ github.run_id }}
   cancel-in-progress: false
 
 jobs:

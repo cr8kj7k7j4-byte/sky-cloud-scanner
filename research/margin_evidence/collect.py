@@ -66,12 +66,30 @@ def run(day, out, getter=fetch):
     (out / 'manifest.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
     return result
 
+def scheduled_utc_report_date(now=None):
+    """Scheduled 23:30 Taiwan collection targets the UTC calendar date.
+
+    The cron fires at 15:30 UTC. GitHub Actions can start after local
+    midnight; using the runner's Taiwan date would request tomorrow's
+    unpublished report. This applies only to the scheduled workflow.
+    """
+    instant = now or dt.datetime.now(dt.timezone.utc)
+    if instant.tzinfo is None:
+        raise ValueError('scheduled date requires timezone-aware timestamp')
+    return instant.astimezone(dt.timezone.utc).date()
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--date', help='YYYY-MM-DD; diagnostic only')
     parser.add_argument('--output', default='output/margin_evidence')
+    parser.add_argument('--scheduled-utc-day', action='store_true',
+                        help='For the 15:30 UTC schedule; safe across Taiwan midnight')
     args = parser.parse_args()
-    day = dt.date.fromisoformat(args.date) if args.date else dt.datetime.now(TZ).date()
+    if args.date and args.scheduled_utc_day:
+        parser.error('--date and --scheduled-utc-day cannot be used together')
+    day = (dt.date.fromisoformat(args.date) if args.date
+           else scheduled_utc_report_date() if args.scheduled_utc_day
+           else dt.datetime.now(TZ).date())
     result = run(day, Path(args.output))
     print(json.dumps(result, ensure_ascii=False, indent=2))
     summary = os.environ.get('GITHUB_STEP_SUMMARY')

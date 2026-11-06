@@ -29,6 +29,15 @@ class CollectorTests(unittest.TestCase):
             result = m.run(self.day, Path(d), lambda url: json.dumps(self.twse if 'twse.com.tw' in url else self.tpex).encode())
             self.assertEqual(result['collection_status'], 'FAIL')
             self.assertEqual(result['research_status'], 'HOLD')
+    def test_scheduled_run_delayed_past_taiwan_midnight(self):
+        # 15:30 UTC = 23:30 Asia/Taipei; delayed start at 16:33 UTC
+        # is already November 6 local time but still requests Nov 5.
+        delayed = dt.datetime(2026, 11, 5, 16, 33, tzinfo=dt.timezone.utc)
+        self.assertEqual(delayed.astimezone(m.TZ).date(), dt.date(2026, 11, 6))
+        self.assertEqual(m.scheduled_utc_report_date(delayed), dt.date(2026, 11, 5))
+        with self.assertRaises(ValueError):
+            m.scheduled_utc_report_date(dt.datetime(2026, 11, 5, 16, 33))
+
     def test_transport_failure_is_reported(self):
         def failed(url):
             raise TimeoutError('network')
