@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#edf4fb"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="TRIDENT">
+<title>TRIDENT｜iPhone 交易工作站</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif;color:#14314b;background:#edf4fb;font-size:15px}
+*{box-sizing:border-box}body{margin:0;padding:env(safe-area-inset-top) 0 calc(75px + env(safe-area-inset-bottom))}
+header{background:#fff;position:sticky;top:0;z-index:2;padding:15px 18px;border-bottom:1px solid #dbe5ef;display:flex;justify-content:space-between;align-items:center}
+h1{font-size:19px;margin:0}h2{font-size:17px;margin:0 0 12px}p{line-height:1.5}.sub{font-size:12px;color:#61758a}
+main{max-width:720px;margin:auto;padding:15px}.card{background:#fff;border-radius:16px;padding:17px;margin-bottom:14px;box-shadow:0 4px 20px #19395209}
+.row{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.tag{border-radius:30px;padding:5px 10px;background:#e7eef6;font-size:12px;font-weight:700}
+.warn{color:#9d5a12;background:#fff0d9}.ok{color:#176c50;background:#def8ea}.bad{color:#ae343c;background:#ffe9ea}
+.big{font-size:26px;font-weight:800;margin:6px 0}.muted{color:#60778a}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+label{display:block;font-size:12px;font-weight:700;color:#5c7182;margin:10px 0 5px}
+input,select,textarea,button{font:inherit}input,select,textarea{width:100%;padding:11px;border-radius:10px;border:1px solid #c9d8e5;background:white;color:#15334b}
+button{border:0;border-radius:11px;background:#176ca7;color:white;font-weight:700;padding:12px 14px;cursor:pointer}
+button.secondary{background:#e7eef6;color:#17405f}button.danger{background:#a83e43}
+button:disabled{opacity:.5}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+small{color:#61758a}.item{padding:12px 0;border-top:1px solid #e6edf4}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:#fff;border-top:1px solid #dce7f2;padding:7px 4px calc(7px + env(safe-area-inset-bottom));z-index:4}
+nav button{flex:1;background:transparent;color:#62798a;padding:9px 0;font-size:12px;border-radius:9px}
+nav button.active{background:#e5f2ff;color:#13639f}
+.panel{display:none}.panel.active{display:block}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;background:#f2f6fa;padding:12px;border-radius:10px}
+a{color:#13679e} .notice{background:#fff8e6;padding:10px;border-radius:10px;color:#73551d;font-size:13px}
+@media(min-width:600px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+</style></head>
+<body><header><div><h1>TRIDENT <span class="sub">V1.0｜iPhone 工作站</span></h1><div class="sub">獨立系統 · 不連動既有 Sky 正式策略</div></div><span class="tag warn" id="feedBadge">未連接行情</span></header>
+<main>
+<section class="panel active" id="home">
+<div class="card"><div class="row"><h2>交易控制台</h2><span class="tag bad" id="tradeBadge">交易訊號停用</span></div>
+<div class="big" id="decision">NO TRADE</div><p class="muted" id="reason">尚無已驗證的即時交易訊號。請匯入附時間戳及來源的行情／策略資料。</p>
+<div class="grid"><div><small>資料更新</small><div id="timestamp">—</div></div><div><small>市場覆蓋</small><div id="coverage">未驗證</div></div><div><small>單筆風險上限</small><div>NT$ 5,000</div></div></div>
+</div>
+<div class="card"><h2>策略狀態</h2><div class="item"><strong>P1 雙向當沖</strong><div class="sub">LONG / SHORT / NO TRADE · 未通過策略驗證</div></div><div class="item"><strong>P2 隔日預測</strong><div class="sub">獨立評估 · 未通過策略驗證</div></div><div class="item"><strong>P3 波段 3–20D</strong><div class="sub">獨立評估 · 未通過策略驗證</div></div></div>
+<div class="card"><h2>立即操作</h2><div class="actions"><button onclick="switchTab('signals')">查看匯入訊號</button><button class="secondary" onclick="switchTab('risk')">計算下單風險</button><button class="secondary" onclick="switchTab('settings')">資料匯入</button></div><p class="notice">系統尚未接入券商、沒有自動下單功能。任何未驗證的方向分數都不能當成實盤進場指令。</p></div>
+</section>
+<section class="panel" id="signals"><div class="card"><div class="row"><h2>訊號觀察清單</h2><span class="tag" id="count">0 筆</span></div><div id="signalsList" class="muted">尚無資料。請到「設定」匯入資料。</div></div><div class="card"><h2>資料格式範例</h2><pre>{"as_of":"2026-11-09T09:05:00+08:00","source":"已授權來源","coverage":"TWSE+TPEx：需驗證","signals":[{"symbol":"0000","name":"範例","side":"WATCH","entry":0,"stop":0,"target":0,"validated":false}]}</pre><small>範例不是實際行情。只接受使用者主動匯入，且不會因 validated 欄位為 true 就自動解除實盤禁令。</small></div></section>
+<section class="panel" id="risk"><div class="card"><h2>實盤風控計算器</h2><div class="grid"><div><label for="symbol">股票代號</label><input id="symbol" inputmode="numeric" placeholder="例如 2330"></div><div><label for="side">方向</label><select id="side"><option value="LONG">做多</option><option value="SHORT">做空</option></select></div><div><label for="entry">預計成交價</label><input id="entry" type="number" inputmode="decimal" min=".01" step=".01"></div><div><label for="stop">停損價</label><input id="stop" type="number" inputmode="decimal" min=".01" step=".01"></div><div><label for="target">目標價</label><input id="target" type="number" inputmode="decimal" min=".01" step=".01"></div><div><label for="shares">股數（1000 股＝1 張）</label><input id="shares" type="number" inputmode="numeric" min="1" step="1" value="1000"></div><div><label for="fees">估計來回交易成本率（%）</label><input id="fees" type="number" inputmode="decimal" min="0" step=".01" value=".45"></div></div>
+<div class="actions"><button onclick="calculate()">計算風險</button><button class="secondary" onclick="recordTrade()">記錄交易計畫</button></div><div id="riskResult" class="notice" aria-live="polite">請先輸入進出場價。成本率為可調假設，需依交易種類及券商費率修正。</div></div>
+<div class="card"><h2>手動持倉與交易計畫</h2><div id="positions" class="muted">目前沒有紀錄</div><div class="actions"><button class="danger" onclick="clearPositions()">清除本機紀錄</button></div><p class="sub">僅存於目前裝置瀏覽器。不是券商實際持倉，不具備帳戶同步或委託功能。</p></div></section>
+<section class="panel" id="settings"><div class="card"><h2>行情與訊號匯入</h2><label for="file">選取 JSON 資料檔</label><input id="file" type="file" accept=".json,application/json"><div class="actions"><button onclick="importData()">匯入並檢查</button><button class="secondary" onclick="clearData()">清除匯入資料</button></div><div id="importStatus" class="sub" aria-live="polite">尚未匯入。檔案大小限制 1 MB。</div></div>
+<div class="card"><h2>系統限制與安全</h2><p>目前版本提供 iPhone 介面、JSON 匯入、訊號檢視、成本與風險試算、手動持倉紀錄。</p><p class="notice">尚未完成：Nova API 認證、全市場即時行情、定時掃描、背景推播、策略回測／樣本外驗證、實盤訊號發布及券商下單整合。</p><p class="sub">不要將 Nova API 密碼、憑證、私鑰或 Access Token 貼到此頁。券商金鑰必須留在安全的伺服器端。</p><p>iPhone：Safari 開啟部署後的 HTTPS 網址 → 分享 → 加入主畫面，即可像 App 一樣啟動。</p></div>
+</section>
+</main><nav aria-label="主要導覽"><button class="active" data-tab="home" onclick="switchTab('home')">總覽</button><button data-tab="signals" onclick="switchTab('signals')">訊號</button><button data-tab="risk" onclick="switchTab('risk')">風控／持倉</button><button data-tab="settings" onclick="switchTab('settings')">設定</button></nav>
+<script>
+"use strict";
+const K_DATA="trident_data_v1",K_POS="trident_positions_v1", MAX_BYTES=1048576;
+let feed=null,positions=[];
+try{feed=JSON.parse(localStorage.getItem(K_DATA)||"null")}catch(e){}
+try{positions=JSON.parse(localStorage.getItem(K_POS)||"[]");if(!Array.isArray(positions))positions=[]}catch(e){}
+function el(id){return document.getElementById(id)}
+function safe(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function switchTab(id){document.querySelectorAll(".panel").forEach(x=>x.classList.toggle("active",x.id===id));document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("active",x.dataset.tab===id));scrollTo(0,0)}
+function validFeed(obj){if(!obj||typeof obj!=="object"||!Array.isArray(obj.signals)||obj.signals.length>1000||typeof obj.as_of!=="string"||!Number.isFinite(Date.parse(obj.as_of))||!/([+-]\d\d:\d\d|Z)$/.test(obj.as_of)||typeof obj.source!=="string"||!obj.source.trim())return false;return obj.signals.every(s=>s&&typeof s==="object"&&typeof s.symbol==="string"&&/^\d{4,6}$/.test(s.symbol)&&["LONG","SHORT","WATCH","NO TRADE"].includes(s.side)&&["entry","stop","target"].every(k=>s[k]===undefined||(typeof s[k]==="number"&&Number.isFinite(s[k])&&s[k]>=0)))}
+function refresh(){const valid=feed&&validFeed(feed),now=Date.now(),age=valid?(now-Date.parse(feed.as_of))/60000:Infinity, fresh=age>=0&&age<=3;
+el("feedBadge").textContent=fresh?"資料新鮮（未認證）":valid?"資料過期／非即時":"未連接行情";
+el("feedBadge").className="tag "+(fresh?"ok":"warn");
+el("timestamp").textContent=valid?new Date(feed.as_of).toLocaleString("zh-TW",{timeZone:"Asia/Taipei",hour12:false}):"—";
+el("coverage").textContent=valid?String(feed.coverage||"未驗證").slice(0,70):"未驗證";
+el("reason").textContent=!valid?"尚無可追溯行情及策略資料。":!fresh?"匯入資料已過期或時間錯誤，禁止當作即時交易依據。":"已匯入資料，但策略未經獨立驗證，交易訊號仍停用。";
+el("count").textContent=valid?feed.signals.length+" 筆":"0 筆";
+el("signalsList").innerHTML=!valid?"尚無有效資料。":feed.signals.map(s=>'<div class="item"><div class="row"><strong>'+safe(s.symbol)+' '+safe(s.name||"")+'</strong><span class="tag warn">觀察：'+safe(s.side)+'</span></div><small>進場 '+safe(s.entry??"—")+' ｜ 停損 '+safe(s.stop??"—")+' ｜ 目標 '+safe(s.target??"—")+'</small><div class="sub">僅供觀察，未核准實盤訊號</div></div>').join("")||"沒有候選";
+el("positions").innerHTML=positions.length?positions.map((p,i)=>'<div class="item"><strong>'+safe(p.symbol)+' '+safe(p.side)+'</strong><div class="sub">進場 '+p.entry+'｜停損 '+p.stop+'｜目標 '+p.target+'｜'+p.shares+' 股</div><button class="secondary" onclick="removePosition('+i+')">刪除紀錄</button></div>').join(""):"目前沒有紀錄"}
+function importData(){const f=el("file").files[0];if(!f){el("importStatus").textContent="請先選取 JSON 檔案";return}if(f.size>MAX_BYTES){el("importStatus").textContent="檔案超過 1 MB";return}const reader=new FileReader();reader.onload=()=>{try{const obj=JSON.parse(reader.result);if(!validFeed(obj))throw Error("格式或時間戳不符合要求");feed={as_of:obj.as_of,source:obj.source.slice(0,120),coverage:String(obj.coverage||"未驗證").slice(0,100),signals:obj.signals.map(s=>({symbol:s.symbol,name:String(s.name||"").slice(0,60),side:s.side,entry:s.entry,stop:s.stop,target:s.target}))};localStorage.setItem(K_DATA,JSON.stringify(feed));el("importStatus").textContent="匯入完成（僅供觀察，不是正式交易訊號）";refresh()}catch(e){el("importStatus").textContent="匯入失敗："+e.message}};reader.readAsText(f)}
+function clearData(){feed=null;localStorage.removeItem(K_DATA);refresh()}
+function calc(){const side=el("side").value,entry=Number(el("entry").value),stop=Number(el("stop").value),target=Number(el("target").value),shares=Number(el("shares").value),fee=Number(el("fees").value)/100; if(![entry,stop,target,shares,fee].every(Number.isFinite)||entry<=0||stop<=0||target<=0||shares<=0||!Number.isInteger(shares)||fee<0|| (side==="LONG"&&!(stop<entry&&target>entry))||(side==="SHORT"&&!(stop>entry&&target<entry)))throw Error("價格／方向／股數不合法：多單須停損低於進場、空單反之");const loss=(Math.abs(entry-stop)+entry*fee)*shares,gain=(Math.abs(target-entry)-entry*fee)*shares,rr=gain/loss,allowed=Math.floor(5000/(Math.abs(entry-stop)+entry*fee));return {side,entry,stop,target,shares,fee,loss,gain,rr,allowed}}
+function calculate(){try{const x=calc();const approve=x.loss<=5000&&x.gain>0&&x.rr>=2;el("riskResult").textContent='估計最大停損損失 NT$ '+x.loss.toFixed(0)+'｜目標淨利 NT$ '+x.gain.toFixed(0)+'｜RR '+x.rr.toFixed(2)+'｜5,000 元風險上限股數 '+x.allowed+'。'+(approve?'試算符合自訂風險門檻，但不代表可實盤進場。':'未通過風險／RR 門檻，不建議進場。');return x}catch(e){el("riskResult").textContent=e.message;return null}}
+function recordTrade(){const x=calculate();if(!x||x.loss>5000||x.gain<=0||x.rr<2){alert("必須先通過風險試算才可記錄");return}const symbol=el("symbol").value.trim();if(!/^\d{4,6}$/.test(symbol)){alert("請輸入有效股票代號");return}positions.unshift({symbol,...x,created:new Date().toISOString()});positions=positions.slice(0,100);localStorage.setItem(K_POS,JSON.stringify(positions));refresh();alert("已記錄為手動交易計畫，沒有送出委託")}
+function removePosition(i){positions.splice(i,1);localStorage.setItem(K_POS,JSON.stringify(positions));refresh()}
+function clearPositions(){if(confirm("確定清除這台手機的所有交易計畫紀錄？")){positions=[];localStorage.removeItem(K_POS);refresh()}}
+refresh();setInterval(refresh,30000);
+</script></body></html>
