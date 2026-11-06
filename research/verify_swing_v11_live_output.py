@@ -9,7 +9,9 @@ def validate_swing_scan_output(payload: dict) -> dict:
     guard = payload.get("signal_date_guard") or {}
     status = guard.get("status")
     fresh = guard.get("fresh") is True
-    valid = fresh and status == "PASS"
+    signal_date = payload.get("signal_date")
+    expected = guard.get("expected_signal_date")
+    valid = fresh and status == "PASS" and bool(signal_date) and signal_date == expected
     return {
         "status": "PASS" if valid else "BLOCKED_STALE_SIGNAL_HISTORY",
         "signal_date": payload.get("signal_date"),
