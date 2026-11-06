@@ -100,5 +100,40 @@ class MisCoverageRetryTests(unittest.TestCase):
         self.assertEqual(rows, [])
 
 
+    def test_adaptive_small_batches_recover_large_universe_when_probe_works(self):
+        codes = [str(2000 + i) for i in range(500)]
+
+        class LargeBatchBlanks(FakeSession):
+            def get(self, url, params=None, timeout=None):
+                if params is None:
+                    return Response({})
+                symbols = [
+                    part.split("_")[1].split(".")[0]
+                    for part in params["ex_ch"].split("|")
+                ]
+                self.calls.append(symbols)
+                return Response({"msgArray": [
+                    quote(code, "-" if len(symbols) > 8 else "12")
+                    for code in symbols
+                ]})
+
+        fake = LargeBatchBlanks({})
+        rows, warnings = self.fetch(fake, codes)
+        self.assertEqual(len(rows), len(codes))
+        self.assertEqual({r["symbol"] for r in rows}, set(codes))
+        self.assertIn("adaptive_probe_valid=8", " ".join(warnings))
+        self.assertIn("adaptive_small_batch_enabled=True", " ".join(warnings))
+        self.assertLess(len(fake.calls), 120)
+
+    def test_adaptive_probe_does_not_expand_unproductive_api_requests(self):
+        codes = [str(2000 + i) for i in range(500)]
+        fake = FakeSession({x: quote(x, "-") for x in codes})
+        rows, warnings = self.fetch(fake, codes)
+        self.assertEqual(rows, [])
+        self.assertIn("adaptive_probe_valid=0", " ".join(warnings))
+        self.assertIn("adaptive_small_batch_enabled=False", " ".join(warnings))
+        self.assertLessEqual(len(fake.calls), 22)
+
+
 if __name__ == "__main__":
     unittest.main()
