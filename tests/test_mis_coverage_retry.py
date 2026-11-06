@@ -62,7 +62,7 @@ class MisCoverageRetryTests(unittest.TestCase):
                 [stock(x) for x in symbols], batch_size=55, sleep_s=0
             )
 
-    def test_present_missing_last_never_fabricated_or_retried(self):
+    def test_present_missing_last_retried_but_never_fabricated(self):
         codes = ["1101", "1102", "1103"]
         fake = FakeSession({
             "1101": quote("1101", "-"),
@@ -70,13 +70,13 @@ class MisCoverageRetryTests(unittest.TestCase):
             "1103": quote("1103", "12"),
         })
         rows, warnings = self.fetch(fake, codes)
-        self.assertEqual(fake.calls, [codes])
+        self.assertEqual(fake.calls, [codes, ["1101", "1102"]])
         self.assertEqual([r["symbol"] for r in rows], ["1103"])
         diagnostics = " ".join(warnings)
         self.assertIn("initial_present_without_executed_price=2", diagnostics)
         self.assertIn("initial_missing_response=0", diagnostics)
-        self.assertIn("recovery_requested=0", diagnostics)
-        self.assertIn("missing_after_recovery=2", diagnostics)
+        self.assertIn("recovery_requested=2", diagnostics)
+        self.assertIn("recovery_valid_quotes=0", diagnostics)\n        self.assertIn("missing_after_recovery=2", diagnostics)
 
     def test_only_omitted_symbol_is_requeried_and_can_recover(self):
         codes = ["1101", "1102", "1103"]
