@@ -82,5 +82,19 @@ class RecoveryContract(unittest.TestCase):
         self.assertIn("HEALTH_STATUS_STALE_OR_UNDATED", result["reasons"])
 
 
+    def test_negative_after_cost_expectancy_must_not_reach_review(self):
+        current = fixture(trades=220, fills=180, source_ok=True, complete=210, days=25)
+        health = {"decision": "HEALTH_FULLY_CERTIFIED",
+                  "published_at_utc": "2026-11-04T15:00:00+00:00"}
+        for value in (-0.01, 0.0, "-0.5", float("nan"), float("inf"), "bad"):
+            with self.subTest(value=value):
+                validation = {"evidence": {"after_cost_expectancy_r": value},
+                              "published_at_utc": "2026-11-04T15:00:00+00:00"}
+                result = evaluate(current, health, validation, now=FIXTURE_NOW)
+                self.assertEqual(result["readiness"], "BLOCKED")
+                self.assertFalse(result["trade_authorized"])
+                self.assertTrue(any(code.startswith("AFTER_COST_EXPECTANCY_") for code in result["reasons"]))
+
+
 if __name__ == "__main__":
     unittest.main()
