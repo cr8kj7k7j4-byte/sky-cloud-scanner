@@ -88,3 +88,16 @@ def test_quote_failure_does_not_approve_trade():
     assert report["data_status"] == "NO_VALID_SINGLE_QUOTE"
     assert report["verified_count"] == 0
     assert not report["execution_authorized"]
+
+
+def test_research_schedule_is_separate_and_calendar_gated():
+    from pathlib import Path
+    workflow = (Path(__file__).resolve().parents[1] /
+                ".github/workflows/sky-limited-candidate-research.yml").read_text()
+    assert 'cron: "20 1 * * 1-5"' in workflow
+    assert "python -m src.trading_calendar" in workflow
+    assert "source_status" in workflow
+    assert "steps.calendar.outputs.open == 'true'" in workflow
+    assert "--max-candidates 12" in workflow
+    assert "submit_order" not in workflow
+    assert "workflow_dispatch:" in workflow
