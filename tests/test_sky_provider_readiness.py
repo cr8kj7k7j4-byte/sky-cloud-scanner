@@ -57,3 +57,49 @@ def test_no_secret_or_raw_payload_in_report():
     result = provider_readiness(now=NOW, snapshot_fetch=fail,
                                  single_quote_fetch=lambda symbol: {})
     assert secret not in str(result)
+
+
+def test_wrapped_fugle_single_quotes_for_both_exchanges():
+    """Intraday/quote response has a data envelope in the GitHub API."""
+    stamp = int(NOW.timestamp() * 1000)
+    def sample(symbol):
+        return {"data": {"date": NOW.date().isoformat(), "lastTrade": {
+            "price": 50.5, "time": stamp}, "isTrial": False}}
+    result = provider_readiness(
+        now=NOW,
+        snapshot_fetch=lambda market: (_ for _ in ()).throw(PermissionError("403")),
+        single_quote_fetch=sample,
+    )
+    assert result["single_stock_samples"]["2330_TSE"]["status"] == "FRESH_EXECUTED_TRADE"
+    assert result["single_stock_samples"]["8089_OTC"]["status"] == "FRESH_EXECUTED_TRADE"
+    assert result["single_stock_sample"]["status"] == "FRESH_EXECUTED_TRADE"
+    assert result["provider_status"] == "BLOCKED_PROVIDER_SNAPSHOT_ENTITLEMENT"
+    assert result["whole_market_live_certified"] is False
+    assert result["strategy_trade_authorized"] is False
+
+
+def test_stale_or_trial_single_quote_not_certified():
+    stale = int((NOW.timestamp() - 500) * 1000)
+    calls = []
+    def sample(symbol):
+        calls.append(symbol)
+        return {"data": {"date": NOW.date().isoformat(),
+                         "lastTrade": {"price": 50.5, "time": stale},
+                         "isTrial": symbol == "8089"}}
+    result = provider_readiness(now=NOW, snapshot_fetch=lambda market: {},
+                                single_quote_fetch=sample)
+    assert calls == ["2330", "8089"]
+    for sample in result["single_stock_samples"].values():
+        assert sample["event_timestamp_verified"] is False
+
+
+def test_single_quote_denial_is_not_confused_with_bulk_permission():
+    def sample(symbol):
+        if symbol == "8089":
+            raise PermissionError("secret body must not leak")
+        return {"data": {}}
+    result = provider_readiness(now=NOW, snapshot_fetch=lambda market: {},
+                                single_quote_fetch=sample)
+    assert result["single_stock_samples"]["8089_OTC"]["status"] == "PLAN_RESTRICTED"
+    assert result["single_stock_samples"]["2330_TSE"]["api_accessible"] is True
+    assert "secret body" not in str(result)
