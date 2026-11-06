@@ -54,7 +54,7 @@ def _rows(payload, exchange, today):
         session = _roc_day(row.get("Date"))
         dates.add(session)
         close = _number(row.get("ClosingPrice") if exchange == "TWSE" else row.get("Close"))
-        turnover = _number(row.get("TradeValue") if exchange == "TWSE" else row.get("TradingValue"))
+        turnover = _number(row.get("TradeValue") if exchange == "TWSE" else (row.get("TransactionAmount") or row.get("TradingAmount") or row.get("TradeValue")))
         # Select solely by prior-day liquidity, NOT a profitable alpha ranking.
         if close is None or turnover is None or close >= 100:
             continue
