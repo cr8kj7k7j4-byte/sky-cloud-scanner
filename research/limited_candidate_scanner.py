@@ -116,7 +116,10 @@ def run(*, now=None, max_candidates=12, loader=official.get_json,
         report.update(pool)
         report["candidate_count"] = len(pool["candidates"])
         for candidate in pool["candidates"]:
-            # Query-time clock must advance for each sequential API call.\n            # A frozen scan-start clock falsely classifies later valid trades as future.\n            per_quote_now = quote_clock() if quote_clock is not None else datetime.now(TPE)\n            evidence = quote_collector(candidate["symbol"], now=per_quote_now)
+            # Query-time clock must advance for each sequential API call.
+            # A frozen scan-start clock falsely classifies later valid trades as future.
+            per_quote_now = quote_clock() if quote_clock is not None else datetime.now(TPE)
+            evidence = quote_collector(candidate["symbol"], now=per_quote_now)
             if not isinstance(evidence, dict):
                 evidence = {"status": "INVALID_QUOTE_PAYLOAD"}
             # Never promote this separate candidate universe to a full-market claim.
