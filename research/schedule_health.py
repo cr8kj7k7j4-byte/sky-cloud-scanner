@@ -104,16 +104,23 @@ def intraday_scan_slot_evidence(runs, now):
             continue
         if timestamp.date() == day:
             eligible.append((timestamp, record))
-    # A run is evidence of execution, not of the cron expression that caused it.
-    # Never count one run toward two slots. Keep attribution explicitly tentative.
-    unused = eligible[:]
-    for hour, minute in clock_slots:
-        expected = datetime(day.year, day.month, day.day, hour, minute, tzinfo=taipei)
-        candidates = [(timestamp, run) for timestamp, run in unused
-                      if expected <= timestamp <= expected + timedelta(minutes=30)]
-        picked = min(candidates, key=lambda item: item[0] - expected) if candidates else None
+    # A run is evidence of execution, not of its actual cron expression.
+    # Assign each run to the closest preceding plausible slot only once.
+    expected_times = [datetime(day.year, day.month, day.day, hour, minute,
+                               tzinfo=taipei) for hour, minute in clock_slots]
+    tentative = {}
+    for timestamp, run in sorted(eligible, key=lambda pair: pair[0]):
+        valid = [(index, expected) for index, expected in enumerate(expected_times)
+                 if expected <= timestamp <= expected + timedelta(minutes=30)]
+        if not valid:
+            continue
+        index, expected = max(valid, key=lambda pair: pair[1])
+        previous = tentative.get(index)
+        if previous is None or timestamp < previous[0]:
+            tentative[index] = (timestamp, run)
+    for index, expected in enumerate(expected_times):
+        picked = tentative.get(index)
         if picked:
-            unused.remove(picked)
             timestamp, run = picked
             state = 'RUN_TIME_MATCH_ONLY_CRON_UNVERIFIED'
             run_id = run.get('id')
