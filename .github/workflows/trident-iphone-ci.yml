@@ -1,0 +1,42 @@
+name: TRIDENT Mobile Static Checks
+on:
+  push:
+    branches: [feat/trident-iphone-workstation-20261107]
+    paths:
+      - 'trident-mobile/**'
+      - '.github/workflows/trident-iphone-ci.yml'
+  pull_request:
+    paths:
+      - 'trident-mobile/**'
+      - '.github/workflows/trident-iphone-ci.yml'
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate document and JavaScript
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, re
+          html=Path('trident-mobile/index.html').read_text(encoding='utf-8')
+          assert '<html lang="zh-Hant">' in html
+          assert '<meta name="viewport"' in html
+          assert 'rel="manifest"' in html
+          assert 'NO TRADE' in html
+          assert '5000' in html
+          assert '<script>' in html and '</script>' in html
+          assert 'Nova API 密碼' in html
+          manifest=json.loads(Path('trident-mobile/manifest.webmanifest').read_text(encoding='utf-8'))
+          assert manifest['display']=='standalone'
+          script=re.search(r'<script>(.*?)</script>',html,re.S)
+          assert script
+          Path('/tmp/trident-inline.js').write_text(script.group(1),encoding='utf-8')
+          print('HTML / manifest static checks passed')
+          PY
+          node --check /tmp/trident-inline.js
+      - name: Verify no automated orders or embedded credentials
+        run: |
+          ! grep -REni '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|api[_-]?secret[[:space:]]*[:=]|access[_-]?token[[:space:]]*[:=])' trident-mobile --exclude=README.md
