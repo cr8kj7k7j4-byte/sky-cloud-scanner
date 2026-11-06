@@ -79,12 +79,13 @@ def read_fast_report(command, root=".", now=None):
     age = (now - ts.astimezone(TZ)) if ts is not None and ts.tzinfo else None
     age_valid = age is not None and timedelta(0) <= age <= MAX_REPORT_AGE
     current_session = now.weekday() < 5 and time(9, 0) <= now.time() <= time(13, 30)
-    same_session = ts is not None and ts.astimezone(TZ).date() == now.date()
+    same_session = ts is not None and ts.tzinfo is not None and ts.astimezone(TZ).date() == now.date()
     base.update({
         "source_timestamp": ts.isoformat() if ts is not None else None,
         "report_age_seconds": round(age.total_seconds()) if age is not None else None,
-        "report_fresh_for_realtime": bool(age_valid and current_session and same_session),
-        "published_decision": (data.get("decision") or data.get("w4_dashboard", {}).get("stage")),
+        "report_fresh": bool(age_valid and current_session and same_session),
+        "report_fresh_for_realtime": False,
+        "published_decision": (data.get("decision") or (data.get("w4_dashboard") or {}).get("stage")),
         "published_step_outcome": data.get("scan_step_outcome"),
         "published_run_url": data.get("run_url"),
         "state": "REPORT_AVAILABLE_HISTORICAL_STATUS",
