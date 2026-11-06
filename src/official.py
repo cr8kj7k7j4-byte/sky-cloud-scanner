@@ -135,16 +135,64 @@ def fetch_mis_quotes(universe, batch_size=55, sleep_s=.18):
 
     missing=[]
     invalid_samples=[]
-    # First pass: retain original batches for throughput.
-    for i in range(0,len(universe),batch_size):
-        batch=universe[i:i+batch_size]
+    stats["initial_missing_response"]=0
+    stats["initial_present_without_executed_price"]=0
+    # Probe whether the provider's blank-z response is a large-batch artifact.
+    # Only use adaptive small requests after a real 8-symbol probe recovers
+    # executed prices. This is not a license to fabricate or certify quotes.
+    offset=0
+    effective_batch_size=batch_size
+    adaptive_probe_done=False
+    adaptive_started=time.monotonic()
+    adaptive_failure_streak=0
+    stats["adaptive_probe_valid"]=0
+    stats["adaptive_small_batch_enabled"]=False
+    stats["adaptive_disabled_reason"]=None
+    while offset<len(universe):
+        if effective_batch_size<batch_size and time.monotonic()-adaptive_started>120:
+            effective_batch_size=batch_size
+            stats["adaptive_disabled_reason"]="TIME_BUDGET_EXCEEDED"
+        batch=universe[offset:offset+effective_batch_size]
+        offset+=len(batch)
         meta={x["symbol"]:x for x in batch}
+        prior_failures=stats["failed_requests"]
         arr=request(batch)
+        adaptive_failure_streak=(adaptive_failure_streak+1 if
+            stats["failed_requests"]>prior_failures else 0)
+        if adaptive_failure_streak>=3 and effective_batch_size<batch_size:
+            effective_batch_size=batch_size
+            stats["adaptive_disabled_reason"]="PROVIDER_ERROR_CIRCUIT_BREAKER"
+        responded={str(q.get("c","")).strip() for q in arr}
+        stats["initial_missing_response"]+=sum(
+            x["symbol"] not in responded for x in batch
+        )
+        stats["initial_present_without_executed_price"]+=sum(
+            q.get("c") in meta and
+            (_f(q.get("z")) is None or _f(q.get("y")) in (None,0))
+            for q in arr
+        )
         ingest(arr,meta)
-        # A response can contain a symbol while z='-'. Such symbols still lack
-        # a verified executed price and must be retried in a smaller request.
         missing.extend(x for x in batch if x["symbol"] not in rows_by_symbol)
+        # In large universes, use one small *real trade* probe to distinguish
+        # loss caused by MIS batch size from persistent missing executions.
+        if (not adaptive_probe_done and len(universe)>=400
+            and batch_size>8 and len(batch)>8
+            and len(missing)>=int(len(batch)*0.7)):
+            adaptive_probe_done=True
+            probe=missing[:8]
+            if len(probe)==8:
+                stats["recovery_requested"]+=len(probe)
+                recovered=request(probe,recovery=True)
+                ingest(recovered,{x["symbol"]:x for x in probe})
+                gained=sum(x["symbol"] in rows_by_symbol for x in probe)
+                stats["adaptive_probe_valid"]=gained
+                if gained>=6:
+                    effective_batch_size=8
+                    stats["adaptive_small_batch_enabled"]=True
         time.sleep(sleep_s)
+
+    # Do not recover the same symbols twice after a successful probe.
+    missing=[x for x in missing if x["symbol"] not in rows_by_symbol]
 
     # One bounded recovery pass: the MIS endpoint may silently truncate ex_ch.
     # A recovery chunk of 8 keeps the query short; no infinite retries.
@@ -195,7 +243,9 @@ def fetch_mis_quotes(universe, batch_size=55, sleep_s=.18):
         )
     )
     stats["missing_after_recovery"]=len(universe)-len(rows_by_symbol)
-    stats["recovery_valid_quotes"]=len(rows_by_symbol) - (stats["initial_requested"] - len(missing))
+    stats["recovery_valid_quotes"]=sum(
+        x["symbol"] in rows_by_symbol for x in missing
+    )
     warnings.append("MIS_INVALID_PRICE_SAMPLES: "+repr(invalid_samples))
     warnings.append("MIS_COVERAGE_DIAGNOSTICS: "+", ".join(f"{k}={v}" for k,v in stats.items()))
     if len(universe)>0 and len(rows_by_symbol)/len(universe)<0.80:
