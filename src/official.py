@@ -135,15 +135,30 @@ def fetch_mis_quotes(universe, batch_size=55, sleep_s=.18):
 
     missing=[]
     invalid_samples=[]
+    stats["initial_missing_response"]=0
+    stats["initial_present_without_executed_price"]=0
     # First pass: retain original batches for throughput.
     for i in range(0,len(universe),batch_size):
         batch=universe[i:i+batch_size]
         meta={x["symbol"]:x for x in batch}
         arr=request(batch)
+        responded={str(q.get("c","")).strip() for q in arr}
+        # Missing JSON rows and present rows with z='-' are different failures.
+        # The latter are not repaired by querying the same unavailable trade
+        # price repeatedly; retries waste quota and can induce rate limiting.
+        stats["initial_missing_response"]+=sum(
+            x["symbol"] not in responded for x in batch
+        )
+        stats["initial_present_without_executed_price"]+=sum(
+            q.get("c") in meta and
+            (_f(q.get("z")) is None or _f(q.get("y")) in (None,0))
+            for q in arr
+        )
         ingest(arr,meta)
-        # A response can contain a symbol while z='-'. Such symbols still lack
-        # a verified executed price and must be retried in a smaller request.
-        missing.extend(x for x in batch if x["symbol"] not in rows_by_symbol)
+        # Retry only symbols absent from the provider response, never symbols
+        # present without an executed last trade. This does NOT alter accepted
+        # quote eligibility, fill missing prices, or upgrade market coverage.
+        missing.extend(x for x in batch if x["symbol"] not in responded)
         time.sleep(sleep_s)
 
     # One bounded recovery pass: the MIS endpoint may silently truncate ex_ch.
@@ -195,7 +210,9 @@ def fetch_mis_quotes(universe, batch_size=55, sleep_s=.18):
         )
     )
     stats["missing_after_recovery"]=len(universe)-len(rows_by_symbol)
-    stats["recovery_valid_quotes"]=len(rows_by_symbol) - (stats["initial_requested"] - len(missing))
+    stats["recovery_valid_quotes"]=sum(
+        x["symbol"] in rows_by_symbol for x in missing
+    )
     warnings.append("MIS_INVALID_PRICE_SAMPLES: "+repr(invalid_samples))
     warnings.append("MIS_COVERAGE_DIAGNOSTICS: "+", ".join(f"{k}={v}" for k,v in stats.items()))
     if len(universe)>0 and len(rows_by_symbol)/len(universe)<0.80:
