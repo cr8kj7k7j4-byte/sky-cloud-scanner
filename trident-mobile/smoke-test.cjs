@@ -30,5 +30,8 @@ set("LONG",50,51,53,1000,0.45);assert.throws(()=>context.calc(),/不合法/);
 set("SHORT",50,49,47,1000,0.45);assert.throws(()=>context.calc(),/不合法/);
 set("LONG",50,49,53,10000,0.45);context.calculate();assert.match(get("riskResult").textContent,/未通過/);
 assert.match(context.safe("<img src=x onerror=alert(1)>"),/&lt;img/);
+test('positions=[{symbol:"2330",side:"LONG",entry:"<img src=x onerror=alert(1)>",stop:49,target:53,shares:1000}];refresh()');
+assert(!get("positions").innerHTML.includes("<img"),"stored trade plan values must be HTML-escaped");
+assert(get("positions").innerHTML.includes("&lt;img"),"escaped trade plan value should be displayed safely");
 assert(!/\bfetch\s*\(|\bXMLHttpRequest\b|\bWebSocket\b/.test(script),"v1 must remain offline-only");
 console.log("TRIDENT smoke checks passed: JSON, escaping, LONG/SHORT PnL, risk limits and safe defaults.");
