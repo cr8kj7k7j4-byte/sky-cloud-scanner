@@ -15,7 +15,7 @@ def fixtures(date="1151105", num=75):
              "ClosingPrice": "42.5", "TradeValue": str((num - i) * 1_000_000)}
             for i in range(num)]
     tpex = [{"Date": date, "SecuritiesCompanyCode": str(6101 + i),
-             "Close": "43.5", "TradingValue": str((num - i) * 800_000)}
+             "Close": "43.5", "TransactionAmount": str((num - i) * 800_000)}
             for i in range(num)]
     return twse, tpex
 
