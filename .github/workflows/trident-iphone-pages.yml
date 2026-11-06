@@ -1,0 +1,37 @@
+name: TRIDENT iPhone Pages (isolated)
+on:
+  push:
+    branches: [feat/trident-iphone-workstation-20261107]
+    paths:
+      - 'trident-mobile/**'
+      - '.github/workflows/trident-iphone-pages.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: trident-iphone-pages
+  cancel-in-progress: true
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check no embedded credentials
+        shell: bash
+        run: |
+          if grep -RniE '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|api[_-]?secret[[:space:]]*[:=]|access[_-]?token[[:space:]]*[:=])' trident-mobile --exclude=README.md; then
+            echo 'Potential credential detected'; exit 1
+          fi
+          test -s trident-mobile/index.html
+          test -s trident-mobile/manifest.webmanifest
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: trident-mobile
+      - id: deployment
+        uses: actions/deploy-pages@v4
