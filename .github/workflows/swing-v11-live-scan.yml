@@ -6,12 +6,14 @@ on:
     paths:
       - ".github/workflows/swing-v11-live-scan.yml"
       - "src/swing_v11_live_scanner.py"
+      - "research/verify_swing_v11_live_output.py"
       - "src/sky_command_router.py"
       - "research/SKY_SWING_V11_INTRADAY_EXECUTION_OVERLAY_V1.md"
   pull_request:
     paths:
       - "src/swing_v11_live_scanner.py"
       - "tests/test_swing_v11_freshness.py"
+      - "tests/test_verify_swing_v11_live_output.py"
       - ".github/workflows/swing-v11-live-scan.yml"
   workflow_dispatch:
     inputs:
@@ -38,7 +40,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install -r requirements.txt pytest
-      - run: PYTHONPATH=. pytest -q tests/test_swing_v11_freshness.py tests/test_swing_v11_live_scanner.py
+      - run: PYTHONPATH=. pytest -q tests/test_swing_v11_freshness.py tests/test_swing_v11_live_scanner.py tests/test_verify_swing_v11_live_output.py
 
   live-scan:
     if: github.event_name != 'pull_request'
@@ -78,6 +80,13 @@ jobs:
           python -m src.swing_v11_live_scanner \
             --history-dir "${{ steps.data.outputs.history_dir }}" \
             --top-n "${{ inputs.top_n || '20' }}"
+
+      - name: Enforce fresh canonical D-close signal
+        if: always()
+        run: |
+          PYTHONPATH=. python research/verify_swing_v11_live_output.py \
+            --input output/swing_v11_live/latest.json \
+            --report output/swing_v11_live/freshness_gate.json
 
       - name: Publish summary
         if: always()
