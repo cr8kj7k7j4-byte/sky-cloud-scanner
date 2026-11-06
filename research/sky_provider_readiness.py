@@ -135,7 +135,8 @@ def main():
         f"資料權限：**{result['provider_status']}**\n\n"
         f"TSE：{result['markets']['TSE']['status']}\n\n"
         f"OTC：{result['markets']['OTC']['status']}\n\n"
-        f"單檔 2330：{result['single_stock_sample']['status']}\n\n"
+        f"單檔 2330（上市）：{result['single_stock_samples']['2330_TSE']['status']}\n\n"
+        f"單檔 8089（上櫃）：{result['single_stock_samples']['8089_OTC']['status']}\n\n"
         "全市場盤中即時行情尚未認證，不產生買進訊號。\n"
     )
     (out / "summary.md").write_text(summary, encoding="utf-8")
