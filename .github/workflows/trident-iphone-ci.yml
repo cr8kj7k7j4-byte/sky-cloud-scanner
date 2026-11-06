@@ -37,6 +37,7 @@ jobs:
           print('HTML / manifest static checks passed')
           PY
           node --check /tmp/trident-inline.js
+          node trident-mobile/smoke-test.cjs
       - name: Behavioral smoke tests (risk and import rejection)
         run: node trident-mobile/test-mobile.cjs
       - name: Verify no automated orders or embedded credentials
