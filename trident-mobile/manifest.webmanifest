@@ -1,0 +1,10 @@
+{
+  "name": "Sky AI TRIDENT｜iPhone 交易工作站",
+  "short_name": "TRIDENT",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#edf4fb",
+  "theme_color": "#edf4fb",
+  "lang": "zh-Hant"
+}
