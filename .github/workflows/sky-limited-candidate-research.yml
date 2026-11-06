@@ -11,6 +11,10 @@ on:
       - "research/limited_candidate_scanner.py"
       - ".github/workflows/sky-limited-candidate-research.yml"
   workflow_dispatch:
+  schedule:
+    # 09:20 Asia/Taipei weekdays; independent read-only limited scope research.
+    # Actual GitHub schedule start time may be delayed.
+    - cron: "20 1 * * 1-5"
 permissions:
   contents: read
 concurrency:
@@ -29,8 +33,24 @@ jobs:
         run: pip install -r requirements.txt pytest
       - name: Validate fail-closed limited-candidate contracts
         run: PYTHONPATH=. python -m pytest -q tests/test_limited_candidate_scanner.py tests/test_sky_single_stock_realtime.py
-      - name: Collect bounded candidate evidence (main only; no orders)
+      - name: Validate actual Taiwan trading calendar for research
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        id: calendar
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m src.trading_calendar --out output/limited_candidates/calendar.json
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          data=json.loads(Path("output/limited_candidates/calendar.json").read_text())
+          if data.get("source_status") != "PASS":
+              raise SystemExit("Research withheld: official calendar unavailable")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+              f.write("open="+str(data.get("should_scan") is True).lower()+"\\n")
+          PY
+      - name: Collect bounded candidate evidence (main only; no orders)
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && steps.calendar.outputs.open == 'true'
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
         run: PYTHONPATH=. python -m research.limited_candidate_scanner --max-candidates 12
