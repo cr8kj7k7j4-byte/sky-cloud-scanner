@@ -1,10 +1,6 @@
 name: TRIDENT iPhone Pages (isolated)
 on:
-  push:
-    branches: [feat/trident-iphone-workstation-20261107]
-    paths:
-      - 'trident-mobile/**'
-      - '.github/workflows/trident-iphone-pages.yml'
+  # Manual only until Pages is isolated from the existing Sky site.
   workflow_dispatch:
 permissions:
   contents: read
