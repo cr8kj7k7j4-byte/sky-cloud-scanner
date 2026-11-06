@@ -27,3 +27,12 @@ def test_previous_trading_day_signal_passes_but_not_production():
     })
     assert result["status"] == "PASS"
     assert result["production_eligible"] is False
+
+
+def test_pass_guard_with_inconsistent_dates_is_blocked():
+    result = validate_swing_scan_output({
+        "signal_date": "2026-11-02",
+        "signal_date_guard": {"status": "PASS", "fresh": True, "expected_signal_date": "2026-11-03"},
+    })
+    assert result["status"] == "BLOCKED_STALE_SIGNAL_HISTORY"
+    assert not result["publication_allowed"]
