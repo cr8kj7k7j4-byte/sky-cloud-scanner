@@ -4,7 +4,7 @@ import json
 
 from .official import load_official_universe, fetch_mis_quotes
 from .fugle import get_tickers, get_quote, snapshot_quotes
-from .realtime_quote_evidence import fugle_executed_trade
+from .realtime_quote_evidence import fugle_executed_trade, validate_whole_market_rows
 
 def _probe(name, fn):
     try:
@@ -54,6 +54,18 @@ def _probe_executed_quote(symbol):
                 "error_type": type(e).__name__, "fresh_executed_trade": False}
 
 
+def stratified_mis_sample(universe, per_exchange=60):
+    """Deterministic, balanced diagnostic sample; never a market-wide certification."""
+    selected = []
+    for exchange in ("TWSE", "TPEx"):
+        market = [x for x in universe if x.get("exchange") == exchange]
+        if market:
+            # Spread symbols across the exchange universe, rather than only early listings.
+            step = len(market) / min(per_exchange, len(market))
+            selected.extend(market[int(i * step)] for i in range(min(per_exchange, len(market))))
+    return selected
+
+
 def run():
     out = {"time": datetime.now(ZoneInfo("Asia/Taipei")).isoformat()}
 
@@ -61,10 +73,21 @@ def run():
     out["official_universe"] = st
     out["universe_count"] = len(universe)
 
-    q, w = fetch_mis_quotes(universe[:120])
+    sample = stratified_mis_sample(universe)
+    q, w = fetch_mis_quotes(sample)
+    now = datetime.now(ZoneInfo("Asia/Taipei"))
+    audit = validate_whole_market_rows(sample, q, now=now)
     out["mis_sample"] = {
-        "requested": min(120, len(universe)),
-        "returned": len(q),
+        "scope": "STRATIFIED_DIAGNOSTIC_SAMPLE_NOT_WHOLE_MARKET",
+        "requested": len(sample),
+        "returned": len(q),  # legacy diagnostic contract: parsed MIS quotes, not fresh trades
+        "returned_with_parseable_last": len(q),
+        "verified_current_session_trade_count": audit["valid_quote_count"],
+        "by_exchange": audit["by_exchange"],
+        "rejections": audit["rejected"],
+        "status": audit["status"],
+        "observed_at_tpe": now.isoformat(),
+        "no_full_market_certification": True,
         "warnings": w,
     }
 
