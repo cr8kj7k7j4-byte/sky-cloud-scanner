@@ -57,24 +57,43 @@ def float_or_zero(value):
         return 0.0
 
 
+def probe_single_executed_quote(symbol, fetch, now):
+    """Check a granted single-stock endpoint, never infer a fill or whole market."""
+    try:
+        payload = fetch(symbol)
+        quote = payload.get("data", payload) if isinstance(payload, dict) else payload
+        if not isinstance(quote, dict):
+            return {"status": "INVALID_QUOTE_PAYLOAD",
+                    "api_accessible": True, "event_timestamp_verified": False}
+        from src.realtime_quote_evidence import fugle_executed_trade
+        _, executed_at, status = fugle_executed_trade(quote, now)
+        return {
+            "status": status,
+            "api_accessible": True,
+            "event_timestamp_verified": status == "FRESH_EXECUTED_TRADE",
+            "last_trade_time": executed_at.isoformat() if executed_at else None,
+        }
+    except PermissionError:
+        return {"status": "PLAN_RESTRICTED", "api_accessible": False,
+                "event_timestamp_verified": False}
+    except Exception as exc:
+        return {"status": "SOURCE_ERROR", "error_type": type(exc).__name__,
+                "api_accessible": False, "event_timestamp_verified": False}
+
+
 def provider_readiness(now=None, snapshot_fetch=None, single_quote_fetch=None):
     now = now or datetime.now(TZ)
     snapshot_fetch = snapshot_fetch or fugle.snapshot_quotes
     single_quote_fetch = single_quote_fetch or fugle.get_quote
     probes = {market: probe_snapshot(market, snapshot_fetch, now.date().isoformat())
               for market in ("TSE", "OTC")}
-    try:
-        quote = single_quote_fetch("2330")
-        from src.realtime_quote_evidence import fugle_executed_trade
-        _, _, q_status = fugle_executed_trade(quote, now)
-        single = {"status": q_status,
-                  "event_timestamp_verified": q_status == "FRESH_EXECUTED_TRADE"}
-    except PermissionError:
-        single = {"status": "PLAN_RESTRICTED",
-                  "event_timestamp_verified": False}
-    except Exception as exc:
-        single = {"status": "SOURCE_ERROR", "error_type": type(exc).__name__,
-                  "event_timestamp_verified": False}
+    # Two independent samples establish only per-symbol evidence; they do
+    # NOT prove breadth, provider bulk access, or exchange-wide certification.
+    single_samples = {
+        "2330_TSE": probe_single_executed_quote("2330", single_quote_fetch, now),
+        "8089_OTC": probe_single_executed_quote("8089", single_quote_fetch, now),
+    }
+    single = single_samples["2330_TSE"]
     both = all(p["status"] == "AVAILABLE" for p in probes.values())
     if any(p["status"] == "PLAN_RESTRICTED" for p in probes.values()):
         verdict = "BLOCKED_PROVIDER_SNAPSHOT_ENTITLEMENT"
@@ -87,6 +106,7 @@ def provider_readiness(now=None, snapshot_fetch=None, single_quote_fetch=None):
         "generated_at_tpe": now.isoformat(),
         "markets": probes,
         "single_stock_sample": single,
+        "single_stock_samples": single_samples,
         "provider_status": verdict,
         "whole_market_live_certified": False,
         "strategy_trade_authorized": False,
