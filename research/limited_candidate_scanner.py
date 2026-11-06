@@ -94,7 +94,7 @@ def build_pool(twse, tpex, *, now=None, max_candidates=12):
 
 
 def run(*, now=None, max_candidates=12, loader=official.get_json,
-        quote_collector=collect):
+        quote_collector=collect, quote_clock=None):
     now = now or datetime.now(TPE)
     report = {
         "schema": "SKY_LIMITED_CANDIDATE_RESEARCH_V1",
@@ -116,7 +116,10 @@ def run(*, now=None, max_candidates=12, loader=official.get_json,
         report.update(pool)
         report["candidate_count"] = len(pool["candidates"])
         for candidate in pool["candidates"]:
-            evidence = quote_collector(candidate["symbol"], now=now)
+            # Query-time clock must advance for each sequential API call.
+            # A frozen scan-start clock falsely classifies later valid trades as future.
+            per_quote_now = quote_clock() if quote_clock is not None else datetime.now(TPE)
+            evidence = quote_collector(candidate["symbol"], now=per_quote_now)
             if not isinstance(evidence, dict):
                 evidence = {"status": "INVALID_QUOTE_PAYLOAD"}
             # Never promote this separate candidate universe to a full-market claim.

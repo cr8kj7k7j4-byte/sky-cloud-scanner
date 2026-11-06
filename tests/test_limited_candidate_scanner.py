@@ -101,3 +101,28 @@ def test_research_schedule_is_separate_and_calendar_gated():
     assert "--max-candidates 12" in workflow
     assert "submit_order" not in workflow
     assert "workflow_dispatch:" in workflow
+
+
+def test_quote_freshness_uses_each_api_request_time_not_frozen_scan_start():
+    from datetime import timedelta
+    twse, tpex = fixtures()
+    times = iter(NOW + timedelta(seconds=75 * i) for i in range(4))
+    visited = []
+
+    def collect(symbol, now):
+        visited.append(now)
+        # A trade from the query's wall clock is valid; compared with the
+        # frozen original NOW, later ones would all appear >=75s future.
+        age = (now - (NOW + timedelta(seconds=75 * (len(visited) - 1)))).total_seconds()
+        return {"status": "REALTIME_QUOTE_VERIFIED" if abs(age) <= 30
+                else "FUTURE_QUOTE_TIMESTAMP", "last_price": 45.0}
+
+    result = run(
+        now=NOW, max_candidates=4,
+        loader=lambda url: twse if "twse.com.tw" in url else tpex,
+        quote_collector=collect, quote_clock=lambda: next(times),
+    )
+    assert result["verified_count"] == 4
+    assert len(visited) == 4
+    assert visited[3] > visited[0]
+    assert not result["execution_authorized"]
