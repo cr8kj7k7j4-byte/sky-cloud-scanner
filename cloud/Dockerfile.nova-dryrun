@@ -1,0 +1,7 @@
+FROM python:3.12-slim
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 NOVA_CLOUD_MODE=DRY_RUN
+WORKDIR /app
+COPY cloud/nova_cloud_job.py /app/nova_cloud_job.py
+RUN useradd --uid 10001 --create-home sky
+USER sky
+CMD ["python", "/app/nova_cloud_job.py"]
