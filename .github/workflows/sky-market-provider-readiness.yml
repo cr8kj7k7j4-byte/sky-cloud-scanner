@@ -2,6 +2,11 @@ name: Sky Market Provider Entitlement Preflight
 
 on:
   workflow_dispatch:
+  schedule:
+    # Taiwan 09:20 and 10:30 (UTC+8), weekdays. GitHub runner can start late.
+    # Read-only permission/freshness evidence, NEVER a trade or full-market certification.
+    - cron: "20 1 * * 1-5"
+    - cron: "30 2 * * 1-5"
   push:
     branches: [main]
     paths:

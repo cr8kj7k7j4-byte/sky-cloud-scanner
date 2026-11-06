@@ -1,28 +1,28 @@
 {
   "schema": "SKY_UNIFIED_EXECUTION_VERIFICATION_V1",
-  "published_at_utc": "2026-11-04T14:53:50.794078+00:00",
-  "run_id": "41852057535",
-  "run_url": "https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/41852057535",
-  "head_sha": "f9dafcfe3ff9c6dcabb21b61e09af00ba6e70363",
+  "published_at_utc": "2026-11-05T17:01:13.501673+00:00",
+  "run_id": "42070288685",
+  "run_url": "https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/42070288685",
+  "head_sha": "e68f4878f6ca99878d485c562d4cb7786f00badc",
   "command": "system_health",
   "scan_step_outcome": "success",
   "report_exists": true,
-  "report_generated_at_utc": "2026-11-04T14:53:30.423759+00:00",
+  "report_generated_at_utc": "2026-11-05T17:00:40.804499+00:00",
   "decision": "HEALTH_OBSERVED_NOT_FULLY_CERTIFIED",
   "calendar_exit_code": null,
   "strategy_exit_codes": {},
   "reports": {},
   "evidence": {
-    "diagnostic_time": "2026-11-04T22:53:30.545808+08:00",
+    "diagnostic_time": "2026-11-06T01:00:40.916647+08:00",
     "official_universe": {
       "twse": 1092,
-      "tpex": 893,
+      "tpex": 892,
       "warnings": []
     },
-    "universe_count": 1985,
+    "universe_count": 1984,
     "mis_sample": {
       "requested": 120,
-      "returned": 104
+      "returned": 107
     },
     "fugle": {
       "fugle_tickers_TSE": {
@@ -38,13 +38,13 @@
         "api_accessible": null
       },
       "fugle_quote_2330": {
-        "status": "STALE_EXECUTED_TRADE",
+        "status": "STALE_TRADING_DATE",
         "ok": false,
         "fresh_executed_trade": false,
         "api_accessible": true
       },
       "fugle_quote_8089_otc": {
-        "status": "STALE_EXECUTED_TRADE",
+        "status": "STALE_TRADING_DATE",
         "ok": false,
         "fresh_executed_trade": false,
         "api_accessible": true
@@ -63,23 +63,15 @@
       }
     },
     "schedule": {
-      "audited_at_utc": "2026-11-04T14:53:39.294430+00:00",
+      "audited_at_utc": "2026-11-05T17:00:57.670800+00:00",
       "workflow_count": 22,
       "attention": [
         {
           "path": ".github/workflows/a-plan-live-market-validation.yml",
-          "verdict": "UNVERIFIED"
-        },
-        {
-          "path": ".github/workflows/margin-evidence.yml",
           "verdict": "ATTENTION"
         },
         {
-          "path": ".github/workflows/p0ops-provider-preflight.yml",
-          "verdict": "UNVERIFIED"
-        },
-        {
-          "path": ".github/workflows/publish-external-status-snapshot.yml",
+          "path": ".github/workflows/margin-evidence.yml",
           "verdict": "ATTENTION"
         },
         {
@@ -89,10 +81,6 @@
         {
           "path": ".github/workflows/scan.yml",
           "verdict": "ATTENTION"
-        },
-        {
-          "path": ".github/workflows/swing-split-scope-research.yml",
-          "verdict": "UNVERIFIED"
         }
       ]
     },

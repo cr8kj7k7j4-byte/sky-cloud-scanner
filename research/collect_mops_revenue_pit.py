@@ -4,6 +4,8 @@ import argparse
 import html
 import json
 import re
+import time
+import urllib.error
 import urllib.request
 from datetime import datetime
 from pathlib import Path
@@ -58,7 +60,13 @@ def _server_date(payload: dict) -> str:
     return dt[:10]
 
 
-def fetch_json_post(url: str, payload: dict, timeout: int = 20) -> dict:
+def fetch_json_post(
+    url: str, payload: dict, timeout: int = 20,
+    attempts: int = 3, sleeper=time.sleep,
+) -> dict:
+    """Retry transient transport/non-JSON MOPS responses; never invent PIT rows."""
+    if attempts < 1:
+        raise ValueError("attempts must be positive")
     body = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
         url,
@@ -66,16 +74,47 @@ def fetch_json_post(url: str, payload: dict, timeout: int = 20) -> dict:
         headers={
             "User-Agent": "Mozilla/5.0 SkyResearchBot/1.0",
             "Accept-Language": "zh-TW,zh;q=0.9",
+            "Accept": "application/json",
             "Content-Type": "application/json",
         },
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        raw = resp.read()
-    data = json.loads(raw.decode("utf-8", errors="strict"))
-    if not isinstance(data, dict):
-        raise ValueError("MOPS API response must be an object")
-    return data
+    for attempt in range(1, attempts + 1):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                raw = resp.read(5_000_001)
+            if len(raw) > 5_000_000:
+                raise ValueError("MOPS response exceeds 5 MB")
+            try:
+                data = json.loads(raw.decode("utf-8-sig", errors="strict"))
+            except (UnicodeError, json.JSONDecodeError) as exc:
+                # The site sometimes returns HTML/empty content instead of JSON.
+                # Preserve the failure, not fabricated point-in-time timestamps.
+                raise ValueError(
+                    f"MOPS non-JSON response: {len(raw)} bytes"
+                ) from exc
+            if not isinstance(data, dict):
+                raise ValueError("MOPS API response must be an object")
+            return data
+        except (urllib.error.HTTPError, urllib.error.URLError,
+                TimeoutError, ConnectionError, ValueError) as exc:
+            # Only transport failures, 429/5xx, or transient malformed bodies
+            # merit retries. Semantic parse_api_response() checks stay strict.
+            if isinstance(exc, urllib.error.HTTPError) and exc.code not in (
+                429, 500, 502, 503, 504,
+            ):
+                raise
+            if isinstance(exc, ValueError) and not str(exc).startswith(
+                "MOPS non-JSON response:"
+            ):
+                raise
+            if attempt == attempts:
+                raise RuntimeError(
+                    f"MOPS fetch failed after {attempts} attempts: "
+                    f"{type(exc).__name__}: {str(exc)[:120]}"
+                ) from exc
+            sleeper(min(2 ** (attempt - 1), 4))
+    raise AssertionError("unreachable")
 
 
 def fetch_market(market_kind: str, count: int = 500) -> dict:
@@ -321,10 +360,28 @@ def main():
     args = ap.parse_args()
 
     observed_at = datetime.now(TZ).isoformat()
-    rows, raw = collect_all_markets(count=args.count)
-
     snapshot = Path(args.snapshot)
     snapshot.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        rows, raw = collect_all_markets(count=args.count)
+    except Exception as exc:
+        # Always publish a diagnostic artifact, even when MOPS returns HTML.
+        # Do not touch the canonical PIT ledger on incomplete source reads.
+        snapshot.write_text(json.dumps({
+            "schema_version": "1.0",
+            "source": "MOPS_OFFICIAL",
+            "observed_at": observed_at,
+            "collection_status": "SOURCE_UNAVAILABLE",
+            "point_in_time_verified": False,
+            "records": [],
+            "error_type": type(exc).__name__,
+            "error": str(exc)[:250],
+        }, ensure_ascii=False, indent=2), encoding="utf-8")
+        raise SystemExit(
+            f"MOPS source unavailable; PIT ledger unchanged: "
+            f"{type(exc).__name__}: {str(exc)[:160]}"
+        ) from exc
+
     snapshot.write_text(
         json.dumps(
             {
