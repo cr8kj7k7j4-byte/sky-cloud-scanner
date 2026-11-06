@@ -76,7 +76,8 @@ class MisCoverageRetryTests(unittest.TestCase):
         self.assertIn("initial_present_without_executed_price=2", diagnostics)
         self.assertIn("initial_missing_response=0", diagnostics)
         self.assertIn("recovery_requested=2", diagnostics)
-        self.assertIn("recovery_valid_quotes=0", diagnostics)\n        self.assertIn("missing_after_recovery=2", diagnostics)
+        self.assertIn("recovery_valid_quotes=0", diagnostics)
+        self.assertIn("missing_after_recovery=2", diagnostics)
 
     def test_only_omitted_symbol_is_requeried_and_can_recover(self):
         codes = ["1101", "1102", "1103"]
