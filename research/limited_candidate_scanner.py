@@ -79,15 +79,15 @@ def build_pool(twse, tpex, *, now=None, max_candidates=12):
     otc, date_otc = _rows(tpex, "TPEx", today)
     if date_tse != date_otc:
         raise ValueError("official TWSE/TPEx prior-close dates mismatch")
-    seen = set()
-    pool = []
-    for row in sorted(tse + otc, key=lambda r: (-r["prior_turnover"], r["symbol"])):
-        if row["symbol"] in seen:
-            continue
-        seen.add(row["symbol"])
-        pool.append(row)
-        if len(pool) >= max_candidates:
-            break
+    # A global turnover sort can exclude TPEx entirely. Reserve market slots.
+    # This is coverage sampling, not an alpha weight or Production ranking.
+    tse = sorted(tse, key=lambda r: (-r["prior_turnover"], r["symbol"]))
+    otc = sorted(otc, key=lambda r: (-r["prior_turnover"], r["symbol"]))
+    twse_slots = (max_candidates + 1) // 2
+    tpex_slots = max_candidates // 2
+    pool = tse[:twse_slots] + otc[:tpex_slots]
+    # For max_candidates=1, only TWSE can be sampled; declare that scope.
+    pool.sort(key=lambda r: (-r["prior_turnover"], r["symbol"]))
     return {"official_previous_session": date_tse.isoformat(),
             "official_market_counts": {"TWSE": len(tse), "TPEx": len(otc)},
             "candidates": pool}
