@@ -1,5 +1,6 @@
 import unittest
 from research.gcs_evidence_health import safe_health, summary_markdown
+from research.disclosure_gcs_readback import REQUIRED
 
 
 def receipts():
@@ -7,7 +8,7 @@ def receipts():
         {"state":"GCS_READBACK_VERIFIED","production_signal":False,
          "prefix":"disclosure-forward/v1/run-42425505869-attempt-1",
          "objects":{name:{"readback_verified":True,"sha256":"a"*64}
-                    for name in ("a","b","c","d")}},
+                    for name in REQUIRED}},
         {"status":"GCS_CROSSDAY_LEDGER_READBACK_PASS","production_signal":False,
          "source_batches":2,"unique_provisional_events":2271,
          "cumulative_counts":{"unchanged":2271,"revision":0,"skipped_invalid":0},
@@ -27,7 +28,14 @@ class HealthTests(unittest.TestCase):
 
     def test_missing_raw_receipt_rejected(self):
         raw, ledger=receipts()
-        del raw["objects"]["a"]
+        del raw["objects"][REQUIRED[0]]
+        with self.assertRaisesRegex(ValueError,"FOUR_SOURCE"):
+            safe_health(raw,ledger)
+
+    def test_wrong_four_sources_rejected(self):
+        raw, ledger=receipts()
+        raw["objects"].pop(REQUIRED[0])
+        raw["objects"]["FAKE_SOURCE"] = {"readback_verified":True,"sha256":"a"*64}
         with self.assertRaisesRegex(ValueError,"FOUR_SOURCE"):
             safe_health(raw,ledger)
 
