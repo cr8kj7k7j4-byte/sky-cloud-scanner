@@ -2,7 +2,7 @@
 此套件只發布**未連接券商的研究／風控工作站**。未介接經授權即時行情，未完成樣本外策略驗證。畫面預設 NO TRADE，**不得視為可實盤交易訊號**。
 
 ## 上線步驟
-1. 在 GitHub 手動建立**全新的**儲存庫，例如 `trident-iphone-workstation`。不要在既有 `sky-cloud-scanner` 啟用這套發布流程。
+1. 在 GitHub 手動建立**全新的**儲存庫，名稱必須是 `trident-iphone-workstation`（使用者為 `cr8kj7k7j4-byte`）。不要在既有 `sky-cloud-scanner` 啟用這套發布流程。
 2. 解壓 `trident-standalone-site.zip`，將**解壓後的檔案及隱藏的 `.github` 目錄**上傳到新儲存庫的 `main` 分支。不要只上傳 ZIP 本身。
 3. 新儲存庫開啟 Settings → Pages → Build and deployment → Source: **GitHub Actions**。
 4. 查看 Actions → `TRIDENT Standalone Pages Deployment`，確認 workflow 全部成功，並取得 Pages 顯示的實際 HTTPS URL。
@@ -10,7 +10,7 @@
 6. 任何未取得真實部署網址、手機實測證據、授權行情或策略樣本外驗證的項目，維持**未完成**。
 
 ## 安全限制
-- 部署 workflow 內建保護：在 `cr8kj7k7j4-byte/sky-cloud-scanner` 儲存庫不執行 deploy job。
+- 部署 workflow 採用**允許清單**：僅在 `cr8kj7k7j4-byte/trident-iphone-workstation` 專用儲存庫執行 deploy job，其他儲存庫全部拒絕。
 - 絕對不要把 Nova API 憑證、登入密碼、憑證私鑰或 token 寫在網站程式碼或公開 GitHub 儲存庫。
 - GitHub Pages 是靜態網站，不能安全地直接持有券商認證秘密或在伺服器端執行 Nova 認證。
 - 做空資格、交易成本、真實行情與策略獲利均尚未驗證；不自動下單。
