@@ -1,0 +1,19 @@
+name: TPEx 302 Root Cause Diagnostic
+on:
+  pull_request:
+    paths:
+      - 'research/tpex_redirect_diagnostic.py'
+      - '.github/workflows/tpex-redirect-diagnostic.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m research.tpex_redirect_diagnostic
