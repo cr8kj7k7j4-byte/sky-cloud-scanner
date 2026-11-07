@@ -43,6 +43,22 @@ jobs:
       - name: Verify no automated orders or embedded credentials
         run: |
           ! grep -REni '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|api[_-]?secret[[:space:]]*[:=]|access[_-]?token[[:space:]]*[:=])' trident-mobile --exclude=README.md
+      - name: Install headless mobile-browser test runtime
+        if: success()
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: iPhone simulated browser end-to-end tests
+        if: success()
+        run: node trident-mobile/browser-e2e.cjs
+      - name: Preserve browser screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trident-iphone-e2e-screenshot
+          path: trident-iphone-e2e.png
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Package iPhone offline fallback
         if: success()
         uses: actions/upload-artifact@v4
