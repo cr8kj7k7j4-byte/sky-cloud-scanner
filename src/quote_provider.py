@@ -24,6 +24,7 @@ def collect_market_quotes(universe, *, now, fugle_fetch=None, mis_fetch=None,
             "audit": primary, "provider": "Fugle bulk snapshot",
             "primary_status": "PASS_VALID_EXECUTED_LIVE",
             "fallback_used": False, "official_tpex_realtime_certified": False,
+            "primary_evidence": {k: v for k, v in primary.items() if k != "accepted_rows"},
         }
 
     # Never mix provider and fallback rows to manufacture coverage.
@@ -43,4 +44,5 @@ def collect_market_quotes(universe, *, now, fugle_fetch=None, mis_fetch=None,
         "primary_status": primary["status"],
         "primary_quote_coverage_pct": primary["quote_coverage_pct"],
         "fallback_used": True, "official_tpex_realtime_certified": False,
+        "primary_evidence": {k: v for k, v in primary.items() if k != "accepted_rows"},
     }
