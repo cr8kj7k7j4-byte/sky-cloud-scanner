@@ -5,6 +5,8 @@ import os
 import json
 import time
 from collections import defaultdict, deque
+from pathlib import Path
+from research.mcr_watch_ranking import build_watchlist
 from datetime import datetime, timedelta, time as dtime
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -76,6 +78,30 @@ def notify(message, dry_run):
     if not result.get("ok"):
         raise RuntimeError("Telegram delivery failed")
 
+def publish_watchlist(universe, snapshots, source_day, observed_at):
+    """Atomic research JSON handoff for monitor UI. No trade signals."""
+    output_path = Path(os.getenv("MCR_WATCHLIST_OUTPUT", "output/mcr_watchlist.json"))
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    feed = build_watchlist(universe, snapshots, observed_at=observed_at.isoformat(),
+                           sort_by=os.getenv("MCR_WATCHLIST_SORT", "verified_ev"),
+                           page=1, page_size=200)
+    # Never silently truncate the full stock list: export all pages.
+    all_rows = list(feed["rows"])
+    for page in range(2, feed["total_pages"] + 1):
+        extra = build_watchlist(universe, snapshots,
+                  observed_at=observed_at.isoformat(),
+                  sort_by=os.getenv("MCR_WATCHLIST_SORT", "verified_ev"),
+                  page=page, page_size=200)
+        all_rows.extend(extra["rows"])
+    feed["rows"] = all_rows
+    feed["page_size"] = max(1, len(all_rows))
+    feed["total_pages"] = 1 if all_rows else 0
+    feed["margin_data_date"] = source_day
+    tmp_path = output_path.with_suffix(output_path.suffix + ".tmp")
+    tmp_path.write_text(json.dumps(feed, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp_path.replace(output_path)
+    return feed
+
 def main():
     token = os.environ.get("FINMIND_TOKEN")
     if not token:
@@ -90,6 +116,8 @@ def main():
     source_day, universe = load_prior_universe(token, day)
     print(f"RESEARCH ONLY: {len(universe)} stocks, estimated margin as-of {source_day}", flush=True)
     samples, sent_at = defaultdict(lambda: deque(maxlen=10)), {}
+    latest_snapshots = {}
+    publish_watchlist(universe, (), source_day, datetime.now(TZ))
     interval = max(10, int(os.getenv("MARGIN_WATCH_POLL_SECONDS", "15")))
     while True:
         now = datetime.now(TZ)
@@ -101,6 +129,13 @@ def main():
         response = request_json(BASE + "/taiwan_stock_tick_snapshot", {"data_id": ""}, token)
         if response.get("status") != 200:
             raise RuntimeError("FinMind snapshot unauthorized/error: " + str(response.get("msg")))
+        for row in response.get("data", []):
+            sid = str(row.get("stock_id", ""))
+            if sid in universe:
+                current = latest_snapshots.get(sid)
+                if current is None or str(row.get("date", "")) > str(current.get("date", "")):
+                    latest_snapshots[sid] = row
+        publish_watchlist(universe, latest_snapshots.values(), source_day, now)
         for row in response.get("data", []):
             sid = str(row.get("stock_id", ""))
             if sid not in universe or not evaluate(samples[sid], row, now):
