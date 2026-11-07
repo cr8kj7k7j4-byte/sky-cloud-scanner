@@ -28,3 +28,10 @@
 - 建立隔離的研究分支與草稿 PR #304。新增安全 smoke probe 及 mock 單元測試原始碼，但**尚無單元測試實跑結果**；單元測試存在不代表已通過。
 - 使用者既有金鑰不應貼到 ChatGPT 或 GitHub 程式碼中。實際執行需授權環境中的環境變數 FUGLE_API_KEY，安全來源待核查。
 - 即使 smoke PASS，僅表示 2330/6488 文件所列基本資料端點可讀；**不能證明市場融資維持率、全市場覆蓋、付費行情全功能、延遲或正期望策略已驗證**。
+
+## 2026-11-08 補充：既有 workflow 去重查核
+- 使用者 Actions 截圖左側明確列出 `Fugle Paid API Acceptance (30m Monitor)`、`Fugle Paid Market Quality Audit (Read Only)`、`FinMind API entitlement acceptance`，故**不再新增第二套排程**。
+- 已實際讀取 main `.github/workflows/fugle-paid-api-acceptance.yml`：schedule 為 `*/30 * * * *`，使用既有 FUGLE_API_KEY，測上市/上櫃 snapshot、2330/6488 quote、2330 日線及 1 分鐘線共六項，輸出 `fugle-api-acceptance` artifact，失敗時條件式 Telegram 通知。
+- 六項測試不含「個股融資維持率」，所以任何 PASS 都不能當作維持率權限驗證。需看獨立 run 的 JSON 及 HTTP 狀態，畫面上的綠勾不等於已取得維持率數據。
+- PR #304 新增的 `fugle_entitlement_smoke.py` 和 mock tests 暫停接入正式 workflow，以免重複 API 呼叫；後續應**複用**既有 acceptance，避免平行排程與重複成本。
+- 視窗中 FinMind 顯示為多個 PR CI 綠勾，不應混淆為 FinMind Sponsor dataset 取得成功。
