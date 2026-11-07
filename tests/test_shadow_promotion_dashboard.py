@@ -2,6 +2,8 @@ import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import pytest
+
 from src.model_registry import build_shadow_promotion_dashboard
 from research.shadow_promotion_dashboard import load_shadow_records
 
@@ -160,3 +162,40 @@ def test_verified_bull_neutral_bear_regimes_are_counted():
     out = build_shadow_promotion_dashboard(rows)
     assert out["sample_sufficiency"]["checks"]["regime_coverage"] is True
     assert out["sample_sufficiency"]["observed"]["regime_count"] == 3
+
+
+def test_loader_rejects_two_p0l_ids_for_same_observation():
+    with TemporaryDirectory() as td:
+        root = Path(td)
+        p = root / "a" / "paper"
+        q = root / "b" / "paper"
+        p.mkdir(parents=True)
+        q.mkdir(parents=True)
+        row = {"run_id": "r1", "symbol": "2330",
+               "observed_at": "2026-11-06T09:35:00+08:00",
+               "record_id": "canonical-A", "outcome": {}}
+        (p / "raw.json").write_text(
+            json.dumps({"records": [row]}), encoding="utf-8")
+        (q / "outcome.json").write_text(
+            json.dumps({"records": [{**row, "record_id": "canonical-B",
+                                    "outcome": {"status": "COMPLETE"}}]}),
+            encoding="utf-8")
+        with pytest.raises(ValueError, match="CONFLICTING_P0L_RECORD_ID"):
+            load_shadow_records(root)
+
+
+def test_mobile_report_displays_missing_p0l_ids():
+    from research.shadow_promotion_dashboard import build_w4_report_sections
+    dashboard = {
+        "decision_outcome_reconciliation": {
+            "status": "HOLD_PENDING_APPROVED_DECISION_SOURCE",
+            "unique_record_ids": 0,
+            "duplicate_rows": 0,
+            "conflicting_duplicates": 0,
+            "reasons": {"MISSING_RECORD_ID": 100},
+        }
+    }
+    report = build_w4_report_sections(dashboard)
+    section = report["Decision / Outcome Reconciliation"]
+    assert section["missing_record_ids"] == 100
+    assert section["eligible_strategy_trades"] == 0
