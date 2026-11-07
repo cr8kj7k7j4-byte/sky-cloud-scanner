@@ -5,7 +5,7 @@
   "coverage": "TWSE_TPEX_VERIFIED",
   "data_quality": "BOTH_MARKETS_PASSED",
   "margin_data_date": "2026-11-06",
-  "observed_at": "2026-11-08T07:53:32.840447+08:00",
+  "observed_at": "2026-11-08T07:55:02.992881+08:00",
   "market_counts": {
     "TWSE": 293,
     "TPEx": 227
