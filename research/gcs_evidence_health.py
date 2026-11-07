@@ -30,7 +30,9 @@ def safe_health(raw, ledger):
             or ledger.get("eligible_trade_events") != 0
             or ledger.get("issuer_original_published_at_verified") is not False):
         raise ValueError("RESEARCH_PIT_SAFETY_GATE_BROKEN")
-    if not isinstance(ledger.get("object_path"), str) or not ledger["object_path"].startswith("disclosure-forward-ledgers/v1/run-"):\n        raise ValueError("INVALID_LEDGER_EVIDENCE_PATH")\n    if ledger.get("retention_iam_gate") != "NOT_VERIFIED":
+    if not isinstance(ledger.get("object_path"), str) or not ledger["object_path"].startswith("disclosure-forward-ledgers/v1/run-"):
+        raise ValueError("INVALID_LEDGER_EVIDENCE_PATH")
+    if ledger.get("retention_iam_gate") != "NOT_VERIFIED":
         raise ValueError("UNSUPPORTED_POLICY_ATTESTATION")
     return {
         "status": "GCS_RESEARCH_EVIDENCE_HEALTH_PASS",
@@ -50,7 +52,8 @@ def safe_health(raw, ledger):
 
 
 def summary_markdown(report):
-    return "\n".join([
+    return "
+".join([
         "## Sky GCS 研究證據健康報告",
         f"- 雲端資料核驗：**{report['status']}**",
         f"- 已完成快照批次：**{report['source_batches']}**（不是獨立交易日）",
@@ -63,7 +66,8 @@ def summary_markdown(report):
         "- 原始公告時間：**未驗證**；交易合格事件：**0**",
         "- 保留政策／IAM最小權限：**未驗證**",
         "- 策略正期望：**未證實**；Production：**未變更**",
-    ]) + "\n"
+    ]) + "
+"
 
 
 def main():
