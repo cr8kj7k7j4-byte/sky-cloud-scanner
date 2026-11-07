@@ -6,6 +6,7 @@ on:
     paths:
       - 'research/fugle_market_quality_audit.py'
       - 'tests/test_fugle_market_quality_audit.py'
+      - 'tests/test_fugle_market_quality_integration.py'
       - '.github/workflows/fugle-market-quality-audit.yml'
   schedule:
     # 09:15 and 09:30 Asia/Taipei; UTC+08 without daylight saving.
@@ -27,7 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Validate audit parser offline
-        run: python3 -m unittest tests/test_fugle_market_quality_audit.py
+        run: python3 -m unittest tests/test_fugle_market_quality_audit.py tests/test_fugle_market_quality_integration.py
       - name: Collect paid Fugle coverage and intraday timestamp evidence
         run: python3 research/fugle_market_quality_audit.py
       - name: Upload dated audit evidence
