@@ -50,7 +50,10 @@ def run(token, getter=get):
             batch = getter("TaiwanStockMarginMaintenance", token,
                            start_date=str(start), end_date=str(end))
             all_rows.extend(batch)
-    except (HTTPError, URLError, OSError, TimeoutError, RuntimeError) as exc:
+    except HTTPError as exc:
+        report["reason"] = "MARGIN_ACCESS_FAILED_HTTP_" + str(exc.code)
+        return report
+    except (URLError, OSError, TimeoutError, RuntimeError) as exc:
         report["reason"] = "MARGIN_ACCESS_FAILED_" + type(exc).__name__
         return report
     days = set()
