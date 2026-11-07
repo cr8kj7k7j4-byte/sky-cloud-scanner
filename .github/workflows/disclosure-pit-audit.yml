@@ -1,0 +1,32 @@
+name: Disclosure PIT Evidence Audit
+on:
+  pull_request:
+    paths:
+      - 'research/disclosure_pit_gate.py'
+      - 'tests/test_disclosure_pit_gate.py'
+      - 'docs/DISCLOSURE_PIT_AUDIT_20261108.md'
+      - '.github/workflows/disclosure-pit-audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run point-in-time safety tests
+        run: python -m unittest discover -s tests -p test_disclosure_pit_gate.py -v
+      - name: Probe current official monthly revenue tables without treating as historic filing time
+        run: python -m research.disclosure_pit_gate --probe-latest --output research_output/disclosure_pit_audit.json
+      - name: Verify no promotion on missing event evidence
+        run: |
+          python -c "import json; x=json.load(open('research_output/disclosure_pit_audit.json')); assert x['research_state']=='INSUFFICIENT_DATA'; assert x['production_signal'] is False; assert x['structurally_eligible_for_pit']==0; print('FAIL_CLOSED_PASS')"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: disclosure-pit-source-audit
+          path: research_output/disclosure_pit_audit.json
+          retention-days: 30
