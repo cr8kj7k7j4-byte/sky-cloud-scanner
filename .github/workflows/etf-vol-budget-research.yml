@@ -1,0 +1,31 @@
+name: Sky ETF Volatility Budget Research
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'research/etf_volatility_budget_v1.py'
+      - 'research/ETF_VOL_BUDGET_PREREG_20261108.md'
+      - '.github/workflows/etf-vol-budget-research.yml'
+permissions:
+  contents: read
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Fetch FinMind data and run frozen 0050 pilot
+        env:
+          FINMIND_API_TOKEN: ${{ secrets.FINMIND_API_TOKEN }}
+        run: python -m research.etf_volatility_budget_v1 --output research_output/volatility_budget_pilot.json
+      - name: Confirm research-only safeguards
+        run: |
+          python -c "import json; x=json.load(open('research_output/volatility_budget_pilot.json')); assert x['state']=='INSUFFICIENT_DATA' and x['production_signal'] is False; print('PASS: research only')"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: etf-vol-budget-pilot
+          path: research_output/volatility_budget_pilot.json
+          retention-days: 30
