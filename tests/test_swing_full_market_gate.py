@@ -15,13 +15,6 @@ def test_incomplete_broad_market_quotes_are_blocked_before_any_fugle_deep_dive(m
         pool, {"twse": 1, "tpex": 4, "warnings": []}
     ))
     monkeypatch.setattr(swing, "fetch_fugle_snapshot_quotes", lambda *a, **kw: ([], []))
-    monkeypatch.setattr(swing, "fetch_mis_quotes", lambda *a, **kw: (
-        [{"symbol": "1001", "exchange": "TWSE", "last": 45,
-          "quote_date": "20261103", "quote_time": "10:14:59",
-          "quote_source": "TWSE MIS", "previous_close": 44,
-          "volume": 5000, "trade_value": 100000000,
-          "high": 46, "low": 44, "open": 45, "change_pct": 2.2}], []
-    ))
     def no_deep(*args, **kwargs):
         raise AssertionError("Invalid market must never call candidate deep dive")
     monkeypatch.setattr(swing, "get_ticker", no_deep)
