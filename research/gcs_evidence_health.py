@@ -7,6 +7,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+from research.disclosure_gcs_readback import REQUIRED
 
 
 def safe_health(raw, ledger):
@@ -15,7 +16,7 @@ def safe_health(raw, ledger):
     if raw.get("state") != "GCS_READBACK_VERIFIED":
         raise ValueError("SOURCE_GCS_READBACK_NOT_VERIFIED")
     sources = raw.get("objects")
-    if (not isinstance(sources, dict) or len(sources) != 4
+    if (not isinstance(sources, dict) or set(sources) != set(REQUIRED)
             or any(not isinstance(v, dict) or v.get("readback_verified") is not True
                    or len(str(v.get("sha256", ""))) != 64 for v in sources.values())):
         raise ValueError("FOUR_SOURCE_HASH_RECEIPTS_INVALID")
@@ -29,7 +30,7 @@ def safe_health(raw, ledger):
             or ledger.get("eligible_trade_events") != 0
             or ledger.get("issuer_original_published_at_verified") is not False):
         raise ValueError("RESEARCH_PIT_SAFETY_GATE_BROKEN")
-    if ledger.get("retention_iam_gate") != "NOT_VERIFIED":
+    if not isinstance(ledger.get("object_path"), str) or not ledger["object_path"].startswith("disclosure-forward-ledgers/v1/run-"):\n        raise ValueError("INVALID_LEDGER_EVIDENCE_PATH")\n    if ledger.get("retention_iam_gate") != "NOT_VERIFIED":
         raise ValueError("UNSUPPORTED_POLICY_ATTESTATION")
     return {
         "status": "GCS_RESEARCH_EVIDENCE_HEALTH_PASS",
