@@ -1,0 +1,107 @@
+name: Sky Research Signal Evidence (No Orders)
+
+on:
+  workflow_run:
+    workflows: ["Sky Cloud Scanner v0.5 + P0-R"]
+    types: [completed]
+  pull_request:
+    paths:
+      - "research/export_model_research_signals.py"
+      - "tests/test_model_research_signal_export.py"
+      - ".github/workflows/sky-research-signal-evidence.yml"
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: "Existing Sky scan workflow run ID (required for manual retrieval)"
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check parser tests before source ingestion
+        run: PYTHONPATH=. python -m unittest discover -s tests -p 'test_model_research_signal_export.py'
+        # pytest-based tests execute in the following step
+      - name: Install pytest
+        run: pip install pytest
+      - name: Run research observation unit tests
+        run: PYTHONPATH=. python -m pytest -q tests/test_model_research_signal_export.py
+      - name: Download canonical scan evidence only
+        if: github.event_name != 'pull_request'
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          SCAN_RUN_ID: ${{ github.event.workflow_run.id || inputs.source_run_id }}
+          SCAN_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          SCAN_HEAD_REPO: ${{ github.event.workflow_run.head_repository.full_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "workflow_run" ]; then
+            [ "$SCAN_HEAD_BRANCH" = "main" ] && [ "$SCAN_HEAD_REPO" = "$GH_REPO" ] || {
+              echo "Source is not verified main scanner"; exit 1;
+            }
+          fi
+          test -n "$SCAN_RUN_ID"
+          mkdir -p _scan
+          gh run download "$SCAN_RUN_ID" -R "$GH_REPO" -n "sky-scan-$SCAN_RUN_ID" -D _scan
+          test -f _scan/output/latest.json || test -f _scan/latest.json
+          if [ -f _scan/output/latest.json ]; then
+            cp _scan/output/latest.json _scan/input.json
+          else
+            cp _scan/latest.json _scan/input.json
+          fi
+          SOURCE_SHA="$(gh run view "$SCAN_RUN_ID" -R "$GH_REPO" --json headSha --jq '.headSha')"
+          echo "SOURCE_SHA=$SOURCE_SHA" >> "$GITHUB_ENV"
+          echo "SCAN_RUN_ID=$SCAN_RUN_ID" >> "$GITHUB_ENV"
+      - name: Export immutable research observations
+        if: github.event_name != 'pull_request'
+        run: |
+          PYTHONPATH=. python -m research.export_model_research_signals \
+            --scan _scan/input.json --source-run-id "$SCAN_RUN_ID" \
+            --source-sha "$SOURCE_SHA" --out output/research_signals/latest.json
+      - name: Publish mobile-readable evidence summary
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=Path('output/research_signals/latest.json')
+          lines=['# Sky 研究訊號（不授權下單）','']
+          if p.is_file():
+              r=json.loads(p.read_text(encoding='utf-8'))
+              lines.extend([
+                f"來源執行：{r.get('source_run_id')}",
+                f"資料時間：{r.get('scan_time')}",
+                f"資料閘門：{r.get('market_data_gate')}",
+                f"觀察筆數：{r.get('record_count')}",
+                f"實際存在的模型：{', '.join(r.get('observed_model_ids') or []) or '無'}",
+                '未訓練代理模型 ≠ 正式 AI 模型；未驗證不代表已具正期望值。',
+                '未取得經治理的模型專屬進出場規則時，不產生買進價、停損或停利。',
+              ])
+          else:
+              lines.append('本次沒有研究證據檔；不可宣稱模型已產生訊號。')
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a',encoding='utf-8') as f:
+              f.write('\n\n'.join(lines)+'\n')
+          PY
+      - name: Upload research observation ledger
+        if: always() && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-research-signals-${{ github.run_id }}
+          path: output/research_signals
+          retention-days: 90
+          if-no-files-found: warn
