@@ -4,6 +4,7 @@ import json
 import os
 import re
 import statistics
+import sys
 import urllib.request
 from html.parser import HTMLParser
 from zoneinfo import ZoneInfo
@@ -101,7 +102,7 @@ def run():
                 result["missing_count"]=len(missing)
                 result["missing_sample"]=sorted(missing)[:30]
                 result["coverage_ratio"]=round(result["covered"]/len(official),5)
-                result["status"]="PASS" if result["coverage_ratio"]>=0.95 and result["duplicate_count"]==0 and result["missing_price_count"]==0 else "REVIEW_REQUIRED"
+                result["status"]="PASS" if result["coverage_ratio"]>=0.95 and result["duplicate_count"]==0 and result["missing_price_count"]==0 and result["missing_volume_count"]==0 else "REVIEW_REQUIRED"
             live=now.weekday()<5 and dt.time(9,5)<=now.time()<=dt.time(13,25)
             if live:
                 result["live_freshness"]="PASS" if body.get("date")==now.date().isoformat() and ((result["response_age_seconds"] is not None and -30 <= result["response_age_seconds"] <= 120) or (ages and -30 <= statistics.median(ages) <= 120)) else "FAIL_OR_STALE"
@@ -117,6 +118,8 @@ def run():
     report["status"]="PASS" if report["coverage_status"]=="PASS" and (not in_session or report["live_freshness_status"]=="PASS") else "INSUFFICIENT_DATA_OR_REVIEW"
     with open("fugle_market_quality_audit.json","w") as f: json.dump(report,f,indent=2,ensure_ascii=False)
     print("OVERALL",report["status"])
+    if report["status"] != "PASS":
+        sys.exit(1)
 
 
 if __name__=="__main__": run()
