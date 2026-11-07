@@ -74,7 +74,7 @@ _PATTERNS = [
         CommandRoute(
             "SKY_QUICK_SCAN", "WHOLE_MARKET_REALTIME", True, True, False,
             "src.main",
-            "TWSE+TPEx official universe; TWSE MIS TSE+OTC operational quotes; Fugle deep-dive."
+            "TWSE+TPEx official universe; verified paid Fugle TSE+OTC executed-trade snapshots only; fail closed."
         ),
     ),
     (
