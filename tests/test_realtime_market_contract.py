@@ -97,7 +97,6 @@ def test_v11_candidate_without_executed_trade_never_enters_overlay(monkeypatch):
 
     target = {"symbol": "1234", "exchange": "TWSE", "name": "x"}
     signal = {"symbol": "1234"}
-    monkeypatch.setattr(v11, "fetch_mis_quotes", lambda *a, **kw: ([], []))
     monkeypatch.setattr(v11, "get_quote", lambda symbol: {
         "date": NOW.date().isoformat(),
         "closePrice": 42, "lastUpdated": int(NOW.timestamp() * 1_000_000),
@@ -112,7 +111,6 @@ def test_v11_candidate_without_executed_trade_never_enters_overlay(monkeypatch):
 def test_v11_candidate_with_fresh_executed_trade_can_be_observed(monkeypatch):
     from src import swing_v11_live_scanner as v11
     target = {"symbol": "1234", "exchange": "TWSE", "name": "x"}
-    monkeypatch.setattr(v11, "fetch_mis_quotes", lambda *a, **kw: ([], []))
     monkeypatch.setattr(v11, "get_quote", lambda symbol: {
         "date": NOW.date().isoformat(), "lastTrade": {
             "price": 40.2, "time": int(NOW.timestamp() * 1_000_000)
