@@ -1,4 +1,5 @@
 name: MCR Official Margin Proxy Research Audit
+# MCR episode / bias audit outputs remain research only.
 on:
   workflow_dispatch:
   schedule:
