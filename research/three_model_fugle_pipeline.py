@@ -87,6 +87,9 @@ def upload_immutable(store, bucket, prefix, report):
         raise ValueError("invalid_prefix")
     result=[]
     for row in report["observations"]:
+        if any(row.get(flag) is True for flag in ("production_signal", "order_authorized",
+                      "eligible_strategy_trade", "trained_model_used")):
+            raise ValueError("research_record_contains_trade_or_training_claim")
         # Rejected/no-trade observations must also enter the immutable ledger.
         # Their stable IDs use the requested research date and rejection reasons,
         # not a transient workflow execution timestamp.
@@ -98,6 +101,9 @@ def upload_immutable(store, bucket, prefix, report):
         blob=store.bucket(bucket).blob(key)
         canonical={k:v for k,v in row.items() if k != "as_of"}
         canonical["ledger_record_id"]=record_id
+        canonical.update(production_signal=False, order_authorized=False,
+                         eligible_strategy_trade=False, trained_model_used=False,
+                         realized_net_pnl=None)
         data=json.dumps(canonical,sort_keys=True,ensure_ascii=False,separators=(",",":"))
         digest=hashlib.sha256(data.encode()).hexdigest()
         try:
