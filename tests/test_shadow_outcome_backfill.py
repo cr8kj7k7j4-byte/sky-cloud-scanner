@@ -88,6 +88,22 @@ def test_missing_execution_impact_never_becomes_zero_cost():
     assert out["r_multiple"] is None
 
 
+def test_backfill_preserves_observation_id_without_creating_trade():
+    row = {
+        "record_id": "obs-001",
+        "observation_record_id": "obs-001",
+        "decision_id": None,
+        "observed_at": "2026-10-27T09:35:00+08:00",
+        "symbol": "TEST", "market": {"last": 10.3},
+        "strategy": {}, "monitor": {}, "risk": {},
+    }
+    out = backfill_record(row, _candles(), {})
+    assert out["outcome"]["source_record_id"] == "obs-001"
+    assert out["outcome"]["observation_record_id"] == "obs-001"
+    assert out["outcome"]["decision_id"] is None
+    assert out["outcome"]["research_only"] is True
+
+
 def test_backfill_keeps_nontriggered_record_as_ranking_only():
     record = {
         "run_id": "r1",
