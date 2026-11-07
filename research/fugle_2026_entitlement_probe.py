@@ -10,6 +10,8 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 
+from research.historical_5m_quality import inspect_history
+
 START, END = "2026-01-01", "2026-11-07"
 BASE = "https://api.fugle.tw/marketdata/v1.0/stock"
 SYMBOLS = ("1101", "8088")
@@ -53,10 +55,17 @@ def run_probe(api_key, symbols=SYMBOLS, get=None):
                 code = int(response.status_code)
                 result["http_status"] = code
                 if code == 200:
-                    summary = summarize_candles(response.json().get("data"))
+                    data = response.json().get("data")
+                    summary = summarize_candles(data)
+                    quality = inspect_history(data, START, END)
                     result.update(summary)
+                    result["quality"] = {k: v for k, v in quality.items() if k != "session_counts"}
+                    result["session_counts"] = quality["session_counts"]
                     result["permission_verified"] = summary["bar_count"] > 0
-                    result["status"] = "DATA_RETURNED" if result["permission_verified"] else "EMPTY_RESPONSE"
+                    result["status"] = ("INVALID_DATA" if quality["status"] == "INVALID_DATA" else
+                                        "DATA_RETURNED" if result["permission_verified"] else "EMPTY_RESPONSE")
+                    if quality["status"] == "INVALID_DATA":
+                        result["permission_verified"] = False
                 elif code in (401, 403):
                     result.update({"status": "AUTH_OR_PLAN_RESTRICTED",
                                    "permission_verified": False})
@@ -71,17 +80,19 @@ def run_probe(api_key, symbols=SYMBOLS, get=None):
                 result.update({"status": "TRANSPORT_ERROR", "permission_verified": False})
         results.append(result)
     return {
-        "schema": "SKY_FUGLE_2026_HISTORICAL_ENTITLEMENT_PROBE_V1",
+        "schema": "SKY_FUGLE_2026_HISTORICAL_ENTITLEMENT_PROBE_V1_1",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "requested_period": {"start": START, "end": END},
         "results": results,
         "all_symbols_retrieved": all(x["permission_verified"] for x in results),
         "limited_two_symbol_probe_only": True,
         "all_market_coverage_verified": False,
+        "daily_quality_audited": True,
+        "official_trading_calendar_reconciled": False,
         "complete_period_verified": False,
         "backtest_executed": False,
         "production_changed": False,
-        "next_action": "Audit per-symbol per-session coverage and actual model provenance before full backtests."
+        "next_action": "Reconcile daily session dates with the official historical trading calendar, then audit whole-universe PIT and six authentic model rules."
     }
 
 
