@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 
 from .decision_engine import first_gate
 from .fugle import get_quote, get_ticker
-from .official import fetch_fugle_snapshot_quotes, fetch_mis_quotes, load_official_universe
+from .official import fetch_fugle_snapshot_quotes, load_official_universe
 from .ranking_engine import rank_screening_candidates
 from .sky_mobile_table import render_mobile_table
 from .realtime_quote_evidence import fugle_executed_trade, validate_whole_market_rows
@@ -40,11 +40,10 @@ MODE_META = {
 def coverage_governance_notice(operational_full_market_scan, coverage_pct):
     """Only certify operational quote coverage after the existing market gate."""
     if operational_full_market_scan:
-        return "全市場實務報價覆蓋驗證通過；OTC MIS 仍僅為操作備援，非 TPEx 官方完整即時行情。"
+        return "富果上市與上櫃即時成交行情覆蓋驗證通過；不代表策略已驗證可交易。"
     return (
         f"全市場即時行情資料未通過驗證（有效報價覆蓋率 {coverage_pct}%）；"
-        "候選僅供觀察，不可據此產生 A+ 或可執行買進價。"
-        "OTC MIS 僅為操作備援，非 TPEx 官方完整即時行情。"
+        "富果即時行情不完整；候選僅供觀察，不可產生 A+ 或可執行買進價。"
     )
 
 
@@ -238,8 +237,8 @@ def run(mode="swing5d", top_n=20, deep_n=8):
         "source_health": {
             "official_universe": universe_health,
             "intraday": {
-                "source": "Fugle TSE/OTC bulk snapshot, TWSE MIS fallback",
-                "note": "OTC is operational fallback and is not labelled TPEx-official real-time certification.",
+                "source": "Fugle MarketData TSE/OTC bulk snapshot only",
+                "note": "Fugle must provide verified executed-trade timestamps and both-exchange coverage; otherwise no trade.",
             },
         },
         "warnings": warnings,
