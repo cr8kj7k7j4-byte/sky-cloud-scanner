@@ -110,6 +110,28 @@ def build_proxy(today_rows, previous_rows, *, report_time):
             "maintenance_below_130_verified": False, "no_trade_without_validation": True,
             "note": "融資餘額減少≠個股維持率<130%；不是正期望值或反轉確認。"}
 
+def select_two_verified_sessions(target, *, fetcher=fetch, lookback_days=12):
+    """Skip exchange holidays without mislabeling stale data as today's data.
+
+    Skip only source-not-OK/date mismatch; schema or coverage errors remain fatal.
+    Return two independently date-verified sessions, newest first.
+    """
+    found = []
+    for delta in range(lookback_days):
+        day = target - timedelta(days=delta)
+        if day.weekday() >= 5:
+            continue
+        try:
+            rows = parse_twse(fetcher(day), day)
+        except ValueError as exc:
+            if str(exc) in ("TWSE_SOURCE_NOT_OK", "TWSE_SESSION_DATE_MISMATCH_OR_UNKNOWN"):
+                continue
+            raise
+        found.append((day, rows))
+        if len(found) == 2:
+            return found
+    raise ValueError("TWO_VERIFIED_EXCHANGE_SESSIONS_UNAVAILABLE")
+
 def main():
     import argparse
     parser = argparse.ArgumentParser()
@@ -119,14 +141,12 @@ def main():
     now = datetime.now(TZ)
     target = date.fromisoformat(args.date) if args.date else now.date()
     while target.weekday() >= 5: target -= timedelta(days=1)
-    # The prior exchange trading day is determined by source contents; weekends skipped.
-    previous = target-timedelta(days=1)
-    while previous.weekday() >= 5: previous -= timedelta(days=1)
     output = Path(args.out)
     output.parent.mkdir(parents=True, exist_ok=True)
     try:
-        current = parse_twse(fetch(target), target)
-        before = parse_twse(fetch(previous), previous)
+        sessions = select_two_verified_sessions(target)
+        current = sessions[0][1]
+        before = sessions[1][1]
         result = build_proxy(current, before, report_time=now.isoformat())
         result["data_quality"] = "TWSE_PASSED_TPEX_NOT_CHECKED"
     except Exception as exc:
