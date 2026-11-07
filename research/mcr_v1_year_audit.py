@@ -19,8 +19,28 @@ def get(dataset, token, **params):
     args = {"dataset": dataset, **params}
     url = API + "?" + urlencode(args)
     req = Request(url, headers={"Authorization": "Bearer " + token, "Accept":"application/json"})
-    with urlopen(req, timeout=90) as response:
-        body = json.load(response)
+    try:
+        with urlopen(req, timeout=90) as response:
+            body = json.load(response)
+    except HTTPError as exc:
+        try:
+            error_body = json.loads(exc.read(4096).decode("utf-8", errors="replace"))
+            hint = str(error_body.get("msg", "")).lower()
+        except (ValueError, UnicodeError):
+            hint = ""
+        if any(w in hint for w in ("sponsor", "subscription", "付費", "會員", "權限")):
+            category = "ENTITLEMENT"
+        elif any(w in hint for w in ("token", "unauthorized", "驗證", "auth", "金鑰")):
+            category = "AUTHENTICATION"
+        elif any(w in hint for w in ("limit", "rate", "frequency", "quota", "次數")):
+            category = "QUOTA"
+        elif any(w in hint for w in ("start_date", "end_date", "日期", "date")):
+            category = "DATE_PARAMETERS"
+        elif any(w in hint for w in ("dataset", "not found", "資料集")):
+            category = "DATASET"
+        else:
+            category = "UNCLASSIFIED"
+        raise RuntimeError(f"HTTP_{exc.code}_{category}") from None
     if body.get("status") != 200 or not isinstance(body.get("data"), list):
         raise RuntimeError("NON_SUCCESS_DATA_RESPONSE_" + str(body.get("status")))
     return body["data"]
@@ -58,7 +78,12 @@ def run(token, getter=get):
     except HTTPError as exc:
         report["reason"] = "MARGIN_ACCESS_FAILED_HTTP_" + str(exc.code)
         return report
-    except (URLError, OSError, TimeoutError, RuntimeError) as exc:
+    except RuntimeError as exc:
+        reason = str(exc)
+        report["reason"] = ("MARGIN_ACCESS_FAILED_" + reason
+                            if reason.startswith("HTTP_") else "MARGIN_ACCESS_FAILED_RUNTIME")
+        return report
+    except (URLError, OSError, TimeoutError) as exc:
         report["reason"] = "MARGIN_ACCESS_FAILED_" + type(exc).__name__
         return report
     days = set()
