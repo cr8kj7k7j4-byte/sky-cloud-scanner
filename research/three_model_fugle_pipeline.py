@@ -91,7 +91,7 @@ def upload_immutable(store, bucket, prefix, report):
             continue  # rejected rows retained in run-level audit, not tradable observations
         key=f"{prefix.strip('/')}/{row['model_id']}/{row['symbol']}/{row['signal_id']}.json"
         blob=store.bucket(bucket).blob(key)
-        data=json.dumps(row,sort_keys=True,ensure_ascii=False,separators=(",",":"))
+        canonical={k:v for k,v in row.items() if k != "as_of"}\n        data=json.dumps(canonical,sort_keys=True,ensure_ascii=False,separators=(",",":"))
         digest=hashlib.sha256(data.encode()).hexdigest()
         try:
             blob.upload_from_string(data,content_type="application/json",if_generation_match=0)
@@ -129,7 +129,7 @@ def run(symbols, end, bucket, prefix, key, store, out):
     audit={"checked_at_tpe":as_of.isoformat(),"source":"Fugle historical/candles",
            "provider_authenticated":True, "historical_not_intraday_live":True,
            "trained_model_used":False,"production_signal":False,"orders":False,
-           "observations_total":len(report["observations"]),
+           "observations_total":len(report["observations"]),\n           "rejected_count":sum(not o.get("signal_id") for o in report["observations"]),
            "saved_records":len(ledger),"storage_statuses":ledger,
            "symbols_requested":symbols,"end_date":end.isoformat(),
            "live_mobile_deployment_verified":False}
