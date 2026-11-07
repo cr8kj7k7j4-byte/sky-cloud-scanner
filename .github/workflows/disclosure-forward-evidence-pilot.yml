@@ -1,0 +1,32 @@
+name: Official Disclosure Forward Evidence Pilot
+on:
+  pull_request:
+    paths:
+      - 'research/forward_disclosure_evidence_capture.py'
+      - 'tests/test_forward_disclosure_evidence_capture.py'
+      - '.github/workflows/disclosure-forward-evidence-pilot.yml'
+      - 'docs/DISCLOSURE_FORWARD_EVIDENCE_PILOT_20261108.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify provenance collection is fail closed
+        run: python -m unittest discover -s tests -p test_forward_disclosure_evidence_capture.py -v
+      - name: Fetch official source bytes and create sha256 manifest
+        run: python -m research.forward_disclosure_evidence_capture --out-dir research_output/disclosure_forward_snapshot
+      - name: Verify complete source success and no PIT/Production claim
+        run: |
+          python -c "import json; m=json.load(open('research_output/disclosure_forward_snapshot/manifest.json')); assert m['status']=='SNAPSHOT_CAPTURED_RESEARCH_ONLY', 'source error'; assert len(m['source_results'])==4 and all(r.get('sha256') for r in m['source_results'].values()); assert not m['production_signal'] and m['historical_pit_event_count']==0; print('SNAPSHOT_PILOT_PASS')"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: disclosure-forward-source-bytes-and-manifest
+          path: research_output/disclosure_forward_snapshot/
+          retention-days: 30
