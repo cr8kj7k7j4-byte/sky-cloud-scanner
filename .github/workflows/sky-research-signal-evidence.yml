@@ -32,9 +32,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Check parser tests before source ingestion
-        run: PYTHONPATH=. python -m unittest discover -s tests -p 'test_model_research_signal_export.py'
-        # pytest-based tests execute in the following step
       - name: Install pytest
         run: pip install pytest
       - name: Run research observation unit tests
