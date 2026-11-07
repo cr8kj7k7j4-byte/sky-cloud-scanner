@@ -56,10 +56,10 @@ function safe(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&
 function switchTab(id){document.querySelectorAll(".panel").forEach(x=>x.classList.toggle("active",x.id===id));document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("active",x.dataset.tab===id));scrollTo(0,0)}
 function validFeed(obj){if(!obj||typeof obj!=="object"||!Array.isArray(obj.signals)||obj.signals.length>1000||typeof obj.as_of!=="string"||!Number.isFinite(Date.parse(obj.as_of))||!/([+-]\d\d:\d\d|Z)$/.test(obj.as_of)||typeof obj.source!=="string"||!obj.source.trim())return false;return obj.signals.every(s=>s&&typeof s==="object"&&typeof s.symbol==="string"&&/^\d{4,6}$/.test(s.symbol)&&["LONG","SHORT","WATCH","NO TRADE"].includes(s.side)&&["entry","stop","target"].every(k=>s[k]===undefined||(typeof s[k]==="number"&&Number.isFinite(s[k])&&s[k]>=0)))}
 function refresh(){const valid=feed&&validFeed(feed),now=Date.now(),age=valid?(now-Date.parse(feed.as_of))/60000:Infinity, fresh=age>=0&&age<=3;
-el("feedBadge").textContent=fresh?"資料新鮮（未認證）":valid?"資料過期／非即時":"未連接行情";
-el("feedBadge").className="tag "+(fresh?"ok":"warn");
+el("feedBadge").textContent=fresh?"匯入資料未認證":valid?"匯入資料過期／非即時":"未連接行情";
+el("feedBadge").className="tag warn";
 el("timestamp").textContent=valid?new Date(feed.as_of).toLocaleString("zh-TW",{timeZone:"Asia/Taipei",hour12:false}):"—";
-el("coverage").textContent=valid?String(feed.coverage||"未驗證").slice(0,70):"未驗證";
+el("coverage").textContent=valid?"未驗證（匯入宣稱："+String(feed.coverage||"無").slice(0,50)+"）":"未驗證";
 el("reason").textContent=!valid?"尚無可追溯行情及策略資料。":!fresh?"匯入資料已過期或時間錯誤，禁止當作即時交易依據。":"已匯入資料，但策略未經獨立驗證，交易訊號仍停用。";
 el("count").textContent=valid?feed.signals.length+" 筆":"0 筆";
 el("signalsList").innerHTML=!valid?"尚無有效資料。":feed.signals.map(s=>'<div class="item"><div class="row"><strong>'+safe(s.symbol)+' '+safe(s.name||"")+'</strong><span class="tag warn">觀察：'+safe(s.side)+'</span></div><small>進場 '+safe(s.entry??"—")+' ｜ 停損 '+safe(s.stop??"—")+' ｜ 目標 '+safe(s.target??"—")+'</small><div class="sub">僅供觀察，未核准實盤訊號</div></div>').join("")||"沒有候選";
