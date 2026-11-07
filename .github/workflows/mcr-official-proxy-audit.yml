@@ -14,6 +14,9 @@ on:
       - 'research/mcr_daily_volume.py'
       - 'tests/test_mcr_daily_volume.py'
       - 'research/mcr_proxy_event_ledger.py'
+      - 'research/mcr_episode_audit.py'
+      - 'research/mcr_forward_markouts.py'
+      - 'tests/test_mcr_episode_validation.py'
       - 'tests/test_mcr_proxy_event_ledger.py'
       - 'tests/test_mcr_merged_proxy.py'
       - 'tests/test_mcr_official_margin_proxy.py'
@@ -37,7 +40,7 @@ jobs:
       - name: Offline parser, date, and no-trade tests
         run: python -m unittest tests.test_mcr_official_margin_proxy -v
       - name: Test cross-market verified-session merge
-        run: python -m unittest tests.test_mcr_tpex_margin_proxy tests.test_mcr_merged_proxy tests.test_mcr_proxy_event_ledger tests.test_mcr_daily_volume -v
+        run: python -m unittest tests.test_mcr_tpex_margin_proxy tests.test_mcr_merged_proxy tests.test_mcr_proxy_event_ledger tests.test_mcr_daily_volume tests.test_mcr_episode_validation -v
       - name: Validate live official closing-volume schemas (no secret)
         run: |
           python - <<'PY'
@@ -117,6 +120,29 @@ jobs:
       - name: Record immutable date-specific research observations (no trade outcomes)
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         run: python -m research.mcr_proxy_event_ledger
+      - name: Audit episode deduplication and selection bias (no profitability claim)
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        run: python -m research.mcr_episode_audit
+      - name: Produce no-fabrication outcome completeness report
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        run: |
+          python - <<'PY'
+          import json,subprocess
+          d=json.load(open("research_output/mcr_episode_audit_latest.json",encoding="utf-8"))
+          subprocess.run(["python","-m","research.mcr_forward_markouts","--asof",d["last_session"]],check=True)
+          PY
+      - name: Record outcome completeness only until real forward prices exist
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          source=json.loads(Path("research_output/mcr_episode_audit_latest.json").read_text(encoding="utf-8"))
+          assert source["independent_trade_sample_count"] == 0
+          assert source["cost_adjusted_expectancy_pct"] is None
+          assert source["production_promotion_eligible"] is False
+          print("MCR_RISK_GATES",source["research_status"],"daily_observations",source["observation_rows"],"episodes",source["episode_count"])
+          PY
       - name: Publish combined market snapshot after all verification gates
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         run: |
@@ -124,5 +150,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           # Force-add only these two audited public research artifacts.
           # research_output/ is otherwise deliberately ignored.
-          git add -f research_output/mcr_official_proxy_combined_latest.json research_output/mcr_event_ledger/*.json
+          git add -f research_output/mcr_official_proxy_combined_latest.json research_output/mcr_event_ledger/*.json research_output/mcr_episode_audit_latest.json research_output/mcr_markout_latest.json
           git diff --cached --quiet || (git commit -m "data(research): TWSE TPEx verified financing snapshot [skip ci]" && git pull --rebase && git push)
