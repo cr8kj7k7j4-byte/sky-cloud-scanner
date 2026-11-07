@@ -101,10 +101,10 @@ def upload_immutable(store, bucket, prefix, report):
             # A duplicate must be distinguished from a transient or permission error.
             if type(exc).__name__ != "PreconditionFailed":
                 raise
-            stored=blob.download_as_bytes()
-            if hashlib.sha256(stored).hexdigest()!=digest:
-                raise ValueError("ledger_identity_conflict") from None
             status="ALREADY_EXISTS_IDENTICAL"
+        stored=blob.download_as_bytes()
+        if hashlib.sha256(stored).hexdigest()!=digest:
+            raise ValueError("ledger_identity_conflict")
         result.append({"model_id":row["model_id"],"symbol":row["symbol"],
                        "signal_id":row["signal_id"],"status":status,
                        "object_sha256":digest})
