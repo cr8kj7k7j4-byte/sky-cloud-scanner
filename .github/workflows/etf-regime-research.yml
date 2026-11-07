@@ -1,0 +1,31 @@
+name: ETF Regime One-Year Research
+on:
+  pull_request:
+    paths:
+      - 'research/etf_regime_v1.py'
+      - 'research/etf/ETF_REGIME_V1_PREREG_20261108.md'
+      - '.github/workflows/etf-regime-research.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  pilot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run fixed 0050 regime study (no trade)
+        env:
+          FINMIND_API_TOKEN: ${{ secrets.FINMIND_API_TOKEN }}
+        run: python -m research.etf_regime_v1 --out research_output/etf_regime_one_year.json
+      - name: Verify governance fails closed
+        run: |
+          python -c "import json; d=json.load(open('research_output/etf_regime_one_year.json')); assert d['production_signal'] is False and d['status']=='INSUFFICIENT_DATA'; print('research only')"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: etf-regime-one-year-report
+          path: research_output/etf_regime_one_year.json
+          retention-days: 30
