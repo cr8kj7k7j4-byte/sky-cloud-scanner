@@ -194,6 +194,11 @@ def backfill_record(record, candles, cost_inputs):
             strategy_result["cost_input_reason"] = cost_inputs["reason"]
 
     out["outcome"] = {
+        # Backfill provenance: preserve source observation identity; do not
+        # fabricate a strategy decision ID when W0 provenance is unavailable.
+        "observation_record_id": record.get("observation_record_id") or record.get("record_id"),
+        "source_record_id": record.get("record_id"),
+        "decision_id": record.get("decision_id"),
         "status": ranking.get("status"),
         "outcome_type": "SHADOW_EVIDENCE",
         "backfilled_at": datetime.now(TZ).isoformat(),
