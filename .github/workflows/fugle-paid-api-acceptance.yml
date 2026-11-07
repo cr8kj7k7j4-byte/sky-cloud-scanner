@@ -1,0 +1,73 @@
+name: Fugle Paid API Acceptance (Manual)
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+    steps:
+      - name: Validate actual Fugle API access (never print credentials)
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request, urllib.error, datetime, time, sys
+          from zoneinfo import ZoneInfo
+          key = os.environ.get("FUGLE_API_KEY", "").strip()
+          if not key:
+              print("FAIL: FUGLE_API_KEY missing"); sys.exit(1)
+          base="https://api.fugle.tw/marketdata/v1.0/stock"
+          tests=[
+              ("TSE_paid_snapshot", "/snapshot/quotes/TSE?type=COMMONSTOCK", "snapshot", "TSE"),
+              ("OTC_paid_snapshot", "/snapshot/quotes/OTC?type=COMMONSTOCK", "snapshot", "OTC"),
+              ("TSE_quote_2330", "/intraday/quote/2330", "quote", "2330"),
+              ("OTC_quote_6488", "/intraday/quote/6488", "quote", "6488"),
+              ("Daily_history_2330", "/historical/candles/2330?from=2026-10-01&to=2026-10-15&timeframe=D", "history", "D"),
+              ("Minute_history_2330", "/historical/candles/2330?from=2026-11-06&to=2026-11-06&timeframe=1", "history", "1"),
+          ]
+          rows=[]
+          for label,path,kind,expected in tests:
+              code=None; data={}; reason=""; count=None; stamp=None
+              try:
+                  req=urllib.request.Request(base+path, headers={"X-API-KEY":key,"Accept":"application/json","User-Agent":"Sky-Fugle-Acceptance/1.0"})
+                  with urllib.request.urlopen(req, timeout=18) as resp:
+                      code=resp.status
+                      data=json.load(resp)
+                  if not isinstance(data,dict): data={}
+                  if kind=="snapshot":
+                      count=len(data.get("data",[])) if isinstance(data.get("data"),list) else 0
+                      stamp=str(data.get("date",""))+" "+str(data.get("time",""))
+                      valid=data.get("market")==expected and count>0 and any(isinstance(x,dict) and x.get("symbol") and (x.get("closePrice") is not None or x.get("lastPrice") is not None) for x in data.get("data",[]))
+                  elif kind=="quote":
+                      count=1 if data.get("symbol")==expected else 0
+                      stamp=str(data.get("date",""))
+                      valid=count==1 and (data.get("closePrice") is not None or data.get("lastPrice") is not None)
+                  else:
+                      count=len(data.get("data",[])) if isinstance(data.get("data"),list) else 0
+                      stamp=str(data.get("data",[{}])[0].get("date","")) if count else ""
+                      valid=data.get("timeframe")==expected and count>0 and any(isinstance(x,dict) and x.get("close") is not None and x.get("volume") is not None for x in data.get("data",[]))
+                  reason="PASS" if valid else "INVALID_OR_EMPTY"
+              except urllib.error.HTTPError as err:
+                  code=err.code;reason="HTTP_ERROR"
+              except Exception as err:
+                  reason=type(err).__name__
+              rows.append({"test":label,"status":reason,"http":code,"rows":count,"source_time":stamp})
+              print(f"{label}: {reason}; HTTP={code}; rows={count}; data_date={stamp}")
+              time.sleep(0.25)
+          report={"checked_at_taipei":datetime.datetime.now(ZoneInfo("Asia/Taipei")).isoformat(),"source":"Fugle MarketData REST v1.0","tests":rows,"all_pass":all(x["status"]=="PASS" for x in rows),"note":"Weekend quote/snapshot may be stale; real-time timeliness requires market-hour test."}
+          with open("fugle_api_acceptance.json","w") as f: json.dump(report,f,ensure_ascii=False,indent=2)
+          if not report["all_pass"]: sys.exit(1)
+          PY
+      - name: Upload acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fugle-api-acceptance
+          path: fugle_api_acceptance.json
+          if-no-files-found: warn
+          retention-days: 14
