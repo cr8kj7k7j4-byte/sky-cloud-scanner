@@ -18,10 +18,11 @@ class MarketQualityAuditTests(unittest.TestCase):
             official_codes(b"<html><table><tr><td>1101 TCC</td><td>ESVUFR</td></tr></table></html>","utf-8")
 
     def test_market_hour_quality_gate(self):
-        self.assertEqual(audit_status("PASS", True, "PASS"), "PASS_LIVE")
+        self.assertEqual(audit_status("PASS", True, "PASS"), "SNAPSHOT_FRESH_EXECUTED_TRADE_UNVERIFIED")
         self.assertEqual(audit_status("PASS", True, "REVIEW_REQUIRED"), "REVIEW_REQUIRED_LIVE")
         self.assertEqual(audit_status("PASS", False, "NOT_TESTED_OUTSIDE_MARKET_HOURS"), "COVERAGE_PASS_LIVE_PENDING")
         self.assertEqual(audit_status("INSUFFICIENT_DATA_OR_REVIEW", False, "NOT_TESTED_OUTSIDE_MARKET_HOURS"), "INSUFFICIENT_DATA_OR_REVIEW")
+        self.assertNotEqual(audit_status("PASS", True, "PASS"), "PASS_LIVE")
 
     def test_html_parser_does_not_merge_cells(self):
         p=Rows()
