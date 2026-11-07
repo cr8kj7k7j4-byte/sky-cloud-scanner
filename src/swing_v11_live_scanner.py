@@ -205,23 +205,15 @@ def fetch_candidate_live_quotes(frozen_pass: list[dict], universe: list[dict], n
         for s in frozen_pass
         if s["symbol"] in universe_by_symbol
     ]
-    quotes, warnings = fetch_mis_quotes(targets, batch_size=20, sleep_s=0.25)
-    quote_by_symbol = {
-        str(x.get("symbol")): x for x in quotes
-        if mis_executed_trade_row(x, now)
-    }
-    if len(quote_by_symbol) != len(quotes):
-        warnings.append(
-            "MIS_CANDIDATE_QUOTE_UNVERIFIED_DATE_OR_TRADE_TIME:"
-            f" withheld={len(quotes) - len(quote_by_symbol)}"
-        )
-    mis_count = len(quote_by_symbol)
+    # Frozen daily close signals remain unchanged. The execution overlay
+    # accepts only verified Fugle current-session executed trades.
+    warnings = []
+    quote_by_symbol = {}
+    mis_count = 0
     fugle_count = 0
 
     for target in targets:
         sym = str(target["symbol"])
-        if sym in quote_by_symbol:
-            continue
         try:
             q = get_quote(sym)
             last, trade_dt, trade_status = fugle_executed_trade(q, now)
@@ -247,7 +239,7 @@ def fetch_candidate_live_quotes(frozen_pass: list[dict], universe: list[dict], n
                 "ask": None,
                 "quote_time": trade_dt.isoformat(),
                 "quote_date": now.date().isoformat(),
-                "quote_source": "Fugle realtime fallback",
+                "quote_source": "Fugle MarketData realtime",
             }
             fugle_count += 1
         except Exception as exc:
