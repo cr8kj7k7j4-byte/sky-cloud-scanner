@@ -61,3 +61,20 @@ Acceptance 後需另做交易時間 freshness / listing coverage / response fiel
 (1) 以 GitHub Actions 手動執行既有 `Fugle Paid API Acceptance (Manual)`，讀取最近一次 Run 的每項欄位與 artifact；(2) 若權限或 schema 不符，修正既有驗收程式與介接，測試後提交獨立 PR；(3) 在驗收成功前暫不擴張 Alpha；(4) 新 Alpha 僅可在 W0 核准結構性預註冊後開始。
 
 **本次執行證據**：治理與現有程式已讀取；尚未觸發 Actions、未取得新購方案即時驗收結果，故狀態仍為 HOLD。
+
+## 2026-11-08 03:50 TPE — Actual paid API acceptance evidence
+
+- GitHub run: <https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/42408149213>
+- Trigger: **push**, not scheduled cron. Run conclusion: **success**; job `validate` success; artifact `fugle-api-acceptance` uploaded successfully (artifact ID 13588386919).
+- Runner log confirms all six HTTP 200 checks:
+  - TSE snapshot: PASS / 1,060 rows; payload date 2026-11-06 14:00.
+  - OTC snapshot: PASS / 892 rows; payload date 2026-11-06 14:00.
+  - TSE quote 2330: PASS / one quote; payload date 2026-11-06.
+  - OTC quote 6488: PASS / one quote; payload date 2026-11-06.
+  - Historical 2330 daily candles: PASS / 10 rows.
+  - Historical 2330 one-minute candles: PASS / 266 rows dated 2026-11-06.
+- Important distinction: snapshot counts **1,952 combined records** but not yet matched to same-date canonical TSE/OTC universe; do not assert certified % coverage.
+- This weekend test proves paid API entitlement and basic payload acceptance, **not** same-session executed quotes, valid fill, portfolio P&L, or positive expectancy.
+- `src/main.py` currently deliberately blocks using Fugle bulk snapshot to fill executed-price holes in live scanner; `src/realtime_quote_evidence.py` requires a verifiable last-execution time. Keep the fail-closed trading gate unchanged.
+- PR #303 merged (commit `37c5698`) to monitor basic six-point entitlement every 30 minutes via GitHub schedule `*/30 * * * *`, UTC and Taiwan minute :00/:30. The successful run above is push-triggered. Scheduled-trigger accuracy, notification receipt and all-market live executed-price coverage remain **UNVERIFIED**.
+- No auto-remediation agent has been granted write access; do not interpret repeated monitoring as self-healing software.
