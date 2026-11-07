@@ -36,3 +36,18 @@ Scope: **research-only**; no production trading changes, no orders, no Cloud Run
 - Run: `python -m research.three_model_research_signals --input research_data/verified_history_input.json --out research_output/three_models/research_observations.json`. **Do not create, fill, or present synthetic history input as real Fugle evidence.**
 - Offline tests: `python -m pytest -q tests/test_three_model_evidence_gate.py tests/test_three_model_research_signals.py`; CI runs on PR changes, not on a paid API schedule.
 - Current deployment blocker: no authenticated paid Fugle historical ingestion/readback, no persisted observation backend with de-duplication across runs, no Cloud Run source/revision, endpoint wiring or mobile end-to-end acceptance. The GitHub PR is **not** deployed, merged or training-complete.
+
+## 2026-11-08 addendum: actual Fugle source adapter and private observation ledger
+- `research/three_model_fugle_pipeline.py`: calls authenticated Fugle REST `/historical/candles/{symbol}` with separate 5-minute and daily timeframes; validates returned symbol, timeframe, date range, OHLCV and timezone, then calls the three-horizon **research-only** observer.
+- Historical data cannot be treated as live intraday execution. The workflow rejects an unfinished current trading day prior to 16:30 Asia/Taipei. It does **not** prove exact execution price or permissions for margin shorts.
+- `upload_immutable`: writes one JSON blob per valid observation to a **private** GCS bucket with generation-match=0, idempotent replay and fail-closed collision conflict. Stable observation identity is based on model + symbol + bar timestamp + source + direction, not transient run time; run `as_of` lives in the separate audit summary.
+- `.github/workflows/three-model-fugle-private-ledger.yml`: **manual-only**, no cron, no auto orders, no deployment. Requires GitHub secret `FUGLE_API_KEY`, GitHub secrets `GCP_WIF_PROVIDER` and `GCP_SERVICE_ACCOUNT`, GitHub variable `SKY_RESEARCH_GCS_BUCKET`; the private bucket must allow object create/read for the workflow identity. CI runs fixture tests without reading secrets. Private prices must not be uploaded as public Actions artifacts.
+- Workflow is available for manual default-branch dispatch **only after governance-approved merge**; its existence on a draft PR is not a successful paid API fetch or GCS write.
+- `research/three_model_mobile_projection.py`: sanitized **schema adapter**, no authenticated web route; explicitly keeps training unverified, execution prohibited and Cloud Run deployment false. Existing live Cloud Run app code/service revision is not identified here, so no real web deployment, browser check, mobile screenshot, or live signal claim is possible from this PR alone.
+
+### Acceptance order
+1. GitHub offline contract CI passes.
+2. Confirm IAM and a private storage bucket, inspect actual paid historical run output with 4 data requests for a two-symbol sample; validate `saved_records`, object existence/readback and duplicate rerun.
+3. Obtain the source repository, GCP project, Cloud Run service and current running revision for `tw-ai-mobile-816937852055.asia-east1.run.app` using authorized tooling. Build integration on a review branch; deploy a non-trading authenticated read-only API path first.
+4. Verify endpoint status, Chinese table fields, data/bar timestamps, absent price case, fault mode, unauthorized access, and mobile viewport before production traffic cutover.
+5. Backtesting/training and W0/P0-G go/no-go are separate. There is currently **no evidence of successful GCP deploy or three AI model training**.
