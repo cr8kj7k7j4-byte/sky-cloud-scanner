@@ -121,7 +121,18 @@ def run():
                 result["live_freshness"]="NOT_TESTED_OUTSIDE_MARKET_HOURS"
         except Exception as e: result["issues"].append("FUGLE_"+type(e).__name__)
         report["markets"][market]=result
-        print(market, "status",result["status"],"official",result["official_count"],"snapshot",result["snapshot_count"],"coverage",result["coverage_ratio"],"freshness",result.get("live_freshness"),"issues",result["issues"])
+        # Safe diagnostic counters only; never print API keys, request headers or raw quotes.
+        # A failing run must show which exact quality gate failed, not just REVIEW_REQUIRED.
+        counters = {
+            field: result.get(field)
+            for field in ("duplicate_count", "missing_price_count", "missing_volume_count",
+                          "type_mismatch_count", "missing_count", "response_date",
+                          "response_age_seconds", "timestamp_count")
+        }
+        print(market, "status",result["status"],"official",result["official_count"],
+              "snapshot",result["snapshot_count"],"coverage",result["coverage_ratio"],
+              "freshness",result.get("live_freshness"),"counters",counters,
+              "issues",result["issues"])
     report["coverage_status"]="PASS" if all(x["status"]=="PASS" for x in report["markets"].values()) else "INSUFFICIENT_DATA_OR_REVIEW"
     in_session=now.weekday()<5 and dt.time(9,5)<=now.time()<=dt.time(13,25)
     report["live_freshness_status"]=("PASS" if all(x.get("live_freshness")=="PASS" for x in report["markets"].values()) else "REVIEW_REQUIRED") if in_session else "NOT_TESTED_OUTSIDE_MARKET_HOURS"
