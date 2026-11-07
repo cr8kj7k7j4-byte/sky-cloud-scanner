@@ -1,9 +1,20 @@
-name: Fugle Paid API Acceptance (Manual)
+name: Fugle Paid API Acceptance (30m Monitor)
 on:
   workflow_dispatch:
+  schedule:
+    # UTC :00/:30 = Asia/Taipei :00/:30, including weekends. GitHub may delay schedule.
+    - cron: "*/30 * * * *"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/fugle-paid-api-acceptance.yml"
 
 permissions:
   contents: read
+
+concurrency:
+  group: fugle-paid-api-acceptance
+  cancel-in-progress: false
 
 jobs:
   validate:
@@ -71,3 +82,27 @@ jobs:
           path: fugle_api_acceptance.json
           if-no-files-found: warn
           retention-days: 14
+      - name: Notify Telegram when Fugle verification fails
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        shell: bash
+        run: |
+          if [ -z "${TELEGRAM_BOT_TOKEN:-}" ] || [ -z "${TELEGRAM_CHAT_ID:-}" ]; then
+            echo "Telegram unavailable; failed workflow and evidence artifact remain available."
+            exit 0
+          fi
+          python3 - <<'PY'
+          import json, os, urllib.request
+          run_url = "https://github.com/" + os.environ["GITHUB_REPOSITORY"] + "/actions/runs/" + os.environ["GITHUB_RUN_ID"]
+          msg = "Sky 富果 API 驗收未通過（不代表可交易）：\n" + run_url
+          data = json.dumps({"chat_id": os.environ["TELEGRAM_CHAT_ID"], "text": msg, "disable_web_page_preview": True}).encode()
+          req = urllib.request.Request("https://api.telegram.org/bot" + os.environ["TELEGRAM_BOT_TOKEN"] + "/sendMessage",
+                                       data=data, headers={"Content-Type": "application/json"}, method="POST")
+          try:
+              with urllib.request.urlopen(req, timeout=15) as response:
+                  print("telegram_send_status:", response.status)
+          except Exception as e:
+              print("telegram_notification_failed:", type(e).__name__)
+          PY
