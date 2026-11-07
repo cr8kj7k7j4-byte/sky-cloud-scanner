@@ -57,7 +57,9 @@ class FullMarketQualityIntegrationTests(unittest.TestCase):
             self.assertEqual(evidence["markets"][market]["official_count"],105)
             self.assertEqual(evidence["markets"][market]["snapshot_count"],105)
             self.assertEqual(evidence["markets"][market]["coverage_ratio"],1.0)
-        self.assertIn(evidence["status"],("PASS_LIVE","COVERAGE_PASS_LIVE_PENDING"))
+        self.assertIn(evidence["status"],("SNAPSHOT_FRESH_EXECUTED_TRADE_UNVERIFIED","COVERAGE_PASS_LIVE_PENDING"))
+        self.assertIs(evidence["executed_trade_certified"],False)
+        self.assertIs(evidence["strategy_trade_authorized"],False)
 
     def test_unverifiable_official_universe_fails_closed(self):
         evidence=self.execute(failed=True)
