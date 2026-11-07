@@ -55,3 +55,22 @@ def test_invalid_identity_and_mismatched_outcome_are_rejected():
     assert got["reasons"]["MISSING_RECORD_ID"] == 1
     assert got["reasons"]["OUTCOME_DECISION_ID_MISMATCH"] == 1
     assert got["eligible_strategy_trades"] == 0
+
+
+def test_wrong_outcome_observation_link_is_rejected():
+    corrupted = {**ROW, "outcome": {
+        "source_record_id": "not-obs-1",
+        "observation_record_id": "obs-1",
+        "outcome_type": "SHADOW_EVIDENCE",
+    }}
+    got = reconcile_decision_outcomes([corrupted])
+    assert got["reasons"]["OUTCOME_SOURCE_RECORD_ID_MISMATCH"] == 1
+    assert got["ranking_observations"] == 0
+    corrupted2 = {**ROW, "outcome": {
+        "source_record_id": "obs-1",
+        "observation_record_id": "other",
+        "outcome_type": "SHADOW_EVIDENCE",
+    }}
+    got2 = reconcile_decision_outcomes([corrupted2])
+    assert got2["reasons"]["OUTCOME_OBSERVATION_ID_MISMATCH"] == 1
+    assert got2["ranking_observations"] == 0
