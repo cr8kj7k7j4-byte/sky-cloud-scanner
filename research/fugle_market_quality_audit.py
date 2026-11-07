@@ -48,6 +48,14 @@ def official_codes(raw, charset):
     return codes
 
 
+def audit_status(coverage_status, in_session, live_freshness_status):
+    if coverage_status != "PASS":
+        return "INSUFFICIENT_DATA_OR_REVIEW"
+    if not in_session:
+        return "COVERAGE_PASS_LIVE_PENDING"
+    return "PASS_LIVE" if live_freshness_status == "PASS" else "REVIEW_REQUIRED_LIVE"
+
+
 def run():
     now=dt.datetime.now(TZ)
     report={"checked_at_taipei":now.isoformat(),"source":"Fugle / TWSE-hosted ISIN","classification":"READ_ONLY_RESEARCH_NO_TRADING","markets":{},"status":"INSUFFICIENT_DATA"}
@@ -117,14 +125,7 @@ def run():
     report["coverage_status"]="PASS" if all(x["status"]=="PASS" for x in report["markets"].values()) else "INSUFFICIENT_DATA_OR_REVIEW"
     in_session=now.weekday()<5 and dt.time(9,5)<=now.time()<=dt.time(13,25)
     report["live_freshness_status"]=("PASS" if all(x.get("live_freshness")=="PASS" for x in report["markets"].values()) else "REVIEW_REQUIRED") if in_session else "NOT_TESTED_OUTSIDE_MARKET_HOURS"
-    if report["coverage_status"] != "PASS":
-        report["status"]="INSUFFICIENT_DATA_OR_REVIEW"
-    elif in_session and report["live_freshness_status"] == "PASS":
-        report["status"]="PASS_LIVE"
-    elif in_session:
-        report["status"]="REVIEW_REQUIRED_LIVE"
-    else:
-        report["status"]="COVERAGE_PASS_LIVE_PENDING"
+    report["status"]=audit_status(report["coverage_status"], in_session, report["live_freshness_status"])
     with open("fugle_market_quality_audit.json","w") as f: json.dump(report,f,indent=2,ensure_ascii=False)
     print("OVERALL",report["status"])
     # Quality failures fail the workflow; outside market hours must not be misreported as live pass.
