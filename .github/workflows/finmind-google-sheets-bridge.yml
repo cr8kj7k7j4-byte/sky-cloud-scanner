@@ -1,0 +1,87 @@
+name: Sky FinMind to Google Sheets (manual, research only)
+
+on:
+  workflow_dispatch:
+    inputs:
+      symbol:
+        description: "Stock code"
+        required: true
+        default: "6770"
+      start_date:
+        required: true
+        default: "2026-10-01"
+      end_date:
+        required: true
+        default: "2026-11-06"
+  push:
+    branches:
+      - integration/google-sky-data-bridge-20261108
+    paths:
+      - .github/workflows/finmind-google-sheets-bridge.yml
+      - research/finmind_to_google_sheets.py
+      - tests/test_finmind_to_google_sheets.py
+      - research/finmind_query.py
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate publisher contract
+        run: python -m unittest discover -s tests -p test_finmind_to_google_sheets.py
+
+  sync:
+    if: github.event_name == 'workflow_dispatch'
+    needs: contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Verify configuration before running data query
+        env:
+          PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+          SERVICE_ACCOUNT: ${{ vars.GCP_SHEETS_SERVICE_ACCOUNT }}
+          SHEET_ID: ${{ vars.SKY_GOOGLE_SHEET_ID }}
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+        run: |
+          test -n "$PROVIDER" || { echo "Missing GCP_WIF_PROVIDER"; exit 1; }
+          test -n "$SERVICE_ACCOUNT" || { echo "Missing GCP_SHEETS_SERVICE_ACCOUNT"; exit 1; }
+          test -n "$SHEET_ID" || { echo "Missing SKY_GOOGLE_SHEET_ID"; exit 1; }
+          test -n "$FINMIND_TOKEN" || { echo "Missing FINMIND_TOKEN"; exit 1; }
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SHEETS_SERVICE_ACCOUNT }}
+      - name: Install auth dependency
+        run: python -m pip install google-auth==2.38.0 requests==2.32.3
+      - name: Read-only FinMind query
+        env:
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+          SYMBOL: ${{ inputs.symbol }}
+          START_DATE: ${{ inputs.start_date }}
+          END_DATE: ${{ inputs.end_date }}
+        run: python research/finmind_query.py --symbol "$SYMBOL" --start "$START_DATE" --end "$END_DATE"
+      - name: Publish to Google Sheets
+        env:
+          SHEET_ID: ${{ vars.SKY_GOOGLE_SHEET_ID }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+        run: python research/finmind_to_google_sheets.py --sheet-id "$SHEET_ID" --run-id "$GITHUB_RUN_ID"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: finmind-google-bridge-input
+          path: research_output/finmind_query_result.json
+          retention-days: 7
+          if-no-files-found: warn
