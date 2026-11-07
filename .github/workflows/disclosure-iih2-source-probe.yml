@@ -1,0 +1,31 @@
+name: Disclosure IIH2 Source Discovery
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'research/disclosure_source_discovery.py'
+      - 'tests/test_disclosure_source_discovery.py'
+      - '.github/workflows/disclosure-iih2-source-probe.yml'
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test official-page source classification
+        run: python -m unittest discover -s tests -p test_disclosure_source_discovery.py -v
+      - name: Probe TWSE IIH2 official issuer/market webpages
+        run: python -m research.disclosure_source_discovery --out research_output/disclosure_source_discovery.json
+      - name: Assert source remains insufficient
+        run: |
+          python -c "import json; a=json.load(open('research_output/disclosure_source_discovery.json')); assert a['status']=='INSUFFICIENT_DATA' and not a['production_signal'] and all(not x['source_timestamps_qualified'] for x in a['sources'].values()); print('SOURCE_DISCOVERY_FAIL_CLOSED')"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: disclosure-iih2-probe
+          path: research_output/disclosure_source_discovery.json
+          retention-days: 30
