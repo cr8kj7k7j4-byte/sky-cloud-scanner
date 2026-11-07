@@ -1,7 +1,7 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from research.fugle_snapshot_coverage_audit import audit_snapshot
+from research.fugle_snapshot_coverage_audit import audit_snapshot, official_universe_verified
 
 
 NOW = datetime(2026, 11, 9, 9, 25, tzinfo=ZoneInfo("Asia/Taipei"))
@@ -58,3 +58,11 @@ def test_same_day_complete_universe_membership_pass_still_no_trade():
     assert got["symbol_coverage_gate"] == "PASS_MEMBERSHIP_ONLY"
     assert got["market_data_gate"] == "NO_TRADE"
     assert got["whole_market_live_certified"] is False
+
+
+def test_official_universe_incomplete_never_qualifies():
+    status = {"twse": 2, "tpex": 1, "warnings": []}
+    assert official_universe_verified(UNIVERSE, status) is True
+    assert official_universe_verified(UNIVERSE, {**status, "warnings": ["TWSE failed"]}) is False
+    assert official_universe_verified(UNIVERSE, {**status, "twse": 3}) is False
+    assert official_universe_verified(UNIVERSE, {**status, "tpex": 0}) is False
