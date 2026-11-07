@@ -83,6 +83,16 @@ def main():
     report["official_counts"] = {"twse": official_status["twse"], "tpex": official_status["tpex"]}
     report["official_warning_count"] = len(official_status.get("warnings") or [])
     report["provider_error_types"] = errors
+    official_count_match = (
+        sum(1 for row in universe if row.get("exchange") == "TWSE") == official_status.get("twse")
+        and sum(1 for row in universe if row.get("exchange") == "TPEx") == official_status.get("tpex")
+    )
+    if report["official_warning_count"] or not official_count_match:
+        report["symbol_coverage_gate"] = "NOT_EVALUABLE_OFFICIAL_UNIVERSE"
+        report["warnings"].append("OFFICIAL_UNIVERSE_UNVERIFIED")
+        report["status"] = "INSUFFICIENT_DATA"
+        report["whole_market_live_certified"] = False
+        report["market_data_gate"] = "NO_TRADE"
     dst = Path("output/provider_readiness/fugle_snapshot_coverage.json")
     dst.parent.mkdir(parents=True, exist_ok=True)
     dst.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
