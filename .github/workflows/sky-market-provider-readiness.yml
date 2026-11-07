@@ -65,6 +65,7 @@ jobs:
               try:
                   data = json.loads(path.read_text(encoding="utf-8"))
                   lines += [f"檢查時間：{data.get('checked_at_tpe','待確認')}",
+                            f"代號涵蓋率門檻：{data.get('symbol_coverage_gate','待確認')}（不是即時成交價驗收）",
                             f"稽核狀態：{data.get('status','待確認')}", "",
                             "| 市場 | 官方母池 | 符合代號 | 代號涵蓋率 | 快照狀態 |",
                             "|---|---:|---:|---:|---|"]
