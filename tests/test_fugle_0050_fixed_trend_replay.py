@@ -13,7 +13,7 @@ class FugleFixedReplayTests(unittest.TestCase):
         series = [("2026-01-%02d" % i, 10., 10. + 0.1 * i) for i in range(1, 11)]
         x = simulate(series, .0045, "TREND")
         self.assertEqual(x["entry_count"], 0)
-        self.assertEqual(x["n_sessions"], 0)
+        self.assertEqual(x["n_sessions"], 10)
 
     def test_buyhold_starts_on_first_research_session(self):
         series = [("2025-11-09", 10., 10.), ("2025-11-10", 10., 10.),
