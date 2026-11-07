@@ -66,6 +66,17 @@ def audit_snapshot(universe, snapshots, asof):
     return result
 
 
+def official_universe_verified(universe, official_status):
+    if official_status.get("warnings"):
+        return False
+    return (
+        sum(1 for row in universe if row.get("exchange") == "TWSE") == official_status.get("twse")
+        and sum(1 for row in universe if row.get("exchange") == "TPEx") == official_status.get("tpex")
+        and int(official_status.get("twse") or 0) > 0
+        and int(official_status.get("tpex") or 0) > 0
+    )
+
+
 def main():
     from src.fugle import snapshot_quotes
     from src.official import load_official_universe
@@ -83,11 +94,7 @@ def main():
     report["official_counts"] = {"twse": official_status["twse"], "tpex": official_status["tpex"]}
     report["official_warning_count"] = len(official_status.get("warnings") or [])
     report["provider_error_types"] = errors
-    official_count_match = (
-        sum(1 for row in universe if row.get("exchange") == "TWSE") == official_status.get("twse")
-        and sum(1 for row in universe if row.get("exchange") == "TPEx") == official_status.get("tpex")
-    )
-    if report["official_warning_count"] or not official_count_match:
+    if not official_universe_verified(universe, official_status):
         report["symbol_coverage_gate"] = "NOT_EVALUABLE_OFFICIAL_UNIVERSE"
         report["warnings"].append("OFFICIAL_UNIVERSE_UNVERIFIED")
         report["status"] = "INSUFFICIENT_DATA"
