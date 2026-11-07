@@ -73,7 +73,7 @@ def evaluate(model, symbol, name, records, source, as_of):
             targets = [round(price*(1+sign*pct*k/100), 4) for k in (2, 3)]
             rr = {"primary_0_45pct": round((2*pct-0.45)/(pct+0.45), 4),
                   "stress_0_65pct": round(stress_rr, 4)}
-    identity = [model, symbol, records[-1]["timestamp"], source, as_of.isoformat(), direction]
+    identity = [model, symbol, records[-1]["timestamp"], source, direction]
     signal_id = hashlib.sha256(json.dumps(identity).encode()).hexdigest()[:24]
     return {"signal_id": signal_id, "model_id": model, "symbol": symbol, "stock_name": name,
             "data_source": source, "as_of": as_of.isoformat(), "bar_time": records[-1]["timestamp"],
