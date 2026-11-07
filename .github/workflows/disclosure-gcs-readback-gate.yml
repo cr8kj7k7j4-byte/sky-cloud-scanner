@@ -6,6 +6,8 @@ on:
       - 'tests/test_disclosure_gcs_readback.py'
       - 'research/gcs_crossday_ledger.py'
       - 'tests/test_gcs_crossday_ledger.py'
+      - 'research/gcs_evidence_health.py'
+      - 'tests/test_gcs_evidence_health.py'
       - '.github/workflows/disclosure-gcs-readback-gate.yml'
       - 'docs/DISCLOSURE_GCS_PERSISTENCE_GATE_20261108.md'
   workflow_dispatch:
@@ -24,6 +26,8 @@ jobs:
         run: python -m unittest discover -s tests -p test_disclosure_gcs_readback.py -v
       - name: Verify cross-day ledger dedup and immutable checkpoint
         run: python -m unittest discover -s tests -p test_gcs_crossday_ledger.py -v
+      - name: Verify evidence health and governance summary
+        run: python -m unittest discover -s tests -p test_gcs_evidence_health.py -v
   store:
     if: github.event_name == 'workflow_dispatch'
     needs: unit
@@ -65,6 +69,13 @@ jobs:
       - name: Preserve event ledger provenance and block trade promotion
         run: |
           python -c "import json; r=json.load(open('research_output/gcs_crossday_ledger_receipt.json')); assert r['status']=='GCS_CROSSDAY_LEDGER_READBACK_PASS' and r['source_batches']>=1 and r['eligible_trade_events']==0 and not r['production_signal']; print('CROSSDAY_LEDGER_PROVENANCE_GATE_PASS')"
+      - name: Publish Chinese GCS evidence health summary
+        run: |
+          python -m research.gcs_evidence_health \
+            --raw research_output/gcs_readback_receipt.json \
+            --ledger research_output/gcs_crossday_ledger_receipt.json \
+            --out research_output/gcs_evidence_health.json \
+            --summary "$GITHUB_STEP_SUMMARY"
       - name: Save diagnostics and bounded evidence on both success and failure
         if: always()
         uses: actions/upload-artifact@v4
@@ -73,3 +84,41 @@ jobs:
           path: research_output/
           retention-days: 30
           if-no-files-found: warn
+
+  notify_manual_failure:
+    if: ${{ always() && github.event_name == 'workflow_dispatch' && (needs.unit.result == 'failure' || needs.store.result == 'failure') }}
+    needs: [unit, store]
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      SOURCE_RUN: ${{ github.run_id }}
+      SOURCE_REPO: ${{ github.repository }}
+    steps:
+      - name: Notify failed GCS evidence capture via existing Telegram integration
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os, urllib.parse, urllib.request
+          token=os.getenv("TELEGRAM_BOT_TOKEN","")
+          chat=os.getenv("TELEGRAM_CHAT_ID","")
+          if not token or not chat:
+              print("GCS_ALERT_CHANNEL_NOT_CONFIGURED; failure remains visible on GitHub")
+          else:
+              url="https://github.com/"+os.environ["SOURCE_REPO"]+"/actions/runs/"+os.environ["SOURCE_RUN"]
+              msg="【Sky GCS證據異常】\\n人工採集／跨日帳本失敗\\n"+url+"\\n停止將本次視為合格證據。"
+              data=urllib.parse.urlencode({"chat_id":chat,"text":msg}).encode()
+              request=urllib.request.Request("https://api.telegram.org/bot"+token+"/sendMessage",
+                  data=data,method="POST")
+              try:
+                  with urllib.request.urlopen(request,timeout=12) as response:
+                      body=json.loads(response.read().decode())
+                  if body.get("ok") is not True:
+                      raise ValueError("Telegram non-ok response")
+                  print("GCS_FAILURE_ALERT_SENT")
+              except Exception as exc:
+                  raise SystemExit("GCS_ALERT_DELIVERY_FAILED: "+type(exc).__name__)
+          PY
