@@ -5,7 +5,7 @@
   "coverage": "TWSE_ONLY_TPEX_NOT_VERIFIED",
   "margin_data_date": "2026-11-06",
   "previous_margin_data_date": "2026-11-05",
-  "observed_at": "2026-11-08T07:15:16.312274+08:00",
+  "observed_at": "2026-11-08T07:48:35.845186+08:00",
   "sort_effective": "margin_reduction",
   "total": 293,
   "rows": [
