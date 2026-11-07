@@ -75,3 +75,29 @@ def test_missing_storage_blocked_before_api_calls(tmp_path):
     with pytest.raises(ValueError,match="invalid_symbol_count"):
         run([],date(2026,10,31),"sky-private-research","three-model/v1",
             "fake",Storage(),tmp_path/"out.json")
+
+def test_rejected_decisions_are_stored_and_deduplicated():
+    store=Storage()
+    rejected={"observations":[{"signal_id":None,"model_id":"next_day",
+        "symbol":"1101","direction":"NO_TRADE","rejection_reasons":["insufficient_bars"],
+        "production_signal":False,"order_authorized":False}],
+        "requested_end_date":"2026-11-06"}
+    first=upload_immutable(store,"sky-private-research","three-model/v1",rejected)
+    second=upload_immutable(store,"sky-private-research","three-model/v1",rejected)
+    assert len(first)==len(second)==1
+    assert first[0]["ledger_record_id"].startswith("rejected-")
+    assert first[0]["signal_id"] is None
+    assert second[0]["status"]=="ALREADY_EXISTS_IDENTICAL"
+    assert len(store.items)==1
+    assert json.loads(next(iter(store.items.values())))["eligible_strategy_trade"] is not True
+
+def test_rejected_decisions_from_distinct_dates_not_collapsed():
+    store=Storage()
+    rejected={"observations":[{"signal_id":None,"model_id":"next_day",
+        "symbol":"1101","direction":"NO_TRADE","rejection_reasons":["insufficient_bars"],
+        "production_signal":False,"order_authorized":False}],
+        "requested_end_date":"2026-11-06"}
+    upload_immutable(store,"sky-private-research","three-model/v1",rejected)
+    rejected["requested_end_date"]="2026-11-05"
+    upload_immutable(store,"sky-private-research","three-model/v1",rejected)
+    assert len(store.items)==2
