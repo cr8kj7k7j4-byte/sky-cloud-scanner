@@ -1,0 +1,42 @@
+name: Disclosure Provisional Event Ledger Research
+on:
+  pull_request:
+    paths:
+      - 'research/forward_event_ledger.py'
+      - 'tests/test_forward_event_ledger.py'
+      - 'research/fugle_event_backtest_gate.py'
+      - 'tests/test_fugle_event_backtest_gate.py'
+      - '.github/workflows/disclosure-provisional-ledger.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ledger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate source hashes and no historical PIT promotion
+        run: python -m unittest discover -s tests -p test_forward_event_ledger.py -v
+      - name: Verify revenue-to-Fugle replay refuses unverifiable filing times
+        run: python -m unittest discover -s tests -p test_fugle_event_backtest_gate.py -v
+      - name: Capture four official source snapshots for provisional ledger
+        run: python -m research.forward_disclosure_evidence_capture --out-dir research_output/disclosure_forward_snapshot
+      - name: Generate evidence-linked provisional event ledger
+        run: python -m research.forward_event_ledger --folder research_output/disclosure_forward_snapshot --out research_output/disclosure_provisional_events.json
+      - name: Audit event-to-Fugle replay eligibility (no trades)
+        run: python -m research.fugle_event_backtest_gate --ledger research_output/disclosure_provisional_events.json --out research_output/fugle_event_replay_readiness.json
+      - name: Reject strategy replay without verified original publication
+        run: |
+          python -c "import json; e=json.load(open('research_output/disclosure_provisional_events.json')); assert e['eligible_trade_events']==0 and not e['historical_pit_certified'] and not e['production_signal']; r=json.load(open('research_output/fugle_event_replay_readiness.json')); assert r['revenue_event_evidence_candidates']==0 and r['event_backtest_trades_executed']==0 and not r['production_signal']; print('NO_PIT_NO_TRADE_GATE_PASS')"
+      - name: Preserve diagnostics and ledger even if sources fail
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: disclosure-provisional-event-ledger
+          path: research_output/
+          retention-days: 30
+          if-no-files-found: warn
