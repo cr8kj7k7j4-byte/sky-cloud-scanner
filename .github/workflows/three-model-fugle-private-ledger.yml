@@ -1,0 +1,83 @@
+name: Three Model Fugle Historical Private Ledger (Manual Research)
+on:
+  workflow_dispatch:
+    inputs:
+      symbols:
+        description: 'Comma-separated 4 or 5 digit research symbols; max 10'
+        required: true
+        default: '1101,8088'
+      end_date:
+        description: 'Latest completed historical date (YYYY-MM-DD; avoid today before 16:30 Taipei)'
+        required: true
+        default: '2026-11-06'
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: three-model-fugle-private-ledger
+  cancel-in-progress: false
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run offline contracts before accessing paid API
+        run: python -m pip install pytest && PYTHONPATH=. python -m pytest -q tests/test_three_model_evidence_gate.py tests/test_three_model_research_signals.py tests/test_three_model_fugle_pipeline.py
+      - name: Verify credentials are configured without revealing values
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+          GCP_WIF_PROVIDER: ${{ secrets.GCP_WIF_PROVIDER }}
+          GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          SKY_RESEARCH_GCS_BUCKET: ${{ vars.SKY_RESEARCH_GCS_BUCKET }}
+        run: |
+          python - <<'PY'
+          import os,sys
+          names=("FUGLE_API_KEY","GCP_WIF_PROVIDER","GCP_SERVICE_ACCOUNT","SKY_RESEARCH_GCS_BUCKET")
+          missing=[x for x in names if not os.getenv(x)]
+          print("Private Fugle/GCS prerequisites:", "READY" if not missing else "MISSING_CONFIGURATION:"+",".join(missing))
+          sys.exit(1 if missing else 0)
+          PY
+      - name: Authenticate GCP with Workload Identity Federation
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      - name: Install private GCS client
+        run: python -m pip install google-cloud-storage
+      - name: Query actual paid Fugle candles and write create-only private ledger
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+          SKY_RESEARCH_GCS_BUCKET: ${{ vars.SKY_RESEARCH_GCS_BUCKET }}
+          INPUT_SYMBOLS: ${{ inputs.symbols }}
+          INPUT_END_DATE: ${{ inputs.end_date }}
+        shell: bash
+        run: |
+          PYTHONPATH=. python -m research.three_model_fugle_pipeline --symbols "$INPUT_SYMBOLS" --end "$INPUT_END_DATE"
+      - name: Publish sanitized research audit only
+        if: always()
+        shell: bash
+        run: |
+          if [ -f output/three_model_fugle_evidence_summary.json ]; then
+            python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+          r=json.loads(Path("output/three_model_fugle_evidence_summary.json").read_text())
+          print("## Three-Model Fugle Historical Research Audit")
+          print("Private saved records:", r["saved_records"])
+          print("Historical only; trained AI: NO; production trades: NO; mobile deployment: NOT VERIFIED")
+          PY
+          fi
+      - name: Upload sanitized audit, never raw paid market data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: three-model-fugle-sanitized-audit-${{ github.run_id }}
+          path: output/three_model_fugle_evidence_summary.json
+          retention-days: 30
+          if-no-files-found: warn
