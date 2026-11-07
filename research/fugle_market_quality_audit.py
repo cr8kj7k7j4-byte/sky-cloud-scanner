@@ -49,16 +49,22 @@ def official_codes(raw, charset):
 
 
 def audit_status(coverage_status, in_session, live_freshness_status):
+    """Snapshot freshness does not certify a current executed trade.
+
+    Fugle Snapshot lastUpdated is snapshot time, not last execution time;
+    a recent snapshot cannot authorize live trading decisions.
+    """
     if coverage_status != "PASS":
         return "INSUFFICIENT_DATA_OR_REVIEW"
     if not in_session:
         return "COVERAGE_PASS_LIVE_PENDING"
-    return "PASS_LIVE" if live_freshness_status == "PASS" else "REVIEW_REQUIRED_LIVE"
+    return ("SNAPSHOT_FRESH_EXECUTED_TRADE_UNVERIFIED"
+            if live_freshness_status == "PASS" else "REVIEW_REQUIRED_LIVE")
 
 
 def run():
     now=dt.datetime.now(TZ)
-    report={"checked_at_taipei":now.isoformat(),"source":"Fugle / TWSE-hosted ISIN","classification":"READ_ONLY_RESEARCH_NO_TRADING","markets":{},"status":"INSUFFICIENT_DATA"}
+    report={"checked_at_taipei":now.isoformat(),"source":"Fugle / TWSE-hosted ISIN","classification":"READ_ONLY_RESEARCH_NO_TRADING","executed_trade_certified":False,"strategy_trade_authorized":False,"markets":{},"status":"INSUFFICIENT_DATA"}
     for market,url in SOURCES.items():
         result={"status":"INSUFFICIENT_DATA","official_count":None,"snapshot_count":None,"covered":None,"coverage_ratio":None,"missing_count":None,"issues":[]}
         official=None; quotes=None
@@ -139,8 +145,9 @@ def run():
     report["status"]=audit_status(report["coverage_status"], in_session, report["live_freshness_status"])
     with open("fugle_market_quality_audit.json","w") as f: json.dump(report,f,indent=2,ensure_ascii=False)
     print("OVERALL",report["status"])
-    # Quality failures fail the workflow; outside market hours must not be misreported as live pass.
-    if report["status"] not in ("PASS_LIVE", "COVERAGE_PASS_LIVE_PENDING"):
+    # Exit success only for fresh or historical snapshot-scope audit.
+    # Neither path certifies executed trades or authorizes signals.
+    if report["status"] not in ("SNAPSHOT_FRESH_EXECUTED_TRADE_UNVERIFIED", "COVERAGE_PASS_LIVE_PENDING"):
         sys.exit(1)
 
 
