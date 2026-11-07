@@ -1,0 +1,32 @@
+name: Six Model Evidence Preflight (research only)
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'research/six_model_preflight.py'
+      - 'tests/test_six_model_preflight.py'
+      - '.github/workflows/six-model-preflight.yml'
+permissions:
+  contents: read
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test evidence guardrails
+        run: python -m unittest tests/test_six_model_preflight.py -v
+      - name: Produce transparent preflight report
+        run: python -m research.six_model_preflight --out research_output/six_model_preflight.json
+      - name: Upload preflight evidence (not a historical backtest)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: six-model-preflight-${{ github.run_id }}
+          path: research_output/six_model_preflight.json
+          if-no-files-found: error
+          retention-days: 30
