@@ -40,6 +40,13 @@ def load_shadow_records(root):
             dedup[key] = row
             continue
 
+        # One observed symbol/time/run cannot map to two different canonical
+        # P0-L record IDs. Do not silently choose the happier outcome.
+        previous_id = str(current.get("record_id") or "").strip()
+        incoming_id = str(row.get("record_id") or "").strip()
+        if previous_id and incoming_id and previous_id != incoming_id:
+            raise ValueError("CONFLICTING_P0L_RECORD_ID_FOR_SAME_OBSERVATION")
+
         current_outcome = dict(current.get("outcome") or {})
         new_outcome = dict(row.get("outcome") or {})
         current_rank = dict(current_outcome.get("ranking") or {})
@@ -109,6 +116,7 @@ def build_w4_report_sections(dashboard):
             "unique_record_ids": (dashboard.get("decision_outcome_reconciliation") or {}).get("unique_record_ids", 0),
             "duplicate_rows": (dashboard.get("decision_outcome_reconciliation") or {}).get("duplicate_rows", 0),
             "conflicting_duplicates": (dashboard.get("decision_outcome_reconciliation") or {}).get("conflicting_duplicates", 0),
+            "missing_record_ids": ((dashboard.get("decision_outcome_reconciliation") or {}).get("reasons") or {}).get("MISSING_RECORD_ID", 0),
             "eligible_strategy_trades": 0,
             "note": "Ranking observations and unapproved decisions never count as verified trades.",
         },
