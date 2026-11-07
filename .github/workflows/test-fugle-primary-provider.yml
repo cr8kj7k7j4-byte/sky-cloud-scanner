@@ -1,0 +1,34 @@
+name: Fugle Primary Quote Provider Tests
+
+on:
+  pull_request:
+    paths:
+      - "src/quote_provider.py"
+      - "src/main.py"
+      - "tests/test_fugle_primary_quote_provider.py"
+      - ".github/workflows/test-fugle-primary-provider.yml"
+  push:
+    branches: [main]
+    paths:
+      - "src/quote_provider.py"
+      - "src/main.py"
+      - "tests/test_fugle_primary_quote_provider.py"
+      - ".github/workflows/test-fugle-primary-provider.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install runtime and pytest
+        run: pip install -r requirements.txt pytest
+      - name: Verify strict executed-price provenance and fail-closed fallback
+        run: PYTHONPATH=. python -m pytest -q tests/test_fugle_primary_quote_provider.py tests/test_full_market_executed_quote_gate.py tests/test_realtime_market_contract.py
