@@ -39,4 +39,13 @@ assert.equal(evalJS("validFeed({as_of:'2026-11-07T09:05:00+08:00',source:'test',
 assert.equal(node("decision").textContent,"");
 assert.equal(html.includes('id="decision">NO TRADE'),true);
 assert.equal(html.includes("沒有自動下單功能"),true);
+// A user-imported source and claimed coverage are never server-authenticated.
+assert.equal(html.includes('el("feedBadge").className="tag warn";'),true,
+  "Imported feed must not display a green/verified status");
+assert.equal(html.includes('未驗證（匯入宣稱：'),true,
+  "Claimed market coverage must be visibly marked unverified");
+assert.equal(html.includes('id="tradeBadge">交易訊號停用'),true,
+  "Real trading signals remain disabled");
+assert.equal(html.includes('id="decision">NO TRADE'),true,
+  "Unvalidated model output must fail closed");
 console.log("TRIDENT behavioral smoke tests passed");
