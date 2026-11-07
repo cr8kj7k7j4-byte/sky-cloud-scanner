@@ -1,0 +1,56 @@
+name: FinMind research query (read only)
+
+on:
+  workflow_dispatch:
+    inputs:
+      symbol:
+        description: "Stock ID (4-6 digits)"
+        required: true
+        default: "2330"
+      start_date:
+        description: "YYYY-MM-DD"
+        required: true
+        default: "2026-10-01"
+      end_date:
+        description: "YYYY-MM-DD"
+        required: true
+        default: "2026-11-06"
+  push:
+    branches:
+      - integration/finmind-api-acceptance-20261108
+    paths:
+      - .github/workflows/finmind-research-query.yml
+      - research/finmind_query.py
+
+permissions:
+  contents: read
+
+jobs:
+  query:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Query FinMind with limited historical range
+        id: query
+        continue-on-error: true
+        env:
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+          SYMBOL: ${{ github.event.inputs.symbol || '2330' }}
+          START_DATE: ${{ github.event.inputs.start_date || '2026-10-01' }}
+          END_DATE: ${{ github.event.inputs.end_date || '2026-11-06' }}
+        run: python research/finmind_query.py --symbol "$SYMBOL" --start "$START_DATE" --end "$END_DATE"
+      - name: Upload read-only result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: finmind-research-query
+          path: research_output/finmind_query_result.json
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Enforce query status
+        if: steps.query.outcome != 'success'
+        run: exit 1
