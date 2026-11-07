@@ -1,6 +1,6 @@
 {
   "schema": "SKY_FUGLE_2026_HISTORICAL_ENTITLEMENT_PROBE_V1_1",
-  "generated_at_utc": "2026-11-07T23:30:31.137098+00:00",
+  "generated_at_utc": "2026-11-07T23:32:53.920940+00:00",
   "requested_period": {
     "start": "2026-01-01",
     "end": "2026-11-07"
@@ -22,7 +22,8 @@
         "distinct_session_dates": 203,
         "daily_min_bars": 54,
         "daily_max_bars": 54,
-        "weekday_sessions_below_55_bars": 203,
+        "observed_max_bars_not_expected_slots": 54,
+        "sessions_below_observed_max_bars": 0,
         "invalid_counts": {},
         "potential_session_slots_not_verified": true,
         "official_holiday_calendar_reconciled": false,
@@ -254,7 +255,8 @@
         "distinct_session_dates": 203,
         "daily_min_bars": 26,
         "daily_max_bars": 54,
-        "weekday_sessions_below_55_bars": 203,
+        "observed_max_bars_not_expected_slots": 54,
+        "sessions_below_observed_max_bars": 84,
         "invalid_counts": {},
         "potential_session_slots_not_verified": true,
         "official_holiday_calendar_reconciled": false,
