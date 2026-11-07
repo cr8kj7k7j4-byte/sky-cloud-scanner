@@ -17,6 +17,7 @@ def test_fugle_schema_and_date_conversion():
     rows=normalize_response("1101","D",response,date(2026,10,1),date(2026,10,2))
     assert rows[0]["timestamp"]=="2026-10-01T13:30:00+08:00"
     assert len(rows)==2
+    assert all(row["volume_unit"]=="shares" for row in rows)
 
 def test_mismatch_and_out_of_range_rejected():
     row={"symbol":"WRONG","timeframe":"5","data":[candle(0,"5")]}
@@ -106,3 +107,9 @@ def test_official_disclosure_bucket_is_not_repurposed_for_paid_market_data():
     with pytest.raises(ValueError, match="disclosure_bucket_reserved"):
         upload_immutable(Storage(), "sky-disclosure-evidence-20261108",
                          "three-model/v1", report())
+
+
+def test_intraday_volume_is_lots_not_daily_shares():
+    response={"symbol":"1101","timeframe":"5","data":[candle(0,"5")]}
+    rows=normalize_response("1101","5",response,date(2026,10,1),date(2026,10,1))
+    assert rows[0]["volume_unit"]=="lots"
