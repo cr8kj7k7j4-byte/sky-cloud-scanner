@@ -123,6 +123,14 @@ jobs:
       - name: Audit episode deduplication and selection bias (no profitability claim)
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         run: python -m research.mcr_episode_audit
+      - name: Produce no-fabrication outcome completeness report
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        run: |
+          python - <<'PY'
+          import json,subprocess
+          d=json.load(open("research_output/mcr_episode_audit_latest.json",encoding="utf-8"))
+          subprocess.run(["python","-m","research.mcr_forward_markouts","--asof",d["last_session"]],check=True)
+          PY
       - name: Record outcome completeness only until real forward prices exist
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         run: |
@@ -142,5 +150,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           # Force-add only these two audited public research artifacts.
           # research_output/ is otherwise deliberately ignored.
-          git add -f research_output/mcr_official_proxy_combined_latest.json research_output/mcr_event_ledger/*.json research_output/mcr_episode_audit_latest.json
+          git add -f research_output/mcr_official_proxy_combined_latest.json research_output/mcr_event_ledger/*.json research_output/mcr_episode_audit_latest.json research_output/mcr_markout_latest.json
           git diff --cached --quiet || (git commit -m "data(research): TWSE TPEx verified financing snapshot [skip ci]" && git pull --rebase && git push)
