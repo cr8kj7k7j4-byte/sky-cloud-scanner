@@ -1,0 +1,32 @@
+name: Fugle Paid Market Quality Audit (Read Only)
+on:
+  workflow_dispatch:
+  schedule:
+    # 09:15 and 09:30 Asia/Taipei; UTC+08 without daylight saving.
+    - cron: '15,30 1 * * 1-5'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fugle-paid-market-quality
+  cancel-in-progress: false
+
+jobs:
+  market-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Collect paid Fugle coverage and intraday timestamp evidence
+        run: python3 research/fugle_market_quality_audit.py
+      - name: Upload dated audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fugle-market-quality-audit
+          path: fugle_market_quality_audit.json
+          retention-days: 30
+          if-no-files-found: warn
