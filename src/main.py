@@ -20,8 +20,8 @@ from .config import (
     EXEC_ENFORCE_GATE, PAPER_TRADING_MODE, P0S_OOS_VERDICT, PAPER_GCS_BUCKET,
     P0S_5M_BREAKOUT_ENABLED,
 )
-from .official import load_official_universe, fetch_mis_quotes
-from .realtime_quote_evidence import validate_whole_market_rows
+from .official import load_official_universe
+from .quote_provider import collect_market_quotes
 from .fugle import get_ticker, get_quote, get_candles
 from .decision_engine import first_gate, evaluate_decision
 from .feature_engine import build_features, enrich_candidate_context
@@ -258,15 +258,15 @@ def run():
         st["source_health"]["official_universe"] = ust
         st["universe_count"] = len(universe)
 
-        rows, miswarn = fetch_mis_quotes(universe)
-        st["warnings"].extend(miswarn)
-        st["mis_quote_count"] = len(rows)
-        # A returned HTTP quote is not automatically a current executed trade.
-        # Check actual MIS exchange session date + last-trade timestamp first.
-        quote_audit = validate_whole_market_rows(
-            universe, rows, now=datetime.now(TZ), min_coverage_pct=80.0,
-            min_exchange_pct=70.0,
-        )
+        provider_result = collect_market_quotes(universe, now=datetime.now(TZ))
+        rows = provider_result["rows"]
+        st["warnings"].extend(provider_result["warnings"])
+        st["mis_quote_count"] = len(rows) if provider_result["fallback_used"] else 0
+        st["market_quote_provider"] = provider_result["provider"]
+        st["fugle_primary_status"] = provider_result["primary_status"]
+        st["fugle_primary_coverage_pct"] = provider_result.get("primary_quote_coverage_pct", provider_result["audit"]["quote_coverage_pct"])
+        st["market_quote_fallback_used"] = provider_result["fallback_used"]
+        quote_audit = provider_result["audit"]
         st["live_market_evidence"] = {
             k: v for k, v in quote_audit.items() if k != "accepted_rows"
         }
@@ -274,7 +274,7 @@ def run():
         st["live_whole_market_certified"] = False
         st["live_whole_market_coverage_pct"] = quote_audit["quote_coverage_pct"]
         st["mis_unverified_quote_count"] = len(rows) - quote_audit["valid_quote_count"]
-        rows = quote_audit["accepted_rows"]
+        # Rows already contain verified executed trades from the selected provider.
         if not quote_audit["valid_whole_market_operational"]:
             st["warnings"].append(
                 "BLOCKED_EXTERNAL_DATA: whole-market current-session executed "
@@ -305,7 +305,7 @@ def run():
 
         st["source_health"]["twse_intraday"] = {
             "ok": twse_intraday_ok,
-            "source": "TWSE MIS",
+            "source": st["market_quote_provider"],
             "count": len(twse_rows),
         }
         st["source_health"]["tpex_intraday"] = {
@@ -336,9 +336,8 @@ def run():
 
         if st["operational_full_market_scan"] and not st["full_market_scan"]:
             st["warnings"].append(
-                "實務全市場行情鏈可用：TWSE + TPEx 官方母池，盤中以 TWSE MIS "
-                "批次讀取 TSE + OTC；OTC 為 operational fallback，不能誤稱為 "
-                "TPEx 官方認證即時來源。"
+                "實務即時行情鏈來源：" + st["market_quote_provider"] +
+                "；上市與上櫃母池取自官方資料，不代表 TPEx 官方即時行情認證。"
             )
 
         # Data-quality gate occurs before ranking, P0-C/P0-R decisions,
