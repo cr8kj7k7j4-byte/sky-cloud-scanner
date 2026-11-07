@@ -11,6 +11,8 @@ on:
       - 'research/mcr_official_margin_proxy.py'
       - 'research/mcr_tpex_margin_proxy.py'
       - 'research/mcr_merged_proxy.py'
+      - 'research/mcr_proxy_event_ledger.py'
+      - 'tests/test_mcr_proxy_event_ledger.py'
       - 'tests/test_mcr_merged_proxy.py'
       - 'tests/test_mcr_official_margin_proxy.py'
       - '.github/workflows/mcr-official-proxy-audit.yml'
@@ -33,7 +35,7 @@ jobs:
       - name: Offline parser, date, and no-trade tests
         run: python -m unittest tests.test_mcr_official_margin_proxy -v
       - name: Test cross-market verified-session merge
-        run: python -m unittest tests.test_mcr_tpex_margin_proxy tests.test_mcr_merged_proxy -v
+        run: python -m unittest tests.test_mcr_tpex_margin_proxy tests.test_mcr_merged_proxy tests.test_mcr_proxy_event_ledger -v
       - name: Fetch official TWSE two-session source (research only)
         id: source
         continue-on-error: true
@@ -97,10 +99,13 @@ jobs:
       - name: Merge matching-session TWSE + TPEx proxy evidence
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         run: python -m research.mcr_merged_proxy
+      - name: Record immutable date-specific research observations (no trade outcomes)
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        run: python -m research.mcr_proxy_event_ledger
       - name: Publish combined market snapshot after all verification gates
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add research_output/mcr_official_proxy_combined_latest.json
+          git add research_output/mcr_official_proxy_combined_latest.json research_output/mcr_event_ledger/
           git diff --cached --quiet || (git commit -m "data(research): TWSE TPEx verified financing snapshot [skip ci]" && git pull --rebase && git push)
