@@ -27,3 +27,12 @@ Scope: **research-only**; no production trading changes, no orders, no Cloud Run
 - Added a **fail-closed evidence integrity checker** and offline regression tests on a separate research branch.
 - NOT completed: actual Fugle historical ingestion for all symbols, three independent model weight files, verified OOS/cost reports, runnable GitHub Actions training, Cloud Run deployment, mobile E2E testing, or W0/P0-G approval.
 - Do not change the mobile badge from untrained based on this PR alone.
+
+## Research-observation prototype (additional work in PR #324)
+- `research/three_model_research_signals.py` creates three **separate horizon-specific, deterministic technical observations** from supplied 5m / daily OHLCV JSON. It does not fetch Fugle, and it must NOT be described as a trained AI predictor. `source: FUGLE` is merely an input claim; `provider_response_verified=false` is always published until API integration is independently proven.
+- The two daily-mode observation rules are technical placeholders, NOT horizon-tailored trained strategies. Short borrowability, tick rounding, full spread/slippage and current source latency are not validated; all price levels are hypothetical reference levels.
+- Every observation carries `model_id`, deterministic `signal_id`, observed bar time and reason; hard-coded `production_signal=false`, `order_authorized=false`, `eligible_strategy_trade=false`, `realized_net_pnl=null`. Missing, duplicate, future-dated or invalid OHLCV rejects the relevant model safely.
+- Input JSON top-level keys: `as_of` (timezone-aware ISO8601), `source` (`FUGLE`), `symbols` (symbol -> `name`, `bars_5m`, `bars_daily`); bars require timezone-aware `timestamp`, `open`, `high`, `low`, `close`, `volume`.
+- Run: `python -m research.three_model_research_signals --input research_data/verified_history_input.json --out research_output/three_models/research_observations.json`. **Do not create, fill, or present synthetic history input as real Fugle evidence.**
+- Offline tests: `python -m pytest -q tests/test_three_model_evidence_gate.py tests/test_three_model_research_signals.py`; CI runs on PR changes, not on a paid API schedule.
+- Current deployment blocker: no authenticated paid Fugle historical ingestion/readback, no persisted observation backend with de-duplication across runs, no Cloud Run source/revision, endpoint wiring or mobile end-to-end acceptance. The GitHub PR is **not** deployed, merged or training-complete.
