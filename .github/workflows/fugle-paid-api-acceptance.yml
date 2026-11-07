@@ -1,9 +1,8 @@
-name: Fugle Paid API Acceptance (30m Monitor)
+name: Fugle Paid API Acceptance (Manual Regression)
 on:
   workflow_dispatch:
-  schedule:
-    # UTC :00/:30 = Asia/Taipei :00/:30, including weekends. GitHub may delay schedule.
-    - cron: "*/30 * * * *"
+  # Initial six-endpoint acceptance already passed. Avoid 48 daily repeat runs;
+  # market-hour ongoing diagnostics remain in sky-market-provider-readiness.yml.
   push:
     branches: [main]
     paths:
