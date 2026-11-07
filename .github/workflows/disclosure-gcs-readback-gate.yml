@@ -1,0 +1,66 @@
+name: Disclosure GCS Durable Readback Gate
+on:
+  pull_request:
+    paths:
+      - 'research/disclosure_gcs_readback.py'
+      - 'tests/test_disclosure_gcs_readback.py'
+      - '.github/workflows/disclosure-gcs-readback-gate.yml'
+      - 'docs/DISCLOSURE_GCS_PERSISTENCE_GATE_20261108.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify create-only, source hashes and fail-closed
+        run: python -m unittest discover -s tests -p test_disclosure_gcs_readback.py -v
+  store:
+    if: github.event_name == 'workflow_dispatch'
+    needs: unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      DISCLOSURE_GCS_BUCKET: ${{ vars.DISCLOSURE_GCS_BUCKET }}
+      WIF_PROVIDER: ${{ secrets.DISCLOSURE_GCP_WIF_PROVIDER }}
+      WIF_SERVICE_ACCOUNT: ${{ secrets.DISCLOSURE_GCP_SERVICE_ACCOUNT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Require configured GCS target and approved WIF identity
+        shell: bash
+        run: |
+          if [ -z "$DISCLOSURE_GCS_BUCKET" ] || [ -z "$WIF_PROVIDER" ] || [ -z "$WIF_SERVICE_ACCOUNT" ]; then
+            echo "GCS_CONFIG_PENDING: verify bucket var and WIF identity secrets"; exit 1
+          fi
+      - name: Capture official first-seen snapshots
+        run: python -m research.forward_disclosure_evidence_capture --out-dir research_output/disclosure_forward_snapshot
+      - name: Confirm all four official feeds passed
+        run: |
+          python -c "from pathlib import Path; from research.disclosure_gcs_readback import validate_capture; assert len(validate_capture(Path('research_output/disclosure_forward_snapshot'))) == 5; print('FOUR_SOURCE_CAPTURE_GATE_PASS')"
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.WIF_SERVICE_ACCOUNT }}
+      - name: Install GCS SDK for readback
+        run: python -m pip install 'google-cloud-storage>=2.16,<4'
+      - name: Create-only GCS upload and exact readback
+        run: python -m research.disclosure_gcs_readback --folder research_output/disclosure_forward_snapshot --receipt research_output/gcs_readback_receipt.json
+      - name: Save diagnostics and bounded evidence on both success and failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: disclosure-gcs-readback-diagnostics
+          path: research_output/
+          retention-days: 30
+          if-no-files-found: warn
