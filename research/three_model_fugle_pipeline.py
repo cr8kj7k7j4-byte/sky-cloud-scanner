@@ -85,6 +85,8 @@ def upload_immutable(store, bucket, prefix, report):
         raise ValueError("missing_or_invalid_private_bucket")
     if not prefix or not re.fullmatch(r"[A-Za-z0-9_/-]+",prefix) or ".." in prefix:
         raise ValueError("invalid_prefix")
+    if bucket == "sky-disclosure-evidence-20261108":
+        raise ValueError("disclosure_bucket_reserved_for_official_evidence")
     result=[]
     for row in report["observations"]:
         if any(row.get(flag) is True for flag in ("production_signal", "order_authorized",
