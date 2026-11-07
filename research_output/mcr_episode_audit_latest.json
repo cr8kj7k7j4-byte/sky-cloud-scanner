@@ -1,0 +1,5234 @@
+{
+  "schema": "MCR_EPISODE_AUDIT_V1",
+  "research_status": "INSUFFICIENT_DATA",
+  "sessions": 1,
+  "first_session": "2026-11-06",
+  "last_session": "2026-11-06",
+  "observation_rows": 520,
+  "episode_count": 520,
+  "repeated_daily_observations": 0,
+  "episode_gap_calendar_days_fixed": 7,
+  "per_session_observation_counts": {
+    "2026-11-06": 520
+  },
+  "latest_market_counts": {
+    "TWSE": 293,
+    "TPEx": 227
+  },
+  "bias_diagnostics": {
+    "post_financing_balance_under_500_units": 52,
+    "reduction_at_least_20_pct": 15,
+    "volume_evidence_missing": 0,
+    "volume_under_100000_shares": 13
+  },
+  "episodes": [
+    {
+      "episode_id": "02b87c3b83e851977417b6fd472b89028fa087378f36aa4acced678b579446e3",
+      "market": "TWSE",
+      "symbol": "2929",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "48a174829c8e8751b992ab742bff9dad5d78d5708fecb35bfb23aff8f43f8ee5",
+      "market": "TWSE",
+      "symbol": "3015",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "44119b6cced50e2be5eaa4f2a5c383c89a7c6194ce6aeb89803c2183748952b3",
+      "market": "TPEx",
+      "symbol": "6418",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "a3c1d49c9b30650f0ee46feb2d3edea1b37c800c34b5c6a009fdef69cd7987bc",
+      "market": "TWSE",
+      "symbol": "8105",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "1de5e2181d865fdddeda704da90b62697d99390962d1aa94ebb88b2e22b8ea10",
+      "market": "TWSE",
+      "symbol": "3060",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "20a04216b7f8b6e28719d91c379222a4a16995c571bede96f2a2682e50dbdcdc",
+      "market": "TWSE",
+      "symbol": "3338",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "0b27aa87a9b048f2630bdd4799088d44dd922d0233b32f54baf0ff6ead643c9c",
+      "market": "TWSE",
+      "symbol": "3416",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "4eb651628bb3935aabfcf48017c4c565a3c6abe372da3c8999bbddc50ec206c7",
+      "market": "TPEx",
+      "symbol": "5013",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "8e9c3bd7b2b31b1c782b4731242219a53f4c7940cc70379a1095b020c97f94ba",
+      "market": "TWSE",
+      "symbol": "2471",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "66fc459076c9728b51410486c0602ca76d669db146e3ba852162834ef25b32cd",
+      "market": "TPEx",
+      "symbol": "3071",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "002297bb971bd6efd4716c3e1e822065ba7ef529839c56feff02304bfc0b11de",
+      "market": "TPEx",
+      "symbol": "3597",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "0d82319df34497b664f870918d0425f391a84cdb44afa28733ab11ea94408452",
+      "market": "TPEx",
+      "symbol": "8091",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "93b419ef5e44047715fa99c809596f0d45075e91401c93489b093683faf0a9e7",
+      "market": "TPEx",
+      "symbol": "5209",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "bfcfe15c5d12d20c984447dc5408bc865ce2c870fb12e439eda4ea142a8bc428",
+      "market": "TPEx",
+      "symbol": "8147",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "1c75138da023d244ebba70925621afe19c1c5679202359b3130e0d0c75dcbb41",
+      "market": "TPEx",
+      "symbol": "6874",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "114ddd59508252af1b4a2b27e52ecf9d324ec298524f694b044387471f5c1a65",
+      "market": "TWSE",
+      "symbol": "1563",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "7a6af98f40e5c8d5ab730d3c42386e3bc99b4208235466ef08760b4ed571d66f",
+      "market": "TWSE",
+      "symbol": "3006",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "2f793b07f5bd2ef22559074da3547d2537a7a1fef8bdd07d15525c5684edc795",
+      "market": "TWSE",
+      "symbol": "2103",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "7539943b0a7e0bbc7113b46a1372358b88ea85b5c630824eb6075b7c08b55f32",
+      "market": "TPEx",
+      "symbol": "6613",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "e3fd3fd012f22a9aafaa4ebe9b29a968fcb8bdadfa2b9a399113341335044de6",
+      "market": "TWSE",
+      "symbol": "2480",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "52cbd7818b4f25210704fc734d1d813931977f902b5fcb70b0101039ef392fde",
+      "market": "TPEx",
+      "symbol": "6174",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "7aa1a63c18f8a0a67f169347e5ec322cb44108b64df9c635564b22a7a3d75f8d",
+      "market": "TWSE",
+      "symbol": "1597",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "2d956afa350fc5e0386bfb91a972b12de2883ad14112fe75c924cb963bf53514",
+      "market": "TWSE",
+      "symbol": "3257",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "c7c066a2f8d2eda54d61019676854d5d8062a8cb8e5825e81b9646e36c179d65",
+      "market": "TPEx",
+      "symbol": "3691",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "7735e6f5034a94997a9c937af493a40a052f14562e3bbe02343c148ce5db9d89",
+      "market": "TWSE",
+      "symbol": "8429",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "6d7354005ab743c8f2e7a4e4c0a131e2c1996b6155e294f03321df4b4c3956aa",
+      "market": "TPEx",
+      "symbol": "3555",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "377e92b3b3c03d98961260e963dcac89a40652be492bab49daecb15a26af3f0b",
+      "market": "TWSE",
+      "symbol": "6625",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "12f0b71361f11c0241069fcf925ba95b2b97d8d739d69faf69b610f4f9486b4d",
+      "market": "TWSE",
+      "symbol": "1711",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "1e37788be762dea12e8b9c3c2482e276847634aed8cfa417f396795c659b07e8",
+      "market": "TPEx",
+      "symbol": "4911",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "a2e18606711c69b25240cb91c0bc906c8dcc6a3c51221fcc47db38a5b95b688a",
+      "market": "TPEx",
+      "symbol": "6679",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "be8dcb4064fa7094aa52152f829fe892aeba8cc47024d974f592fd4c0452056f",
+      "market": "TPEx",
+      "symbol": "5460",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "75061be98044c0e6b5a0a7a238cdadc9121db0c9629775957497d196b0ef3772",
+      "market": "TWSE",
+      "symbol": "2630",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "71795f6436d5f374c1500376d459c1c2e9c7305a649c328f1ab1717897d00750",
+      "market": "TPEx",
+      "symbol": "8074",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "d8d32b3146a7b2b8dde8b681604dfa8b2b21faa57a47c3d0cf76fcd9946537de",
+      "market": "TWSE",
+      "symbol": "6533",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "3712575d8fc5f660c40dcb8dc462703cf93a6422f29402cdc1b4c4968952fe10",
+      "market": "TPEx",
+      "symbol": "6223",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "0cd8d305aabfec1c7832c124eedb7ec49b27b6de0e5e72284d7b9aca4674e464",
+      "market": "TWSE",
+      "symbol": "6944",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "463105f55bcd877562bc76ffe7d95d83849179194caa4e9cfd9d9a8a5187b83c",
+      "market": "TWSE",
+      "symbol": "3229",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "ef1e429789fd1aeb2a614fd03cb9fb08f1e9c062d7e80c3df284bd773520533d",
+      "market": "TWSE",
+      "symbol": "2376",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "c83d9aeddac2de9190ab78c6398e6212fdaf2cd7a520737942f3c7afdbf0694f",
+      "market": "TWSE",
+      "symbol": "4919",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "64fd814713358dc6a7b8c402721656d1a8693607f328c092bb99f9c6397f31bf",
+      "market": "TWSE",
+      "symbol": "4526",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "67dff518cf8cf0893e67049eef93ba516033cdd28488c6b2b468d27764118b8c",
+      "market": "TPEx",
+      "symbol": "3221",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "7199a5b463218399f228f096cb3ab2a0f121ffc52407ea367b7c67d39e1c5649",
+      "market": "TWSE",
+      "symbol": "2106",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "42bce1e4fe703375c2af31a1e55dbc4c671ba10eb090a6fa31e5d39cc9483512",
+      "market": "TWSE",
+      "symbol": "7786",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "4e05b2b99d936d0653c491a0d951f3a02b8f166cece59c6f2103038c6846dd23",
+      "market": "TPEx",
+      "symbol": "3207",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "ec8f24e8ec5aecaccab85bf2f317b92913a295d6b9ba6215c8f6b8148bcda107",
+      "market": "TPEx",
+      "symbol": "6642",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "4ce07d2e5245cf43aa6fa23e6fc11cf4c4a6c66b63d61f452a71eb8bf79989db",
+      "market": "TPEx",
+      "symbol": "7734",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "ce9887b7314ba7cbb9d67467d4505e5aafcfb2747f132ece2bd8b92e0884d849",
+      "market": "TPEx",
+      "symbol": "6435",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "1cbc8a0395ee7c6e499e8a62e341a0a7fd2dc30fe88e0bd5e6158cd1e61bdd56",
+      "market": "TPEx",
+      "symbol": "6148",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "c5fae8c5238db8e8c58769a7713d4a753f4256ec8dd98f6361c3b3f1af90b6fb",
+      "market": "TWSE",
+      "symbol": "2395",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "3eabd778095ba10d259656f9e2a9089b91483c8afd80dee9e9fd2715e3c7e00f",
+      "market": "TPEx",
+      "symbol": "6752",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "ebdd9a13b1522efdfe4f90e1a37d2df7619a62da84969b87c63fe9e5c7bbce03",
+      "market": "TPEx",
+      "symbol": "3217",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "630fa342820b985091bd3f5f5a8c2babf038c8893f605d6a06c4defdc6f73194",
+      "market": "TWSE",
+      "symbol": "6937",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "edf0f73b366f956661d3ef2c17ae84b678a3f4329857377adff0e64b784c121d",
+      "market": "TWSE",
+      "symbol": "6278",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "b40ada9986b117c9c7d75e2baa4beba2004c9b14e20370cac7eb9ef0631c0428",
+      "market": "TPEx",
+      "symbol": "5536",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "03f2cb7c52b2edc13db5f8e7aa1ca42783f218af81c02b97593073445d09ef72",
+      "market": "TWSE",
+      "symbol": "2887",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "0f8f15991eafedbd3ef0fc5b2221b1485d2eeee463f71112c518676b316d4c04",
+      "market": "TWSE",
+      "symbol": "4585",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "3befb39cb7cc24c0732c7e8309c17ec7826be94f3c856a3fb7397ed054dafbf3",
+      "market": "TWSE",
+      "symbol": "2345",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "32af7b6fc90458bc1e638d944aa485c1401135af36597d1ee8f0b33f9a967260",
+      "market": "TWSE",
+      "symbol": "2478",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "368a43960206099cbaae068f417f2cecc0ee226975acff284d074a5a6f7af5fe",
+      "market": "TPEx",
+      "symbol": "6291",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "aa2cd4f1f75107a5ffe90102331982d9305442d27d00cba7348765a09458f959",
+      "market": "TWSE",
+      "symbol": "4938",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "4bec4eaa8e0d9eb8feb0abfcf0a059d0ad097ac23eab0a0e34d1f56718ce50d3",
+      "market": "TWSE",
+      "symbol": "3450",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "d2b0de2895209fc50fa61a7de4175b13762ced6f0f99447bc10c05fced6dae08",
+      "market": "TPEx",
+      "symbol": "3128",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "03b425990f079971f0b468d3cf81e5344eabb68c15f6d6e08990cb0df297bca0",
+      "market": "TPEx",
+      "symbol": "7792",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "4af1c1d9d500ecab55964755c3a4818161e81e4de1aebca346bba1714ff8bb95",
+      "market": "TWSE",
+      "symbol": "3090",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "30eeed6c03198ddc254dbb7ef0fc7cc7919cba7472525ed4becc4325d726109c",
+      "market": "TPEx",
+      "symbol": "8410",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "9f453f4de68d1d88ae65728aa376c6be521f8530c9fdff54d3f8e85f6a280c0c",
+      "market": "TPEx",
+      "symbol": "8255",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "dc611fe2acba91677813dff9017f855c92bf8a286811092fd8df46a2d14537f6",
+      "market": "TPEx",
+      "symbol": "3354",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "d43e7bc03b74f1f522e74197a719949e9222f6fba55d59936196dde5cacc70a1",
+      "market": "TPEx",
+      "symbol": "3362",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "365096a0dbea5f0190ee6ab4dcc535bcbff2e5a73bf858f4f2d6de81f4eec745",
+      "market": "TWSE",
+      "symbol": "6753",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "33b2ff2b2a19405fa5fe5b0b360259acdc1598e63577a2dccc4c914745bac4e2",
+      "market": "TPEx",
+      "symbol": "4503",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "60f9a07c60727d482636b8330c8d6952031e3a334c7c564135da696e8fcc232a",
+      "market": "TWSE",
+      "symbol": "3011",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "431665f94cc38a7d61d67db013b6bdc7c9535f259aa9af2f2d07ebff27fe766d",
+      "market": "TPEx",
+      "symbol": "3332",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "9a86b8fd2ab503fd72f6121bd29a503267e8984af84891636730147ec6004e95",
+      "market": "TPEx",
+      "symbol": "3388",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "81f85c5089cf4e566f94db6a67e183acfd39eb125719e924e2b268763d2f2fed",
+      "market": "TWSE",
+      "symbol": "6789",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "9b79a17dc69a84e41e20620b99c4250ea09ecc7f50a2b0f5a8b22acfed0c5156",
+      "market": "TWSE",
+      "symbol": "6526",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "07e95263bb327406cf05e4e7b58161809cadd33a7c8ac7deeffa61f8962ac5d5",
+      "market": "TWSE",
+      "symbol": "3008",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "ea418eadf93ba43408f3727801977157c0cf72109566251b85dd19cabc443c0c",
+      "market": "TWSE",
+      "symbol": "4536",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "5600d669adf59f03cab9fd0b2de0ab7a080881c648b2227ba1e8c5ae0049d8d1",
+      "market": "TWSE",
+      "symbol": "1615",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "c4f35da26d4407373a7e33eb2d7d1225cc5b253c4c694d47d29a809ebcd0fded",
+      "market": "TWSE",
+      "symbol": "3311",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "96366c8dbda8f6850aefb4a8d53ab0391b4b9d9e7223de6a764d559c3907fce1",
+      "market": "TWSE",
+      "symbol": "6451",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "144943671f3041207993b5d32dd7ac42a24da233af87e808aaa8ac857004bf78",
+      "market": "TPEx",
+      "symbol": "7704",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "e13ddb498b92ad2ac8e5da4667c08a91e1321f0d2bda1e4edfdcbd9a35d4a275",
+      "market": "TWSE",
+      "symbol": "6285",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "e68df5be0685fc6d1c6a531da2e58684646e8432d1cb5c87ef9b9ba35850c945",
+      "market": "TPEx",
+      "symbol": "4729",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "bf798b53205914bf7b264abb0c7a0fea966789078bc49c4dc8eb5d96d0bea2eb",
+      "market": "TPEx",
+      "symbol": "3467",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "8ee78127ccafd1e90e6dc7708a15ea6c8346794eee3c6c67a402aef73c8b9b3b",
+      "market": "TPEx",
+      "symbol": "7810",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "7fb27e32b66dcfeca822a6d208d64732b3a3f1b82481514ffba0baebf837fc64",
+      "market": "TWSE",
+      "symbol": "2453",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "b1e505a160e9d7de0f7d1270de48b8c0c7fbb8e4feae0dd203555cc1fb492778",
+      "market": "TPEx",
+      "symbol": "3537",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "2f91f29f0a9b6b3468b80c0d40c5d56b89f417dca90cf8ecaa115d01f9617b3b",
+      "market": "TPEx",
+      "symbol": "5347",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "04c379c38a0b300dc87d1822d487e93b54d1d0777a531f60680eac549ca49be2",
+      "market": "TWSE",
+      "symbol": "3550",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "ddd15c8c56db2b70d80f7b7958c993f9c01718802987bea06c9f84c5ca99db15",
+      "market": "TPEx",
+      "symbol": "3577",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "2843098cf7f1ed3e3fe674f44b9d4fa5d8c45df70607deac479a9147c6bec60a",
+      "market": "TPEx",
+      "symbol": "3131",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "58753ceb9e0a8814e1e4610aa9c23eff62a6c456137cae28b0ae2b8a9a1bb86a",
+      "market": "TPEx",
+      "symbol": "8040",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "3bf86590aa5bb5049555cb3d0b76b3c14405cbc47225b8ec36c09a8f43a9ec91",
+      "market": "TPEx",
+      "symbol": "6510",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "1f73ab063385c02e65e7b280a2e99117681530fb4a346cabe253756228febf44",
+      "market": "TPEx",
+      "symbol": "4951",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "439719f3d6fc2a7d9fdd4e85b121781b8f4b707d1b18ab798989e554b6678a85",
+      "market": "TWSE",
+      "symbol": "2615",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "172f159badb2cd63f542dca265bb549d60e5d12c87e5eba8d0f13aa32c680f54",
+      "market": "TPEx",
+      "symbol": "3718",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "0758ce811e0f2242be1ad03f5b66c4030c541363114743affa8f8dd44189a088",
+      "market": "TWSE",
+      "symbol": "3504",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "0c8e95d98c2191cc6da12a2959ed2cad49934a5c8f7ec2264f65a56a33d1b4a9",
+      "market": "TPEx",
+      "symbol": "4556",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "fe41595308d5000e7d155e8039f362130e01385079560473512cf1e5974b8ff5",
+      "market": "TPEx",
+      "symbol": "6111",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "f3c38b86a161ec2fa075c37e635fd2a911544a45db7a27c3bdef4771e21b88b1",
+      "market": "TWSE",
+      "symbol": "3532",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "f44058f48ae95962cee88fa603d7281dbcb495624f43c64a193258a5a6f823ef",
+      "market": "TWSE",
+      "symbol": "1727",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "22a0f04da6bf133dacb394693dc1427b7deb9a44ac542da4c2b9e174aa13767e",
+      "market": "TWSE",
+      "symbol": "2313",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "c5109307adb57782a01903bc79eb7e616b49c8b4ac1f2935108d9efe0aaf8bcd",
+      "market": "TPEx",
+      "symbol": "2640",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "c165e477db6f4f5a84e8f5ffb76c513cba6b132fc9b0f39c54cbf41ecc648d6c",
+      "market": "TWSE",
+      "symbol": "2368",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "99af37af3d1b56b6e26d591880fd4f9430da7cf5cda9c81d24ce0d95ed0ba576",
+      "market": "TPEx",
+      "symbol": "6432",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "29b79e9e6e09e5e9581c795db18c3dc58299bcc99a8bfb4ed4dccb03bb3c43ac",
+      "market": "TWSE",
+      "symbol": "1301",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "a75fd4c879127302177a087a128e6aa0825466f19e30893ce922e744cf03e3fb",
+      "market": "TWSE",
+      "symbol": "7749",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "782a53c46d34692f8d5056cf4c479cb5e5461066d11a242f8e4c05106bbcf896",
+      "market": "TPEx",
+      "symbol": "3227",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "e9353adbfce021812f956f20c0e40686f054cb121f46ea6a3f32058796898859",
+      "market": "TPEx",
+      "symbol": "8027",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "e77a52bc7b5fbb4a635c38534853bc0a6ee565ee95ee9c7d9fc0736d31a6117f",
+      "market": "TWSE",
+      "symbol": "7750",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "25a856460b904c699150b04f6f39994aab24a41b0e29aa61a86c972099901967",
+      "market": "TWSE",
+      "symbol": "1102",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "372552ea33d4b095d978838e48582e884af88071b1442514f79f687fd387de47",
+      "market": "TPEx",
+      "symbol": "6697",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "aa0bec9627aeb3a53190e2062c4392e2ff085a62be5897db80041b66d38d6318",
+      "market": "TPEx",
+      "symbol": "3564",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "987e65d537973f27056ce732a84cf3d8c1275226e79e233b5897dcea0b77f34d",
+      "market": "TWSE",
+      "symbol": "2305",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "1c63b6f211baa405f1541b5610e7dfff80e83b78276ecc42c20d4b57e595a764",
+      "market": "TWSE",
+      "symbol": "6139",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "1148e1e054880b6b60cb6be34d357ccdd83df07892c6870badb58d6bc076de88",
+      "market": "TWSE",
+      "symbol": "1528",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "860d64e11dc927b6ab22d3ea43d66a00bf20d9b9797ea49a6a5ad44d1400572d",
+      "market": "TPEx",
+      "symbol": "6163",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "27434476a1c9a791ee941cba6b01c4c6e80c2b1f0a881b68d8ca31730f5bbad3",
+      "market": "TPEx",
+      "symbol": "8096",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "6f6520d81ca81a8e72bec3094eead130c2637587ecb8fd354dfb69f9b01348f7",
+      "market": "TPEx",
+      "symbol": "6840",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "152b535832f59802ae5df9f5ddb4083d59928b413505ae1cf49decaef5664e1c",
+      "market": "TWSE",
+      "symbol": "4722",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "8188edb4a3baf8c2947333da20d0054b69f57175d71dddd8e99dad1bc65b4b79",
+      "market": "TWSE",
+      "symbol": "2375",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "b71c2535030db41a3d91033832d0c195ba65693dbdd285f44a10c9a5256abd15",
+      "market": "TWSE",
+      "symbol": "6197",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "7dc2a7f24dbc3c0924ce5253ae3c380eef5aad4926021300a9665d8dc36de3fb",
+      "market": "TWSE",
+      "symbol": "3094",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "de3beec2790d1971d85732b117d03737427b4066b007607d83b4425c66ad013d",
+      "market": "TWSE",
+      "symbol": "2303",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "28677ddf7808a27ca2da70785c456fa55a1c175863c526eabcb8acdee8ed1fe4",
+      "market": "TWSE",
+      "symbol": "2484",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "c5567561395a9420f189958904905eaf139fbbcd67aec12e4a67d67557496a39",
+      "market": "TWSE",
+      "symbol": "3518",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "049620efd2a235eef239a19a2099a6e502ebb0c122247dfaf7a363043e758ce0",
+      "market": "TPEx",
+      "symbol": "8044",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "eeb8df2db13786368ca48e460a027c42ae93bea5680b3126e23ced7cb170424b",
+      "market": "TWSE",
+      "symbol": "2481",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "77d688689fa7bb714db169d21c344cff8ea353ba2d7321f5ea42008e7bab03b4",
+      "market": "TPEx",
+      "symbol": "3587",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "d857c8ef04e76a7d93b763c7f7bcfa6b1f12457e4d95871fd96a75262ecedb24",
+      "market": "TWSE",
+      "symbol": "6209",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "d460f0587f779dceaf469398be2270858a9385ef22af19652af2978f3d7b35ba",
+      "market": "TWSE",
+      "symbol": "8016",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "9339d0e7499a68e4be5489c6681459371dbe0d9661881c95e4a68db81afdaadb",
+      "market": "TWSE",
+      "symbol": "3694",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "d525dafb5664189b210270293d57ef132678f296bd8fbaafd17b40f92e810e71",
+      "market": "TPEx",
+      "symbol": "7712",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "8f04a164524fe3471a2f6c72d436e45f5664d2b22e8287418b0ad34a10469445",
+      "market": "TWSE",
+      "symbol": "6719",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "64cec1787060479fbdd7cc11b030970cea3ca6a0882262957d66dd6ec65de605",
+      "market": "TPEx",
+      "symbol": "8071",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "f9044187a842d75ad3db5d72ed3730b0a9e0ace654e2e6a018094bbb0c797fdd",
+      "market": "TWSE",
+      "symbol": "6206",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "a51a5c5061f8ebac59d8a8c8f552c41adbe5d50dcfb3c36082a9f716e0c3b446",
+      "market": "TPEx",
+      "symbol": "8240",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "22f183f077a63be43b052780b776d29ad6f14294eb2acc977ed599b6d50d71bf",
+      "market": "TWSE",
+      "symbol": "1519",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "819ce4a406cf1318b0cd56ec6ef89ee2035d3ac9c244dc038cd2bc5468884282",
+      "market": "TWSE",
+      "symbol": "6799",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "cabf5155d5b8cd1c7ad3a258fe03b8fcdcd1fbfc0236f3090b4b53cda812719b",
+      "market": "TPEx",
+      "symbol": "6739",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "77a8374a1eb6f08e3cbca93b389cce9be512106d1697e1f82f82d07ab35eceff",
+      "market": "TWSE",
+      "symbol": "2316",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "e2171682d2469a775221940df17dd23f8e1dffdc1d14dbfee8f4e3bcd1fec59d",
+      "market": "TPEx",
+      "symbol": "6982",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "7e4b754828e0f06088ac9dc85d5fc2dbb0480e52472257a73aeaa411cb927a83",
+      "market": "TWSE",
+      "symbol": "2351",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "4f17fd0c567518445a918ba1773c42e3049d9d02f7e81c844ab22e3e654f93cf",
+      "market": "TPEx",
+      "symbol": "6732",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "3035e7fa7d070ce78fe95f44d4a5e0c9d516bd7c041d05180465187f05614ea0",
+      "market": "TWSE",
+      "symbol": "6215",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "10276124be74a7f24755aa7c450436e8d5c04ae62df5699f9bff7c0c6f47c0a5",
+      "market": "TPEx",
+      "symbol": "6690",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "b9e38215d86f18e17d1887683ed99955186edb603adda699aea1168719bf408e",
+      "market": "TWSE",
+      "symbol": "1236",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "719d8c60bf298207d5e3ac647bfca1502ef86990607ac0dfa68ac9f60e924b3b",
+      "market": "TWSE",
+      "symbol": "3042",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "53171e7f1d04dbe71b8138dd13122f46e667702cfb8652eef602e60b26a379a9",
+      "market": "TPEx",
+      "symbol": "6488",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "653ade035bb9c1c870c9648bf88bbab00d9d0178c0e2b024526907ead8512e07",
+      "market": "TWSE",
+      "symbol": "2402",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "3c29adce76485005d59caee8f12e533944307bceae9693b9a1927f8e1b8c0d94",
+      "market": "TWSE",
+      "symbol": "2467",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "6cfa13d4ec51491592739aeb8e0111f18906ce10583610ab3f8dd81b5804815c",
+      "market": "TWSE",
+      "symbol": "2387",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "7f6fcafd436efdf40f748847f603d23b5f87eef4fc74448d9a3f46a1e7f5ad63",
+      "market": "TPEx",
+      "symbol": "5230",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "f20fccf2f045825f24788fd1559a2d004345add1dfe22ae362646fa9fcc270c4",
+      "market": "TWSE",
+      "symbol": "2359",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "100808d9d031789b201490af05c58264970eaa032cae5f424e7ba8a1cb6149f2",
+      "market": "TWSE",
+      "symbol": "3135",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "e0d2fd37591bc82e10800de9aac584fef0bbeabd2ce2a947c4c4e12b297fd069",
+      "market": "TPEx",
+      "symbol": "6683",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "27967ee3c9f907b5ef7938c36b0cfad3efd6be4173789b7cf2f7739df719a058",
+      "market": "TWSE",
+      "symbol": "3016",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "360443ad53310138840afd6033bd14ba0393ec42bee4d0878606e1bb00e7ebfd",
+      "market": "TWSE",
+      "symbol": "6525",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "d0c778b37cdebb4c5f9848dda89c9feda108e75d38aa073d1e25015125654521",
+      "market": "TWSE",
+      "symbol": "6239",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "d51689e42f2223eaf14eb9ab22f1aca5c5540f69632afafa6c1c6fd94fac8d8e",
+      "market": "TPEx",
+      "symbol": "4966",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "47043dd1db324c3cbac863970d311c520a8940f679fc625e252d84408ff65a35",
+      "market": "TWSE",
+      "symbol": "2464",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "9eda161cd375f91d49660b516c57dfe6bdb965bc313b743ce538f8645860f155",
+      "market": "TWSE",
+      "symbol": "2356",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "b41d86feff564e8c159f5e26f269d01cd5fd21feed9c073cb0cf6a156707f17b",
+      "market": "TWSE",
+      "symbol": "6117",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "d51488b047ff5cccc12d0576e03c64d33b702025e13275afde15d51fb9a50653",
+      "market": "TWSE",
+      "symbol": "1514",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "3f1b40a8af976b74a7d266b06f284e85f012cbd647d821172dd32d516512b7fb",
+      "market": "TWSE",
+      "symbol": "6505",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "987eb6ff39e127447008c06026baa8376ec9d200053fa69562a2ddbac170c6f2",
+      "market": "TPEx",
+      "symbol": "6693",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "3ad88f402309678d0f16b28bd75e74e85dd1d571783b3b70b74bdab77a24c9a0",
+      "market": "TWSE",
+      "symbol": "3705",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "ce1b275f08da996851ffbd32ce2d78d7d6a0e3af2cbda0de173f0f29d246cdec",
+      "market": "TPEx",
+      "symbol": "6263",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "a928bff3a31f1069277f7e741c4be3ae83bfe6433e77f7afed471c80e0e2055f",
+      "market": "TPEx",
+      "symbol": "5530",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "9357f48a3fb1f19cc7c3f4c973b1aa1b5a3e916133b89cb63a7b726bb7f128e4",
+      "market": "TWSE",
+      "symbol": "1723",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "2124c8a73fc9e9efc714d53e76f2a4795ba2b020dad400f45b224da15cd4187b",
+      "market": "TPEx",
+      "symbol": "4768",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "af09182c1d83ab17a3ca5c012a625a21ebbc0c9240c75c5f5b4fd581833b4f46",
+      "market": "TPEx",
+      "symbol": "3455",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "2c2672ea96f104637a284478d33c74b1965d73a5f8c9060badd1b208fdd0379f",
+      "market": "TWSE",
+      "symbol": "6442",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "f7e54173e8d1d12752861d304739e8f7d83a4848566170b9c9f8452f5a41f17a",
+      "market": "TWSE",
+      "symbol": "3528",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "ab90ccd05a9d87c2975b7d4bc359c48f68d46bccced540771440f5c96b6f69b4",
+      "market": "TWSE",
+      "symbol": "2327",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "3b9bcf3010f1efa0493db02cd99043bd428b5de1e6f3065b90e0628489a84f1e",
+      "market": "TWSE",
+      "symbol": "3048",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "f2d8e7c0cb49da0b62dcb15e0f4922366e9713336b71871b430bec2084217c65",
+      "market": "TWSE",
+      "symbol": "6155",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "25849af4e1964f89029930d23d348150344eaa62f5fc3c2d233880c971278341",
+      "market": "TPEx",
+      "symbol": "3236",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "e07bb73e82a36ef1c5d7f7c519fc59b88ddfca25b9cd3e46497735612db9fe3e",
+      "market": "TPEx",
+      "symbol": "5228",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "e45ab22920c76210153f7ebca876b14193bae3b61b064448aa3c602bab2b0df0",
+      "market": "TPEx",
+      "symbol": "6190",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "85a8d8ab2d8cfbb082ac7426bea9e4796fd42e1eee9159e5afd17a0052f543ec",
+      "market": "TPEx",
+      "symbol": "7717",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "88bfc7a292beac373d1ab6754dc4073a38fd96386a6f7610cca3320ab9c12338",
+      "market": "TPEx",
+      "symbol": "8064",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "d9bf88d44099a2436d8a6fe6a711fd80478c669ebe372db9dca0b191991bb82c",
+      "market": "TWSE",
+      "symbol": "2250",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "056bb39f36d520c8f75eeb3d68fed70c9aa18744a78755dddde78fb011c77f42",
+      "market": "TPEx",
+      "symbol": "8155",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "746d5dd4393453f2386c4d57e03f5bd17c423f7e56d689d4f3313b6f230ae358",
+      "market": "TPEx",
+      "symbol": "6218",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "a47e8709611d7c9ab0984172e733888cd292ec48abc00f370ad94df5f80e67ce",
+      "market": "TWSE",
+      "symbol": "1536",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "ad5f81714c86e0f8d5656bcdab6a16a16db5c4147c63a88207ae97271ac51787",
+      "market": "TWSE",
+      "symbol": "2428",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "c00840da17f0d83926a8352a5231f94aec47b1281fb7a2044227e65944071650",
+      "market": "TWSE",
+      "symbol": "1503",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "27d8ca228e5696a60d60c54b5cb0888e2d59181c7a52f7a2d7572f9c9d49c253",
+      "market": "TPEx",
+      "symbol": "8086",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "b459c106c8c2eb8b6b51da5c8959d58e27c5d6c77a451a7fee22f157a62e1e1e",
+      "market": "TPEx",
+      "symbol": "6953",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "83ae6e8a5cebc26c880c76bef4e7fc36ebabb95d9d6f2096f734287971a1a2ca",
+      "market": "TWSE",
+      "symbol": "2340",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "c2732722c6237c21d16d01d38c6f571f06dc3e2257937ccfbbcff826db5ea65d",
+      "market": "TWSE",
+      "symbol": "6168",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "0a32085757ac93e6c58889caee2d992b1a8e1db1525ec6b408f1ab32749a7c4e",
+      "market": "TPEx",
+      "symbol": "3624",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "edcbf3b065a355d3add63303439c1ab5537cc2dcf828b767a0bf2db020aa9355",
+      "market": "TPEx",
+      "symbol": "5211",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "a282434808b412aa33ddbe5ea6e8977e67788d59270f02dd7f9b8d458ec7895b",
+      "market": "TPEx",
+      "symbol": "3444",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "e5cf096f5cf56fc3ac782e7aab4bb7a3d5136fab5466d83095c8377ded876219",
+      "market": "TPEx",
+      "symbol": "3306",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "f73c4d965f02876661c0c083dabc63a7e8e2e85a9be6d44d0a072e2fbf57f551",
+      "market": "TWSE",
+      "symbol": "8150",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "944faa36a3d89042337797772f45cde70731339cca7dc30bb09e1f68d7479278",
+      "market": "TWSE",
+      "symbol": "6243",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "3e781dd8d87528c58175b6b080f42430fd116b12bf5df9ff81d36a3d3c89ee48",
+      "market": "TWSE",
+      "symbol": "2301",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "d9f907a61d1a331d534d806aa86c4c1945dafa0b7143d904cc601ddf7fbb8002",
+      "market": "TWSE",
+      "symbol": "2617",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "07b8646ec5ab635c032da17bf4f24b8686e480da94b7f0a740be2c8c8a4e6e1d",
+      "market": "TPEx",
+      "symbol": "6640",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "7ec2da6b2f0c76bc9df2f222dc65778b060b120c81f8390bab9bcfd1e5908e02",
+      "market": "TPEx",
+      "symbol": "6188",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "bf3283caa0d42d660124ed86c2c158793a8253a6480977d4adc7139cae0b62d6",
+      "market": "TWSE",
+      "symbol": "8114",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "c00d7c48a8513f863d4b5b3b1697aca6673e368529033284df0f390bd1b678f4",
+      "market": "TWSE",
+      "symbol": "2332",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "2b44bbf34e14f86edacf4f479a9bba4bf683e1c98dcd24ad8619dce932f35353",
+      "market": "TWSE",
+      "symbol": "8110",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "d80dafceb94991b7c8d60443af2d54b7e18dcb9d7ddcb22992becc08e5fba7eb",
+      "market": "TWSE",
+      "symbol": "1709",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "fabed7cf582f7483dbcf66c7a76abe6c0fcbde5db0c8037a89995393c97423ae",
+      "market": "TWSE",
+      "symbol": "2414",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "b5556d5259e3a30499a2f1873e7fe2d684c29689571f1f4ad91d11fd45ce058e",
+      "market": "TPEx",
+      "symbol": "6419",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "79e43d3036f2d61262fbda8fc4858608e2fdc71a2eb80aad1e408169f7fe7665",
+      "market": "TPEx",
+      "symbol": "5483",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "9afc7eb666e77a7778b4bd413d5149ae859e1a855e8137df7bb8b7b5fb487454",
+      "market": "TWSE",
+      "symbol": "2636",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "54b9ffb0fdf3500561d03ff6f768bfd9d5a5fccffde40044ae0cde2b54e3f89a",
+      "market": "TPEx",
+      "symbol": "5351",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "bdfb3e0831c0738bbac711d1211f19e5acbda29c99a7b17cb597f1e08e687cba",
+      "market": "TWSE",
+      "symbol": "3583",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "e6b1f32b741963cfda63200b73748f6e6ab997fb4a526d77e5712b8c09709136",
+      "market": "TWSE",
+      "symbol": "3543",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "39106daa1d40f6ed2a27a085e0eead06bce4d6346417cde741fb19254073e5d2",
+      "market": "TWSE",
+      "symbol": "2302",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "a10eebbdf08a61412733101791b3e4eec02bb79bfe2fd68b5d83c7123d0679cc",
+      "market": "TWSE",
+      "symbol": "2408",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "55589230dc2a8dc7fec5e08ef4c0b703fdcf2a92ffb2629a32952902db92cbc8",
+      "market": "TWSE",
+      "symbol": "3447",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "5349241b716c92222e0ad86b56f1c0db2a9a9301d9fe07edcaed29d488ba2f5c",
+      "market": "TWSE",
+      "symbol": "6005",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "53d48516cd796d762e52c5a23f0917f3fe4e1dc32f95c1d1038742c8653e6f1f",
+      "market": "TPEx",
+      "symbol": "6292",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "c943eef0327a91b05ed427ea4d50322b76f46bc52b79a7df513e97600abb218f",
+      "market": "TWSE",
+      "symbol": "9946",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "5c9620f750f37493a2fbea468def4953d1cf443c5d832c4f4d2735480f8c8613",
+      "market": "TWSE",
+      "symbol": "6456",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "6602f750b048dd1699298a69a43c40aebd85044d2e4024960cc3215ff4247627",
+      "market": "TWSE",
+      "symbol": "2369",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "9460a3916b734a69268d6d125d2cfd08c7fa3f5dc01df1e3fe78abb3b37ecb34",
+      "market": "TWSE",
+      "symbol": "8222",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "a91940795c44d97c59cd377d973acd05b21c9a2817d54f0f8e8782249d560162",
+      "market": "TPEx",
+      "symbol": "4973",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "652f834560105f73ecd2c0ce6f71ca400dca15e2bb0ae775030386f0acaf6031",
+      "market": "TPEx",
+      "symbol": "6175",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "3fd5dc431d2c45c90bf9c6a915959d66f59bae846d658892621663b3c988e6e3",
+      "market": "TPEx",
+      "symbol": "6150",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "3f66d2d8934f04db712187430b966fedf7c49b605f0d9a3de317aa237a0dba07",
+      "market": "TWSE",
+      "symbol": "2417",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "c05327b6d5c570c3d783c2552a3a5f2ba3eed27f13d5ee8eeec141d7f0604c6b",
+      "market": "TWSE",
+      "symbol": "2364",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "f68568cabd3b968b9cc6872d7a5378f012b5cd4b5bbeec11c92ad82c40be4cff",
+      "market": "TWSE",
+      "symbol": "2455",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "ed57148bd2774b2f7ba9b2fbb085ccbbfe67db393a41705a43ccae862d18f2fa",
+      "market": "TWSE",
+      "symbol": "6781",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "3dca5f99201b78ec6669f4961e1df7b6a3febb741d97658d98e0f4a8a3a1b16f",
+      "market": "TWSE",
+      "symbol": "6213",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "bba52db74146e2e6659e9e30b7c0a374d8eb2753c6c1f452e332bc8816e8d1ea",
+      "market": "TWSE",
+      "symbol": "3032",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "1ab5b00577c482c2bd28784b0f7050de268554c7945fe15efc5fcea61dc5e5e8",
+      "market": "TPEx",
+      "symbol": "3479",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "2a40011407c878b70d29be10897050895c289f51aeec75648bbfa3db7710c53a",
+      "market": "TPEx",
+      "symbol": "6266",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "889e86fca03db60496363181c48ccd4f590cff80e62fa62b4069b84e8335f323",
+      "market": "TPEx",
+      "symbol": "6907",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "739c0d7b2c8a9d8fe8f59e289428b695367e58accca9fd07337b0be963e55a71",
+      "market": "TWSE",
+      "symbol": "8072",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "1c1c87807f661eafc42ee440a4f5ed9033ab4e0233fc6bb39420ead8481ba0fa",
+      "market": "TWSE",
+      "symbol": "4576",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "b7f2929f7dc711dba7d595dccc109a4e38458225ae7ffaf6b887ff08d267f9f5",
+      "market": "TWSE",
+      "symbol": "8021",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "af946adb4d745747a6730c5a70971daf5cfb481e0bd35a46fcf143e6983224b4",
+      "market": "TPEx",
+      "symbol": "6021",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "579f1c2582f034af1e78d4f11a698b5fadd801552bf13456e56fabf494cb5c95",
+      "market": "TPEx",
+      "symbol": "3441",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "52b6740c5f9cc7586de76971f537bf6e0b5273d9a4de2d79f4af5ffb0bb0e387",
+      "market": "TPEx",
+      "symbol": "6727",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "815caca16270eaf150baf6edab094978c380d89a21d31091d2d2996637f70a04",
+      "market": "TPEx",
+      "symbol": "6741",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "7ae23f44d205b42fc404749844c76af0c7a783340fb0721481e23a05710ac46f",
+      "market": "TPEx",
+      "symbol": "4991",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "6af9f1ee44c81a75f8954fe9bda403778eb9bd3f4d3853a25b0bdec7cdf815db",
+      "market": "TPEx",
+      "symbol": "3492",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "c5faec99adeb78b640eefa1ded65525a389e640a41f8c4862f37b4a6fc033983",
+      "market": "TWSE",
+      "symbol": "1410",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "63d5bea63277b6afb9b762f5920ff66321cc3fb5965529b9e38516cdf45d82d4",
+      "market": "TWSE",
+      "symbol": "6412",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "017cccfc125b64a6060aa3c3ebdd4a80568ce5a3da2730626a8efc0b26b73aec",
+      "market": "TWSE",
+      "symbol": "1447",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "45d7ae444796ed42f3daa6cd498ce0e3c1273384131c1d10fb63c564003e0f3c",
+      "market": "TWSE",
+      "symbol": "7788",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "a2087e06e42ccad49d1caefda2070bf4d5df4de3fb6184a6fbdc94ea432d52eb",
+      "market": "TPEx",
+      "symbol": "6517",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "11b5012a55ae5eefa4d03a6339bcb5dfc32d92e4f9238e8469de9c1a5dffc982",
+      "market": "TPEx",
+      "symbol": "6785",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "9de666f3c16b7db002171bdf4b0b83a612144cd878593c689d8732edf1b04f4c",
+      "market": "TPEx",
+      "symbol": "6532",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "4692e2398292ba51dacc6e675cef9cb151b8690a616725bf9c4c4fccc3f90e11",
+      "market": "TPEx",
+      "symbol": "3490",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "0a53abfadcd06b7b20edfcf7686990d45eea565188a58dbd9a1fb8e8b1f8fb9b",
+      "market": "TWSE",
+      "symbol": "4770",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "f456d34cd34bf72b25ca1254348fce7daaa0d734f740136ff71f91b4ecc8a1e4",
+      "market": "TPEx",
+      "symbol": "6530",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "9e7a23a459a554caf03511ee95ea8c79426ca333c2bfbc6ee223ca9d166fb89f",
+      "market": "TPEx",
+      "symbol": "5426",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "85abb5c4b80e5f0b479bbdac9f396794ad5468af3d52e714ccbb4e13093662f5",
+      "market": "TWSE",
+      "symbol": "8081",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "543f6542899367b132b7833dec356d8efda555ab13dc1ef3fc2519c31a7e1946",
+      "market": "TPEx",
+      "symbol": "6160",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "b79ee4020a2ec1cb7a01f49028e4d94e07e17c640e4718fef43c6b5550e1d898",
+      "market": "TPEx",
+      "symbol": "3152",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "a62db589c44283be2255b4aea064780f2060ba7b8ef6d695330f79ab428b4e68",
+      "market": "TPEx",
+      "symbol": "4523",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "f2a8943d6dc0f31f517dc9640294ed4d54b85f6d7143bb9c6928e47d1936dd92",
+      "market": "TWSE",
+      "symbol": "7722",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "4f6f02863f8de6e82608f822e59107c16593876b9ee6a8f0b548094cfed13ae7",
+      "market": "TWSE",
+      "symbol": "2233",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "b1eec1a9af57847c2dfd8768a57410f38f79f1f69d74632aee35579507e76634",
+      "market": "TWSE",
+      "symbol": "3481",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "3b7dca70951633a7e54a9b48a66ebc55a2b421a1dfdf6dc2ae089ef033f69a65",
+      "market": "TWSE",
+      "symbol": "2613",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "c3fe23e5fa73869a2374606a4f3e979dce60634c6735a24ac0f582722df6cb32",
+      "market": "TPEx",
+      "symbol": "5386",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "110cf140f6e2c170565edd64f5302106e5b50ae634895acd7e11327dbbad899d",
+      "market": "TWSE",
+      "symbol": "6861",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "9d69b5b220672fe1f7515a72e775521361a849dec2ed2203b4d0c3ed6f8795ee",
+      "market": "TPEx",
+      "symbol": "6411",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "d390b287713de42e21d1c295672c7ab264e228beb3795b52a3603ac0854df043",
+      "market": "TPEx",
+      "symbol": "5328",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "7ee9adf45ab74dc70d2435c771729a4e791c711aa468192bdcaebf11e4854831",
+      "market": "TWSE",
+      "symbol": "2491",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "200c80ab7cd59320df151f50a7eaee264cbce1ce00e4b0ef3ceb73916dc972af",
+      "market": "TWSE",
+      "symbol": "2404",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "1de0c93307d6b8e944104c751744feaa0d5b873be09492ad56a4905c40404772",
+      "market": "TPEx",
+      "symbol": "3163",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "3f7910d78a2eb29ab54740d5645e2854f143226c203602d6fc0bdc19e73d47ea",
+      "market": "TPEx",
+      "symbol": "3265",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "fe9690c03cd5e5c469b13b645d12997857ebae65c461d4048cca30a53a14dad1",
+      "market": "TWSE",
+      "symbol": "5236",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "15220c79cf5c2dd823b2ed9dd6844f4810aaf3bdf2781bcc3286c809182096f7",
+      "market": "TPEx",
+      "symbol": "3707",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "75562362de0b29297690f93b667ecefe4afbd234922d5e764e30208efb137da9",
+      "market": "TWSE",
+      "symbol": "1201",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "6707a327c3c3e49e1b2a9b10cd4e3d60157756cd5de4dd32debda1d1898bd347",
+      "market": "TPEx",
+      "symbol": "4760",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "a6ebffc9ddbacee662895abea781d5b29e648d8f0a3a842b4db25e807b3269d3",
+      "market": "TWSE",
+      "symbol": "6805",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "b2c75cf66b9a004208e22424d6fe35e2066328d76321b7f0f8bb541f138da1a8",
+      "market": "TWSE",
+      "symbol": "4771",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "b8f5fdac08e4c624dcb159a4d304f94ceedad1cc195c40cb58143af0545fef4e",
+      "market": "TWSE",
+      "symbol": "3533",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "aec0cca3fb6ebafc2f55004cfaa5f89ce543bffcc43f593333b081fd6cdfa518",
+      "market": "TPEx",
+      "symbol": "6234",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "f4d2c1325daa95a735055d080826e7732d002f0f4b4a70b81f30cb3dfd549722",
+      "market": "TWSE",
+      "symbol": "3443",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "52cc87626b57ad6a0c4ca867d8bd04d042487c082cd1c3d2ecafe9f985c5d530",
+      "market": "TPEx",
+      "symbol": "3147",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "0c556aa7a49c81cb3f5db342d13baebcda846650fae8eb7414c25066d0981ed7",
+      "market": "TWSE",
+      "symbol": "8374",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "7f0c60df4398afaa0729022905badd2b2554358788fec51529af61b7b1704484",
+      "market": "TWSE",
+      "symbol": "4438",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "c0610753ce86e6cc167a4455499db873ca5262d7b30ed17fcd31c1dedea3b7e1",
+      "market": "TPEx",
+      "symbol": "8436",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "1d1b079ec3ebc89fb84acc30156eb788080d99673d2eafe928e50cf567eb19ec",
+      "market": "TPEx",
+      "symbol": "6821",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "7aeb0b815e34f574cedfe29c4473eaa0d8bda1d2686a54a852f22c66a79bd4bb",
+      "market": "TPEx",
+      "symbol": "5489",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "bad699bd6fa1c281f888c7deb15617006f65e0dc656466e77cf3be9a2d552356",
+      "market": "TPEx",
+      "symbol": "6186",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "aa499858945c568557bd3c1438bb936505c876e8fedf2e5a8e8c9a37bd8e19c8",
+      "market": "TPEx",
+      "symbol": "5452",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "3f05e08174916074cb69b09c627d8d24b07b574569ef238a148993e71987536e",
+      "market": "TPEx",
+      "symbol": "4908",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "2e7d15909c62ef2a1aa0d281dab278a0a5c418ec407331adccce619ce9eff29b",
+      "market": "TWSE",
+      "symbol": "8033",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "96a48588f95ee92bfaaf8127f2086cbc88c89734a3cd73ae617c856a9d620ea5",
+      "market": "TWSE",
+      "symbol": "5243",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "88ea58a1590b4e0c71c0b0a75909d72155e15b7401c7932d95756e52bc81997e",
+      "market": "TWSE",
+      "symbol": "5284",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "62d180b4b0c080722fa4fac76b3550f853e989fcfab486b21cb0dfc664b236d8",
+      "market": "TPEx",
+      "symbol": "4931",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "3297c90f952262e089c39eb41dd950d2080cac72ffe9a01986d2fbdfcaa783d8",
+      "market": "TWSE",
+      "symbol": "2342",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "cd29c3c605da210a5c930b8393267e1ddb6f38ae9ec2b856b96a80c4553eaa74",
+      "market": "TPEx",
+      "symbol": "6207",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "8a6802eca9c8f0c81827c7eb44cd5f590dc837f05ddb4cc01d80bac847c5e7ef",
+      "market": "TWSE",
+      "symbol": "2645",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "2b70416798833dbf3cfcc23d1ff07f5e6d0679504ce485682b4bb7a6b9118e80",
+      "market": "TWSE",
+      "symbol": "2883",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "525dda6bf76e210314971d79146c02178324529f93c5a12df70ff80cb0b7f0b9",
+      "market": "TWSE",
+      "symbol": "6449",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "06c3b436a235867cc940251d3866a3239ec17041d842ee86ede39d523a4d0aa7",
+      "market": "TPEx",
+      "symbol": "6138",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "2e0f6cc6ea90635f1eef7d3083b73b1aba4789fdc198121bd6ddc8d0b70c0d47",
+      "market": "TWSE",
+      "symbol": "2442",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "6f88ea24deb037a5dbdec26843e7e1da7120e880f0cd7313877e8ffe16a157fd",
+      "market": "TWSE",
+      "symbol": "2423",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "6958f38b6cfefdf18c0739e67164ce16745c1b91a7bc5ae1f670f0347ad860df",
+      "market": "TWSE",
+      "symbol": "2421",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "8398130635538ec77e7331ab5dce84adc7db33106bfe7a08559fe45611744938",
+      "market": "TWSE",
+      "symbol": "3406",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "f9a9bbaff56fd8612824b95a961f7c347406f40a7a51e15ab073e4035941d55e",
+      "market": "TWSE",
+      "symbol": "1714",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "99fff6b400acb5a75b20a528905b0b064d6f9289a0b2d76207b091735509451c",
+      "market": "TPEx",
+      "symbol": "3430",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "b7c66d0f2bbe93110ff3da174ef00d3cc4e5b0b7a224443336b3354a33c18ac9",
+      "market": "TWSE",
+      "symbol": "6272",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "4e818f7ae48aed61bcc80520e09d82fce5e8f76347c46cfb9a0fdeb7dde08637",
+      "market": "TWSE",
+      "symbol": "4912",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "cfa9be6abe23f59b1578489ce5a91d7fca28a86dc57231d835502e96ba72a584",
+      "market": "TWSE",
+      "symbol": "1710",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "a379ac9cd0f84781ac29830e7026bae1ab7f2f9eb3a8c91c448338767317795c",
+      "market": "TWSE",
+      "symbol": "6515",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "0aec5a1dc2bdc51f1644558c82a9977131f6d8a2af8a3d0bebcd7d9fc7777ff9",
+      "market": "TWSE",
+      "symbol": "2493",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "f1b3ec6e1f26d7e2a8c0d1427ced693c58b9216c90beded496cefa17b2b188f3",
+      "market": "TPEx",
+      "symbol": "6967",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "640c1666419102aff7adba0afe8f8c052935e7d794e3218b67ed366e2220d6e6",
+      "market": "TWSE",
+      "symbol": "3712",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "876c2495223d6b7c18f1516bde1633252d6d7d3e989cfe32a54b21e98cef13b5",
+      "market": "TWSE",
+      "symbol": "2329",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "0643a4f07466a5700c3e5f1b0bb5283901cf4eb98c8104048a25d283d3f7db4a",
+      "market": "TPEx",
+      "symbol": "6548",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "d51cec5df27d35a396e10cd82ea2536e4d78779566291921a5007ec2bd40c08e",
+      "market": "TPEx",
+      "symbol": "8437",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "ef32b48ed11d56da4dd5a096aa20e7dd8010e1547a5c5a9e849902ec8d9d21e0",
+      "market": "TWSE",
+      "symbol": "1101",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "b06eef9500d2779d739a51d30d5044e9b40c3a2fe100201a65de0bd27abcb4e3",
+      "market": "TWSE",
+      "symbol": "3653",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "af9758267376093afcc2a86ed229c356f0705aed89c5e627c481e5768a55ca0d",
+      "market": "TPEx",
+      "symbol": "3211",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "4a4326426c81598dec103af3d924bbbf4ea9022267909c9d9392810f3727e4e0",
+      "market": "TWSE",
+      "symbol": "3413",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "7ea6651fd8db53bb414307a881212333cfccd266ed976bf78056e508e9a93b0c",
+      "market": "TWSE",
+      "symbol": "4540",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "3e9d7d11d7d4a472170a58a9e9d3d3ae7406126555e1fcac2b9ce8e7cd64d11c",
+      "market": "TWSE",
+      "symbol": "2337",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "77a07cdcc67fd0fb45151036a8bfdd2560bb93f347bbafcabf0a0970c58255e9",
+      "market": "TPEx",
+      "symbol": "3491",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "1e445c13e4ff3bc1ff366d3f0f23e702e1f023fc9a68b189fc4d064214a481f8",
+      "market": "TPEx",
+      "symbol": "6265",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "6ae2cf8fd1e9e3ee667548353d117bbae79aba0405525ef3dba5962a98dba88f",
+      "market": "TPEx",
+      "symbol": "3529",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "9e878df3b14173d0bba768f1f5373f67f976e7495088c4df12c5e500ce607b64",
+      "market": "TPEx",
+      "symbol": "3663",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "3b3e2d980d978252b840942ed8eada8511fb1da88e9cf2111283af8d66cc3605",
+      "market": "TPEx",
+      "symbol": "6203",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "23761924bcdad9ed98787ea291a2c8b975de812af3438f880d2cb9f8bc4cb436",
+      "market": "TWSE",
+      "symbol": "2344",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "7e5bf3786c2bb24a0ddf980f7e855f973360ce1259a0e52848d045afd67ba25a",
+      "market": "TWSE",
+      "symbol": "2462",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "4770736fa3df2265e9cfbf1ac77d56afc977732f53aa10b9d576077d4fbe64c6",
+      "market": "TPEx",
+      "symbol": "3689",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "4c05756a4d110867790cd0bf91bf9a85665d27c4d83aa4368d0257cc2d0831e6",
+      "market": "TWSE",
+      "symbol": "9937",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "8305bdc349f7a083a2894052e72c78965cb58af7221f5c8bb2d3036d9cf46386",
+      "market": "TWSE",
+      "symbol": "2465",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "5dac373e868abc65528772d2b1ed58b3ceaa7f4ee29b1194de1f4c80b696abb0",
+      "market": "TWSE",
+      "symbol": "8926",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "369a8b6d0ea9c1c1a51ec76a0b4c7813585284914e6bde22f4efeb122bc415a2",
+      "market": "TPEx",
+      "symbol": "8043",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "995291397b0bc9edd1a2a5851d0f5b83d0e6c97073b77893cf4d19129587a93b",
+      "market": "TWSE",
+      "symbol": "9105",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "23547f98ef334695d49760087d65f8178d1a38c1e853bc4369cbb33c5a9a8bd6",
+      "market": "TWSE",
+      "symbol": "1303",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "9fb099e7e5e02ca5713effe17d4e54c3bbb949b64fa09fa5ed93892f68e39c4b",
+      "market": "TWSE",
+      "symbol": "1515",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "4d6510d6a4b0d2583c8083485b211c2f2c03a31a8b3ba03ff2a6759ba280dc40",
+      "market": "TPEx",
+      "symbol": "3379",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "f10e4f876b77ea2dbaa7ce6b90ab520ba85661cd65dcd86719786c2f9985c07d",
+      "market": "TWSE",
+      "symbol": "6834",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "be9f185f57dbb5d45f788eab7881642e6a1aaf9f5fc6131a01a82f34310008bd",
+      "market": "TPEx",
+      "symbol": "6261",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "1dfc5dd4139ea6fa55311c9cb759d4e371e4c5083b00048342a6ba55352d9fea",
+      "market": "TWSE",
+      "symbol": "2030",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "a83cf77d1724501f99a6ca35f7ea64ac89828d6c1ab5fd41ab19a14e55121978",
+      "market": "TWSE",
+      "symbol": "2374",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "af06a3041b122ba66efd311a74e6ec25157bb732c486214ec2dc80dc40fce6fd",
+      "market": "TPEx",
+      "symbol": "6588",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "badc9e348d6eb3c6e43e600d60b1cf5d2637684f9d2269a53fab31927879e416",
+      "market": "TWSE",
+      "symbol": "3706",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "b7877101a53a80df1b8a784a9d5731dd095d21cc00198cc340c8bf3e45ca99b5",
+      "market": "TWSE",
+      "symbol": "3702",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "c0b2dab2dd0a35ecbc772c64e2a7242076f05553692f223a80d3dda8eea87858",
+      "market": "TWSE",
+      "symbol": "2328",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "8ed9878fa96e6c27dfbf38ce85159e078cc2290b3aa4f305b4ee26ea1376d25e",
+      "market": "TWSE",
+      "symbol": "2906",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "e2fa45d872ddcc850fd8eb33c5576557fb1bfbcbc15362766a12d4c59091fab8",
+      "market": "TWSE",
+      "symbol": "2020",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "f379dafa6954ba991f1c6ae95db7fa9f059f869037183b9c2552938bf66c4539",
+      "market": "TWSE",
+      "symbol": "6770",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "a3fb33b7ded6cbd5f5277bd505bfd507b2c9817765b0bd51003a4cd425fac7f8",
+      "market": "TPEx",
+      "symbol": "4749",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "6f3e501fc60ab28b057ecbe5aad7f5f81961dbec52341f0f6d9e674e16770e56",
+      "market": "TWSE",
+      "symbol": "1568",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "06a3af8adae2c2fb10d4c32d2ea4298330d1576bc0031de3b28be7b24dd5e75e",
+      "market": "TPEx",
+      "symbol": "6143",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "04923fb73ab8c0a70ac40ade9e488329e6d8a483f7d5a1051fd2e98a096dda57",
+      "market": "TPEx",
+      "symbol": "3630",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "cf299da5c65810abdb1e565b5566fc787f5f681e906ea97e73d6b7e33b9ceb3b",
+      "market": "TWSE",
+      "symbol": "6235",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "959b48eed115d38dfeacf11943b0b153f5bf1f7a46980db143c3935eb4a0ad74",
+      "market": "TWSE",
+      "symbol": "8039",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "7c7cfbb7175ac6f0ab448bc965d2e38d28dd0c1635eb0656ea8aee4831ecb58c",
+      "market": "TWSE",
+      "symbol": "8271",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "256a6ddf4c44ad5d0becd7d1e60c942324f52250600267ff71b49130bec17fd8",
+      "market": "TWSE",
+      "symbol": "8215",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "8dce46eb584b896c4f28d2cda086d20d186e51c891f312a7e72f551dcb97bd90",
+      "market": "TPEx",
+      "symbol": "3434",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "9737922cd1d88f07352c215887bc7a14730a27a8cc149858cea7fd81bf619a30",
+      "market": "TPEx",
+      "symbol": "4706",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "03799d61a5beedc086629b11298e2995756cd6a5c96fa1cbb35a5736376061a8",
+      "market": "TWSE",
+      "symbol": "2850",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "9ff30d38bb602e938b8192659c296f6ab31950d58f47a44dd09a63795ddf9801",
+      "market": "TPEx",
+      "symbol": "4939",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "46e506694814ce1b44a70c414ee4abf512c77c82a830f10fc132d8689992e31f",
+      "market": "TWSE",
+      "symbol": "6869",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "bc58185f8cce26ffd629dcf6d4de5c55b0ca54b27092db5780c7c578f5b583f4",
+      "market": "TPEx",
+      "symbol": "6125",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "10e03a15d6847402da47987de555ac366b00b4167042dd7ab3cbd02c0e21226e",
+      "market": "TPEx",
+      "symbol": "3357",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "81ac469021deaa183daf2c1b08492b15b3bf62cdb1dedc6bf8676fddeb737a43",
+      "market": "TPEx",
+      "symbol": "7718",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "fdbb9055313e09ba4cf3be1343c063a340c2745c6a420a6e51389de8d047fa29",
+      "market": "TWSE",
+      "symbol": "5434",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "1a35ff417b1b7b25ca19f9680dc294e265d1249f071aa9b53b0efee2aec8d6aa",
+      "market": "TPEx",
+      "symbol": "4416",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "21b133378a07878ff68293103714f7803a5a52b58da33edaad8296d72d67d570",
+      "market": "TWSE",
+      "symbol": "1522",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "57c16b3b406ab68f69141303079abca64ef1b5447ff10d05281ccedce302476d",
+      "market": "TWSE",
+      "symbol": "1533",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "36d3e232518f331ec27973816ec9432da0441ce0840096d06e77166275ccf0f9",
+      "market": "TWSE",
+      "symbol": "3017",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "6056f2d0020c3ea71f4f4f50383276398109b8bf43e4619e1f2b3ea9272acfa8",
+      "market": "TPEx",
+      "symbol": "5289",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "d83ac5ecfcad1290dea4346c38fadfce589df55747bb5259a31cb58a78058fee",
+      "market": "TWSE",
+      "symbol": "2426",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "498e2cf180fe1535a1202e5a413455cbba08885623a0611ba5a73fd19d3c8467",
+      "market": "TPEx",
+      "symbol": "3548",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "deb2df942f774d19c7097aa185e851d8b21a41542febe5a00e6a833bf7dd170e",
+      "market": "TWSE",
+      "symbol": "1717",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "b998ef84f9bd855bbecca3ef42d6d520e9633e93b1f33d390cc68475f792e166",
+      "market": "TWSE",
+      "symbol": "4958",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "20b4e8d55121b8f5645f82e358d71d684749861a260d3ca5d36878b2fe0467f4",
+      "market": "TWSE",
+      "symbol": "8249",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "0f84dcbb9e8ad7d4c64a185131f655535464c9b22229a2f0efd95504426fbc27",
+      "market": "TPEx",
+      "symbol": "4909",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "e3087447dad8300e4b1d3b4fd25cf28fe297e1ea71af61769147a596ba3bac62",
+      "market": "TWSE",
+      "symbol": "3026",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "2cc4ff5f3ccee020f6175d9f81455e996867afba0c93a77419573ed6325e4237",
+      "market": "TWSE",
+      "symbol": "3376",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "e9c69740ee10b546f68f24cb1807ccbd46789949a7acd09149ecdbd54de1701d",
+      "market": "TPEx",
+      "symbol": "5309",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "e7712872df32449a0cbac5160d90c0ae71e714fefbf70f78f67db845c4c8f6f3",
+      "market": "TPEx",
+      "symbol": "5251",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "95318b5c62be900af343bcf0663403a3bdcbac28eaa25549f0e4825e87a384ee",
+      "market": "TWSE",
+      "symbol": "4915",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "e89c5354fa0d402ef274a328c1cdc6e8f0cd0cfab35b447c08427d6ba1340ac3",
+      "market": "TPEx",
+      "symbol": "6903",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "9e834f59f8141ce7369e4593b89fc452e499db2a16bb49d039711d2f6ffb281a",
+      "market": "TPEx",
+      "symbol": "6180",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "80c59b504b4f1525a0806b4d4b7866072a22f87ad7c14641d06a62fd29475bb5",
+      "market": "TPEx",
+      "symbol": "3687",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "819b6bbafcd2111cb8c464b9370efd6ba8ac6b314098afae69a15737dbade72e",
+      "market": "TWSE",
+      "symbol": "7730",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "1ef600eec18ef7dbcd1d75f3062ad98efbffba574a7be2a0585aac2f62fed912",
+      "market": "TWSE",
+      "symbol": "8996",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "5c42b55149d44c967ff68acf523f30d2b242e2bcde5fe2f2c0ea0b1c3bac05c9",
+      "market": "TPEx",
+      "symbol": "6104",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "29bf09b1ad6b8e172f7cdd0b8f4bf3840de418504debfae085c2a1a5bf3233da",
+      "market": "TPEx",
+      "symbol": "3289",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "0cdbd6a55915d3dba8e32b07554421c78c9ab837670d944b5a0cc1209b0b1671",
+      "market": "TWSE",
+      "symbol": "6153",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "a76e860cef2142fc7a5f23d94007782225e747bf5e1a3e7ee785513a8e1bd38e",
+      "market": "TPEx",
+      "symbol": "1785",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "abe3419d26e09beb50ccf75046bb899e2adbe825a0c89668493f520f37ad5643",
+      "market": "TWSE",
+      "symbol": "1215",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "004f1715b1277fff81d078e9ffaad153cae023ae9704890376df209951481d73",
+      "market": "TPEx",
+      "symbol": "4979",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "79b2e119b4b4f0301179f97f718be625407f12dae60203092ae5c329dedadf5d",
+      "market": "TPEx",
+      "symbol": "6577",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "7a7f5de9a995e105ff91f365fd86fdcf8d55f5438a3330bac60930b22b6f4ae2",
+      "market": "TWSE",
+      "symbol": "4551",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "78b577d7da51b2432d725c7334eb200d5ec06757182b757306d43c670629f7bb",
+      "market": "TPEx",
+      "symbol": "6284",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "b654f1b1ec73a425f2ccfebd57d251203ab7757a5f791f3ae26a5caa1853ac57",
+      "market": "TWSE",
+      "symbol": "3563",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "945e350ed1d5e32944caccdda0002bad8e6892b8be5c757f63c8241d86d59174",
+      "market": "TWSE",
+      "symbol": "3312",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "2d0430b332fc2d43a4cab4eecb0a4f5c09a614ec7138526a0f2f04eb336a8792",
+      "market": "TWSE",
+      "symbol": "2634",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "76cd235a6cfe6c0bc02a308b2a0e25b62591e63350f57182e47daa529bc2f60e",
+      "market": "TPEx",
+      "symbol": "6788",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "e7a45878bc5d9c8dfa9f33c3f28b1ed43877f28752df61a79d2fe85ccdd6db76",
+      "market": "TWSE",
+      "symbol": "1802",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "19a684d4314daaa0913be8aef3d2e035b2440d4b7fa86df4428f63057a7e1b88",
+      "market": "TPEx",
+      "symbol": "7751",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "b22c3ef5a9a4fa4106eb1e7b6b6dba4204732f5eaa5067f216d8f71f2142acef",
+      "market": "TPEx",
+      "symbol": "6204",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "5be43d801dc7354894b169ff146fdf19070303ede7e73860bc53af8a4a492a32",
+      "market": "TPEx",
+      "symbol": "6231",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "f2145a70e33ad393776cc7f43fea726ae608aa804b1c33793dfa876396a0130f",
+      "market": "TWSE",
+      "symbol": "8131",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "d5c6c862e083742fa40f4e0ce5410e0eeb090d07e26a9895484f95c6d2fa2a28",
+      "market": "TWSE",
+      "symbol": "2338",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "6fa34ac5fd26aae6ea06aa49626abf04171da1537f111a4a6f71cc036ba1740a",
+      "market": "TWSE",
+      "symbol": "2388",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "7d2a22063e5090226e9d1118a086a9338fbcd8437fafd579042e99593f0eae71",
+      "market": "TWSE",
+      "symbol": "4968",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "dafa0575b2cd4fd5b5ae74733b8342df5e7f443e446bb89788843109234e6230",
+      "market": "TWSE",
+      "symbol": "6668",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "ccaaf255556629f4e14baf0e1e294feb8c82fcb40b3ca11cdb4260bbd2ac9121",
+      "market": "TWSE",
+      "symbol": "3209",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "01d9df737352e55ee5e84ae703dee8c6731f1fc18181797360627752b8197626",
+      "market": "TWSE",
+      "symbol": "6120",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "4b6a87c1751ed8a11755ec829daa19c8ac6dc84c6e24afd15b520878813aaeed",
+      "market": "TWSE",
+      "symbol": "6226",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "b810fecc3c28720b9d1216853cea2b04657e00b09f671db018027bf1cb03091b",
+      "market": "TPEx",
+      "symbol": "6620",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "9b44308a2237c10fbba597144531c631ea2b7c4a24c695f8544b22a05b32c0db",
+      "market": "TPEx",
+      "symbol": "8182",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "63e231acf717d360eed4d4a13c30c7c5a498a0a5e5edc1678630c01cde0c6ea6",
+      "market": "TWSE",
+      "symbol": "3703",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "89a9da700f30ff4781c5d87d9a87ebf1e5945c9fc6787ac8180eae601b71b105",
+      "market": "TPEx",
+      "symbol": "5498",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "5832eb120d93f1e193bc003456a956e2684b40faf7380ca29b542947468f0fbd",
+      "market": "TWSE",
+      "symbol": "3189",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "099c4120c9235da492241a7e7050964965fd366d74557de5aaac9fc8dd420467",
+      "market": "TPEx",
+      "symbol": "8383",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "0ce90d5db97cccebfa1271d7864d1d149117c7fcd063211f54c71236e833493a",
+      "market": "TWSE",
+      "symbol": "6191",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "2a12e1fccbb13444f81e1d65df2d4091b64fbd5a9c5a641931906bb07008501c",
+      "market": "TPEx",
+      "symbol": "4711",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "a8223075322c901a7f7df74781295f23413cda6ee6e42b7e11ba464f201e52ae",
+      "market": "TPEx",
+      "symbol": "3081",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "aaf3fda04d0f2bacb939d4ed07d34a05be5f09a6649117b7591ac500f1339c48",
+      "market": "TPEx",
+      "symbol": "3317",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "44d8645483e8dcabdd462f26b7fb3687381794213e29ead8b8c176326ba55cd4",
+      "market": "TWSE",
+      "symbol": "4755",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "f5f7e676d7942db63cf44a9257e0ed69017eab07b8b869c7c9a0363b0c6d39b4",
+      "market": "TWSE",
+      "symbol": "2492",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "0ff52061cc545aa45c04fe9d02c702b271e553f442d4a7e7844ea75e77f84add",
+      "market": "TPEx",
+      "symbol": "3558",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "3605c39c7e0e6e68c2467d4d28bbc760423719b09efa15270c1cd11ddde3b555",
+      "market": "TPEx",
+      "symbol": "4933",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "3094a5951d6ca4081fd0808d1d9df174a0c5a4551e22d9f7e6a2e4e8b410e340",
+      "market": "TWSE",
+      "symbol": "8454",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "28d6459f685d30b5093a0de6a41d18fdf18383637feec91b6d634c99225683ac",
+      "market": "TWSE",
+      "symbol": "6282",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "ee29ae5fd9549845f2ed5ee440cdad5dc236a66eb73e42346aad2eaffe2ac0fc",
+      "market": "TPEx",
+      "symbol": "6829",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "d62ee37388df8a44e8cd6fcdead21d6230a1b43a054de16545600666cad6baaf",
+      "market": "TWSE",
+      "symbol": "2425",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "64c010fbfb835dd9fb083ee4affe10c8e2e35635676b766d661d3af29fd697f9",
+      "market": "TPEx",
+      "symbol": "3088",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "dbfa69fe8570b16df96b10f9bf937b9ab87d56628bc897e3d34e0798a2d57525",
+      "market": "TPEx",
+      "symbol": "8234",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "d465933122c929ca48e03c503b144b83878124f6a8acc0a166127a44978afdf3",
+      "market": "TPEx",
+      "symbol": "6259",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "e03700d620916e4c66975bcc996162e1cfc534e3dc40c070830bfe9a7f34cb10",
+      "market": "TPEx",
+      "symbol": "4905",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "5ce7272b007df92ed9c6cbcf2e88e479c8dde31ef98a76fe84472deecc469895",
+      "market": "TPEx",
+      "symbol": "3285",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "8d900d120172163e9111c2aab76a9680be5736ec265a316bf4d621e6ee20dff5",
+      "market": "TWSE",
+      "symbol": "4552",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "433dfe77fdd62070f8f9674f0c07790334aa8f08f274d40630e777923a03eaf6",
+      "market": "TWSE",
+      "symbol": "1449",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "262750afbf7136ce1b9466d13a50fd90e0ae222b201461f584f537775aecb3a5",
+      "market": "TPEx",
+      "symbol": "5425",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "bf6aa0b1a3ea79694defb3086fc3bfd8dc096c9d9f9064c04b0dcdf9b918fdf2",
+      "market": "TWSE",
+      "symbol": "9914",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "72e763bdc37d890f62c1dc5c50846d18f5d73c628b22f7142254a847455007e1",
+      "market": "TPEx",
+      "symbol": "8054",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "064cfdc41d3d51d0b7117d3140327833d2e018c113fe2ffd932c235a7028fc26",
+      "market": "TWSE",
+      "symbol": "1732",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "4ced849fbb4ecc388e923d26e51517c3ff572baacd850542fd1e156709124a88",
+      "market": "TWSE",
+      "symbol": "1708",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "e25b24ba8851fac0648a5dc7a30084bd517d99998315f826c4acd8208649af52",
+      "market": "TPEx",
+      "symbol": "1784",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "e37daa5ad25d7b99af04d62f6d47c8fe70f22c91ed8a9746521170504fd6400c",
+      "market": "TPEx",
+      "symbol": "6968",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "36478700046c2da89279f4aee3add924e6980cb1c17e612a2e0645ccac567ec1",
+      "market": "TWSE",
+      "symbol": "4989",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "fe0a9bfe389bef9f710d9fa3eafc1bb81ec4cbda2383d3783a87d3dfc9fdd18a",
+      "market": "TWSE",
+      "symbol": "3030",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "209aa6beb74888ea9bd8eb373711ffb944935eeab145bd150ef91a8835346617",
+      "market": "TPEx",
+      "symbol": "8088",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "1b21a6acee835e85b8572e27f0864909b50907b3cbc10a1a19414f269e11746c",
+      "market": "TWSE",
+      "symbol": "4766",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "624456d0c21afe78e05da405148bccf43f99e81415462e7f8812f23ca9f39d0c",
+      "market": "TWSE",
+      "symbol": "2059",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "320555d3eec6071f1e5983b9763ef8d8b67348a80837d894d2a899e99e4f54e4",
+      "market": "TWSE",
+      "symbol": "6862",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "5ebbe88fd3584f560c06ab58a3a7e6d64e36ce3feb0585a61e3fade37cc80b73",
+      "market": "TPEx",
+      "symbol": "3260",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "4cfe633c09f22d4ba473d27a7385e351c279ddaaa72c429d7675fd2714e8e41a",
+      "market": "TWSE",
+      "symbol": "1526",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "27d1ff9a0c3f54819a09671a126c06c17f50306727962ae612a4e8548b0192be",
+      "market": "TWSE",
+      "symbol": "4566",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "ab2d0c47ee1950734b55c5314f398f98c9e7e8112fd46c06a642074d9f6da84d",
+      "market": "TWSE",
+      "symbol": "2489",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "dc221119c8781e79e5884e22e6449dcbe67290bf36bcd9158f589d4c2c8f2109",
+      "market": "TWSE",
+      "symbol": "2762",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "c1161e6c1894cb4f6a80644fea681ea80e7da78bb383dd474a839fad25fbbc08",
+      "market": "TWSE",
+      "symbol": "6205",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "7b55c1bbb977b2436cb1668ba6e74642ba98ac0ad87a6eac00f71ca9726daee0",
+      "market": "TPEx",
+      "symbol": "4128",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "dbe1897a04b4b31c311cae1d414c6383724dff53fa629ad033768db7ae66df6c",
+      "market": "TWSE",
+      "symbol": "4720",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "e9ebbf368ffdc3a6a842c06010887c044fa9c89abb18aa40d557dd47e18175d9",
+      "market": "TWSE",
+      "symbol": "6202",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "86cba8da7a8eb6d455e4b4c8ef9640767df2b8d34bc1f7830bfe6719d02031a7",
+      "market": "TWSE",
+      "symbol": "2324",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "ad9c13b9fe01b88bac3921a63aa94779e299a17777d001b0f91744626c3c73a5",
+      "market": "TWSE",
+      "symbol": "2611",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "b670b0c5f1f6ef457b6fe3ee814e7f6a13b78b614167b37d168894c9ce0220e4",
+      "market": "TPEx",
+      "symbol": "6462",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "0b20b76b5e0c07aaff160a1f3487767f919d8205b3d9f3a4d4654bda6a3631cd",
+      "market": "TWSE",
+      "symbol": "3059",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "a4c31c20d64d9720e3db82efff3f6027d9b5c64bb815d2bc06e6bf88058d2f63",
+      "market": "TWSE",
+      "symbol": "8103",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "40427159ed8ab55ee2d32a5025230925754921d795238fcccbbccaeb331391dd",
+      "market": "TWSE",
+      "symbol": "1524",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "81fdac7e2b0de9d54e22ea1dbe081a08a49fb530239f19e7f20714cd8c226d8a",
+      "market": "TWSE",
+      "symbol": "1309",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "d18d1ac409f3573c61669b6b4785932059b16ae80889c4a8ce1b134d2bef9619",
+      "market": "TWSE",
+      "symbol": "7795",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "1f1494ccc044fbfdc4f5205e37127091ec27bed387dec45541eeacce8a6cc57e",
+      "market": "TWSE",
+      "symbol": "3545",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "03a689971dfde1a42020b8a932febd957f88709ca50b072900996b23822e41a8",
+      "market": "TPEx",
+      "symbol": "6664",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "bc20ac82958ead4286c38bf9e583a3c025ee83420278c5439f18467f12596203",
+      "market": "TWSE",
+      "symbol": "2543",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "c6267023aa4c289e3db7350179b002bab135821806389770a53ddb6544617626",
+      "market": "TPEx",
+      "symbol": "6761",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "20bc542704752e45436a34f279876fbd9e0305b544e5b90d89ba835279162dc3",
+      "market": "TWSE",
+      "symbol": "2603",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "819c485b7f932894fd7b178dd1466f5764807ea560a1c9eee49820ab1cb8714f",
+      "market": "TWSE",
+      "symbol": "2363",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "de5e9f5058745aba1b076c65467648cf0e221e05223c0d94fe7a95d673d90706",
+      "market": "TPEx",
+      "symbol": "3293",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "58669ff767efd2e72ed74e52358a6909a3df59de97ffb0284e088eb2adcdb17b",
+      "market": "TPEx",
+      "symbol": "8390",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "1bd70c7f8d3cbcd75e0be77897c3ccdba634e305ec54c9722d2e99830468d5d3",
+      "market": "TPEx",
+      "symbol": "5432",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "615a00406256b600c02d85bd9c5562becf9e4eddd297e8ea1e6bc31828527826",
+      "market": "TPEx",
+      "symbol": "5443",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "ec7da69b3c4f467f259295c69ba966b7f3ecb90db1fd01cce31a794521db73df",
+      "market": "TPEx",
+      "symbol": "6182",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "ac99a101a0000d3441faf5453f29d6d24a6967a176ec26f15a0306f50e3752f9",
+      "market": "TWSE",
+      "symbol": "4906",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "5628d47e480fc2aa8ac48ea1fc3c7c90deb0b98a74afc82eafbdd3c079152c78",
+      "market": "TWSE",
+      "symbol": "1810",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "506287cb8087b5461b404e9304eed935baf9a3729eb11cb7e2d2517638beace8",
+      "market": "TPEx",
+      "symbol": "4543",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "a39c9a74a44ff2077c43c8992aa6b719d98db7d56ecf2f6652f7eaa7d448b2e2",
+      "market": "TWSE",
+      "symbol": "2367",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "ab3d608cf376f77220fbc588132c1c9952ba3b2de6ab095578b490790cf6c18d",
+      "market": "TPEx",
+      "symbol": "5299",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "d45f44405761589ecd761223bf03c1b6e5a976436b35cd4720e8c4f2c82386d0",
+      "market": "TWSE",
+      "symbol": "3665",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "058412f066ee1b902767919baeed8321c24f915f995edcb89a599a0382a27da9",
+      "market": "TWSE",
+      "symbol": "6414",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "145c83953325973c3f5977e19ea89875404121e8e3cbe788eaa2ea7a8aa8ce3c",
+      "market": "TWSE",
+      "symbol": "6831",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "b2e09dab0c065fe2c4ae1efc61ecb7f4efcd51212a69689aaca6b9fc629bc624",
+      "market": "TPEx",
+      "symbol": "3114",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "b52ddfdebf4c80c47407a4f0679d794e1c97cfa4cc4dc2d0aa0280a39f88ebe0",
+      "market": "TWSE",
+      "symbol": "3588",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "3f9b52b7b487d109f59004091a30af1b5b9c7f7d855b5a1be5539867eeda553f",
+      "market": "TWSE",
+      "symbol": "2062",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "8ff3ce6e24817f04eaa883796e6595651e3f9256623baefb49c3a84e4e708911",
+      "market": "TWSE",
+      "symbol": "2451",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "7274bf75b69274835ecc44e9bd949463c740073aa526b0820c81231880587072",
+      "market": "TWSE",
+      "symbol": "3013",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "40c3f41041d8e036fff811c0c741732330fecfe29e9a1ca1e59097c85c2ac340",
+      "market": "TWSE",
+      "symbol": "5285",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "9be97331e4c16f76c241102e2b965b1f891f9fe45de0fa22120193bd56244559",
+      "market": "TWSE",
+      "symbol": "2409",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "f8d8fdd39ddf892908ba5fa574c983e68243c89f0a4da15cf80a70af83f399dd",
+      "market": "TPEx",
+      "symbol": "6187",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "16717e25d053b1b3cbeed627dfabc90bb5a042217a1304e565e653753420345b",
+      "market": "TWSE",
+      "symbol": "2472",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "0d3fa4701e57d8ee3923d20873e6318f2883a83dc18c48843a0b45f221bd2f84",
+      "market": "TPEx",
+      "symbol": "4971",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "5476136469c9bbef4d5915980c68a7e21c2cf0da51e8f7867c9605629d393cc8",
+      "market": "TPEx",
+      "symbol": "7744",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "5b7c1e4d7580d204425d386fed07d7a3ffe466fb69880976f263acbb2561b3cb",
+      "market": "TPEx",
+      "symbol": "6465",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "f52fbca61895fbabbb1e1d99b410809c20dc355628f907b9d7e85da722049125",
+      "market": "TPEx",
+      "symbol": "5223",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "9712f0e907aed44cb71b31c80750f5aa52e36f9b6110ed2e220bc3532343ff79",
+      "market": "TPEx",
+      "symbol": "6220",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "fbac520de92ad48d1881efe2a7b2f1051602a95d3409bb219fde3823a88b594a",
+      "market": "TWSE",
+      "symbol": "8070",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "76600427be87a1896984868e408684f0db2d6dad8e6ac34a916a26fdc295dd74",
+      "market": "TWSE",
+      "symbol": "2436",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "a2cfc9204fd92dcd976ed9d798c901c319b7deb5ea756557e33c698537080f3b",
+      "market": "TPEx",
+      "symbol": "6725",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "6b9d19de10708fee7e9c33cc89b933a7e1dee6b48385d1c778d837797af8742e",
+      "market": "TWSE",
+      "symbol": "8163",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "5f7098783632edaf1cb405faaaa2fd9ffe2415576ee897629975d6eb1a9ebb95",
+      "market": "TPEx",
+      "symbol": "6894",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "c03dc55ac62cda9ce10bc8a4bfef8955a7c80238f9f65daedd4c1daf4d5a6a18",
+      "market": "TWSE",
+      "symbol": "2441",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "b32730166f34d23b90a29385f564f3b289f4dfee05e531a49fd134add25408dc",
+      "market": "TPEx",
+      "symbol": "3580",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "792b86313519178953de9115bc668d02d110f63d41c9632e41d49d305e839fa8",
+      "market": "TWSE",
+      "symbol": "3305",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "b7240fc40249cb545a07281cff807b9fe8ba58b1088f4dc88d97d32ce09c9ab7",
+      "market": "TPEx",
+      "symbol": "5016",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "fa84191bcfd7116d15857ed8d26efa2666be6a522095d8ca9b8dd7827b834f1f",
+      "market": "TWSE",
+      "symbol": "6706",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "0399f2e5ff86c85e707eb2614046cef66cf6de31f904f38e7e2ee0c7152e4fb1",
+      "market": "TWSE",
+      "symbol": "8261",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "46b8e77d7f5fa835455d2e39d6a9a42966a09e7f5ba3fa772f64241aae6ceb3f",
+      "market": "TPEx",
+      "symbol": "7714",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "291a657d4ef3f1d73cf0f03cfc61ce5a6948e8f096e7abad513a841ec3999a9a",
+      "market": "TWSE",
+      "symbol": "1725",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "c3ee9b2029f927134ac3de0957227ac4bffb2b34233f93f20b0deddeaa51525e",
+      "market": "TWSE",
+      "symbol": "5234",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "d7bf3c06fa6d1f520f9e24c02dfca457f8313142de6c2fff654bd5d64ae147de",
+      "market": "TWSE",
+      "symbol": "5471",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "5d79101b7f9fb5ec285247a37ec57cca1d8e95ba54357455b7d9e6b13bca982e",
+      "market": "TWSE",
+      "symbol": "6405",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "2e03a56a519829852a6b8182008f6af1d57a6cd103747ae0ceb6ab4142b4c5bc",
+      "market": "TWSE",
+      "symbol": "6689",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "b7dc7b8fc5e6a51852a7414cee8954145ebea10929f1de7c7fe0ca1e3635a0bb",
+      "market": "TPEx",
+      "symbol": "3551",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "819747dd8c3bbe4cbe611687740a9686a74bbd47a77fb8e5e68a2273c23b5d69",
+      "market": "TPEx",
+      "symbol": "6147",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "4216f929334ca6c5f917678b8d3d8041a9358506ee7afe2ff2c41d49a642a388",
+      "market": "TPEx",
+      "symbol": "4510",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "397bf37d4655a49ebcefed4771c88e0d32690b19b8c2f426fc02559ecc83344e",
+      "market": "TPEx",
+      "symbol": "2719",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    },
+    {
+      "episode_id": "dc838b0107840ed896ee2f07dc4d483dc8f6357c1fcbc241adc5afd54948480e",
+      "market": "TPEx",
+      "symbol": "5547",
+      "first_session": "2026-11-06",
+      "last_session": "2026-11-06",
+      "observation_days": 1,
+      "candidate_signal_only": true,
+      "trade_eligible": false
+    }
+  ],
+  "independent_trade_sample_count": 0,
+  "future_outcome_complete_count": 0,
+  "cost_adjusted_expectancy_pct": null,
+  "point_in_time_execution_validated": false,
+  "universe_survivorship_audited": false,
+  "baseline_comparison_status": "NOT_EVALUABLE_WITH_CURRENT_EVIDENCE",
+  "production_promotion_eligible": false,
+  "note": "This is a research episode audit, NOT transaction data or a profitability score."
+}
