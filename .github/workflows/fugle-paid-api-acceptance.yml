@@ -81,6 +81,34 @@ jobs:
           path: fugle_api_acceptance.json
           if-no-files-found: warn
           retention-days: 14
+      - name: Publish paid entitlement acceptance summary (not live certification)
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=Path("fugle_api_acceptance.json")
+          lines=["## 富果付費 API 端點驗收", "",
+                 "此流程檢驗端點授權與回應格式，**不驗證盤中逐筆成交時間、全市場有效成交價涵蓋率、正式交易訊號或獲利**。", ""]
+          if not p.is_file():
+              lines += ["API 驗收檔不存在；狀態：未通過。", ""]
+          else:
+              try:
+                  x=json.loads(p.read_text(encoding="utf-8"))
+                  lines += ["檢查時間（台灣）：" + str(x.get("checked_at_taipei")),
+                            "端點整體結果：" + ("PASS_API_ENDPOINT_ONLY" if x.get("all_pass") else "FAIL_OR_PARTIAL"),
+                            "", "| 端點 | 狀態 | HTTP | 筆數 | 來源日期 |",
+                            "|---|---|---:|---:|---|"]
+                  for row in x.get("tests",[]):
+                      lines.append("| " + " | ".join(str(row.get(k) if row.get(k) is not None else "—")
+                                   for k in ("test","status","http","rows","source_time")) + " |")
+              except (ValueError, TypeError):
+                  lines += ["驗收 JSON 無法解析；狀態：未通過。"]
+          lines += ["", "正式交易資格：**NO_TRADE_UNTIL_SEPARATE_LIVE_MARKET_AND_GOVERNANCE_ACCEPTANCE**", ""]
+          with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as out:
+              out.write("\n".join(lines))
+          PY
       - name: Notify Telegram when Fugle verification fails
         if: failure()
         env:
