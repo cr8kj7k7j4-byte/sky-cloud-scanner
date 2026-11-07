@@ -6,7 +6,7 @@ on:
       symbol:
         description: "Stock ID (4-6 digits)"
         required: true
-        default: "2330"
+        default: "6770"
       start_date:
         description: "YYYY-MM-DD"
         required: true
@@ -39,7 +39,7 @@ jobs:
         continue-on-error: true
         env:
           FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
-          SYMBOL: ${{ github.event.inputs.symbol || '2330' }}
+          SYMBOL: ${{ github.event.inputs.symbol || '6770' }}
           START_DATE: ${{ github.event.inputs.start_date || '2026-10-01' }}
           END_DATE: ${{ github.event.inputs.end_date || '2026-11-06' }}
         run: python research/finmind_query.py --symbol "$SYMBOL" --start "$START_DATE" --end "$END_DATE"
