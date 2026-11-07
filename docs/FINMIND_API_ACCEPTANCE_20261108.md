@@ -25,3 +25,13 @@
 - 失敗（401/403、200 空資料、schema 異常）即標記 FAIL；若只有前三項 PASS，維持率仍不得宣稱有權限。
 - 真正 HTTP 讀取結果以 `finmind-entitlement-acceptance` Artifact 為準；CI 綠勾可能只是其他測試，不能替代此項驗收。
 - 官方欄位與估算限制：https://finmind.github.io/tutor/TaiwanMarket/Chip/
+
+## GitHub 實跑證據（2026-11-08 04:13 台灣時間）
+- [Workflow Run #42410017271](https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/42410017271) / job id `128515908258`，結果 **failure（正確 fail-closed）**。
+- 離線 `unittest`：6/6 PASS。
+- `FINMIND_TOKEN` 已設定（不記錄其內容）。
+- `TaiwanStockPrice` HTTP 200 PASS；`TaiwanStockMarginPurchaseShortSale` HTTP 200 PASS；`TaiwanStockInstitutionalInvestorsBuySell` HTTP 200 PASS。
+- **`TaiwanStockMarginMaintenance` HTTP 400 FAIL**（已確定請求被 API 拒絕）。HTTP 400 本身不能證明是哪個權限規則、也不應冒稱已收到官方 Sponsor 否決解釋。
+- Artifact：`finmind-entitlement-acceptance`，ID `13589620268`（完整的安全摘要）。上傳成功。
+- 這項結果已證明一般資料可用，但 Sponsor 個股融資維持率尚不可使用。無需重複測試基本三項，也不應持續 400 重試耗用配額。
+- 正式策略不變，狀態：`RESEARCH_ONLY / INSUFFICIENT_DATA`。後續僅在有官方授權變更、端點修正證據時重驗。
