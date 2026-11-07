@@ -2,6 +2,13 @@ name: FinMind API entitlement acceptance
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - research/finmind_api_acceptance.py
+      - tests/test_finmind_margin_entitlement.py
+      - .github/workflows/finmind-api-acceptance.yml
+      - docs/FINMIND_API_ACCEPTANCE_20261108.md
   push:
     branches:
       - integration/finmind-api-acceptance-20261108
