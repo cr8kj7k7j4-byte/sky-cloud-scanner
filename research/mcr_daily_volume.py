@@ -45,6 +45,8 @@ def _shares(value):
     if isinstance(value, bool):
         raise ValueError("INVALID_VOLUME")
     txt = str(value).strip().replace(",", "")
+    if txt in ("", "-", "--", "N/A", "X"):
+        return None
     if not txt.isdecimal():
         raise ValueError("INVALID_VOLUME")
     return int(txt)
@@ -76,7 +78,8 @@ def parse_market(payload, market, expected_day):
         shares = _shares(_field(row, cols["volume"]))
         if sid in found:
             raise ValueError("VOLUME_DUPLICATE_CODE")
-        found[sid] = shares
+        if shares is not None:
+            found[sid] = shares
     if sessions != {expected_day}:
         raise ValueError("VOLUME_TRADING_DATE_MISMATCH")
     if len(found) < 300:
