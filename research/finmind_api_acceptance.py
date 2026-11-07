@@ -14,6 +14,7 @@ DATASETS = {
     "daily_price": ("TaiwanStockPrice", {"date", "stock_id", "open", "max", "min", "close", "Trading_Volume"}),
     "margin": ("TaiwanStockMarginPurchaseShortSale", {"date", "stock_id"}),
     "institutional": ("TaiwanStockInstitutionalInvestorsBuySell", {"date", "stock_id"}),
+    "margin_maintenance": ("TaiwanStockMarginMaintenance", {"date", "stock_id", "margin_balance", "margin_cost", "margin_ratio", "margin_maintenance"}),
 }
 OUTPUT = pathlib.Path("research_output/finmind_acceptance.json")
 
@@ -25,7 +26,7 @@ def probe(name, dataset, required, token, start, end):
                                      headers={"Authorization": "Bearer " + token,
                                               "Accept": "application/json",
                                               "User-Agent": "Sky-FinMind-ReadOnly-Acceptance/1.0"})
-    result = {"dataset": dataset, "status": "FAIL", "rows": 0, "first_date": None,
+    result = {"dataset": dataset, "status": "FAIL", "http_status": None, "rows": 0, "first_date": None,
               "last_date": None, "missing_columns": [], "reason": None}
     try:
         with urllib.request.urlopen(request, timeout=25) as response:
@@ -33,11 +34,12 @@ def probe(name, dataset, required, token, start, end):
             status = response.status
         obj = json.loads(body)
         data = obj.get("data", []) if isinstance(obj, dict) else []
-        msg = str(obj.get("msg", ""))[:160] if isinstance(obj, dict) else "unexpected_response"
-        if status != 200 or not isinstance(data, list):
-            result["reason"] = "invalid_http_or_data_shape"
+        result["http_status"] = status
+        api_status = obj.get("status") if isinstance(obj, dict) else None
+        if status != 200 or api_status not in (None, 200) or not isinstance(data, list):
+            result["reason"] = "api_error_or_invalid_shape"
         elif not data:
-            result["reason"] = "empty_data_or_permission_not_confirmed: " + msg
+            result["reason"] = "empty_data_or_permission_not_confirmed"
         else:
             cols = set().union(*(row.keys() for row in data if isinstance(row, dict)))
             missing = sorted(required - cols)
@@ -46,10 +48,22 @@ def probe(name, dataset, required, token, start, end):
             result.update(rows=len(data), missing_columns=missing,
                           first_date=dates[0] if dates else None,
                           last_date=dates[-1] if dates else None)
-            result["status"] = "PASS" if not missing and dates else "FAIL"
+            # Entitlement checks fail closed on null/invalid or nonpositive maintenance values.
+            numeric_ok = True
+            if dataset == "TaiwanStockMarginMaintenance":
+                numeric_ok = all(isinstance(row, dict) and row.get("stock_id") == "2330"
+                    and isinstance(row.get("margin_maintenance"), (int, float))
+                    and row["margin_maintenance"] > 0
+                    and isinstance(row.get("margin_cost"), (int, float))
+                    and row["margin_cost"] > 0
+                    and isinstance(row.get("margin_ratio"), (int, float))
+                    and 0 < row["margin_ratio"] <= 1
+                    for row in data)
+            result["status"] = "PASS" if not missing and dates and numeric_ok else "FAIL"
             if result["status"] == "FAIL":
-                result["reason"] = "missing_expected_columns_or_dates"
+                result["reason"] = "missing_or_invalid_expected_fields"
     except urllib.error.HTTPError as exc:
+        result["http_status"] = exc.code
         result["reason"] = "HTTP_" + str(exc.code)
     except urllib.error.URLError as exc:
         result["reason"] = "network_failure:" + type(exc.reason).__name__
