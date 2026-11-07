@@ -1,7 +1,14 @@
-name: FinMind API entitlement acceptance (manual only)
+name: FinMind API entitlement acceptance
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - integration/finmind-api-acceptance-20261108
+    paths:
+      - research/finmind_api_acceptance.py
+      - .github/workflows/finmind-api-acceptance.yml
+      - docs/FINMIND_API_ACCEPTANCE_20261108.md
 
 permissions:
   contents: read
