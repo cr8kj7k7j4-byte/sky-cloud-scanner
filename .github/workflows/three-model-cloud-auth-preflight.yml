@@ -1,4 +1,5 @@
 name: Three Model GCP Authorization Preflight (Research)
+# Recheck user-completed GitHub secret and variable settings, 2026-11-08.
 # Recheck after new research GCS bucket creation; existence of bucket is not assumed.
 # No paid market API requests or GCS writes in this workflow.
 on:
