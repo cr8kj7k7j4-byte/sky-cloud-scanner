@@ -1,1 +1,7 @@
-{"command":"model_validation","requested_at":"2026-11-06","reason":"user_requested_model_and_command_audit"}
+{
+  "command": "model_validation",
+  "requested_at": "2026-11-08",
+  "issue": 331,
+  "reason": "six_model_20260101_20261107_validation_preflight",
+  "scope": "read_only_no_trading_no_promotion"
+}
