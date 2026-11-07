@@ -130,7 +130,8 @@ def run(symbols, end, bucket, prefix, key, store, out):
     audit={"checked_at_tpe":as_of.isoformat(),"source":"Fugle historical/candles",
            "provider_authenticated":True, "historical_not_intraday_live":True,
            "trained_model_used":False,"production_signal":False,"orders":False,
-           "observations_total":len(report["observations"]),\n           "rejected_count":sum(not o.get("signal_id") for o in report["observations"]),
+           "observations_total":len(report["observations"]),
+           "rejected_count":sum(not o.get("signal_id") for o in report["observations"]),
            "saved_records":len(ledger),"storage_statuses":ledger,
            "symbols_requested":symbols,"end_date":end.isoformat(),
            "live_mobile_deployment_verified":False}
