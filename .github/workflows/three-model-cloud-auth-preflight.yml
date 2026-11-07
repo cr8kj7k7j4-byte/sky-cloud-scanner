@@ -29,7 +29,7 @@ jobs:
           missing=[k for k in names if not os.environ.get(k)]
           print("Three-model private-cloud config:", "CONFIG_PRESENT" if not missing else "MISSING:"+",".join(missing))
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write("missing_names=" + (",".join(missing) if missing else "NONE") + "\\n")
+              print("missing_names=" + (",".join(missing) if missing else "NONE"), file=output)
           sys.exit(bool(missing))
           PY
       - name: Authenticate Google Cloud via workload identity
