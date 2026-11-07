@@ -1,5 +1,6 @@
 name: Three Model GCP Authorization Preflight (Research)
-# Read-only recheck of Actions secret presence requested by user; no values logged.
+# Recheck after new research GCS bucket creation; existence of bucket is not assumed.
+# No paid market API requests or GCS writes in this workflow.
 on:
   push:
     branches:
