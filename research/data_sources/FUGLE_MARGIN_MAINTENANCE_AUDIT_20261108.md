@@ -42,3 +42,10 @@
 - 已讀 GitHub PR #306（FinMind entitlement acceptance）來源：`research/finmind_api_acceptance.py` 只測 `TaiwanStockPrice`、`TaiwanStockMarginPurchaseShortSale`、`TaiwanStockInstitutionalInvestorsBuySell`，**未測** `TaiwanStockMarginMaintenance`；PR 的綠色 CI 不能當成 Sponsor 權限通過。
 - 已讀 main 的 `.github/workflows/fugle-paid-api-acceptance.yml`，六項基本測試不含維持率，且 Run #42408149213 六項確有 PASS（2026-11-08 週末驗收、資料日 11/06）。
 - 目前沒有 FinMind Sponsor 個股維持率 API 的有效 HTTP 200 及資料列驗收證據。**權限狀態＝UNVERIFIED**；不購買新方案、不將維持率當正式 Sky 訊號、不新增與 PR #306 重複的 Workflow。
+
+## 2026-11-08 FinMind Sponsor 實測工程已接續 PR #306
+- 已直接擴充原有 `integration/finmind-api-acceptance-20261108` 分支，不另建重複排程。PR：https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/pull/306
+- `research/finmind_api_acceptance.py` 新增 `TaiwanStockMarginMaintenance`（2330、2026-10-26～10-30），驗證六個欄位、數值正值、同代號及 API status；缺值、403、空資料都 fail-closed。
+- 新增 `tests/test_finmind_margin_entitlement.py` 六個離線測試情境；既有 `.github/workflows/finmind-api-acceptance.yml` 增加先跑 unittest，原有 GitHub Secret 仍只在 API probe step 傳入。
+- Commit：程式 `a53ce22`、文件 `8f96a17`、測試 `149b992`、Workflow `b59e66e`。
+- GitHub 已接受上述提交，但**本次尚無可核對的 GitHub Actions 真實 HTTP 回應、Artifacts 或單元測試執行結果**。目前狀態：IMPLEMENTED_NOT_ACCEPTED / INSUFFICIENT_DATA。不得聲稱 Sponsor 權限、資料完整度或融資維持率數值已通過。
