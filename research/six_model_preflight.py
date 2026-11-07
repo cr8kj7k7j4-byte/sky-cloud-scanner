@@ -70,13 +70,13 @@ def audit(root: Path, model_manifest: Path | None = None) -> dict:
             if model_id in seen:
                 missing_fields.append("unique_model_id")
             seen.add(model_id)
-            proofs.append({"model_id": model_id, "verified": not missing_fields,
+            proofs.append({"model_id": model_id, "required_fields_present": not missing_fields,
                            "missing_evidence": missing_fields})
     # Historical v1.4 full-rule reconstruction is explicitly forbidden without frozen provenance.
     limitation = root / "docs/W0_V14_HISTORICAL_REPLAY_GOVERNANCE_DECISION_20261026.md"
     historical_v14_blocked = (not limitation.is_file() or
                               "NOT FULLY RECONSTRUCTABLE" in limitation.read_text(encoding="utf-8"))
-    all_six = (len(proofs) == EXPECTED and all(x["verified"] for x in proofs))
+    all_six = (len(proofs) == EXPECTED and all(x["required_fields_present"] for x in proofs))
     blockers = []
     if missing:
         blockers.append("GOVERNANCE_FILES_MISSING")
