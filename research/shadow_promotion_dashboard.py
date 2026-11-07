@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 from src.model_registry import build_shadow_promotion_dashboard
+from src.decision_outcome_reconciliation import reconcile_decision_outcomes
 from src.w4_evidence_integrity import audit_forward_strategy_evidence, audit_forward_trade_provenance
 from src.shadow_evidence import (
     evaluate_shadow_pipeline_readiness,
@@ -102,6 +103,14 @@ def build_w4_report_sections(dashboard):
             "canonical_observation_identity_count": trade_provenance.get("canonical_observation_identity_count", 0),
             "can_certify_strategy_trades": False,
             "governance_issue": trade_provenance.get("issue"),
+        },
+        "Decision / Outcome Reconciliation": {
+            "status": (dashboard.get("decision_outcome_reconciliation") or {}).get("status", "NOT_EVALUABLE"),
+            "unique_record_ids": (dashboard.get("decision_outcome_reconciliation") or {}).get("unique_record_ids", 0),
+            "duplicate_rows": (dashboard.get("decision_outcome_reconciliation") or {}).get("duplicate_rows", 0),
+            "conflicting_duplicates": (dashboard.get("decision_outcome_reconciliation") or {}).get("conflicting_duplicates", 0),
+            "eligible_strategy_trades": 0,
+            "note": "Ranking observations and unapproved decisions never count as verified trades.",
         },
         "Strategy Performance": {
             "expectancy_r": observed.get("expectancy_r"),
@@ -222,6 +231,7 @@ def main():
     dashboard["portfolio_cost_capacity"] = portfolio
     dashboard["strategy_evidence_integrity"] = audit_forward_strategy_evidence(records)
     dashboard["forward_trade_provenance"] = audit_forward_trade_provenance(records)
+    dashboard["decision_outcome_reconciliation"] = reconcile_decision_outcomes(records)
     dashboard["blocking_items"].append("governance:PRODUCTION_DECISION_PROVENANCE_BLOCKED")
     # Fail closed even if a Ranking-only scorecard happens to reach every
     # numerical threshold: it is not an approved v1.4 strategy-trade review.
