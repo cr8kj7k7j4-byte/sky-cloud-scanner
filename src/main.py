@@ -21,7 +21,7 @@ from .config import (
     P0S_5M_BREAKOUT_ENABLED,
 )
 from .official import load_official_universe, fetch_fugle_snapshot_quotes
-from .realtime_quote_evidence import validate_whole_market_rows
+from .fugle_snapshot_evidence import validate_snapshot_screening_rows
 from .fugle import get_ticker, get_quote, get_candles
 from .decision_engine import first_gate, evaluate_decision
 from .feature_engine import build_features, enrich_candidate_context
@@ -258,7 +258,7 @@ def run():
         st["source_health"]["official_universe"] = ust
         st["universe_count"] = len(universe)
 
-        # Paid Fugle REST snapshot is the only live whole-market trading input.
+        # Paid Fugle REST snapshot is a current-market SCREENING source.
         # Do not silently fall back to TWSE MIS or a cached/previous-close quote.
         rows, fugle_warnings = fetch_fugle_snapshot_quotes(
             universe, trading_date=now.date().isoformat()
@@ -267,9 +267,9 @@ def run():
         st["source_health"]["primary_live_feed"] = "Fugle MarketData bulk snapshot"
         st["fugle_snapshot_quote_count"] = len(rows)
         st["mis_quote_count"] = 0
-        # HTTP success alone is not executed-trade evidence: enforce timestamp,
-        # trading date, coverage and per-exchange validity before any signal.
-        quote_audit = validate_whole_market_rows(
+        # Snapshot lastUpdated is NOT the individual executed-trade time.
+        # Verify source freshness for research screening only.
+        quote_audit = validate_snapshot_screening_rows(
             universe, rows, now=datetime.now(TZ), min_coverage_pct=80.0,
             min_exchange_pct=70.0,
         )
@@ -281,10 +281,11 @@ def run():
         st["live_whole_market_coverage_pct"] = quote_audit["quote_coverage_pct"]
         st["fugle_unverified_quote_count"] = len(rows) - quote_audit["valid_quote_count"]
         rows = quote_audit["accepted_rows"]
-        if not quote_audit["valid_whole_market_operational"]:
+        st["snapshot_screening_ok"] = quote_audit["snapshot_screening_ok"]
+        if not st["snapshot_screening_ok"]:
             st["warnings"].append(
-                "BLOCKED_EXTERNAL_DATA: whole-market current-session executed "
-                "trade coverage missing; do not issue current-state trade decisions."
+                "BLOCKED_FUGLE_SNAPSHOT_SCREENING: missing permission, freshness "
+                "or market coverage. No MIS fallback."
             )
 
         twse_rows = [x for x in rows if x["exchange"] == "TWSE"]
@@ -296,17 +297,14 @@ def run():
         st["quote_coverage_pct"] = round(
             (len(rows) / len(universe) * 100.0), 2
         ) if universe else 0.0
-        st["operational_full_market_scan"] = bool(
-            quote_audit["valid_whole_market_operational"]
-            and official_universe_ok
-            and twse_intraday_ok
-            and otc_operational_ok
-            and st["quote_coverage_pct"] >= 80.0
+        st["snapshot_screening_ok"] = bool(
+            st["snapshot_screening_ok"] and official_universe_ok
+            and twse_intraday_ok and otc_operational_ok
         )
-
-        # The exchanges are official universe sources; the paid Fugle feed
-        # supplies executed-trade evidence. Do not require an unrelated free
-        # TPEx quote feed if the validated licensed feed covers both markets.
+        st["operational_full_market_scan"] = False
+        st["live_whole_market_certified"] = False
+        # Snapshot lastUpdated is NOT executable-trade provenance.
+        # Do not promote full-market live-trade scope on this feed alone.
         st["source_health"]["twse_intraday"] = {
             "ok": twse_intraday_ok, "source": "Fugle MarketData snapshot",
             "count": len(twse_rows),
@@ -315,30 +313,25 @@ def run():
             "ok": otc_operational_ok, "source": "Fugle MarketData snapshot",
             "count": len(otc_rows),
         }
-        st["full_market_scan"] = bool(
-            st["operational_full_market_scan"]
-            and official_universe_ok
-            and twse_intraday_ok
-            and otc_operational_ok
+        st["full_market_scan"] = False
+        st["warnings"].append(
+            "Fugle Snapshot is screening-only; full-market executed-trade "
+            "verification is unavailable. No executable live trade signals."
         )
-        if not st["full_market_scan"]:
-            st["warnings"].append(
-                "Fugle paid snapshot unavailable, stale or below coverage gate; "
-                "whole-market trading signals are blocked. No MIS fallback."
-            )
-
-        # Data-quality gate occurs before ranking, P0-C/P0-R decisions,
-        # monitor transitions or Shadow/Paper evidence recording.
-        # Incomplete live-market feeds may appear only in diagnostics, never
-        # in a strategy candidate list.
-        market_evidence_eligible = (
-            st["operational_full_market_scan"] and st["full_market_scan"]
+        # Make researched snapshot breadth inspectable, but do not route it
+        # into P0-C decisions, Paper or monitoring as executed trade evidence.
+        st["snapshot_screening_count"] = len(rows) if st["snapshot_screening_ok"] else 0
+        st["screening_candidates"] = (
+            rank_screening_candidates([
+                row for row in rows if first_gate(row)[0]
+            ])[:TOP_N] if st["snapshot_screening_ok"] else []
         )
         st["market_data_gate"] = (
-            "PASS_FULL_MARKET_LIVE" if market_evidence_eligible
+            "PASS_FUGLE_SNAPSHOT_SCREENING_NO_TRADE"
+            if st["snapshot_screening_ok"]
             else "BLOCKED_EXTERNAL_DATA_NO_TRADE"
         )
-        working_rows = rows if market_evidence_eligible else []
+        working_rows = []
         st["market_intelligence"] = summarize_market(working_rows)
 
         premarket_state = load_premarket_event_snapshot(
@@ -554,7 +547,7 @@ def run():
             f"Sky Cloud Scanner v{SCANNER_VERSION}｜{now:%Y-%m-%d %H:%M}",
             (
                 f"官方母池 TWSE {ust['twse']}｜TPEx {ust['tpex']}｜"
-                f"富果有效成交報價 {len(rows)}｜第一層通過 {len(passed)}"
+                f"富果快照可用 {len(rows)}｜已驗證成交 {len(passed)}"
             ),
         ]
 
