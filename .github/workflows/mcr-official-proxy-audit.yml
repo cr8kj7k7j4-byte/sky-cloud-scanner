@@ -54,6 +54,18 @@ jobs:
               rows=parse_market(data,market,dated)
               print("VOLUME_SCHEMA_VERIFIED",market,dated,len(rows),"unit=shares")
           PY
+      - name: Audit real official TWSE TPEx close-price schema (no fabricated prices)
+        run: |
+          python - <<'PY'
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+          from research.mcr_daily_volume import fetch
+          from research.mcr_forward_price_snapshots import parse_market_rows
+          stamp=datetime.now(ZoneInfo("Asia/Taipei")).isoformat()
+          for market in ("TWSE","TPEx"):
+              session,rows=parse_market_rows(fetch(market),market,captured_at=stamp)
+              print("MCR_OFFICIAL_CLOSE_SCHEMA_VERIFIED",market,session,len(rows))
+          PY
       - name: Fetch official TWSE two-session source (research only)
         id: source
         continue-on-error: true
