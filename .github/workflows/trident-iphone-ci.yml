@@ -68,7 +68,7 @@ jobs:
           cp trident-mobile/index.html trident-mobile/manifest.webmanifest /tmp/trident-release/
           cp trident-mobile/standalone-pages.yml /tmp/trident-release/.github/workflows/pages.yml
           cp trident-mobile/standalone-README.md /tmp/trident-release/README.md
-          grep -q "github.repository != 'cr8kj7k7j4-byte/sky-cloud-scanner'" /tmp/trident-release/.github/workflows/pages.yml
+          grep -q "github.repository == 'cr8kj7k7j4-byte/trident-iphone-workstation'" /tmp/trident-release/.github/workflows/pages.yml
           test -s /tmp/trident-release/index.html
           test -s /tmp/trident-release/manifest.webmanifest
           cd /tmp/trident-release
