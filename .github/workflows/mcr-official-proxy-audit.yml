@@ -30,6 +30,9 @@ on:
       - 'research/mcr_official_margin_proxy.py'
       - 'tests/test_mcr_official_margin_proxy.py'
       - '.github/workflows/mcr-official-proxy-audit.yml'
+concurrency:
+  group: mcr-official-${{ github.ref }}
+  cancel-in-progress: false
 permissions:
   contents: write
 jobs:
