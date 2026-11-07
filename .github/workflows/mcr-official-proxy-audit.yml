@@ -11,6 +11,8 @@ on:
       - 'research/mcr_official_margin_proxy.py'
       - 'research/mcr_tpex_margin_proxy.py'
       - 'research/mcr_merged_proxy.py'
+      - 'research/mcr_daily_volume.py'
+      - 'tests/test_mcr_daily_volume.py'
       - 'research/mcr_proxy_event_ledger.py'
       - 'tests/test_mcr_proxy_event_ledger.py'
       - 'tests/test_mcr_merged_proxy.py'
@@ -35,7 +37,7 @@ jobs:
       - name: Offline parser, date, and no-trade tests
         run: python -m unittest tests.test_mcr_official_margin_proxy -v
       - name: Test cross-market verified-session merge
-        run: python -m unittest tests.test_mcr_tpex_margin_proxy tests.test_mcr_merged_proxy tests.test_mcr_proxy_event_ledger -v
+        run: python -m unittest tests.test_mcr_tpex_margin_proxy tests.test_mcr_merged_proxy tests.test_mcr_proxy_event_ledger tests.test_mcr_daily_volume -v
       - name: Fetch official TWSE two-session source (research only)
         id: source
         continue-on-error: true
@@ -90,7 +92,7 @@ jobs:
           PY
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add research_output/mcr_official_proxy_latest.json
+          git add -f research_output/mcr_official_proxy_latest.json
           git diff --cached --quiet || (git commit -m "data(research): update TWSE financing proxy snapshot [skip ci]" && git push)
 
       - name: Fetch official TPEx source, fail closed
@@ -99,6 +101,9 @@ jobs:
       - name: Merge matching-session TWSE + TPEx proxy evidence
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         run: python -m research.mcr_merged_proxy
+      - name: Join same-session official daily share volume (missing is null)
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        run: python -m research.mcr_daily_volume
       - name: Record immutable date-specific research observations (no trade outcomes)
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         run: python -m research.mcr_proxy_event_ledger
