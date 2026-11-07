@@ -14,6 +14,8 @@ class QualityTest(unittest.TestCase):
         self.assertEqual(x["status"],"DATA_OBSERVED")
         self.assertEqual(x["distinct_session_dates"],1)
         self.assertFalse(x["full_period_complete"])
+        self.assertEqual(x["sessions_below_observed_max_bars"], 0)
+        self.assertNotIn("weekday_sessions_below_55_bars", x)
 
     def test_duplicates_and_bad_prices_fail(self):
         x=inspect_history([bar(),bar(close=20)])
