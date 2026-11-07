@@ -98,15 +98,12 @@ def run(mode="swing5d", top_n=20, deep_n=8):
     OUT.mkdir(parents=True, exist_ok=True)
 
     universe, universe_health = load_official_universe()
-    rows, warnings = fetch_fugle_snapshot_quotes(universe, trading_date=now.date().isoformat())
+    rows, warnings = fetch_fugle_snapshot_quotes(
+        universe, trading_date=now.date().isoformat()
+    )
     snapshot_count = len(rows)
-    if not universe or (len(rows) / len(universe)) < 0.80:
-        fallback_rows, fallback_warnings = fetch_mis_quotes(universe)
-        merged = {r["symbol"]: r for r in fallback_rows}
-        # Prefer the validated bulk snapshot on duplicate symbols.
-        merged.update({r["symbol"]: r for r in rows})
-        rows = list(merged.values())
-        warnings.extend(fallback_warnings)
+    # No MIS fallback: failed paid entitlement or inadequate coverage must
+    # result in a blocked research candidate scan, never synthetic live signals.
     quote_audit = validate_whole_market_rows(
         universe, rows, now=datetime.now(TZ),
         min_coverage_pct=80.0, min_exchange_pct=70.0,
@@ -119,7 +116,7 @@ def run(mode="swing5d", top_n=20, deep_n=8):
         )
     source_breakdown = {
         "fugle_bulk_snapshot": snapshot_count,
-        "mis_fallback": sum(r.get("quote_source") == "TWSE MIS" for r in rows),
+        "mis_fallback": 0,
     }
 
     twse_rows = [r for r in rows if r.get("exchange") == "TWSE"]
