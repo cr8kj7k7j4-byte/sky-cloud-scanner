@@ -5,13 +5,17 @@ on:
     branches: [main]
     paths:
       - 'research/fugle_2026_entitlement_probe.py'
+      - 'research/historical_5m_quality.py'
       - 'tests/test_fugle_2026_entitlement_probe.py'
+      - 'tests/test_historical_5m_quality.py'
       - '.github/workflows/fugle-2026-entitlement-probe.yml'
   pull_request:
     branches: [main]
     paths:
       - 'research/fugle_2026_entitlement_probe.py'
+      - 'research/historical_5m_quality.py'
       - 'tests/test_fugle_2026_entitlement_probe.py'
+      - 'tests/test_historical_5m_quality.py'
       - '.github/workflows/fugle-2026-entitlement-probe.yml'
 permissions:
   contents: write
@@ -25,7 +29,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Tests without live credentials
-        run: python -m unittest tests/test_fugle_2026_entitlement_probe.py -v
+        run: python -m unittest tests/test_fugle_2026_entitlement_probe.py tests/test_historical_5m_quality.py -v
       - name: Install HTTP dependency
         if: github.event_name != 'pull_request'
         run: pip install requests
