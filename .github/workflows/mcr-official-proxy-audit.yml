@@ -38,6 +38,16 @@ jobs:
         run: python -m unittest tests.test_mcr_official_margin_proxy -v
       - name: Test cross-market verified-session merge
         run: python -m unittest tests.test_mcr_tpex_margin_proxy tests.test_mcr_merged_proxy tests.test_mcr_proxy_event_ledger tests.test_mcr_daily_volume -v
+      - name: Validate live official closing-volume schemas (no secret)
+        run: |
+          python - <<'PY'
+          from research.mcr_daily_volume import fetch, parse_market, _date, _field, KEYS
+          for market in ("TWSE","TPEx"):
+              data=fetch(market)
+              dated=_date(_field(data[0],KEYS[market]["date"]))
+              rows=parse_market(data,market,dated)
+              print("VOLUME_SCHEMA_VERIFIED",market,dated,len(rows),"unit=shares")
+          PY
       - name: Fetch official TWSE two-session source (research only)
         id: source
         continue-on-error: true
