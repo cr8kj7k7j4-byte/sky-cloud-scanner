@@ -71,6 +71,7 @@ def run():
             result["duplicate_count"]=len(symbols)-len(set(symbols))
             result["missing_price_count"]=sum(1 for x in quotes if isinstance(x,dict) and x.get("closePrice") is None and x.get("lastPrice") is None)
             result["missing_volume_count"]=sum(1 for x in quotes if isinstance(x,dict) and x.get("tradeVolume") is None)
+            result["type_mismatch_count"]=sum(1 for x in quotes if isinstance(x,dict) and x.get("type") != "EQUITY")
             result["response_date"]=body.get("date")
             ages=[]
             response_time=None
@@ -96,13 +97,14 @@ def run():
             result["timestamp_count"]=len(ages)
             result["median_age_seconds"]=round(sorted(ages)[len(ages)//2],1) if ages else None
             result["max_age_seconds"]=round(max(ages),1) if ages else None
+            if not all(isinstance(x,dict) for x in quotes): raise ValueError("Non-object snapshot entries")
             if official:
                 missing=official-codes
                 result["covered"]=len(official & codes)
                 result["missing_count"]=len(missing)
                 result["missing_sample"]=sorted(missing)[:30]
                 result["coverage_ratio"]=round(result["covered"]/len(official),5)
-                result["status"]="PASS" if result["coverage_ratio"]>=0.95 and result["duplicate_count"]==0 and result["missing_price_count"]==0 and result["missing_volume_count"]==0 else "REVIEW_REQUIRED"
+                result["status"]="PASS" if result["coverage_ratio"]>=0.95 and result["duplicate_count"]==0 and result["missing_price_count"]==0 and result["missing_volume_count"]==0 and result["type_mismatch_count"]==0 else "REVIEW_REQUIRED"
             live=now.weekday()<5 and dt.time(9,5)<=now.time()<=dt.time(13,25)
             if live:
                 result["live_freshness"]="PASS" if body.get("date")==now.date().isoformat() and ((result["response_age_seconds"] is not None and -30 <= result["response_age_seconds"] <= 120) or (ages and -30 <= statistics.median(ages) <= 120)) else "FAIL_OR_STALE"
@@ -115,10 +117,18 @@ def run():
     report["coverage_status"]="PASS" if all(x["status"]=="PASS" for x in report["markets"].values()) else "INSUFFICIENT_DATA_OR_REVIEW"
     in_session=now.weekday()<5 and dt.time(9,5)<=now.time()<=dt.time(13,25)
     report["live_freshness_status"]=("PASS" if all(x.get("live_freshness")=="PASS" for x in report["markets"].values()) else "REVIEW_REQUIRED") if in_session else "NOT_TESTED_OUTSIDE_MARKET_HOURS"
-    report["status"]="PASS" if report["coverage_status"]=="PASS" and (not in_session or report["live_freshness_status"]=="PASS") else "INSUFFICIENT_DATA_OR_REVIEW"
+    if report["coverage_status"] != "PASS":
+        report["status"]="INSUFFICIENT_DATA_OR_REVIEW"
+    elif in_session and report["live_freshness_status"] == "PASS":
+        report["status"]="PASS_LIVE"
+    elif in_session:
+        report["status"]="REVIEW_REQUIRED_LIVE"
+    else:
+        report["status"]="COVERAGE_PASS_LIVE_PENDING"
     with open("fugle_market_quality_audit.json","w") as f: json.dump(report,f,indent=2,ensure_ascii=False)
     print("OVERALL",report["status"])
-    if report["status"] != "PASS":
+    # Quality failures fail the workflow; outside market hours must not be misreported as live pass.
+    if report["status"] not in ("PASS_LIVE", "COVERAGE_PASS_LIVE_PENDING"):
         sys.exit(1)
 
 
