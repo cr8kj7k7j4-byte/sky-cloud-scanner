@@ -1,0 +1,33 @@
+name: Fugle 0050 Fixed Historical Replay
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'research/fugle_0050_fixed_trend_replay.py'
+      - 'tests/test_fugle_0050_fixed_trend_replay.py'
+      - '.github/workflows/fugle-fixed-historical-replay.yml'
+permissions:
+  contents: read
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test fixed replay and fail-closed behavior
+        run: python -m unittest discover -s tests -p test_fugle_0050_fixed_trend_replay.py -v
+      - name: Execute actual 0050 Fugle 1y price-history replay
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+        run: python -m research.fugle_0050_fixed_trend_replay --out research_output/fugle_0050_fixed_trend_replay.json
+      - name: Verify research only
+        run: |
+          python -c "import json; d=json.load(open('research_output/fugle_0050_fixed_trend_replay.json')); assert d['status']=='INSUFFICIENT_DATA' and d['production_signal'] is False and not d['independent_oos']; print('FUGLE_REPLAY_SAFE')"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fugle-0050-fixed-historical-replay
+          path: research_output/fugle_0050_fixed_trend_replay.json
+          retention-days: 30
