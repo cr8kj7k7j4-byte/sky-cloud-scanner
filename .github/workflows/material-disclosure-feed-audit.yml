@@ -1,0 +1,28 @@
+name: TWSE TPEx Material Disclosure Source Audit
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'research/material_disclosure_feed_probe.py'
+      - '.github/workflows/material-disclosure-feed-audit.yml'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test official current material disclosure feeds
+        run: python -m research.material_disclosure_feed_probe --out research_output/material_disclosure_feed_probe.json
+      - name: Verify no historical timing conclusion
+        run: |
+          python -c "import json; x=json.load(open('research_output/material_disclosure_feed_probe.json')); assert x['status']=='INSUFFICIENT_DATA' and not x['production_signal']; print('RESEARCH_ONLY')"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: material-disclosure-feeds-audit
+          path: research_output/material_disclosure_feed_probe.json
+          retention-days: 30
