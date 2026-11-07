@@ -1,0 +1,36 @@
+{
+  "financing": {
+    "symbol": "1101",
+    "trade_date": "2026-11-06",
+    "published_at": "2026-11-06T22:30:00+08:00",
+    "estimated_maintenance_pct": 125,
+    "margin_balance": 800,
+    "previous_margin_balance": 1000,
+    "margin_cost": 44
+  },
+  "tape": {
+    "observed_at": "2026-11-09T09:30:00+08:00",
+    "price": 40,
+    "volume": 10000,
+    "aggressive_buy_volume": 6000,
+    "aggressive_sell_volume": 4000,
+    "bid": 39.95,
+    "ask": 40,
+    "vwap": 39.5,
+    "prior_low": 39.2,
+    "resistance": 39.8,
+    "previous_sell_impact": 0.9,
+    "current_sell_impact": 0.4,
+    "market_gate": true,
+    "event_risk_clear": true
+  },
+  "portfolio": {
+    "daily_net_pnl": 0,
+    "open_risk": 0,
+    "open_positions": 0,
+    "consecutive_losses": 0
+  },
+  "entry": 40,
+  "stop": 39,
+  "target": 43
+}
