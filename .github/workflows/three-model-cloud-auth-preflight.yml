@@ -1,4 +1,5 @@
 name: Three Model GCP Authorization Preflight (Research)
+# Read-only recheck of Actions secret presence requested by user; no values logged.
 on:
   push:
     branches:
