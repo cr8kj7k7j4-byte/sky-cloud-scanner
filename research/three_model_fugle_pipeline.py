@@ -87,11 +87,17 @@ def upload_immutable(store, bucket, prefix, report):
         raise ValueError("invalid_prefix")
     result=[]
     for row in report["observations"]:
-        if not row.get("signal_id"):
-            continue  # rejected rows retained in run-level audit, not tradable observations
-        key=f"{prefix.strip('/')}/{row['model_id']}/{row['symbol']}/{row['signal_id']}.json"
+        # Rejected/no-trade observations must also enter the immutable ledger.
+        # Their stable IDs use the requested research date and rejection reasons,
+        # not a transient workflow execution timestamp.
+        identity = [row.get("model_id"), row.get("symbol"),
+                    report.get("requested_end_date"), row.get("rejection_reasons", [])]
+        record_id = row.get("signal_id") or ("rejected-" + hashlib.sha256(
+            json.dumps(identity, ensure_ascii=False, sort_keys=True).encode()).hexdigest()[:24])
+        key=f"{prefix.strip('/')}/{row['model_id']}/{row['symbol']}/{record_id}.json"
         blob=store.bucket(bucket).blob(key)
         canonical={k:v for k,v in row.items() if k != "as_of"}
+        canonical["ledger_record_id"]=record_id
         data=json.dumps(canonical,sort_keys=True,ensure_ascii=False,separators=(",",":"))
         digest=hashlib.sha256(data.encode()).hexdigest()
         try:
@@ -106,7 +112,8 @@ def upload_immutable(store, bucket, prefix, report):
         if hashlib.sha256(stored).hexdigest()!=digest:
             raise ValueError("ledger_identity_conflict")
         result.append({"model_id":row["model_id"],"symbol":row["symbol"],
-                       "signal_id":row["signal_id"],"status":status,
+                       "signal_id":row.get("signal_id"),"ledger_record_id":record_id,
+                       "status":status,
                        "object_sha256":digest})
     return result
 
@@ -126,6 +133,7 @@ def run(symbols, end, bucket, prefix, key, store, out):
         clock.sleep(1.05)
         inputs[symbol]={"name":None,"bars_5m":five,"bars_daily":daily}
     report=generate({"source":"FUGLE","as_of":as_of.isoformat(),"symbols":inputs})
+    report["requested_end_date"]=end.isoformat()
     ledger=upload_immutable(store,bucket,prefix,report)
     audit={"checked_at_tpe":as_of.isoformat(),"source":"Fugle historical/candles",
            "provider_authenticated":True, "historical_not_intraday_live":True,
