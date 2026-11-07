@@ -8,6 +8,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import time
+from urllib.error import HTTPError, URLError
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.request import Request, urlopen
@@ -27,11 +29,29 @@ def capture_one(label: str, url: str, directory: Path) -> dict:
     row = {"source": label, "url": url, "request_started_at_utc": observed_start,
            "qualified_issuer_published_at": False, "usable_historical_pit": False}
     try:
-        with urlopen(Request(url, headers={"User-Agent": "SkyDisclosureEvidenceCollector/1.0"}), timeout=30) as response:
-            payload = response.read(MAX_BYTES + 1)
-            row["http_status"] = response.status
-            row["content_type"] = response.headers.get("Content-Type", "")
-        row["observed_at_utc"] = datetime.now(timezone.utc).isoformat()
+        payload = None
+        # A rate-limited exchange endpoint may recover; do not loop indefinitely.
+        for attempt in range(3):
+            row["attempts"] = attempt + 1
+            try:
+                with urlopen(Request(url, headers={"User-Agent": "SkyDisclosureEvidenceCollector/1.0",
+                                                  "Accept": "application/json"}), timeout=30) as response:
+                    payload = response.read(MAX_BYTES + 1)
+                    row["http_status"] = response.status
+                    row["content_type"] = response.headers.get("Content-Type", "")
+                row["observed_at_utc"] = datetime.now(timezone.utc).isoformat()
+                break
+            except HTTPError as exc:
+                row["http_status"] = exc.code
+                row["last_http_error"] = exc.code
+                if exc.code not in (408, 429, 500, 502, 503, 504) or attempt == 2:
+                    raise
+            except (URLError, TimeoutError):
+                if attempt == 2:
+                    raise
+            time.sleep(1.5 * (attempt + 1))
+        if payload is None:
+            raise ValueError("no HTTP response payload")
         if len(payload) > MAX_BYTES:
             raise ValueError("response size limit exceeded")
         if row["http_status"] != 200:
@@ -90,7 +110,7 @@ def main():
         "source_results": {
             k: {"fetch_status": v.get("fetch_status"), "rows": v.get("row_count"),
                 "sha256": v.get("sha256"), "observed_at_utc": v.get("observed_at_utc"),
-                "error_type": v.get("error_type")}
+                "error_type": v.get("error_type"), "http": v.get("http_status"), "attempts": v.get("attempts")}
             for k, v in result["source_results"].items()},
         "production_signal": False,
         "historical_pit_event_count": 0,
