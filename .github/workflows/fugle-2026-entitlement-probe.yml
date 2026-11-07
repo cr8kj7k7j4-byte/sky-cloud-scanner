@@ -14,7 +14,7 @@ on:
       - 'tests/test_fugle_2026_entitlement_probe.py'
       - '.github/workflows/fugle-2026-entitlement-probe.yml'
 permissions:
-  contents: read
+  contents: write
 jobs:
   probe:
     runs-on: ubuntu-latest
@@ -42,3 +42,22 @@ jobs:
           path: research_output/fugle_2026_entitlement_probe.json
           if-no-files-found: error
           retention-days: 30
+      - name: Publish sanitized readback for mobile GitHub review
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TARGET="repos/${GITHUB_REPOSITORY}/contents/docs/SKY_FUGLE_2026_HISTORY_PROBE_LATEST.json"
+          CONTENT="$(base64 -w0 research_output/fugle_2026_entitlement_probe.json)"
+          for ATTEMPT in 1 2 3; do
+            SHA="$(gh api "$TARGET" --jq '.sha' 2>/dev/null || true)"
+            if [ -n "$SHA" ]; then
+              gh api --method PUT "$TARGET" -f message="evidence: update sanitized Fugle 2026 probe [skip ci]" -f content="$CONTENT" -f sha="$SHA" -f branch=main >/dev/null && exit 0
+            else
+              gh api --method PUT "$TARGET" -f message="evidence: publish sanitized Fugle 2026 probe [skip ci]" -f content="$CONTENT" -f branch=main >/dev/null && exit 0
+            fi
+            sleep 2
+          done
+          exit 1
