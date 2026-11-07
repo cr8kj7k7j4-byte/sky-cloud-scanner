@@ -91,7 +91,8 @@ def upload_immutable(store, bucket, prefix, report):
             continue  # rejected rows retained in run-level audit, not tradable observations
         key=f"{prefix.strip('/')}/{row['model_id']}/{row['symbol']}/{row['signal_id']}.json"
         blob=store.bucket(bucket).blob(key)
-        canonical={k:v for k,v in row.items() if k != "as_of"}\n        data=json.dumps(canonical,sort_keys=True,ensure_ascii=False,separators=(",",":"))
+        canonical={k:v for k,v in row.items() if k != "as_of"}
+        data=json.dumps(canonical,sort_keys=True,ensure_ascii=False,separators=(",",":"))
         digest=hashlib.sha256(data.encode()).hexdigest()
         try:
             blob.upload_from_string(data,content_type="application/json",if_generation_match=0)
