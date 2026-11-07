@@ -1,0 +1,57 @@
+name: Three Model Fugle Real API Read-Only Research Acceptance
+# Research-only push test. No GCP credentials, no trading, no production merge.
+on:
+  push:
+    branches:
+      - research/three-model-evidence-gate-20261108
+    paths:
+      - research/three_model_fugle_api_smoke.py
+      - research/three_model_fugle_pipeline.py
+      - .github/workflows/three-model-fugle-api-smoke.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: three-model-fugle-api-smoke
+  cancel-in-progress: false
+jobs:
+  real-api-readonly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate real paid Fugle history without publishing candles
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+          RESEARCH_END_DATE: "2026-11-06"
+        run: |
+          PYTHONPATH=. python -m research.three_model_fugle_api_smoke
+      - name: Attach sanitized acceptance status
+        if: always()
+        run: |
+          if [ -f output/three_model_fugle_api_smoke_summary.json ]; then
+            python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+          d=json.loads(Path("output/three_model_fugle_api_smoke_summary.json").read_text())
+          print("### 富果歷史行情唯讀驗收（研究）")
+          print("- 結果:", d["status"])
+          print("- 歷史截止:",d["end_date_requested"])
+          for row in d["results"]:
+              print("- 股票",row["symbol"],"週期",row["timeframe"],"結果",row["status"],"筆數",row.get("rows","N/A"))
+          print("- 無原始付費行情附件、無GCS寫入、無下單、無Production升版")
+          PY
+          fi
+      - name: Save sanitized check only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: three-model-fugle-readonly-sanitized-${{ github.run_id }}
+          path: output/three_model_fugle_api_smoke_summary.json
+          if-no-files-found: warn
+          retention-days: 14
