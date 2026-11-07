@@ -52,8 +52,7 @@ def safe_health(raw, ledger):
 
 
 def summary_markdown(report):
-    return "
-".join([
+    return "\\n".join([
         "## Sky GCS 研究證據健康報告",
         f"- 雲端資料核驗：**{report['status']}**",
         f"- 已完成快照批次：**{report['source_batches']}**（不是獨立交易日）",
@@ -66,8 +65,7 @@ def summary_markdown(report):
         "- 原始公告時間：**未驗證**；交易合格事件：**0**",
         "- 保留政策／IAM最小權限：**未驗證**",
         "- 策略正期望：**未證實**；Production：**未變更**",
-    ]) + "
-"
+    ]) + "\\n"
 
 
 def main():
