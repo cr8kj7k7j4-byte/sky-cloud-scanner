@@ -3123,7 +3123,7 @@
       "net_trade_expectancy_pct": null
     }
   ],
-  "source_price_rows": 0,
+  "source_price_rows": 1972,
   "trade_count": 0,
   "cost_adjusted_expectancy_pct": null,
   "report_status": "INSUFFICIENT_DATA",
