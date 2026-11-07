@@ -18,6 +18,8 @@ on:
   pull_request:
     paths:
       - "research/sky_provider_readiness.py"
+      - "research/fugle_snapshot_coverage_audit.py"
+      - "tests/test_fugle_snapshot_coverage_audit.py"
       - "tests/test_sky_provider_readiness.py"
       - ".github/workflows/sky-market-provider-readiness.yml"
 
