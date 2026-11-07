@@ -58,9 +58,7 @@ def inspect_history(rows, start="2026-01-01", end="2026-11-07"):
     chronology_invalid = any(a > b for a,b in zip(parsed,parsed[1:]))
     if chronology_invalid:
         invalid["non_ascending_timestamps"] += 1
-    # 09:00 through 13:30 inclusive gives 55 potential clock positions.
-    # This is an upper bound, not an obligation for illiquid stocks to trade.
-    overfull = sorted(day for day,num in counts.items() if num > 55)
+    # 09:00–13:30 spans at most 55 distinct five-minute timestamps.\n    # The provider may label intervals differently (54 is commonly observed),\n    # so never use this as the expected count for each trading day.\n    overfull = sorted(day for day,num in counts.items() if num > 55)
     if overfull:
         invalid["more_than_55_slots_per_session"] += len(overfull)
     return {
@@ -70,7 +68,8 @@ def inspect_history(rows, start="2026-01-01", end="2026-11-07"):
         "session_counts": dict(sorted(counts.items())),
         "daily_min_bars": min(counts.values()) if counts else None,
         "daily_max_bars": max(counts.values()) if counts else None,
-        "weekday_sessions_below_55_bars": sum(1 for n in counts.values() if n < 55),
+        "observed_max_bars_not_expected_slots": max(counts.values()) if counts else None,
+        "sessions_below_observed_max_bars": sum(1 for n in counts.values() if n < max(counts.values())) if counts else 0,
         "invalid_counts": dict(sorted(invalid.items())),
         "potential_session_slots_not_verified": True,
         "official_holiday_calendar_reconciled": False,
