@@ -59,6 +59,29 @@ jobs:
           path: trident-iphone-e2e.png
           if-no-files-found: ignore
           retention-days: 7
+      - name: Build isolated GitHub Pages release package
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/trident-release/.github/workflows
+          cp trident-mobile/index.html trident-mobile/manifest.webmanifest /tmp/trident-release/
+          cp trident-mobile/standalone-pages.yml /tmp/trident-release/.github/workflows/pages.yml
+          cp trident-mobile/standalone-README.md /tmp/trident-release/README.md
+          grep -q "github.repository != 'cr8kj7k7j4-byte/sky-cloud-scanner'" /tmp/trident-release/.github/workflows/pages.yml
+          test -s /tmp/trident-release/index.html
+          test -s /tmp/trident-release/manifest.webmanifest
+          cd /tmp/trident-release
+          zip -q -r "${GITHUB_WORKSPACE}/trident-standalone-site.zip" .
+          unzip -l "${GITHUB_WORKSPACE}/trident-standalone-site.zip" | grep -q '.github/workflows/pages.yml'
+      - name: Upload isolated deploy package
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trident-standalone-site
+          path: trident-standalone-site.zip
+          if-no-files-found: error
+          retention-days: 7
       - name: Package iPhone offline fallback
         if: success()
         uses: actions/upload-artifact@v4
