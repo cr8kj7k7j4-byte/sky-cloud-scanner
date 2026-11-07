@@ -101,3 +101,8 @@ def test_rejected_decisions_from_distinct_dates_not_collapsed():
     rejected["requested_end_date"]="2026-11-05"
     upload_immutable(store,"sky-private-research","three-model/v1",rejected)
     assert len(store.items)==2
+
+def test_official_disclosure_bucket_is_not_repurposed_for_paid_market_data():
+    with pytest.raises(ValueError, match="disclosure_bucket_reserved"):
+        upload_immutable(Storage(), "sky-disclosure-evidence-20261108",
+                         "three-model/v1", report())
