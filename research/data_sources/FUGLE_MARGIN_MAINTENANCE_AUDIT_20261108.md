@@ -35,3 +35,10 @@
 - 六項測試不含「個股融資維持率」，所以任何 PASS 都不能當作維持率權限驗證。需看獨立 run 的 JSON 及 HTTP 狀態，畫面上的綠勾不等於已取得維持率數據。
 - PR #304 新增的 `fugle_entitlement_smoke.py` 和 mock tests 暫停接入正式 workflow，以免重複 API 呼叫；後續應**複用**既有 acceptance，避免平行排程與重複成本。
 - 視窗中 FinMind 顯示為多個 PR CI 綠勾，不應混淆為 FinMind Sponsor dataset 取得成功。
+
+## 2026-11-08 進一步獨立核實：FinMind 個股維持率
+- 官方文件：https://finmind.github.io/tutor/TaiwanMarket/Chip/ ，正式資料集 `TaiwanStockMarginMaintenance`，**Sponsor 會員限定**；上市自 2001-01-05、上櫃自 2007-01-04 起，日更新標示週一至週六 22:30（實際以 API 時間為準）。
+- 欄位：`date`, `stock_id`, `margin_balance`, `margin_cost`, `margin_ratio`, `margin_maintenance`；不帶 `data_id` 並指定 `start_date` 可取該日全市場有值標的；融資餘額為 0、無成交日無輸出。資料屬估算，非券商帳戶實際維持率。
+- 已讀 GitHub PR #306（FinMind entitlement acceptance）來源：`research/finmind_api_acceptance.py` 只測 `TaiwanStockPrice`、`TaiwanStockMarginPurchaseShortSale`、`TaiwanStockInstitutionalInvestorsBuySell`，**未測** `TaiwanStockMarginMaintenance`；PR 的綠色 CI 不能當成 Sponsor 權限通過。
+- 已讀 main 的 `.github/workflows/fugle-paid-api-acceptance.yml`，六項基本測試不含維持率，且 Run #42408149213 六項確有 PASS（2026-11-08 週末驗收、資料日 11/06）。
+- 目前沒有 FinMind Sponsor 個股維持率 API 的有效 HTTP 200 及資料列驗收證據。**權限狀態＝UNVERIFIED**；不購買新方案、不將維持率當正式 Sky 訊號、不新增與 PR #306 重複的 Workflow。
