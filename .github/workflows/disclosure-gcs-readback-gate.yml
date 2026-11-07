@@ -106,7 +106,7 @@ jobs:
           token=os.getenv("TELEGRAM_BOT_TOKEN","")
           chat=os.getenv("TELEGRAM_CHAT_ID","")
           if not token or not chat:
-              print("GCS_ALERT_CHANNEL_NOT_CONFIGURED; failure remains visible on GitHub")
+              raise SystemExit("GCS_ALERT_CHANNEL_NOT_CONFIGURED: GitHub workflow failure remains visible; Telegram delivery UNVERIFIED")
           else:
               url="https://github.com/"+os.environ["SOURCE_REPO"]+"/actions/runs/"+os.environ["SOURCE_RUN"]
               msg="【Sky GCS證據異常】\\n人工採集／跨日帳本失敗\\n"+url+"\\n停止將本次視為合格證據。"
