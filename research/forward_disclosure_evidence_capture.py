@@ -34,7 +34,7 @@ def capture_one(label: str, url: str, directory: Path) -> dict:
         for attempt in range(3):
             row["attempts"] = attempt + 1
             try:
-                with urlopen(Request(url, headers={"User-Agent": "SkyDisclosureEvidenceCollector/1.0",
+                with urlopen(Request(url, headers={"User-Agent": "SkySourceDiagnostics/1.0",
                                                   "Accept": "application/json"}), timeout=30) as response:
                     payload = response.read(MAX_BYTES + 1)
                     row["http_status"] = response.status
@@ -81,7 +81,11 @@ def capture_one(label: str, url: str, directory: Path) -> dict:
 
 
 def run(directory: Path, fetcher=capture_one) -> dict:
-    observations = {label: fetcher(label, url, directory) for label, url in SOURCES.items()}
+    observations = {}
+    for index, (label, url) in enumerate(SOURCES.items()):
+        if index:
+            time.sleep(2)  # Respect server request pacing, including separate TPEx feeds.
+        observations[label] = fetcher(label, url, directory)
     success = all(item.get("fetch_status") == "CAPTURED" for item in observations.values())
     report = {
         "model": "DISCLOSURE_FORWARD_EVIDENCE_CAPTURE_V1",
