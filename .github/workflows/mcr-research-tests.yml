@@ -8,6 +8,8 @@ on:
       - 'research/margin_rebound_watch.py'
       - 'tests/test_mcr_v1_decision.py'
       - 'tests/test_margin_rebound_watch.py'
+      - 'research/mcr_v1_year_audit.py'
+      - 'tests/test_mcr_v1_year_audit.py'
       - '.github/workflows/mcr-research-tests.yml'
   pull_request:
     paths:
@@ -31,4 +33,24 @@ jobs:
         with:
           python-version: '3.11'
       - name: Test research signals without credentials or network
-        run: python -m unittest tests.test_margin_rebound_watch tests.test_mcr_v1_decision -v
+        run: python -m unittest tests.test_margin_rebound_watch tests.test_mcr_v1_decision tests.test_mcr_v1_year_audit -v
+
+      - name: Audit one-year FinMind availability, no trading claims
+        env:
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+        run: python -m research.mcr_v1_year_audit
+      - name: Publish data-audit report
+        if: always()
+        run: |
+          if [ -f research_output/mcr_v1_year/summary.md ]; then
+            cat research_output/mcr_v1_year/summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload data-audit summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcr-data-audit-${{ github.run_id }}
+          path: |
+            research_output/mcr_v1_year/data_audit.json
+            research_output/mcr_v1_year/summary.md
+          if-no-files-found: warn
