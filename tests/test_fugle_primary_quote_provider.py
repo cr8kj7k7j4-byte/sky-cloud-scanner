@@ -34,6 +34,7 @@ def test_primary_fugle_is_selected_without_calling_mis():
     assert not result["fallback_used"]
     assert result["audit"]["valid_whole_market_operational"]
     assert not result["official_tpex_realtime_certified"]
+    assert result["primary_evidence"]["valid_quote_count"] == 2
 
 
 def test_missing_fugle_trade_time_falls_back_without_mixing():
@@ -46,6 +47,7 @@ def test_missing_fugle_trade_time_falls_back_without_mixing():
     )
     assert result["fallback_used"]
     assert result["primary_status"] == "BLOCKED_EXTERNAL_DATA"
+    assert result["primary_evidence"]["valid_quote_count"] == 0
     assert len(result["rows"]) == 2
     assert all(x["quote_source"] == "TWSE MIS" for x in result["rows"])
 
