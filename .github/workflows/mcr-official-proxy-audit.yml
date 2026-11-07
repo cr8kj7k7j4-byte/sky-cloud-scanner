@@ -1,9 +1,12 @@
 name: MCR Official Margin Proxy Research Audit
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '40 10 * * 1-5' # Asia/Taipei 18:40 weekdays, exchange holiday fails closed
   push:
     branches:
       - research/mcr-official-margin-proxy-20261108
+      - main
     paths:
       - 'research/mcr_official_margin_proxy.py'
       - 'tests/test_mcr_official_margin_proxy.py'
@@ -14,7 +17,7 @@ on:
       - 'tests/test_mcr_official_margin_proxy.py'
       - '.github/workflows/mcr-official-proxy-audit.yml'
 permissions:
-  contents: read
+  contents: write
 jobs:
   audit:
     runs-on: ubuntu-latest
@@ -29,7 +32,7 @@ jobs:
       - name: Fetch official TWSE two-session source (research only)
         id: source
         continue-on-error: true
-        run: python -m research.mcr_official_margin_proxy --date 2026-11-06
+        run: python -m research.mcr_official_margin_proxy
       - name: Publish truthful source audit
         if: always()
         run: |
@@ -62,3 +65,23 @@ jobs:
           assert d.get("total") is not None
           print("TWSE historical source verified; still NOT full TWSE+TPEx or trade validated.")
           PY
+
+      - name: Publish verified proxy feed to public repository for read-only mobile viewer
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        run: |
+          python - <<'PY'
+          import json,pathlib,shutil
+          s=pathlib.Path("research_output/mcr_official_proxy.json")
+          d=json.loads(s.read_text(encoding="utf-8"))
+          assert d["data_quality"]=="TWSE_PASSED_TPEX_NOT_CHECKED"
+          assert d["mode"]=="RESEARCH_PROXY_ONLY" and d["maintenance_below_130_verified"] is False
+          assert d["total"]==len(d["rows"])
+          assert d["total"]>0
+          pathlib.Path("research_output").mkdir(exist_ok=True)
+          shutil.copyfile(s,"research_output/mcr_official_proxy_latest.json")
+          print("Publish TWSE proxy as of",d["margin_data_date"],"rows",d["total"])
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add research_output/mcr_official_proxy_latest.json
+          git diff --cached --quiet || (git commit -m "data(research): update TWSE financing proxy snapshot [skip ci]" && git push)
