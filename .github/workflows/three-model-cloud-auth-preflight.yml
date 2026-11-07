@@ -28,6 +28,8 @@ jobs:
           names=("FUGLE_API_KEY","GCP_WIF_PROVIDER","GCP_SERVICE_ACCOUNT","SKY_RESEARCH_GCS_BUCKET")
           missing=[k for k in names if not os.environ.get(k)]
           print("Three-model private-cloud config:", "CONFIG_PRESENT" if not missing else "MISSING:"+",".join(missing))
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write("missing_names=" + (",".join(missing) if missing else "NONE") + "\\n")
           sys.exit(bool(missing))
           PY
       - name: Authenticate Google Cloud via workload identity
@@ -58,6 +60,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           CONFIG_STATUS: ${{ steps.config.outcome }}
+          MISSING_NAMES: ${{ steps.config.outputs.missing_names }}
           GCP_AUTH_STATUS: ${{ steps.gcp_auth.outcome }}
           GCS_READ_STATUS: ${{ steps.gcs_read.outcome }}
         run: |
@@ -66,6 +69,7 @@ jobs:
           print("### 三模型雲端權限檢查（只回報狀態，不包含任何金鑰）")
           for label,var in (("必備設定","CONFIG_STATUS"),("Google Cloud 身分授權","GCP_AUTH_STATUS"),("私有 GCS 唯讀","GCS_READ_STATUS")):
               print("- "+label+": "+os.getenv(var,"UNKNOWN"))
+          print("- 缺少設定名稱："+os.getenv("MISSING_NAMES","UNKNOWN"))
           print("- 富果付費 API：未呼叫")
           print("- GCS 寫入：未執行")
           print("- Cloud Run 部署：未執行")
