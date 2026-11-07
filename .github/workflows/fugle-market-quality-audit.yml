@@ -1,6 +1,12 @@
 name: Fugle Paid Market Quality Audit (Read Only)
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'research/fugle_market_quality_audit.py'
+      - 'tests/test_fugle_market_quality_audit.py'
+      - '.github/workflows/fugle-market-quality-audit.yml'
   schedule:
     # 09:15 and 09:30 Asia/Taipei; UTC+08 without daylight saving.
     - cron: '15,30 1 * * 1-5'
