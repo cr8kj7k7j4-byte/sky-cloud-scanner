@@ -6,10 +6,10 @@ from urllib.request import Request, urlopen
 
 SOURCE="https://www.tpex.org.tw/openapi/v1/tpex_mainboard_margin_balance"
 DATE_KEYS=("資料日期","Date","date")
-CODE_KEYS=("代號","證券代號")
-NAME_KEYS=("名稱","證券名稱")
-BEFORE_KEYS=("前資餘額","融資前日餘額")
-AFTER_KEYS=("資餘額","融資當日餘額")
+CODE_KEYS=("SecuritiesCompanyCode","代號","證券代號")
+NAME_KEYS=("CompanyName","名稱","證券名稱")
+BEFORE_KEYS=("MarginPurchaseBalancePreviousDay","前資餘額","融資前日餘額")
+AFTER_KEYS=("MarginPurchaseBalance","資餘額","融資當日餘額")
 MAX_BYTES=2_000_000
 TW=timezone(timedelta(hours=8))
 
