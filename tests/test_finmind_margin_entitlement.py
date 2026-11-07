@@ -59,6 +59,21 @@ class EntitlementTests(unittest.TestCase):
         result = self.check({"status": 200, "data": [row]})
         self.assertEqual(result["status"], "FAIL")
 
+    def test_http_400_plan_restricted_is_sanitized(self):
+        import io
+        body = b'{"status":400,"msg":"Your level is free. Please update your user level."}'
+        with patch.object(MOD.urllib.request, "urlopen", side_effect=HTTPError(
+            "https://api.finmindtrade.com/api/v4/data", 400, "Bad Request", {}, io.BytesIO(body))):
+            _, result = MOD.probe("margin_maintenance", "TaiwanStockMarginMaintenance",
+                                  EXPECTED, "TEST_SECRET", "2026-10-26", "2026-10-30")
+        self.assertEqual(result["error_category"], "PLAN_RESTRICTED")
+        self.assertNotIn("Your level", json.dumps(result))
+        self.assertNotIn("TEST_SECRET", json.dumps(result))
+
+    def test_http_400_unclassified_is_not_assumed_plan(self):
+        self.assertEqual(MOD.classify_api_error(b'{"status":400,"msg":"Something else"}'),
+                         "UNKNOWN_API_REJECTION")
+
     def test_http_permission_denial(self):
         with patch.object(MOD.urllib.request, "urlopen", side_effect=HTTPError(
             "https://api.finmindtrade.com/api/v4/data", 403, "Forbidden", {}, None)):
