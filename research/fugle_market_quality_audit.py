@@ -3,6 +3,7 @@ import datetime as dt
 import json
 import os
 import re
+import statistics
 import urllib.request
 from html.parser import HTMLParser
 from zoneinfo import ZoneInfo
@@ -40,7 +41,7 @@ def official_codes(raw, charset):
     for row in p.rows:
         if not row: continue
         match=re.match(r"^\s*(\d{4})\s+\S+",row[0])
-        if match and any(re.fullmatch(r"ES[A-Z0-9]{4}", c.strip()) for c in row):
+        if match and any(c.strip().upper() == "ESVUFR" for c in row):
             codes.add(match.group(1))
     if len(codes)<100: raise ValueError("Official universe parsing produced fewer than 100 common equity symbols")
     return codes
@@ -71,12 +72,26 @@ def run():
             result["missing_volume_count"]=sum(1 for x in quotes if isinstance(x,dict) and x.get("tradeVolume") is None)
             result["response_date"]=body.get("date")
             ages=[]
+            response_time=None
+            try:
+                clock=re.sub(r"[^0-9]", "", str(body.get("time","")))
+                if len(clock)>=6:
+                    response_time=dt.datetime.fromisoformat(str(body.get("date"))+"T"+clock[:2]+":"+clock[2:4]+":"+clock[4:6]).replace(tzinfo=TZ)
+            except (ValueError,TypeError):
+                pass
+            result["response_age_seconds"]=round((now-response_time).total_seconds(),1) if response_time else None
             for x in quotes:
                 if not isinstance(x,dict): continue
                 stamp=x.get("lastUpdated")
-                if not isinstance(stamp,(int,float)) or stamp<=0: continue
-                seconds=stamp/(1e6 if stamp>1e14 else 1e3 if stamp>1e11 else 1)
-                ages.append((now-dt.datetime.fromtimestamp(seconds,TZ)).total_seconds())
+                if isinstance(stamp,str):
+                    try:
+                        parsed=dt.datetime.fromisoformat(stamp.replace("Z","+00:00"))
+                        if parsed.tzinfo is None: parsed=parsed.replace(tzinfo=TZ)
+                        ages.append((now-parsed.astimezone(TZ)).total_seconds())
+                    except ValueError: pass
+                elif isinstance(stamp,(int,float)) and stamp>0:
+                    seconds=stamp/(1e6 if stamp>1e14 else 1e3 if stamp>1e11 else 1)
+                    ages.append((now-dt.datetime.fromtimestamp(seconds,TZ)).total_seconds())
             result["timestamp_count"]=len(ages)
             result["median_age_seconds"]=round(sorted(ages)[len(ages)//2],1) if ages else None
             result["max_age_seconds"]=round(max(ages),1) if ages else None
@@ -86,17 +101,20 @@ def run():
                 result["missing_count"]=len(missing)
                 result["missing_sample"]=sorted(missing)[:30]
                 result["coverage_ratio"]=round(result["covered"]/len(official),5)
-                result["status"]="PASS" if result["coverage_ratio"]>=0.95 and result["duplicate_count"]==0 else "REVIEW_REQUIRED"
+                result["status"]="PASS" if result["coverage_ratio"]>=0.95 and result["duplicate_count"]==0 and result["missing_price_count"]==0 else "REVIEW_REQUIRED"
             live=now.weekday()<5 and dt.time(9,5)<=now.time()<=dt.time(13,25)
             if live:
-                result["live_freshness"]="PASS" if body.get("date")==now.date().isoformat() and ages and sorted(ages)[len(ages)//2]<=120 else "FAIL_OR_STALE"
+                result["live_freshness"]="PASS" if body.get("date")==now.date().isoformat() and ((result["response_age_seconds"] is not None and -30 <= result["response_age_seconds"] <= 120) or (ages and -30 <= statistics.median(ages) <= 120)) else "FAIL_OR_STALE"
                 if result["live_freshness"]!="PASS": result["status"]="REVIEW_REQUIRED"
             else:
                 result["live_freshness"]="NOT_TESTED_OUTSIDE_MARKET_HOURS"
         except Exception as e: result["issues"].append("FUGLE_"+type(e).__name__)
         report["markets"][market]=result
         print(market, "status",result["status"],"official",result["official_count"],"snapshot",result["snapshot_count"],"coverage",result["coverage_ratio"],"freshness",result.get("live_freshness"),"issues",result["issues"])
-    report["status"]="PASS" if all(x["status"]=="PASS" for x in report["markets"].values()) else "INSUFFICIENT_DATA_OR_REVIEW"
+    report["coverage_status"]="PASS" if all(x["status"]=="PASS" for x in report["markets"].values()) else "INSUFFICIENT_DATA_OR_REVIEW"
+    in_session=now.weekday()<5 and dt.time(9,5)<=now.time()<=dt.time(13,25)
+    report["live_freshness_status"]=("PASS" if all(x.get("live_freshness")=="PASS" for x in report["markets"].values()) else "REVIEW_REQUIRED") if in_session else "NOT_TESTED_OUTSIDE_MARKET_HOURS"
+    report["status"]="PASS" if report["coverage_status"]=="PASS" and (not in_session or report["live_freshness_status"]=="PASS") else "INSUFFICIENT_DATA_OR_REVIEW"
     with open("fugle_market_quality_audit.json","w") as f: json.dump(report,f,indent=2,ensure_ascii=False)
     print("OVERALL",report["status"])
 
