@@ -35,3 +35,11 @@
 - Artifact：`finmind-entitlement-acceptance`，ID `13589620268`（完整的安全摘要）。上傳成功。
 - 這項結果已證明一般資料可用，但 Sponsor 個股融資維持率尚不可使用。無需重複測試基本三項，也不應持續 400 重試耗用配額。
 - 正式策略不變，狀態：`RESEARCH_ONLY / INSUFFICIENT_DATA`。後續僅在有官方授權變更、端點修正證據時重驗。
+
+## 2026-11-08 HTTP 400 根因分類檢查（單資料集）
+- 官方 FinMind 文件確認本次的資料集名稱、`data_id=2330` 與起迄日期參數形式皆符合範例：https://finmind.github.io/tutor/TaiwanMarket/Chip/ 。
+- 既有 Run #42410017271：正常資料三項 200 PASS，`TaiwanStockMarginMaintenance` 400 FAIL；原程式**未讀取 HTTP 400 JSON 本文**，因此無法直接證明確實缺少 Sponsor。
+- 已於 PR #306 加入**安全錯誤類別辨識**：`PLAN_RESTRICTED` / `AUTH_INVALID` / `RATE_LIMITED` / `INVALID_REQUEST` / `UNKNOWN_API_REJECTION`；不保留原始訊息、不記錄 Token。
+- 研究專用 Workflow 本次設 `FINMIND_DATASET_FILTER=margin_maintenance`，**只重測失敗資料集一次**，不重複呼叫已驗收成功的前三項。離線測試新增 400 分類與內容遮罩情境。
+- 研究分支最新測試提交 `792f359`；新增工作 Run #42410265423（需核實其最終 Artifact 與完整日誌，不能單憑排隊即宣稱通過）。
+- 不新增排程、不改 Production，Sponsor 僅在實際新 Run 回傳 `PLAN_RESTRICTED` 時才可認定為方案限制；其他錯誤留待查證。
