@@ -20,6 +20,8 @@ jobs:
       FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
     steps:
       - uses: actions/checkout@v4
+      - name: Validate audit parser offline
+        run: python3 -m unittest tests/test_fugle_market_quality_audit.py
       - name: Collect paid Fugle coverage and intraday timestamp evidence
         run: python3 research/fugle_market_quality_audit.py
       - name: Upload dated audit evidence
