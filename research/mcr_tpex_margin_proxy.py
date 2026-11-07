@@ -80,7 +80,11 @@ def main():
     out=pathlib.Path("research_output/mcr_tpex_proxy_audit.json")
     out.parent.mkdir(parents=True,exist_ok=True)
     try:
-        d=build_tpex_proxy(source_fetch())
+        raw=source_fetch()
+        if isinstance(raw,list) and raw and isinstance(raw[0],dict):
+            print("TPEX_SOURCE_FIELD_NAMES:", sorted(raw[0].keys()))
+            print("TPEX_SOURCE_ROW_COUNT:",len(raw))
+        d=build_tpex_proxy(raw)
     except Exception as e:
         d={"mode":"RESEARCH_PROXY_ONLY","data_quality":"BLOCKED_EXTERNAL_DATA",
            "reason":type(e).__name__+":"+str(e)[:120],
