@@ -49,6 +49,36 @@ jobs:
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
         run: PYTHONPATH=. python -m research.fugle_snapshot_coverage_audit
+      - name: Publish mobile-readable symbol coverage audit
+        if: always() && github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          path = Path("output/provider_readiness/fugle_snapshot_coverage.json")
+          lines = ["## Fugle 上市／上櫃快照代號涵蓋率", "",
+                   "**注意：代號涵蓋率不等於盤中有效成交價涵蓋率，也不是交易訊號。**", ""]
+          if not path.is_file():
+              lines += ["稽核資料：未產生（待確認），不能宣稱 PASS。", ""]
+          else:
+              try:
+                  data = json.loads(path.read_text(encoding="utf-8"))
+                  lines += [f"檢查時間：{data.get('checked_at_tpe','待確認')}",
+                            f"稽核狀態：{data.get('status','待確認')}", "",
+                            "| 市場 | 官方母池 | 符合代號 | 代號涵蓋率 | 快照狀態 |",
+                            "|---|---:|---:|---:|---|"]
+                  for code, label in (("TSE", "上市"), ("OTC", "上櫃")):
+                      row = data.get("markets", {}).get(code, {})
+                      lines.append(f"| {label} | {row.get('expected','—')} | {row.get('matched','—')} | "
+                                   f"{row.get('symbol_coverage_pct','—')}% | {row.get('status','待確認')} |")
+              except (ValueError, TypeError):
+                  lines += ["JSON 稽核資料無法解析，不能宣稱 PASS。"]
+          lines += ["", "**正式交易閘門：維持 NO_TRADE；需另驗證逐檔成交時間與風控。**", ""]
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as out:
+              out.write("\n".join(lines) + "\n")
+          print("Mobile Fugle coverage summary published")
+          PY
       - name: Publish result summary
         if: always()
         run: |
