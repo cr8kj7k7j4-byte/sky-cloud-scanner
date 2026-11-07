@@ -17,6 +17,8 @@ on:
       - 'research/mcr_proxy_event_ledger.py'
       - 'research/mcr_episode_audit.py'
       - 'research/mcr_forward_markouts.py'
+      - 'research/mcr_forward_price_snapshots.py'
+      - 'tests/test_mcr_forward_price_snapshots.py'
       - 'tests/test_mcr_episode_validation.py'
       - 'tests/test_mcr_proxy_event_ledger.py'
       - 'tests/test_mcr_merged_proxy.py'
@@ -41,7 +43,7 @@ jobs:
       - name: Offline parser, date, and no-trade tests
         run: python -m unittest tests.test_mcr_official_margin_proxy -v
       - name: Test cross-market verified-session merge
-        run: python -m unittest tests.test_mcr_tpex_margin_proxy tests.test_mcr_merged_proxy tests.test_mcr_proxy_event_ledger tests.test_mcr_daily_volume tests.test_mcr_episode_validation -v
+        run: python -m unittest tests.test_mcr_tpex_margin_proxy tests.test_mcr_merged_proxy tests.test_mcr_proxy_event_ledger tests.test_mcr_daily_volume tests.test_mcr_episode_validation tests.test_mcr_forward_price_snapshots -v
       - name: Validate live official closing-volume schemas (no secret)
         run: |
           python - <<'PY'
@@ -51,6 +53,18 @@ jobs:
               dated=_date(_field(data[0],KEYS[market]["date"]))
               rows=parse_market(data,market,dated)
               print("VOLUME_SCHEMA_VERIFIED",market,dated,len(rows),"unit=shares")
+          PY
+      - name: Audit real official TWSE TPEx close-price schema (no fabricated prices)
+        run: |
+          python - <<'PY'
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+          from research.mcr_daily_volume import fetch
+          from research.mcr_forward_price_snapshots import parse_market_rows
+          stamp=datetime.now(ZoneInfo("Asia/Taipei")).isoformat()
+          for market in ("TWSE","TPEx"):
+              session,rows=parse_market_rows(fetch(market),market,captured_at=stamp)
+              print("MCR_OFFICIAL_CLOSE_SCHEMA_VERIFIED",market,session,len(rows))
           PY
       - name: Fetch official TWSE two-session source (research only)
         id: source
@@ -124,13 +138,26 @@ jobs:
       - name: Audit episode deduplication and selection bias (no profitability claim)
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         run: python -m research.mcr_episode_audit
+      - name: Capture verified official closing prices for prospective forward evidence
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        continue-on-error: true
+        run: python -m research.mcr_forward_price_snapshots
       - name: Produce no-fabrication outcome completeness report
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         run: |
           python - <<'PY'
-          import json,subprocess
-          d=json.load(open("research_output/mcr_episode_audit_latest.json",encoding="utf-8"))
-          subprocess.run(["python","-m","research.mcr_forward_markouts","--asof",d["last_session"]],check=True)
+          import json,pathlib
+          from research.mcr_forward_markouts import research_markouts
+          d=json.loads(pathlib.Path("research_output/mcr_episode_audit_latest.json").read_text(encoding="utf-8"))
+          rows=[]
+          for path in sorted(pathlib.Path("research_output/mcr_eod_price_evidence").glob("????-??-??.json")):
+              snap=json.loads(path.read_text(encoding="utf-8"))
+              if snap.get("schema")!="MCR_OFFICIAL_EOD_PRICES_V1" or snap.get("execution_authorized") is not False or snap.get("session")!=path.stem:
+                  raise ValueError("INVALID_PRICE_SNAPSHOT")
+              rows.extend(snap["rows"])
+          outcome=research_markouts(d["episodes"],rows,asof_session=d["last_session"])
+          pathlib.Path("research_output/mcr_markout_latest.json").write_text(json.dumps(outcome,ensure_ascii=False,indent=2),encoding="utf-8")
+          print("MCR_FORWARD_REFERENCE_EVIDENCE",len(rows),"episodes",len(d["episodes"]),"status",outcome["report_status"])
           PY
       - name: Record outcome completeness only until real forward prices exist
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
@@ -152,4 +179,5 @@ jobs:
           # Force-add only these two audited public research artifacts.
           # research_output/ is otherwise deliberately ignored.
           git add -f research_output/mcr_official_proxy_combined_latest.json research_output/mcr_event_ledger/*.json research_output/mcr_episode_audit_latest.json research_output/mcr_markout_latest.json
+          if compgen -G "research_output/mcr_eod_price_evidence/*.json" > /dev/null; then git add -f research_output/mcr_eod_price_evidence/*.json; fi
           git diff --cached --quiet || (git commit -m "data(research): TWSE TPEx verified financing snapshot [skip ci]" && git pull --rebase && git push)
