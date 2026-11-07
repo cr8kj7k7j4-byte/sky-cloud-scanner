@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   deploy:
-    if: github.repository != 'cr8kj7k7j4-byte/sky-cloud-scanner'
+    if: github.repository == 'cr8kj7k7j4-byte/trident-iphone-workstation'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
