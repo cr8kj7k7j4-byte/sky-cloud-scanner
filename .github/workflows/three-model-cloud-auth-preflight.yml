@@ -9,12 +9,14 @@ on:
 permissions:
   contents: read
   id-token: write
+  pull-requests: write
 jobs:
   authorization-check:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
       - name: Check configuration presence only
+        id: config
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
           GCP_WIF_PROVIDER: ${{ secrets.GCP_WIF_PROVIDER }}
@@ -29,11 +31,13 @@ jobs:
           sys.exit(bool(missing))
           PY
       - name: Authenticate Google Cloud via workload identity
+        id: gcp_auth
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
       - name: Verify private GCS read authorization without market data
+        id: gcs_read
         env:
           SKY_RESEARCH_GCS_BUCKET: ${{ vars.SKY_RESEARCH_GCS_BUCKET }}
         run: |
@@ -49,3 +53,23 @@ jobs:
           print("WIF_AUTH_AND_PRIVATE_OBJECT_READ: PASS")
           print("No market API called, no GCS object written, no deploy, no trading")
           PY
+      - name: Publish sanitized preflight status to research PR
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CONFIG_STATUS: ${{ steps.config.outcome }}
+          GCP_AUTH_STATUS: ${{ steps.gcp_auth.outcome }}
+          GCS_READ_STATUS: ${{ steps.gcs_read.outcome }}
+        run: |
+          python - <<'PY' > /tmp/research-preflight-status.txt
+          import os
+          print("### 三模型雲端權限檢查（只回報狀態，不包含任何金鑰）")
+          for label,var in (("必備設定","CONFIG_STATUS"),("Google Cloud 身分授權","GCP_AUTH_STATUS"),("私有 GCS 唯讀","GCS_READ_STATUS")):
+              print("- "+label+": "+os.getenv(var,"UNKNOWN"))
+          print("- 富果付費 API：未呼叫")
+          print("- GCS 寫入：未執行")
+          print("- Cloud Run 部署：未執行")
+          print("- 正式交易：禁止")
+          PY
+          gh api repos/cr8kj7k7j4-byte/sky-cloud-scanner/issues/324/comments \
+            -f body="$(cat /tmp/research-preflight-status.txt)"
