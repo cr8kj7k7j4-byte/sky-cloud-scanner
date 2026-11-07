@@ -37,7 +37,7 @@ def read_api(dataset, symbol, start, end, token):
     if not rows:
         return {"status": "FAIL", "reason": "empty_dataset_or_permission"}
     dates = sorted({str(row.get("date", "")) for row in rows if isinstance(row, dict)})
-    dates = [d for d in dates if re.fullmatch(r"\\d{4}-\\d{2}-\\d{2}", d)]
+    dates = [d for d in dates if re.fullmatch(r"\d{4}-\d{2}-\d{2}", d)]
     columns = sorted({key for row in rows if isinstance(row, dict) for key in row})
     if not dates or not all(start <= d <= end for d in dates):
         return {"status": "FAIL", "reason": "invalid_dates"}
@@ -53,7 +53,7 @@ def main():
     p.add_argument("--start", default="2026-10-01")
     p.add_argument("--end", default="2026-11-06")
     args = p.parse_args()
-    if not re.fullmatch(r"\\d{4,6}", args.symbol):
+    if not re.fullmatch(r"\d{4,6}", args.symbol):
         p.error("symbol must be 4 to 6 digits")
     try:
         start, end = (dt.date.fromisoformat(d) for d in (args.start, args.end))
@@ -84,7 +84,7 @@ def main():
                          and all(x["status"] == "PASS" for x in result["datasets"].values())
                          else "FAIL")
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+    OUT.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0 if result["overall"] == "PASS" else 1
 
