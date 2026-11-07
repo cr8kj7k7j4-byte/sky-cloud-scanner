@@ -12,6 +12,12 @@ class TpexTests(unittest.TestCase):
         self.assertEqual(r["margin_data_date"],"2026-11-06")
         self.assertFalse(r["maintenance_below_130_verified"])
         self.assertTrue(all(x["action"]=="觀察" and not x["trade_eligible"] for x in r["rows"]))
+    def test_real_official_english_fields(self):
+        rows=[{"Date":"2026-11-06","SecuritiesCompanyCode":str(4000+i),
+               "CompanyName":"測試","MarginPurchaseBalancePreviousDay":"1200",
+               "MarginPurchaseBalance":"1000"} for i in range(360)]
+        r=build_tpex_proxy(rows,now=datetime(2026,11,8,tzinfo=TW))
+        self.assertEqual(r["total"],360)
     def test_stale(self):
         with self.assertRaisesRegex(ValueError,"STALE"):
             build_tpex_proxy(sample(),now=datetime(2026,11,20,tzinfo=TW))
