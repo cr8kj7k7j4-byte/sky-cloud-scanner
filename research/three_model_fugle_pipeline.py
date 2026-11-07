@@ -46,6 +46,9 @@ def normalize_response(symbol, timeframe, response, start, end):
             raise ValueError("provider_date_outside_requested_window")
         normalized = {key: row.get(key) for key in ("open","high","low","close","volume")}
         normalized["timestamp"] = parsed.isoformat()
+        # Fugle whole-lot equities: intraday volume=lots, daily volume=shares.
+        # Never aggregate/combine across timeframes without explicit conversion.
+        normalized["volume_unit"] = "shares" if timeframe == "D" else "lots"
         result.append(normalized)
     result.sort(key=lambda x:x["timestamp"])
     verify_bars(result, datetime.combine(end, time(23,59),tzinfo=TPE), 1)
@@ -150,6 +153,7 @@ def run(symbols, end, bucket, prefix, key, store, out):
            "rejected_count":sum(not o.get("signal_id") for o in report["observations"]),
            "saved_records":len(ledger),"storage_statuses":ledger,
            "symbols_requested":symbols,"end_date":end.isoformat(),
+           "source_volume_units":{"5":"lots","D":"shares"},
            "live_mobile_deployment_verified":False}
     out.parent.mkdir(parents=True,exist_ok=True)
     out.write_text(json.dumps(audit,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
