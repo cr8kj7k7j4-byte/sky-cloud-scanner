@@ -66,6 +66,21 @@ def main():
     assert dd_lock["state"] == "LOCKDOWN"
     assert dd_lock["status"] == "BLOCK"
 
+    loss_streak_stop = evaluate_trade(
+        entry=50,
+        stop=48.5,
+        target=53,
+        account_equity=500000,
+        daily_pnl=0,
+        consecutive_losses=2,
+        grade="A+",
+        policy=p,
+    )
+    assert loss_streak_stop["status"] == "BLOCK"
+    assert loss_streak_stop["recommended_shares"] == 0
+    assert loss_streak_stop["portfolio_allowed"] is False
+    assert any("連續兩筆停損" in reason for reason in loss_streak_stop["reasons"])
+
     print("PASS P0-R risk engine tests")
 
 
