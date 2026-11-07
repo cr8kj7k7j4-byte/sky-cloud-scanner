@@ -51,3 +51,13 @@ Scope: **research-only**; no production trading changes, no orders, no Cloud Run
 3. Obtain the source repository, GCP project, Cloud Run service and current running revision for `tw-ai-mobile-816937852055.asia-east1.run.app` using authorized tooling. Build integration on a review branch; deploy a non-trading authenticated read-only API path first.
 4. Verify endpoint status, Chinese table fields, data/bar timestamps, absent price case, fault mode, unauthorized access, and mobile viewport before production traffic cutover.
 5. Backtesting/training and W0/P0-G go/no-go are separate. There is currently **no evidence of successful GCP deploy or three AI model training**.
+
+## 2026-11-08 live GitHub Actions authorization diagnosis
+A research-branch push triggered `.github/workflows/three-model-cloud-auth-preflight.yml`, which checked **presence only** of required GitHub Secrets/Variables without printing their values. The resulting sanitized PR comment confirms:
+- `FUGLE_API_KEY`: present in Actions secret environment (this does not prove paid historical endpoint access).
+- Missing: `GCP_WIF_PROVIDER` Secret, `GCP_SERVICE_ACCOUNT` Secret, `SKY_RESEARCH_GCS_BUCKET` Actions Variable.
+- Google Workload Identity Federation authentication and GCS read were skipped. No paid API call, no GCS write, no Cloud Run deploy.
+- Evidence: PR #324 discussion comments, latest at https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/pull/324#issuecomment-6714157345
+- Therefore the next necessary external setup is to create/identify the correct private GCS bucket and GitHub OIDC/WIF service account authorization in the actual GCP project, then set the three names above in GitHub. **Never paste secret values into chat, PR comments or public code.**
+
+The research GCS ledger now stores rejected/no-trade decisions as immutable records with stable `rejected-...` IDs, not just accepted observations. All records are explicitly marked `production_signal=false`, `order_authorized=false`, `eligible_strategy_trade=false`, and never imply real P&L.
