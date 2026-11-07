@@ -8,9 +8,9 @@ from datetime import date, datetime, time as dtime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from .official import fetch_mis_quotes, load_official_universe
+from .official import load_official_universe
 from .fugle import get_quote
-from .realtime_quote_evidence import fugle_executed_trade, mis_executed_trade_row
+from .realtime_quote_evidence import fugle_executed_trade
 from .sky_mobile_table import render_mobile_table
 from .trading_calendar import fetch_calendar, classify_date, _roc_to_iso
 
@@ -377,8 +377,8 @@ def run(history_dir: str, top_n: int = 20):
         "source_health": {
             "official_universe": universe_health,
             "intraday": {
-                "source": "TWSE MIS TSE + OTC operational fallback",
-                "note": "OTC is operational fallback, not TPEx-official real-time certification.",
+                "source": "Fugle MarketData candidate realtime only",
+                "note": "Each candidate needs a valid Fugle current-session executed trade; no MIS fallback.",
             },
             "daily_history": {
                 "source": "W3 canonical Swing daily artifact",
