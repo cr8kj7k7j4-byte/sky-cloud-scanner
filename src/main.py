@@ -264,6 +264,7 @@ def run():
         st["mis_quote_count"] = len(rows) if provider_result["fallback_used"] else 0
         st["market_quote_provider"] = provider_result["provider"]
         st["fugle_primary_status"] = provider_result["primary_status"]
+        st["fugle_primary_evidence"] = provider_result["primary_evidence"]
         st["fugle_primary_coverage_pct"] = provider_result.get("primary_quote_coverage_pct", provider_result["audit"]["quote_coverage_pct"])
         st["market_quote_fallback_used"] = provider_result["fallback_used"]
         quote_audit = provider_result["audit"]
@@ -273,7 +274,7 @@ def run():
         st["quote_scope"] = quote_audit["quote_scope"]
         st["live_whole_market_certified"] = False
         st["live_whole_market_coverage_pct"] = quote_audit["quote_coverage_pct"]
-        st["mis_unverified_quote_count"] = len(rows) - quote_audit["valid_quote_count"]
+        st["mis_unverified_quote_count"] = None  # MIS raw count not retained by this provider; do not report false zero
         # Rows already contain verified executed trades from the selected provider.
         if not quote_audit["valid_whole_market_operational"]:
             st["warnings"].append(
@@ -311,11 +312,9 @@ def run():
         st["source_health"]["tpex_intraday"] = {
             "ok": False,
             "operational_ok": otc_operational_ok,
-            "source": (
-                "TPEx official public/free full-market real-time feed "
-                "not certified; TWSE MIS OTC is operational fallback only"
-            ),
-            "fallback_count": len(otc_rows),
+            "source": st["market_quote_provider"],
+            "official_tpex_realtime_certified": False,
+            "verified_executed_trade_count": len(otc_rows),
         }
 
         if STRICT_OFFICIAL_MODE:
@@ -377,8 +376,8 @@ def run():
         # plan-restricted Fugle Snapshot endpoint.
         if len(working_rows) < 300:
             st["warnings"].append(
-                "盤中有效報價不足 300 檔；本次不以 Fugle Snapshot 補洞，"
-                "避免把方案權限或資料缺口誤判為完整市場。"
+                "盤中有效報價不足 300 檔；富果優先來源與 MIS 備援分別驗證，"
+                "不得混合不足涵蓋率或以收盤／買賣盤價格補洞。"
             )
 
         working_rows = apply_relative_strength(working_rows)
