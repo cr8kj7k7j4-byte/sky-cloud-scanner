@@ -33,13 +33,15 @@ jobs:
               print("missing_names=" + (",".join(missing) if missing else "NONE"), file=output)
           sys.exit(bool(missing))
           PY
-      - name: Authenticate Google Cloud via workload identity
+      - name: Authenticate Google Cloud via workload identity (approved main/manual only)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
         id: gcp_auth
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
       - name: Verify private GCS read authorization without market data
+        if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && steps.gcp_auth.outcome == 'success'
         id: gcs_read
         env:
           SKY_RESEARCH_GCS_BUCKET: ${{ vars.SKY_RESEARCH_GCS_BUCKET }}
@@ -71,6 +73,7 @@ jobs:
           for label,var in (("必備設定","CONFIG_STATUS"),("Google Cloud 身分授權","GCP_AUTH_STATUS"),("私有 GCS 唯讀","GCS_READ_STATUS")):
               print("- "+label+": "+os.getenv(var,"UNKNOWN"))
           print("- 缺少設定名稱："+os.getenv("MISSING_NAMES","UNKNOWN"))
+          print("- WIF 實際登入僅限 main + workflow_dispatch；研究分支會略過，不代表 IAM 失敗")
           print("- 富果付費 API：未呼叫")
           print("- GCS 寫入：未執行")
           print("- Cloud Run 部署：未執行")
