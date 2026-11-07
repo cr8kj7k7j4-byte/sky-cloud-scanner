@@ -1,0 +1,41 @@
+name: MCR TPEx Source Acceptance
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - research/mcr_tpex_margin_proxy.py
+      - tests/test_mcr_tpex_margin_proxy.py
+      - .github/workflows/mcr-tpex-source-acceptance.yml
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run fail-closed tests
+        run: python -m unittest tests.test_mcr_tpex_margin_proxy -v
+      - name: Audit actual TPEx API (no fake output)
+        id: audit
+        continue-on-error: true
+        run: python -m research.mcr_tpex_margin_proxy
+      - name: Upload audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcr-tpex-source-${{ github.run_id }}
+          path: research_output/mcr_tpex_proxy_audit.json
+          if-no-files-found: warn
+      - name: Require source acceptance
+        run: |
+          python - <<'PY'
+          import json
+          d=json.load(open("research_output/mcr_tpex_proxy_audit.json"))
+          print("RESULT",d["data_quality"],"ROWS",d.get("total"),"REASON",d.get("reason","none"))
+          assert d["data_quality"]=="TPEX_PASSED",d.get("reason")
+          assert d["no_trade_without_validation"] is True
+          PY
