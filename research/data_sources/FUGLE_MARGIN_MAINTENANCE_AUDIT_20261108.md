@@ -49,3 +49,8 @@
 - 新增 `tests/test_finmind_margin_entitlement.py` 六個離線測試情境；既有 `.github/workflows/finmind-api-acceptance.yml` 增加先跑 unittest，原有 GitHub Secret 仍只在 API probe step 傳入。
 - Commit：程式 `a53ce22`、文件 `8f96a17`、測試 `149b992`、Workflow `b59e66e`。
 - GitHub 已接受上述提交，但**本次尚無可核對的 GitHub Actions 真實 HTTP 回應、Artifacts 或單元測試執行結果**。目前狀態：IMPLEMENTED_NOT_ACCEPTED / INSUFFICIENT_DATA。不得聲稱 Sponsor 權限、資料完整度或融資維持率數值已通過。
+
+## 最新跨 PR 真實驗收（2026-11-08 04:13 TPE）
+- PR #306 既有 FinMind Workflow Run #42410017271：六項 offline test PASS；三項普通資料集 HTTP 200 PASS；`TaiwanStockMarginMaintenance` **HTTP 400 FAIL**；Artifact ID 13589620268 成功產出。
+- 目前**沒有證據**可把維持率視為可取得；可能為 Sponsor 授權限制或其他 400 驗證錯誤，尚無確定原因。避免重複請求與另購服務。
+- 成果與阻礙已登錄 PR #306 及 `docs/FINMIND_API_ACCEPTANCE_20261108.md`，不得改動正式 Sky 模型。
