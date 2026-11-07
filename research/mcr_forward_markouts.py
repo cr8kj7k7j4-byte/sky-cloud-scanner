@@ -39,7 +39,7 @@ def research_markouts(events,prices,*,asof_session):
         indexed[key]=(v,p["source"],p["captured_at"])
     outputs=[]
     for event in events:
-        if event.get("execution_authorized") is not False:raise ValueError("UNAUTHORIZED_SIGNAL")
+        if event.get("trade_eligible") is not False or event.get("candidate_signal_only") is not True:\n            raise ValueError("UNAUTHORIZED_SIGNAL")
         first=_as_date(event["first_session"])
         if first>=asof:
             outputs.append({"episode_id":event["episode_id"],"status":"PENDING_FORWARD_SESSIONS",
