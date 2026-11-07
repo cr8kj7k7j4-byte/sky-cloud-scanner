@@ -19,6 +19,25 @@ DATASETS = {
 OUTPUT = pathlib.Path("research_output/finmind_acceptance.json")
 
 
+def classify_api_error(payload: bytes) -> str:
+    """Allowlisted error category only; never persist vendor text or token."""
+    try:
+        obj = json.loads(payload)
+        message = str(obj.get("msg", "")).lower() if isinstance(obj, dict) else ""
+    except (ValueError, UnicodeError, TypeError):
+        return "UNCLASSIFIED_RESPONSE"
+    if ("level" in message or "sponsor" in message or "permission" in message
+            or "upgrade" in message or "user level" in message):
+        return "PLAN_RESTRICTED"
+    if "token" in message or "unauthoriz" in message or "invalid auth" in message:
+        return "AUTH_INVALID"
+    if "upper limit" in message or "rate limit" in message or "too many" in message:
+        return "RATE_LIMITED"
+    if "parameter" in message or "invalid dataset" in message or "data_id" in message:
+        return "INVALID_REQUEST"
+    return "UNKNOWN_API_REJECTION"
+
+
 def probe(name, dataset, required, token, start, end):
     params = urllib.parse.urlencode({"dataset": dataset, "data_id": "2330",
                                      "start_date": start, "end_date": end})
@@ -64,7 +83,9 @@ def probe(name, dataset, required, token, start, end):
                 result["reason"] = "missing_or_invalid_expected_fields"
     except urllib.error.HTTPError as exc:
         result["http_status"] = exc.code
+        # Restricted fixed-size body read; categorize only. Never log raw API message.
         result["reason"] = "HTTP_" + str(exc.code)
+        result["error_category"] = classify_api_error(exc.read(2048))
     except urllib.error.URLError as exc:
         result["reason"] = "network_failure:" + type(exc.reason).__name__
     except (ValueError, TimeoutError) as exc:
@@ -85,13 +106,16 @@ def main():
         "results": {}, "overall": "FAIL", "promotion_status": "RESEARCH_ONLY",
     }
     token = os.environ.get("FINMIND_TOKEN", "").strip()
+    selected = os.environ.get("FINMIND_DATASET_FILTER", "").strip()
+    datasets = {selected: DATASETS[selected]} if selected in DATASETS else DATASETS
+    result["scope"] = "SINGLE_DATASET" if selected in DATASETS else "ALL_FOUR_DATASETS"
     if token:
-        for name, (dataset, required) in DATASETS.items():
+        for name, (dataset, required) in datasets.items():
             key, value = probe(name, dataset, required, token, start, end)
             result["results"][key] = value
     else:
         result["reason"] = "FINMIND_TOKEN_missing"
-    result["overall"] = ("PASS" if len(result["results"]) == len(DATASETS)
+    result["overall"] = ("PASS" if len(result["results"]) == len(datasets)
                          and all(x["status"] == "PASS" for x in result["results"].values())
                          else "FAIL")
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
