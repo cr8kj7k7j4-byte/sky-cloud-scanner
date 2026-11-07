@@ -35,6 +35,7 @@ const assert = require("node:assert/strict");
  const fixture={as_of:now,source:"USER-CLAIM-ONLY",coverage:"100% real-time",signals:[{symbol:"2330",name:"測試",side:"WATCH",entry:50,stop:49,target:53}]};
  await page.locator("#file").setInputFiles({name:"test.json",mimeType:"application/json",buffer:Buffer.from(JSON.stringify(fixture))});
  await page.getByRole("button",{name:"匯入並檢查"}).click();
+ await page.waitForFunction(()=>document.getElementById("importStatus").textContent.includes("匯入完成"),{},{timeout:5000});
  assert.match(await page.locator("#importStatus").innerText(),/匯入完成/);
  await page.getByRole("button",{name:"總覽",exact:true}).click();
  assert.match(await page.locator("#feedBadge").innerText(),/未認證/);
