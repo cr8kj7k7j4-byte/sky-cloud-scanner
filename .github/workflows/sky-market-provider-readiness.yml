@@ -11,6 +11,8 @@ on:
     branches: [main]
     paths:
       - "research/sky_provider_readiness.py"
+      - "research/fugle_snapshot_coverage_audit.py"
+      - "tests/test_fugle_snapshot_coverage_audit.py"
       - "tests/test_sky_provider_readiness.py"
       - ".github/workflows/sky-market-provider-readiness.yml"
   pull_request:
@@ -34,12 +36,17 @@ jobs:
       - name: Install tests and runtime
         run: pip install -r requirements.txt pytest
       - name: Preflight unit tests
-        run: PYTHONPATH=. python -m pytest -q tests/test_sky_provider_readiness.py tests/test_realtime_market_contract.py tests/test_full_market_executed_quote_gate.py
+        run: PYTHONPATH=. python -m pytest -q tests/test_sky_provider_readiness.py tests/test_realtime_market_contract.py tests/test_full_market_executed_quote_gate.py tests/test_fugle_snapshot_coverage_audit.py
       - name: Read-only market-provider entitlement probe
         if: github.event_name != 'pull_request'
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
         run: PYTHONPATH=. python -m research.sky_provider_readiness
+      - name: Compare paid Fugle snapshot symbol membership against official universe
+        if: github.event_name != 'pull_request'
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+        run: PYTHONPATH=. python -m research.fugle_snapshot_coverage_audit
       - name: Publish result summary
         if: always()
         run: |
