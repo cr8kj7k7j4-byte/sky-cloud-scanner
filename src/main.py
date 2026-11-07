@@ -358,12 +358,12 @@ def run():
         }
         st["event_risk"] = assess_event_risk(snapshot_events)
 
-        # Do not silently replace an incomplete official chain with a
-        # plan-restricted Fugle Snapshot endpoint.
+        # If the licensed Fugle feed lacks executed-trade coverage,
+        # reject the market scan rather than attempting public quote fallback.
         if len(working_rows) < 300:
             st["warnings"].append(
-                "盤中有效報價不足 300 檔；本次不以 Fugle Snapshot 補洞，"
-                "避免把方案權限或資料缺口誤判為完整市場。"
+                "富果有效即時成交報價不足 300 檔；禁止以 MIS 或舊快照補價。"
+                "資料權限或成交證據不足時不可產生交易決策。"
             )
 
         working_rows = apply_relative_strength(working_rows)
@@ -554,7 +554,7 @@ def run():
             f"Sky Cloud Scanner v{SCANNER_VERSION}｜{now:%Y-%m-%d %H:%M}",
             (
                 f"官方母池 TWSE {ust['twse']}｜TPEx {ust['tpex']}｜"
-                f"MIS有效報價 {len(rows)}｜第一層通過 {len(passed)}"
+                f"富果有效成交報價 {len(rows)}｜第一層通過 {len(passed)}"
             ),
         ]
 
@@ -566,8 +566,8 @@ def run():
             )
 
         lines.append(
-            "來源：TWSE官方母池＋TPEx官方母池；盤中上市=TWSE MIS；"
-            "上櫃 MIS 僅為操作備援，非 TPEx 官方完整盤中資料鏈。"
+            "來源：TWSE／TPEx 官方股票母池；盤中成交行情=富果 MarketData。"
+            "富果資料不足時停止新進場決策，不使用 MIS 或前收盤代替。"
         )
 
         lines += [
