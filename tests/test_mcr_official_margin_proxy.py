@@ -1,6 +1,6 @@
 import unittest
 from datetime import date
-from research.mcr_official_margin_proxy import parse_twse, build_proxy
+from research.mcr_official_margin_proxy import parse_twse, build_proxy, select_two_verified_sessions
 
 def payload(day, before=200, after=150, count=550):
     return {"stat":"OK","date":day,"tables":[{"fields":[
@@ -25,6 +25,14 @@ class OfficialProxyTests(unittest.TestCase):
     def test_low_coverage(self):
         with self.assertRaisesRegex(ValueError,"COVERAGE"):
             parse_twse(payload("20261106",count=5),date(2026,11,6))
+    def test_exchange_holiday_skips_to_verified_dates(self):
+        from datetime import timedelta
+        def fake(day):
+            if day == date(2026,11,9):
+                return {"stat":"很抱歉，沒有符合條件的資料"}
+            return payload(day.strftime("%Y%m%d"))
+        sessions=select_two_verified_sessions(date(2026,11,10),fetcher=fake)
+        self.assertEqual([x[0] for x in sessions],[date(2026,11,10),date(2026,11,6)])
     def test_reduction_not_maintenance(self):
         today=parse_twse(payload("20261106"),date(2026,11,6))
         prior=parse_twse(payload("20261105",after=200),date(2026,11,5))
