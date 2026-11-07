@@ -1,0 +1,42 @@
+name: MCR V1 One-Year Data Audit
+on:
+  push:
+    branches:
+      - research/margin-rebound-watch-20261108
+    paths:
+      - 'research/mcr_v1_year_audit.py'
+      - 'tests/test_mcr_v1_year_audit.py'
+      - '.github/workflows/mcr-v1-year-audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run offline contract tests
+        run: python -m unittest tests.test_mcr_v1_year_audit -v
+      - name: Audit FinMind historical access (fail closed, no secret output)
+        env:
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+        run: python -m research.mcr_v1_year_audit
+      - name: Attach summary
+        if: always()
+        run: |
+          if [ -f research_output/mcr_v1_year/summary.md ]; then
+            cat research_output/mcr_v1_year/summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcr-year-audit-${{ github.run_id }}
+          path: |
+            research_output/mcr_v1_year/data_audit.json
+            research_output/mcr_v1_year/summary.md
+          if-no-files-found: warn
