@@ -41,10 +41,10 @@ MODE_META = {
 def coverage_governance_notice(operational_full_market_scan, coverage_pct):
     """Only certify operational quote coverage after the existing market gate."""
     if operational_full_market_scan:
-        return "富果上市與上櫃快照篩選資料可用；候選須另外驗證個股實際成交時間，不代表可交易。"
+        return "富果上市與上櫃快照篩選覆蓋驗證通過；候選須另外驗證個股實際成交時間，不代表可交易。"
     return (
         f"全市場即時行情資料未通過驗證（有效報價覆蓋率 {coverage_pct}%）；"
-        "富果即時行情不完整；候選僅供觀察，不可產生 A+ 或可執行買進價。"
+        "富果即時行情不完整；候選僅供觀察，不可據此產生 A+ 或可執行買進價。"
     )
 
 
