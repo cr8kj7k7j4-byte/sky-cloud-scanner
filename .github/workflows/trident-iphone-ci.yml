@@ -43,3 +43,14 @@ jobs:
       - name: Verify no automated orders or embedded credentials
         run: |
           ! grep -REni '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|api[_-]?secret[[:space:]]*[:=]|access[_-]?token[[:space:]]*[:=])' trident-mobile --exclude=README.md
+      - name: Package iPhone offline fallback
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trident-iphone-offline-preview
+          path: |
+            trident-mobile/index.html
+            trident-mobile/manifest.webmanifest
+            trident-mobile/README.md
+          if-no-files-found: error
+          retention-days: 7
