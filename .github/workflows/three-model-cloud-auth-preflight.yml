@@ -1,0 +1,51 @@
+name: Three Model GCP Authorization Preflight (Research)
+on:
+  push:
+    branches:
+      - research/three-model-evidence-gate-20261108
+    paths:
+      - .github/workflows/three-model-cloud-auth-preflight.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  authorization-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Check configuration presence only
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+          GCP_WIF_PROVIDER: ${{ secrets.GCP_WIF_PROVIDER }}
+          GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          SKY_RESEARCH_GCS_BUCKET: ${{ vars.SKY_RESEARCH_GCS_BUCKET }}
+        run: |
+          python - <<'PY'
+          import os,sys
+          names=("FUGLE_API_KEY","GCP_WIF_PROVIDER","GCP_SERVICE_ACCOUNT","SKY_RESEARCH_GCS_BUCKET")
+          missing=[k for k in names if not os.environ.get(k)]
+          print("Three-model private-cloud config:", "CONFIG_PRESENT" if not missing else "MISSING:"+",".join(missing))
+          sys.exit(bool(missing))
+          PY
+      - name: Authenticate Google Cloud via workload identity
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      - name: Verify private GCS read authorization without market data
+        env:
+          SKY_RESEARCH_GCS_BUCKET: ${{ vars.SKY_RESEARCH_GCS_BUCKET }}
+        run: |
+          python -m pip install google-cloud-storage
+          python - <<'PY'
+          import os
+          from google.cloud import storage
+          bucket=storage.Client().bucket(os.environ["SKY_RESEARCH_GCS_BUCKET"])
+          # Intentionally absent key. This requires object-read IAM and makes no writes.
+          result=bucket.get_blob("three-model-research/v1/__preflight__/missing-object.json")
+          if result is not None:
+              raise RuntimeError("preflight_path_unexpectedly_exists")
+          print("WIF_AUTH_AND_PRIVATE_OBJECT_READ: PASS")
+          print("No market API called, no GCS object written, no deploy, no trading")
+          PY
