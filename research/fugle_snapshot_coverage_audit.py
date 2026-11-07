@@ -47,9 +47,17 @@ def audit_snapshot(universe, snapshots, asof):
             "symbol_coverage_pct": round(100 * len(matched) / len(expected), 2) if expected else 0.0,
             "executed_trade_coverage_pct": None,
         }
+    result["symbol_coverage_gate"] = "NOT_EVALUABLE"
     if all(result["markets"].get(m, {}).get("status") == "SNAPSHOT_SYMBOLS_AVAILABLE"
            for m in MARKETS) and all(result["markets"][m]["expected"] > 0 for m in MARKETS):
         result["status"] = "BOTH_MARKETS_SYMBOL_SCOPE_OBSERVED"
+        if all(result["markets"][m]["symbol_coverage_pct"] >= 95.0
+               and result["markets"][m]["duplicate_symbols"] == 0
+               for m in MARKETS):
+            result["symbol_coverage_gate"] = "PASS_MEMBERSHIP_ONLY"
+        else:
+            result["symbol_coverage_gate"] = "REVIEW_LOW_COVERAGE_OR_DUPLICATES"
+            result["warnings"].append("MEMBERSHIP_COVERAGE_OR_DUPLICATES_BELOW_GATE")
     else:
         result["warnings"].append("NOT_SAME_DAY_OR_UNAVAILABLE: no live-market certification")
     if any(result["markets"][m].get("duplicate_symbols", 0) for m in MARKETS):
