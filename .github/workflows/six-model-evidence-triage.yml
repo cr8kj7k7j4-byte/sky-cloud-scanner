@@ -1,0 +1,36 @@
+name: Six Model Evidence Triage (research only)
+on:
+  schedule:
+    - cron: '20 0 * * 1-5'
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'research/six_model_evidence_triage.py'
+      - 'tests/test_six_model_evidence_triage.py'
+      - '.github/workflows/six-model-evidence-triage.yml'
+permissions:
+  contents: read
+concurrency:
+  group: six-model-evidence-triage
+  cancel-in-progress: false
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Unit tests for governance boundaries
+        run: python -m unittest tests.test_six_model_evidence_triage -v
+      - name: Produce non-trading evidence report
+        run: python -m research.six_model_evidence_triage
+      - name: Upload report for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: six-model-evidence-triage-${{ github.run_id }}
+          path: research_output/six_model_evidence_triage.json
+          if-no-files-found: error
+          retention-days: 30
