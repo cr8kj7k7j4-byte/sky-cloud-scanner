@@ -39,6 +39,7 @@ jobs:
         continue-on-error: true
         env:
           FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+          FINMIND_DATASET_FILTER: margin_maintenance
         run: python research/finmind_api_acceptance.py
       - name: Publish sanitized report
         if: always()
