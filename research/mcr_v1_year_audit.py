@@ -46,6 +46,11 @@ def run(token, getter=get):
         return report
     all_rows = []
     try:
+        probe = getter("TaiwanStockMarginMaintenance", token, start_date="2026-11-06", end_date="2026-11-06")
+        report["one_day_probe_rows"] = len(probe)
+        if not probe:
+            report["reason"] = "ONE_DAY_PROBE_EMPTY"
+            return report
         for start, end in months(START, END):
             batch = getter("TaiwanStockMarginMaintenance", token,
                            start_date=str(start), end_date=str(end))
@@ -106,6 +111,7 @@ def main():
            f"- 期間：{START}～{END}",
            f"- 結果：**{report['status']}**",
            f"- 原因：{report['reason']}",
+           f"- 單日抽查：{report.get('one_day_probe_rows', '失敗')} 筆",
            f"- 有融資紀錄日數：{report['margin_days']}",
            f"- 維持率<130% 且融資餘額>=100張的股票日：{report['candidate_symbol_days']}",
            f"- 歷史逐筆抽查筆數：{report['tick_probe_rows']}", "",
