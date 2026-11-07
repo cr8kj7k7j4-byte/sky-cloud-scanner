@@ -46,7 +46,7 @@ def build_report(root: Path) -> dict:
                       "production_authorization_changed":False})
     for name,route,reason in RESEARCH:
         match = name in registry
-        frozen = name in freeze and "ARCHIVED_NO_RETUNE" in freeze
+        frozen = any(name in line and "ARCHIVED_NO_RETUNE" in line for line in freeze.splitlines() if line.startswith("|"))
         pairs.append({"name":name,"category":"REGISTERED_RESEARCH_CANDIDATE","registry_present":match,
                       "research_route":"BLOCKED" if frozen or not match else route,
                       "blocking_reason":"ARCHIVED_RESEARCH_NO_RETUNE" if frozen else reason if match else "REGISTRY_PROVENANCE_MISSING",
