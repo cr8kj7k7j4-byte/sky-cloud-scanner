@@ -1,0 +1,32 @@
+name: MCR V1.5 Research Validation
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'research/mcr_v15.py'
+      - 'research/mcr_sample_input.json'
+      - 'tests/test_mcr_v15.py'
+      - 'docs/MCR_V1_5_RESEARCH_SPEC_20261108.md'
+      - '.github/workflows/mcr-research-validation.yml'
+permissions:
+  contents: read
+jobs:
+  mcr-research-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run research unit tests
+        run: python -m unittest discover -s tests -p test_mcr_v15.py -v
+      - name: Synthetic fixture smoke test
+        run: |
+          python -m research.mcr_v15 --input research/mcr_sample_input.json --output mcr_output.json
+          python -c "import json; d=json.load(open('mcr_output.json')); assert d['production_signal'] is False; assert d['governance']=='INSUFFICIENT_DATA'"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mcr-research-synthetic-smoke
+          path: mcr_output.json
+          retention-days: 7
