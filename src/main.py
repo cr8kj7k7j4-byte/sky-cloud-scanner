@@ -20,7 +20,7 @@ from .config import (
     EXEC_ENFORCE_GATE, PAPER_TRADING_MODE, P0S_OOS_VERDICT, PAPER_GCS_BUCKET,
     P0S_5M_BREAKOUT_ENABLED,
 )
-from .official import load_official_universe, fetch_mis_quotes
+from .official import load_official_universe, fetch_fugle_snapshot_quotes
 from .realtime_quote_evidence import validate_whole_market_rows
 from .fugle import get_ticker, get_quote, get_candles
 from .decision_engine import first_gate, evaluate_decision
@@ -258,11 +258,17 @@ def run():
         st["source_health"]["official_universe"] = ust
         st["universe_count"] = len(universe)
 
-        rows, miswarn = fetch_mis_quotes(universe)
-        st["warnings"].extend(miswarn)
-        st["mis_quote_count"] = len(rows)
-        # A returned HTTP quote is not automatically a current executed trade.
-        # Check actual MIS exchange session date + last-trade timestamp first.
+        # Paid Fugle REST snapshot is the only live whole-market trading input.
+        # Do not silently fall back to TWSE MIS or a cached/previous-close quote.
+        rows, fugle_warnings = fetch_fugle_snapshot_quotes(
+            universe, trading_date=now.date().isoformat()
+        )
+        st["warnings"].extend(fugle_warnings)
+        st["source_health"]["primary_live_feed"] = "Fugle MarketData bulk snapshot"
+        st["fugle_snapshot_quote_count"] = len(rows)
+        st["mis_quote_count"] = 0
+        # HTTP success alone is not executed-trade evidence: enforce timestamp,
+        # trading date, coverage and per-exchange validity before any signal.
         quote_audit = validate_whole_market_rows(
             universe, rows, now=datetime.now(TZ), min_coverage_pct=80.0,
             min_exchange_pct=70.0,
@@ -273,7 +279,7 @@ def run():
         st["quote_scope"] = quote_audit["quote_scope"]
         st["live_whole_market_certified"] = False
         st["live_whole_market_coverage_pct"] = quote_audit["quote_coverage_pct"]
-        st["mis_unverified_quote_count"] = len(rows) - quote_audit["valid_quote_count"]
+        st["fugle_unverified_quote_count"] = len(rows) - quote_audit["valid_quote_count"]
         rows = quote_audit["accepted_rows"]
         if not quote_audit["valid_whole_market_operational"]:
             st["warnings"].append(
@@ -298,47 +304,27 @@ def run():
             and st["quote_coverage_pct"] >= 80.0
         )
 
-        # Free/public TPEx official full-market real-time feed is not certified
-        # in this build. MIS OTC can be used operationally but cannot promote
-        # strict full-market status.
-        tpex_official_intraday_ok = False
-
+        # The exchanges are official universe sources; the paid Fugle feed
+        # supplies executed-trade evidence. Do not require an unrelated free
+        # TPEx quote feed if the validated licensed feed covers both markets.
         st["source_health"]["twse_intraday"] = {
-            "ok": twse_intraday_ok,
-            "source": "TWSE MIS",
+            "ok": twse_intraday_ok, "source": "Fugle MarketData snapshot",
             "count": len(twse_rows),
         }
         st["source_health"]["tpex_intraday"] = {
-            "ok": False,
-            "operational_ok": otc_operational_ok,
-            "source": (
-                "TPEx official public/free full-market real-time feed "
-                "not certified; TWSE MIS OTC is operational fallback only"
-            ),
-            "fallback_count": len(otc_rows),
+            "ok": otc_operational_ok, "source": "Fugle MarketData snapshot",
+            "count": len(otc_rows),
         }
-
-        if STRICT_OFFICIAL_MODE:
-            st["full_market_scan"] = bool(
-                official_universe_ok
-                and twse_intraday_ok
-                and tpex_official_intraday_ok
-            )
-            if not st["full_market_scan"]:
-                st["warnings"].append(
-                    "未完成全市場掃描：TPEx 官方免費公開來源未能驗證完整盤中"
-                    "全市場即時資料鏈；候選最高只列 A。"
-                )
-        else:
-            st["full_market_scan"] = bool(
-                official_universe_ok and len(rows) >= 700
-            )
-
-        if st["operational_full_market_scan"] and not st["full_market_scan"]:
+        st["full_market_scan"] = bool(
+            st["operational_full_market_scan"]
+            and official_universe_ok
+            and twse_intraday_ok
+            and otc_operational_ok
+        )
+        if not st["full_market_scan"]:
             st["warnings"].append(
-                "實務全市場行情鏈可用：TWSE + TPEx 官方母池，盤中以 TWSE MIS "
-                "批次讀取 TSE + OTC；OTC 為 operational fallback，不能誤稱為 "
-                "TPEx 官方認證即時來源。"
+                "Fugle paid snapshot unavailable, stale or below coverage gate; "
+                "whole-market trading signals are blocked. No MIS fallback."
             )
 
         # Data-quality gate occurs before ranking, P0-C/P0-R decisions,
@@ -352,9 +338,7 @@ def run():
             "PASS_FULL_MARKET_LIVE" if market_evidence_eligible
             else "BLOCKED_EXTERNAL_DATA_NO_TRADE"
         )
-        working_rows = (
-            rows if ALLOW_MIS_OTC_FALLBACK else twse_rows
-        ) if market_evidence_eligible else []
+        working_rows = rows if market_evidence_eligible else []
         st["market_intelligence"] = summarize_market(working_rows)
 
         premarket_state = load_premarket_event_snapshot(
