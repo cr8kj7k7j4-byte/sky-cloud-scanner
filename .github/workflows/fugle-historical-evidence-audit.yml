@@ -1,0 +1,35 @@
+name: Fugle Developer Historical Data Audit
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'research/fugle_historical_evidence_audit.py'
+      - 'tests/test_fugle_historical_evidence_audit.py'
+      - 'docs/FUGLE_HISTORICAL_EVIDENCE_AUDIT_20261108.md'
+      - '.github/workflows/fugle-historical-evidence-audit.yml'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate historical audit data gates
+        run: python -m unittest discover -s tests -p test_fugle_historical_evidence_audit.py -v
+      - name: Use existing Fugle developer credentials for one-year real market-data audit
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+          FINMIND_API_TOKEN: ${{ secrets.FINMIND_API_TOKEN }}
+        run: python -m research.fugle_historical_evidence_audit --out research_output/fugle_historical_evidence.json
+      - name: Check read-only governance contract
+        run: |
+          python -c "import json; d=json.load(open('research_output/fugle_historical_evidence.json')); assert d['status']=='INSUFFICIENT_DATA'; assert not d['production_signal'] and not d['event_pit_verified'] and not d['strategy_positive_expectancy_verified']; print('FUGLE_HISTORICAL_AUDIT_RESEARCH_ONLY')"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fugle-historical-evidence-audit
+          path: research_output/fugle_historical_evidence.json
+          retention-days: 30
