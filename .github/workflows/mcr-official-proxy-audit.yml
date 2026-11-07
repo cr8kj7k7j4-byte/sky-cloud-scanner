@@ -1,5 +1,6 @@
 name: MCR Official Margin Proxy Research Audit
 # MCR episode / bias audit outputs remain research only.
+# Official daily close evidence is archived without live-trade claims.
 on:
   workflow_dispatch:
   schedule:
