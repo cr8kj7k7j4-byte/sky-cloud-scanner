@@ -4,6 +4,8 @@ on:
     paths:
       - 'research/three_model_evidence_gate.py'
       - 'tests/test_three_model_evidence_gate.py'
+      - 'research/three_model_research_signals.py'
+      - 'tests/test_three_model_research_signals.py'
       - '.github/workflows/three-model-evidence-ci.yml'
   workflow_dispatch:
 permissions:
@@ -19,4 +21,4 @@ jobs:
       - name: Install test runner
         run: python -m pip install pytest
       - name: Validate fail-closed evidence contract
-        run: python -m pytest -q tests/test_three_model_evidence_gate.py
+        run: python -m pytest -q tests/test_three_model_evidence_gate.py tests/test_three_model_research_signals.py
