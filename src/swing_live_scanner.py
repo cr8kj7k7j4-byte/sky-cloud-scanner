@@ -12,7 +12,8 @@ from .fugle import get_quote, get_ticker
 from .official import fetch_fugle_snapshot_quotes, load_official_universe
 from .ranking_engine import rank_screening_candidates
 from .sky_mobile_table import render_mobile_table
-from .realtime_quote_evidence import fugle_executed_trade, validate_whole_market_rows
+from .realtime_quote_evidence import fugle_executed_trade
+from .fugle_snapshot_evidence import validate_snapshot_screening_rows
 
 TZ = ZoneInfo("Asia/Taipei")
 OUT = Path("output/swing_live")
@@ -40,7 +41,7 @@ MODE_META = {
 def coverage_governance_notice(operational_full_market_scan, coverage_pct):
     """Only certify operational quote coverage after the existing market gate."""
     if operational_full_market_scan:
-        return "富果上市與上櫃即時成交行情覆蓋驗證通過；不代表策略已驗證可交易。"
+        return "富果上市與上櫃快照篩選資料可用；候選須另外驗證個股實際成交時間，不代表可交易。"
     return (
         f"全市場即時行情資料未通過驗證（有效報價覆蓋率 {coverage_pct}%）；"
         "富果即時行情不完整；候選僅供觀察，不可產生 A+ 或可執行買進價。"
@@ -103,15 +104,15 @@ def run(mode="swing5d", top_n=20, deep_n=8):
     snapshot_count = len(rows)
     # No MIS fallback: failed paid entitlement or inadequate coverage must
     # result in a blocked research candidate scan, never synthetic live signals.
-    quote_audit = validate_whole_market_rows(
+    quote_audit = validate_snapshot_screening_rows(
         universe, rows, now=datetime.now(TZ),
         min_coverage_pct=80.0, min_exchange_pct=70.0,
     )
     rows = quote_audit["accepted_rows"]
-    if not quote_audit["valid_whole_market_operational"]:
+    if not quote_audit["snapshot_screening_ok"]:
         warnings.append(
-            "BLOCKED_EXTERNAL_DATA: full-market fresh executed-trade coverage "
-            "failed; withhold all broad-market ranked candidate signals."
+            "BLOCKED_FUGLE_SNAPSHOT_SCREENING: entitlement/freshness/coverage "
+            "failed; withhold broad-market research candidates."
         )
     source_breakdown = {
         "fugle_bulk_snapshot": snapshot_count,
@@ -123,7 +124,7 @@ def run(mode="swing5d", top_n=20, deep_n=8):
     coverage_pct = round((len(rows) / len(universe) * 100.0), 2) if universe else 0.0
 
     operational_full_market_scan = bool(
-        quote_audit["valid_whole_market_operational"]
+        quote_audit["snapshot_screening_ok"]
         and universe
         and universe_health.get("twse", 0) >= 500
         and universe_health.get("tpex", 0) >= 400
@@ -214,15 +215,16 @@ def run(mode="swing5d", top_n=20, deep_n=8):
         "horizon": MODE_META[mode]["horizon"],
         "strategy_status": MODE_META[mode]["strategy_status"],
         "production_strategy": MODE_META[mode]["production_strategy"],
-        "operational_full_market_scan": operational_full_market_scan,
+        "operational_full_market_scan": False,
+        "snapshot_screening_ok": operational_full_market_scan,
         "strict_official_full_market_certified": False,
-        "live_whole_market_certified": operational_full_market_scan,
+        "live_whole_market_certified": False,
         "quote_scope": quote_audit["quote_scope"],
         "live_market_evidence": {
             k: v for k, v in quote_audit.items() if k != "accepted_rows"
         },
         "market_data_gate": (
-            "PASS_OPERATIONAL_WHOLE_MARKET_LIVE_RESEARCH_ONLY"
+            "PASS_FUGLE_SNAPSHOT_SCREENING_RESEARCH_ONLY"
             if operational_full_market_scan else "BLOCKED_EXTERNAL_DATA_NO_TRADE"
         ),
         "quote_coverage_pct": coverage_pct,
@@ -238,7 +240,7 @@ def run(mode="swing5d", top_n=20, deep_n=8):
             "official_universe": universe_health,
             "intraday": {
                 "source": "Fugle MarketData TSE/OTC bulk snapshot only",
-                "note": "Fugle must provide verified executed-trade timestamps and both-exchange coverage; otherwise no trade.",
+                "note": "Snapshot freshness supports research ranking only; actionable candidate quotes require a separate verified Fugle lastTrade.",
             },
         },
         "warnings": warnings,
