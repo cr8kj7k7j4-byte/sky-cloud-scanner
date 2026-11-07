@@ -33,3 +33,14 @@
 3. 核對 Walk-forward、不同市況、前瞻樣本門檻及 W0/P0-G 正式治理；如合格事件數為0，回測應明確顯示 `INSUFFICIENT_DATA`，而非偽造回測或調參。
 
 **此文件是工程和研究驗收證據，不是交易建議。**
+
+## 新增實跑結果（Run #42418951929）
+- GitHub Actions: https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/42418951929 → **SUCCESS**。
+- 測試：暫定事件帳本6項 PASS，富果事件回溯資格5項 PASS，共11項。
+- 四來源官方快照再次取得200：上市營收1088／上櫃營收893／上市重大訊息5／上櫃重大訊息285；原始來源SHA256與觀測時間留於artifact。
+- 來源快照初次匯入帳本：2,271筆暫定事件，首次新增2,271；此批沒有重複/修正（不是已驗證跨日穩定）。
+- 月營收資料：1,981筆全部因缺少已驗證 issuer published_at 與官方原文證據而**禁止**用於 Revenue MoM 5D 事件交易回測。
+- 重大訊息：290筆與 Revenue MoM 5D 不是相同事件類別，不能強制混入營收策略。
+- 該次 `revenue_event_evidence_candidates=0`、`event_backtest_trades_executed=0`、`production_signal=false`，這是資料驗證關卡的正確否決，不是負報酬回測。
+- Artifact: https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/42418951929/artifacts/13592233008
+
