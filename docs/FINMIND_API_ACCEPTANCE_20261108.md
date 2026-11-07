@@ -1,0 +1,19 @@
+# FinMind API 驗收 — 2026-11-08
+
+## 目的與範圍
+- 僅驗證已設定在 GitHub Actions Secrets 的 `FINMIND_TOKEN` 是否可以讀取歷史資料。
+- 測試對象：2330，2026-10-26 至 2026-10-30（固定過去交易週，避免非交易日空資料）。
+- 測試資料集：`TaiwanStockPrice`、`TaiwanStockMarginPurchaseShortSale`、`TaiwanStockInstitutionalInvestorsBuySell`。
+- 驗證 HTTP 連線、非空資料、基本欄位、回傳日期。每個資料集最多一次請求。
+- 回傳 JSON 不包含 token、原始資料列或 HTTP 請求 header。
+- API 參考：https://finmind.github.io/login/ 及 https://api.finmindtrade.com/docs
+
+## 執行
+此功能是獨立驗收，不修改 Production 掃描、交易訊號或排程。
+- 測試分支 `integration/finmind-api-acceptance-20261108` 上推送本驗收檔案會觸發一次 Actions；`main` 不具有相同 push 觸發。
+- 合併至 main 後可在 Actions 手動執行 `FinMind API entitlement acceptance`。
+- 查看該次 Run 的 `finmind-entitlement-acceptance` artifact，檔案 `finmind_acceptance.json`。
+- PASS 僅代表指定欄位及指定日期讀取成功；無法據此認定全市場歷史涵蓋率、點時性（PIT）、即時行情、融資維持率或策略有正期望值。
+- 如 401、403、429、空資料或缺欄位，保持 FAIL 並記錄原因，不自動降級為無驗證的行情來源。
+- 研究治理仍依 `SKY_SYSTEM_REGISTRY_V2_1.md`、`research/RESEARCH_FREEZE_REGISTRY.md`、`docs/SKY_VALIDATION_PROTOCOL_V1_0.md`。
+- 秘密值更新時應在 FinMind 官方撤銷已外露的 Token；程式僅從 Actions Secrets 讀取。
