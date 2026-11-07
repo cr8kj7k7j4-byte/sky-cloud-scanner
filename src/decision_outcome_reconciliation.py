@@ -57,6 +57,18 @@ def reconcile_decision_outcomes(records):
         if not symbol or _timestamp(observed) is None:
             reasons["INVALID_OBSERVATION_IDENTITY"] += 1
             continue
+        outcome = row.get("outcome") or {}
+        if not isinstance(outcome, dict):
+            reasons["INVALID_OUTCOME"] += 1
+            continue
+        source_id = outcome.get("source_record_id")
+        linked_observation_id = outcome.get("observation_record_id")
+        if source_id is not None and str(source_id) != rid:
+            reasons["OUTCOME_SOURCE_RECORD_ID_MISMATCH"] += 1
+            continue
+        if linked_observation_id is not None and str(linked_observation_id) != obs_id:
+            reasons["OUTCOME_OBSERVATION_ID_MISMATCH"] += 1
+            continue
         if obs_id == rid and row.get("decision_provenance_status") == "RANKING_OBSERVATION_ONLY":
             observations += 1
         else:
