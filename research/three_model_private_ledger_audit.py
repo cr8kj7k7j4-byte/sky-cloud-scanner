@@ -36,6 +36,9 @@ def read_only_audit(store, bucket, *, max_scan=MAX_SCAN):
         raise ValueError("invalid_scan_limit")
     observations = {}
     markouts = {}
+    # Private comparison values are deliberately excluded from the output.
+    source_reference_prices = {}
+    followup_reference_prices = {}
     for prefix, destination in ((OBS_PREFIX, observations), (OUTCOME_PREFIX, markouts)):
         blobs = list(store.list_blobs(bucket, prefix=prefix, max_results=max_scan + 1))
         if len(blobs) > max_scan:
@@ -77,6 +80,7 @@ def read_only_audit(store, bucket, *, max_scan=MAX_SCAN):
                     stamp = None
                 else:
                     stamp = validated["bar_time"].isoformat()
+                    source_reference_prices[rid] = validated["reference_close"]
                 direction = record.get("direction")
                 if direction not in DIRECTIONS:
                     raise ValueError("invalid_observation_direction")
@@ -120,6 +124,7 @@ def read_only_audit(store, bucket, *, max_scan=MAX_SCAN):
                 if not math.isclose(float(observed_return), calculated_return,
                                     rel_tol=0.0, abs_tol=1e-6):
                     raise ValueError("markout_return_mismatch")
+                followup_reference_prices[rid] = prices[0]
                 observation_time = _stamp(record.get("observation_bar_time"))
                 next_time = _stamp(record.get("next_session_close_time"))
                 if next_time[:10] <= observation_time[:10]:
@@ -140,6 +145,9 @@ def read_only_audit(store, bucket, *, max_scan=MAX_SCAN):
             raise ValueError("orphan_markout_record")
         if source["bar_time_tpe"] is None:
             raise ValueError("markout_references_rejected_observation")
+        if not math.isclose(followup_reference_prices[rid],
+                            source_reference_prices[rid], rel_tol=1e-10, abs_tol=0.0):
+            raise ValueError("markout_reference_close_mismatch")
         if any((row["model_id"] != source["model_id"],
                 row["symbol"] != source["symbol"],
                 row["direction"] != source["direction"],
