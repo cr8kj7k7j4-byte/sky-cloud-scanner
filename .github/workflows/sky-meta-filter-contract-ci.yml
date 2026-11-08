@@ -26,3 +26,24 @@ jobs:
         run: python -m unittest -v tests.test_sky_meta_filter_v0_1 tests.test_sky_meta_filter_ledger tests.test_sky_meta_filter_source_gate
       - name: Syntax-check research module
         run: python -m py_compile research/sky_meta_filter_v0_1.py research/sky_meta_filter_ledger.py research/sky_meta_filter_source_gate.py tests/test_sky_meta_filter_source_gate.py tests/test_sky_meta_filter_v0_1.py tests/test_sky_meta_filter_ledger.py
+      - name: Audit actual canonical frozen v1.4 source registry (read-only)
+        run: |
+          python -m research.sky_meta_filter_source_gate \
+            --registry research/SKY_DAY_V14_FROZEN_RULE_SOURCE_REGISTRY.json \
+            --out research_output/sky_meta_filter_source_readiness.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          row=json.loads(Path('research_output/sky_meta_filter_source_readiness.json').read_text())
+          assert row['admitted_count']==0
+          assert row['private_ledger_write_enabled'] is False
+          assert row['production_eligible'] is False
+          print("canonical v1.4 provider blockers:", len(row['rule_providers_unresolved']))
+          PY
+      - name: Store source-readiness evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-meta-v01-source-readiness-${{ github.run_id }}
+          path: research_output/sky_meta_filter_source_readiness.json
+          retention-days: 30
+          if-no-files-found: error
