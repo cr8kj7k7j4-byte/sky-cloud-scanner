@@ -128,21 +128,35 @@ def train(df, feature_cols, *, horizon, embargo_sessions):
 
 def main():
     import pandas as pd
-    from research.build_ml_dataset import FEATURE_COLS
+    from research.build_ml_dataset import FEATURE_COLS as LEGACY_FEATURES
+    from research.ai_direction_labels import FEATURES as DIRECTION_FEATURES
     ap=argparse.ArgumentParser()
     ap.add_argument("--dataset",required=True)
+    ap.add_argument("--feature-contract", choices=["legacy", "direction_v1"], default="direction_v1")
     ap.add_argument("--horizon",choices=["intraday","next_day"],required=True)
     ap.add_argument("--embargo-sessions",type=int,required=True)
     ap.add_argument("--out",default="research_output/ai_direction_audit.json")
     args=ap.parse_args()
     path=Path(args.dataset)
-    df=pd.read_parquet(path) if path.suffix==".parquet" else pd.read_csv(path)
+    features = list(DIRECTION_FEATURES if args.feature_contract == "direction_v1" else LEGACY_FEATURES)
+    if path.suffix == ".json":
+        source = json.loads(path.read_text(encoding="utf-8"))
+        if source.get("schema") != "sky-direction-label-research-v1" or source.get("horizon") != args.horizon:
+            raise ValueError("dataset_schema_or_horizon_mismatch")
+        if source.get("features") != features or source.get("production_eligible") is not False:
+            raise ValueError("feature_contract_or_research_status_mismatch")
+        df = pd.DataFrame(source["rows"])
+    else:
+        df=pd.read_parquet(path) if path.suffix==".parquet" else pd.read_csv(path)
     for field in ("date", "feature_available_at", "label_end_at"):
         if field not in df:
             raise ValueError("missing required causal timestamp " + field)
         df[field] = pd.to_datetime(df[field], utc=True, errors="raise")
-    df=df.dropna(subset=FEATURE_COLS+["target_return_pct"])
-    report=train(df,FEATURE_COLS,horizon=args.horizon,embargo_sessions=args.embargo_sessions)
+    df=df.dropna(subset=features+["target_return_pct"])
+    report=train(df,features,horizon=args.horizon,embargo_sessions=args.embargo_sessions)
+    report["training_input_provenance_verified"] = False
+    report["source_dataset"] = path.name
+    report["feature_contract"] = args.feature_contract
     dest=Path(args.out);dest.parent.mkdir(parents=True,exist_ok=True)
     dest.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8")
     print(json.dumps({"status":"RESEARCH_ONLY","out":str(dest),"models":list(report["models"])},ensure_ascii=False))
