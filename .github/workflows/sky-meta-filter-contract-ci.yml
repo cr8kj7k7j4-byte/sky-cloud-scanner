@@ -7,6 +7,8 @@ on:
       - 'research/sky_meta_filter_ledger.py'
       - 'research/sky_meta_filter_source_gate.py'
       - 'tests/test_sky_meta_filter_source_gate.py'
+      - 'research/sky_meta_filter_followup.py'
+      - 'tests/test_sky_meta_filter_followup.py'
       - 'tests/test_sky_meta_filter_ledger.py'
       - 'research/SKY_META_FILTER_V0_1_INTAKE_20261109.md'
       - '.github/workflows/sky-meta-filter-contract-ci.yml'
@@ -23,9 +25,9 @@ jobs:
         with:
           python-version: '3.11'
       - name: Reject unsupported behavior using synthetic fixtures only
-        run: python -m unittest -v tests.test_sky_meta_filter_v0_1 tests.test_sky_meta_filter_ledger tests.test_sky_meta_filter_source_gate
+        run: python -m unittest -v tests.test_sky_meta_filter_v0_1 tests.test_sky_meta_filter_ledger tests.test_sky_meta_filter_source_gate tests.test_sky_meta_filter_followup
       - name: Syntax-check research module
-        run: python -m py_compile research/sky_meta_filter_v0_1.py research/sky_meta_filter_ledger.py research/sky_meta_filter_source_gate.py tests/test_sky_meta_filter_source_gate.py tests/test_sky_meta_filter_v0_1.py tests/test_sky_meta_filter_ledger.py
+        run: python -m py_compile research/sky_meta_filter_v0_1.py research/sky_meta_filter_ledger.py research/sky_meta_filter_source_gate.py research/sky_meta_filter_followup.py tests/test_sky_meta_filter_followup.py tests/test_sky_meta_filter_source_gate.py tests/test_sky_meta_filter_v0_1.py tests/test_sky_meta_filter_ledger.py
       - name: Audit actual canonical frozen v1.4 source registry (read-only)
         run: |
           python -m research.sky_meta_filter_source_gate \
