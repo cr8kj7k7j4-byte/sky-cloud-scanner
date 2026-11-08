@@ -109,7 +109,7 @@ def build_rows(payload, *, horizon):
                     raise ValueError("duplicate_5m_session_time")
                 day_bars[stamp.time()] = i
             for day, positions in sorted(by_day.items()):
-                if not all(x in positions for x in (time(9,30), time(9,35), time(13,20))):
+                if not all(x in positions for x in (time(9,30), time(9,35), time(9,40), time(13,20))):
                     continue
                 i, j, k = [positions[x] for x in (time(9,30),time(9,40),time(13,20))]
                 if not i < j < k or j != i+2:
@@ -129,7 +129,7 @@ def build_rows(payload, *, horizon):
                 record = {"symbol":symbol,"date":(times[i]+timedelta(minutes=5)).isoformat(),
                           "feature_available_at":(times[i]+timedelta(minutes=5)).isoformat(),
                           "label_start_at":times[j].isoformat(),
-                          "label_end_at":(times[k]+__import__("datetime").timedelta(minutes=5)).isoformat(),
+                          "label_end_at":(times[k]+timedelta(minutes=5)).isoformat(),
                           "target_return_pct":(exit_price/entry-1)*100,**features}
                 rows.append(record)
     # No model credentials, no adjusted prices, no claim of actual fills.
