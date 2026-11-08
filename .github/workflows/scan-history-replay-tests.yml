@@ -8,6 +8,8 @@ on:
       - 'tests/test_scan_history_replay.py'
       - 'research/scan_history_markout.py'
       - 'tests/test_scan_history_markout.py'
+      - 'research/scan_history_fugle_markout.py'
+      - 'tests/test_fugle_scan_history_runner.py'
       - '.github/workflows/scan-history-replay-tests.yml'
   workflow_dispatch:
 permissions:
@@ -24,4 +26,5 @@ jobs:
       - name: Run 53-slot offline replay and archive contract
         run: |
           python -m unittest discover -s tests -p 'test_scan_history*.py' -v
+          python -m unittest discover -s tests -p 'test_fugle_scan_history_runner.py' -v
           python -m src.scan_history_replay
