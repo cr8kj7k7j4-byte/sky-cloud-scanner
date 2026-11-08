@@ -126,3 +126,10 @@ def test_scan_limit_fail_closed():
     store = Store([blob(OBS_PREFIX, observation()), blob(OBS_PREFIX, observation())])
     with pytest.raises(ValueError, match="ledger_scan_limit_reached"):
         read_only_audit(store, "private-test-ledger", max_scan=1)
+
+
+def test_empty_private_bucket_is_not_successful_authentic_evidence():
+    store = Store([])
+    with pytest.raises(ValueError, match="no_research_observations_found"):
+        read_only_audit(store, "private-test-ledger")
+    assert store.write_calls == 0
