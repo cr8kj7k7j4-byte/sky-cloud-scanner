@@ -25,10 +25,10 @@
 
 ## 排程啟用前的硬性阻礙
 
-1. 本 PR 目前研究分支，不會觸發主分支排程；必須 CI 成功、W0 審查與審慎合併後，main 的 dispatcher 才可能在下一次 GitHub `schedule` 觸發。**不能以 Workflow 有 cron 便宣稱已排程成功。**
+1. 本 PR 目前研究分支，不會觸發主分支排程；且 **排程預設 OFF**：dispatcher 的 schedule job 需要 repo Actions Variable `SKY_THREE_MODEL_SCHEDULE_ENABLED=true` 才執行；未設定時 job SKIPPED、沒有付費 API 呼叫。主分支手動 dispatcher `workflow_dispatch` 可以作為一次性驗收，不受此 flag 影響。須經 W0 審查、合併與人工觸發驗收後再審慎設定 flag，且首次定時觸發依然需要查看 run ID；**不能以 Workflow 有 cron 便宣稱已排程成功。**
 2. **不改動 GCP Workload Identity Provider 的 attribute condition**。既有文件明確只允許 `main + workflow_dispatch`。新增的 **無 GCP 權限** `three-model-research-daily-dispatch.yml` 用 GitHub Actions `actions:write` GITHUB_TOKEN 僅 dispatch 指定的兩個 main 研究 workflow；下游由 `workflow_dispatch` 取得原 WIF 身分。必須先審核 dispatcher 權限及 GitHub Token dispatch 行為，在 main 確認實際 schedule → dispatch → WIF 的 run chain 成功後才稱排程啟用驗收通過。不能拓寬 provider 到 `schedule`、不得建立 JSON key。
 3. 確認 WIF 身分有研究 Bucket 的 objectCreator、objectViewer 及 list 權限，並能在新 prefix 寫入；目前已證實原研究紀錄寫入，不代表新 outcome prefix 的執行結果已通過。
-4. 兩條排程首次實際 run 後，核對 run ID、使用者查看方式、排程 UTC/TPE、Fugle 的最後交易日、是否跳過休市日、create-only 物件數與 hash、模型數、唯一 ID、NO_TRADE 及缺失時間數量；下一交易日才核對有實際後續行情的 markout。
+4. GitHub repo Actions workflow permissions 必須允許 `GITHUB_TOKEN` 的 `actions:write` dispatch；由 GitHub audit 記錄 17:30 / 18:30 兩次派送 run ID。兩條排程首次實際 run 後，核對 run ID、使用者查看方式、排程 UTC/TPE、Fugle 的最後交易日、是否跳過休市日、create-only 物件數與 hash、模型數、唯一 ID、NO_TRADE 及缺失時間數量；下一交易日才核對有實際後續行情的 markout。
 5. GitHub Action error 由 GitHub run failure 顯示，但「使用者會收到通知」尚未證實，需核對通知設定。取消／重複排程、跨日補跑、完整性≥95%、至少 200 獨立樣本／20 未來交易日／兩個 regime 都尚未完成。
 6. 無須更新 Cloud Run 正式流量、無須啟用 Production／自動下單。升級須 W0/P0-G 治理；研究觸發不是正式交易買賣資格。
 
