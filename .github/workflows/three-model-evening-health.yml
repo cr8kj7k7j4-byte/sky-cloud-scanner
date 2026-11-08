@@ -4,6 +4,11 @@ name: Three Model Evening Schedule Health (Research Only)
 # Read-only GitHub run inspection. GitHub Actions failure is an alarm signal,
 # NOT proof that account email/Telegram notifications were delivered.
 on:
+  pull_request:
+    paths:
+      - '.github/workflows/three-model-evening-health.yml'
+      - 'research/three_model_evening_health.py'
+      - 'tests/test_three_model_evening_health.py'
   workflow_dispatch:
   schedule:
     - cron: '45 11 * * 1-5'
@@ -27,6 +32,7 @@ jobs:
           python -m pip install pytest
           PYTHONPATH=. python -m pytest -q tests/test_three_model_evening_health.py
       - name: Check real scheduled dispatch and downstream runs (read only)
+        if: github.event_name != 'pull_request'
         run: PYTHONPATH=. python -m research.three_model_evening_health
       - name: Retain audit including when a check fails
         if: always()
