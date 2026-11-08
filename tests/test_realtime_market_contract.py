@@ -22,6 +22,51 @@ def test_fugle_confirmed_last_trade_price_and_timestamp():
     assert price == 77.3 and dt.date() == NOW.date()
 
 
+
+def test_fugle_iso8601_executed_trade_time_is_parsed_with_timezone():
+    q = {
+        "date": NOW.date().isoformat(),
+        "lastTrade": {"price": 62.5, "time": NOW.isoformat()},
+    }
+    price, stamp, state = fugle_executed_trade(q, NOW)
+    assert state == "FRESH_EXECUTED_TRADE"
+    assert price == 62.5
+    assert stamp == NOW
+    q["lastTrade"]["time"] = NOW.strftime("%Y-%m-%dT%H:%M:%S")
+    assert fugle_executed_trade(q, NOW)[2] == "MISSING_EXECUTED_TRADE_TIME"
+    q["lastTrade"]["time"] = (NOW - timedelta(minutes=5)).isoformat()
+    assert fugle_executed_trade(q, NOW)[2] == "STALE_EXECUTED_TRADE"
+
+
+def test_fugle_iso_snapshot_timestamp_does_not_substitute_trade_time():
+    q = {
+        "date": NOW.date().isoformat(), "lastPrice": 62.5,
+        "lastUpdated": NOW.isoformat(), "closePrice": 62.5
+    }
+    assert fugle_executed_trade(q, NOW)[2] == "MISSING_EXECUTED_TRADE_TIME"
+
+
+def test_fugle_iso_bulk_rows_require_real_execution_time():
+    from src.realtime_quote_evidence import validate_whole_market_rows
+    pool = [
+        {"symbol": "2330", "exchange": "TWSE"},
+        {"symbol": "8088", "exchange": "TPEx"},
+    ]
+    good = [
+        {"symbol": "2330", "last": 60, "quote_source": "Fugle bulk snapshot",
+         "last_trade_timestamp": NOW.isoformat(), "quote_date": NOW.date().isoformat()},
+        {"symbol": "8088", "last": 50, "quote_source": "Fugle bulk snapshot",
+         "last_trade_timestamp": NOW.isoformat(), "quote_date": NOW.date().isoformat()},
+    ]
+    result = validate_whole_market_rows(pool, good, now=NOW, min_coverage_pct=100, min_exchange_pct=100)
+    assert result["valid_whole_market_operational"] is True
+    assert result["valid_quote_count"] == 2
+    good[0]["last_trade_timestamp"] = None
+    result = validate_whole_market_rows(pool, good, now=NOW, min_coverage_pct=100, min_exchange_pct=100)
+    assert result["valid_whole_market_operational"] is False
+    assert result["valid_quote_count"] == 1
+
+
 def test_reference_and_close_only_never_count_as_executed_live():
     for q in (
         {"date": "2026-11-04", "closePrice": 77.5,
