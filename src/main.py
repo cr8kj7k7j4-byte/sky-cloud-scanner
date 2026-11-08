@@ -150,6 +150,16 @@ def _serializable_portfolio_context(portfolio_context):
     return out
 
 
+def _annotate_risk_display(risk):
+    """Keep missing-ledger admission failures renderable without inventing state."""
+    if not isinstance(risk, dict):
+        raise TypeError("risk result must be a dictionary")
+    risk["status_zh"] = RISK_STATUS_ZH.get(risk.get("status"), "禁止新進場／待確認")
+    state = risk.get("state")
+    risk["state_zh"] = RISK_STATE_ZH.get(state, "未知／資料不足")
+    return risk
+
+
 def run():
     now = datetime.now(TZ)
     run_id = now.strftime("%Y%m%dT%H%M%S%z")
@@ -486,9 +496,7 @@ def run():
                 }
 
                 risk = evaluate_candidate(item, portfolio_context, policy)
-                risk["status_zh"] = RISK_STATUS_ZH.get(risk["status"], risk["status"])
-                risk["state_zh"] = RISK_STATE_ZH.get(risk["state"], risk["state"])
-                item["risk"] = risk
+                item["risk"] = _annotate_risk_display(risk)
 
                 monitor = evaluate_monitor_state(
                     item,
