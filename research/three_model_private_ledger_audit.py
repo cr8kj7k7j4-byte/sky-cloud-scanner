@@ -105,7 +105,9 @@ def read_only_audit(store, bucket, *, max_scan=MAX_SCAN):
                     "next_session_close_time_tpe": next_time,
                     "object_sha256": digest, "object_path": name,
                 }
-    if not observations:
+    # An orphan follow-up is a stronger evidence-integrity failure than an
+    # empty bucket. Preserve its explicit error instead of masking it.
+    if not observations and not markouts:
         raise ValueError("no_research_observations_found")
     for rid, row in markouts.items():
         source = observations.get(rid)
