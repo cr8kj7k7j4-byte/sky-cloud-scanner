@@ -132,6 +132,8 @@ def evaluate_trade(
     gross_rr = reward / unit_risk if unit_risk > 0 else None
     if unit_risk <= 0:
         reasons.append("Entry 與 Stop 不可相同")
+    if stop >= entry:
+        reasons.append("做多停損必須低於買進價")
     if reward <= 0:
         reasons.append("Long 模式 Target 必須高於 Entry")
 
