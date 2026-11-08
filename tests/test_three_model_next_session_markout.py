@@ -137,19 +137,19 @@ def test_weekend_is_successful_audited_skip_no_paid_request():
 def test_friday_observation_tracks_monday_actual_session_not_weekend():
     store = Storage([obs(rid="friday-123456789012345678901234",
                          direction="LONG_WATCH",
-                         stamp="2026-11-06T13:30:00+08:00", reference=30.0)])
+                         stamp="2026-10-30T13:30:00+08:00", reference=30.0)])
     def monday_candles(symbol, tf, start, end, key):
         assert (symbol, tf, key) == ("1101", "D", "test-key")
-        assert start == date(2026, 11, 7)
-        assert end == date(2026, 11, 9)
-        return [{"timestamp":"2026-11-09T13:30:00+08:00","close":30.6}]
+        assert start == date(2026, 10, 31)
+        assert end == date(2026, 11, 2)
+        return [{"timestamp":"2026-11-02T13:30:00+08:00","close":30.6}]
     result = run(store, "test-private-ledger", "test-key",
-                 date(2026, 11, 9), fetch=monday_candles)
+                 date(2026, 11, 2), fetch=monday_candles)
     assert result["new_outcomes"] == 1
     key = next(k for k in store.db if k.startswith(OUTCOME_PREFIX))
     outcome = json.loads(store.db[key])
     assert outcome["ledger_record_id"] == "friday-123456789012345678901234"
-    assert outcome["next_session_close_time"] == "2026-11-09T13:30:00+08:00"
+    assert outcome["next_session_close_time"] == "2026-11-02T13:30:00+08:00"
     assert outcome["direction_at_observation"] == "LONG_WATCH"
     assert outcome["next_session_return_pct"] == 2.0
     assert outcome["actual_fill"] is False
@@ -158,11 +158,11 @@ def test_friday_observation_tracks_monday_actual_session_not_weekend():
 def test_weekday_closure_with_no_provider_session_remains_pending():
     # A weekday alone does not prove that an exchange session occurred.
     store = Storage([obs(rid="holiday-123456789012345678901234",
-                         stamp="2026-11-06T13:30:00+08:00")])
+                         stamp="2026-10-30T13:30:00+08:00")])
     def no_completed_session(*args):
         raise ValueError("provider_empty_data")
     result = run(store, "test-private-ledger", "test-key",
-                 date(2026, 11, 9), fetch=no_completed_session)
+                 date(2026, 11, 2), fetch=no_completed_session)
     assert result["completed_outcomes"] == 0
     assert result["pending_count"] == 1
     assert result["pending_reasons"][0]["reason"] == "NEXT_SESSION_CANDLE_NOT_AVAILABLE"
