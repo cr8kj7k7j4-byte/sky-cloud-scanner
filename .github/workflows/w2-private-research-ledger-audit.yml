@@ -16,6 +16,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - name: Reject unsupported manual dispatch without falsely passing GCS audit
+        if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Authenticated GCS readback requires workflow_dispatch on main; this branch run must not report success."
+          exit 1
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
