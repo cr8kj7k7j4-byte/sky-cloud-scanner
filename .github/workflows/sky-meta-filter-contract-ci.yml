@@ -13,6 +13,8 @@ on:
       - 'tests/test_sky_meta_filter_forward_preflight.py'
       - 'research/sky_meta_filter_w0_packet.py'
       - 'tests/test_sky_meta_filter_w0_packet.py'
+      - 'research/sky_meta_filter_w4_source_audit.py'
+      - 'tests/test_sky_meta_filter_w4_source_audit.py'
       - 'tests/test_sky_meta_filter_ledger.py'
       - 'research/SKY_META_FILTER_V0_1_INTAKE_20261109.md'
       - '.github/workflows/sky-meta-filter-contract-ci.yml'
@@ -29,9 +31,9 @@ jobs:
         with:
           python-version: '3.11'
       - name: Reject unsupported behavior using synthetic fixtures only
-        run: python -m unittest -v tests.test_sky_meta_filter_v0_1 tests.test_sky_meta_filter_ledger tests.test_sky_meta_filter_source_gate tests.test_sky_meta_filter_followup tests.test_sky_meta_filter_forward_preflight tests.test_sky_meta_filter_w0_packet
+        run: python -m unittest -v tests.test_sky_meta_filter_v0_1 tests.test_sky_meta_filter_ledger tests.test_sky_meta_filter_source_gate tests.test_sky_meta_filter_followup tests.test_sky_meta_filter_forward_preflight tests.test_sky_meta_filter_w0_packet tests.test_sky_meta_filter_w4_source_audit
       - name: Syntax-check research module
-        run: python -m py_compile research/sky_meta_filter_v0_1.py research/sky_meta_filter_ledger.py research/sky_meta_filter_source_gate.py research/sky_meta_filter_followup.py tests/test_sky_meta_filter_followup.py tests/test_sky_meta_filter_forward_preflight.py research/sky_meta_filter_forward_preflight.py research/sky_meta_filter_w0_packet.py tests/test_sky_meta_filter_w0_packet.py tests/test_sky_meta_filter_source_gate.py tests/test_sky_meta_filter_v0_1.py tests/test_sky_meta_filter_ledger.py
+        run: python -m py_compile research/sky_meta_filter_v0_1.py research/sky_meta_filter_ledger.py research/sky_meta_filter_source_gate.py research/sky_meta_filter_followup.py tests/test_sky_meta_filter_followup.py tests/test_sky_meta_filter_forward_preflight.py research/sky_meta_filter_forward_preflight.py research/sky_meta_filter_w0_packet.py tests/test_sky_meta_filter_w0_packet.py research/sky_meta_filter_w4_source_audit.py tests/test_sky_meta_filter_w4_source_audit.py tests/test_sky_meta_filter_source_gate.py tests/test_sky_meta_filter_v0_1.py tests/test_sky_meta_filter_ledger.py
       - name: Audit actual canonical frozen v1.4 source registry (read-only)
         run: |
           python -m research.sky_meta_filter_source_gate \
@@ -96,5 +98,27 @@ jobs:
         with:
           name: sky-meta-v01-w0-review-packet-${{ github.run_id }}
           path: research_output/sky_meta_filter_w0_review_packet.json
+          retention-days: 30
+          if-no-files-found: error
+      - name: Cross-check real W4 forward-decision provenance and freshness
+        run: |
+          python -m research.sky_meta_filter_w4_source_audit \
+            --status docs/SKY_EXTERNAL_LATEST_STATUS.json \
+            --out research_output/sky_meta_filter_w4_provenance.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("research_output/sky_meta_filter_w4_provenance.json").read_text())
+          assert r["research_meta_candidate_admission"] == 0
+          assert r["production_eligible"] is False
+          assert r["forward_scoring_enabled"] is False
+          print("W4 ranking observations:",r["ranking_observations"])
+          print("W4 historical source age in hours:",r["age_hours"])
+          PY
+      - name: Save W4 lineage evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-meta-v01-w4-lineage-${{ github.run_id }}
+          path: research_output/sky_meta_filter_w4_provenance.json
           retention-days: 30
           if-no-files-found: error
