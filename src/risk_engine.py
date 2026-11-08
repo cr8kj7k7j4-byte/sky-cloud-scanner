@@ -258,6 +258,9 @@ def evaluate_candidate(candidate, portfolio_context, policy=None):
             absent.append(key + "_invalid")
         elif key in ("concurrent_positions", "consecutive_losses") and (
             n != int(n)
+            # Keep the legacy integer parsing in evaluate_trade safe:
+            # "1.0"/"1e0" pass a float equality check but int("1.0") raises.
+            or (isinstance(raw, str) and not raw.isdecimal())
         ):
             absent.append(key + "_invalid")
     # Prices are also untrusted candidate inputs; reject non-finite/booleans
