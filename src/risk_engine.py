@@ -6,8 +6,8 @@ from .execution_engine import ExecutionCostPolicy, evaluate_execution_rr, execut
 
 @dataclass(frozen=True)
 class RiskPolicy:
-    risk_per_trade_pct: float = 0.005
-    daily_loss_limit_pct: float = 0.015
+    risk_per_trade_pct: float = 0.01
+    daily_loss_limit_pct: float = 0.02
     max_portfolio_heat_pct: float = 0.03
     max_position_pct: float = 0.20
     correlation_limit_pct: float = 0.02
