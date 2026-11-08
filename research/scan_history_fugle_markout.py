@@ -44,14 +44,18 @@ def main():
                 rows.append({"symbol": symbol, "model": model,
                              "status": "DATA_BLOCKED", "error_type": type(exc).__name__,
                              "production_signal": False})
+    completed = sum(x["status"] in ("RESEARCH_ONLY", "NO_OBSERVATIONS") for x in rows)
+    blocked = sum(x["status"] == "DATA_BLOCKED" for x in rows)
     report = {"schema": "SKY_FUGLE_MARKOUT_SANITIZED_V1", "requested_end": str(end),
+              "requested_models": len(rows), "completed_models": completed,
+              "blocked_models": blocked, "complete_coverage": blocked == 0,
               "source": "Fugle paid historical candles", "results": rows,
               "historical_only": True, "production_signal": False}
     Path("output").mkdir(exist_ok=True)
     Path("output/fugle_markout_sanitized.json").write_text(
         json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(report, ensure_ascii=False))
-    return 0 if any(x["status"] == "RESEARCH_ONLY" for x in rows) else 2
+    return 0 if completed == len(rows) else 2
 
 
 if __name__ == "__main__":
