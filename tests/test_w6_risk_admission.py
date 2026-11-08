@@ -112,6 +112,17 @@ def test_nonfinite_candidate_prices_fail_closed():
         assert key + "_invalid" in result["required_inputs"]
 
 
+def test_only_a_plus_can_enter_candidate_risk_admission():
+    for grade in ("A", "X", None, "A++", "READY", 90):
+        candidate = dict(C, grade=grade)
+        result = evaluate_candidate(candidate, CTX, P)
+        assert result["status"] == "BLOCK", (grade, result)
+        assert result["portfolio_allowed"] is False
+        assert result["recommended_shares"] == 0
+        assert result["execution_status"] == "GRADE_NOT_ELIGIBLE"
+    assert evaluate_candidate(C, CTX, P)["status"] == "ALLOW"
+
+
 if __name__ == "__main__":
     test_unknown_state_blocks()
     test_missing_ledger_proof_blocks()
@@ -122,4 +133,5 @@ if __name__ == "__main__":
     test_p0r_355_hard_boundaries()
     test_malformed_account_state_is_never_safely_zero()
     test_nonfinite_candidate_prices_fail_closed()
+    test_only_a_plus_can_enter_candidate_risk_admission()
     print("PASS W6 candidate fail-closed checks")
