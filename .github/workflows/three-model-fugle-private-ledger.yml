@@ -1,10 +1,7 @@
 name: Three Model Fugle Historical Private Ledger (Research Only)
-# Scheduled research is opt-in by a reviewed merge; never Production or auto orders.
-# 09:30 UTC = 17:30 Asia/Taipei, Monday-Friday. TWSE/TPEx holidays
-# are checked against actual requested-session candles before any ledger write.
+# Only workflow_dispatch authenticates existing GCP WIF; the separate
+# scheduled launcher dispatches this workflow on main after W0 review.
 on:
-  schedule:
-    - cron: '30 9 * * 1-5'
   workflow_dispatch:
     inputs:
       symbols:
