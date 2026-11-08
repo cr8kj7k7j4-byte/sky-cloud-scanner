@@ -11,19 +11,49 @@ from pathlib import Path
 
 
 def split_by_session(df, *, embargo_sessions: int):
-    """Four chronological blocks: train, calibration, OOS, with gap embargo."""
+    """Chronological train/calibration/OOS, purged by actual label-end availability.
+
+    Required columns: date (signal time), feature_available_at, label_end_at.
+    Calendar session embargo is supplemental; true label overlap is purged.
+    """
+    import pandas as pd
+
     if embargo_sessions < 1:
         raise ValueError("embargo must cover the forward-label horizon")
+    required = {"date", "feature_available_at", "label_end_at"}
+    if not required.issubset(df.columns):
+        raise ValueError("missing timestamp causality columns")
+    for name in required:
+        if not pd.api.types.is_datetime64_any_dtype(df[name]) or df[name].dt.tz is None:
+            raise ValueError(f"{name} must be timezone-aware")
+    if df[list(required)].isna().any().any():
+        raise ValueError("missing causal timestamp")
+    if (df["feature_available_at"] > df["date"]).any():
+        raise ValueError("lookahead feature detected")
+    if (df["label_end_at"] <= df["date"]).any():
+        raise ValueError("label must end after prediction time")
     days = sorted(df["date"].dt.date.unique())
     if len(days) < 40 + 3 * embargo_sessions:
         raise ValueError("insufficient unique sessions")
-    cuts = [int(len(days)*x) for x in (.6, .8)]
-    train_days = days[:max(0, cuts[0]-embargo_sessions)]
-    calib_days = days[cuts[0]:max(cuts[0], cuts[1]-embargo_sessions)]
+    cuts = [int(len(days) * x) for x in (.6, .8)]
+    train_days = days[:max(0, cuts[0] - embargo_sessions)]
+    calib_days = days[cuts[0]:max(cuts[0], cuts[1] - embargo_sessions)]
     test_days = days[cuts[1]:]
     if not train_days or not calib_days or not test_days:
         raise ValueError("empty temporal partition")
-    return tuple(df[df["date"].dt.date.isin(d)].copy() for d in (train_days, calib_days, test_days))
+    train, cal, test = (
+        df[df["date"].dt.date.isin(d)].copy()
+        for d in (train_days, calib_days, test_days)
+    )
+    # Label outcomes may never cross into the following evaluation split.
+    # The end timestamp must be strictly BEFORE the first prediction.
+    cal_first = cal["date"].min()
+    test_first = test["date"].min()
+    train = train[train["label_end_at"] < cal_first].copy()
+    cal = cal[cal["label_end_at"] < test_first].copy()
+    if min(len(train), len(cal), len(test)) == 0:
+        raise ValueError("purging removed entire temporal partition")
+    return train, cal, test
 
 
 def metrics(y, p):
@@ -107,7 +137,10 @@ def main():
     args=ap.parse_args()
     path=Path(args.dataset)
     df=pd.read_parquet(path) if path.suffix==".parquet" else pd.read_csv(path)
-    df["date"]=pd.to_datetime(df["date"],utc=True)
+    for field in ("date", "feature_available_at", "label_end_at"):
+        if field not in df:
+            raise ValueError("missing required causal timestamp " + field)
+        df[field] = pd.to_datetime(df[field], utc=True, errors="raise")
     df=df.dropna(subset=FEATURE_COLS+["target_return_pct"])
     report=train(df,FEATURE_COLS,horizon=args.horizon,embargo_sessions=args.embargo_sessions)
     dest=Path(args.out);dest.parent.mkdir(parents=True,exist_ok=True)
