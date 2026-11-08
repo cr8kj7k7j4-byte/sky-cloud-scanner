@@ -11,7 +11,10 @@ on:
       - 'tests/test_w0_research_quickwatch.py'
   workflow_dispatch:
   schedule:
-    - cron: '*/5 * * * *'
+    # UTC: monitor only Nov 8 after 10:40 TPE until Nov 9 10:35 TPE.
+    # GitHub cron cannot enforce the year; Python deadline makes future runs inert.
+    - cron: '*/5 3-23 8 11 *'
+    - cron: '*/5 0-2 9 11 *'
 permissions:
   actions: read
   contents: read
@@ -56,7 +59,8 @@ jobs:
           PY
           )"
           # Dedupe repeated 5-minute checks; never post for a clean or expired window.
-          if gh api "repos/$GITHUB_REPOSITORY/issues/360/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$KEY"; then
+          gh api "repos/$GITHUB_REPOSITORY/issues/360/comments?per_page=100" --paginate --jq '.[].body' > /tmp/w0-quickwatch-existing-comments.txt
+          if grep -Fq "$KEY" /tmp/w0-quickwatch-existing-comments.txt; then
             echo "Existing anomaly already recorded."
             exit 0
           fi
