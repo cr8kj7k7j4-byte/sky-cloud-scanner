@@ -39,7 +39,7 @@ class HorizonLabelsTests(unittest.TestCase):
         first=r[0]
         self.assertLess(first["date"], first["label_start_at"])
         self.assertLess(first["label_start_at"],first["label_end_at"])
-        self.assertEqual(first["target_return_pct"], (40.25/40-1)*100 if False else first["target_return_pct"])
+        self.assertAlmostEqual(first["target_return_pct"], (42.35/42.1-1)*100)
         self.assertEqual(first["feature_available_at"],first["date"])
         self.assertFalse(build_audit(p,"next_day")["production_eligible"])
 
