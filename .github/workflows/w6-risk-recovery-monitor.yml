@@ -46,7 +46,7 @@ jobs:
                   'production_eligible': False,
                   'trading_enabled': False,
                   'scheduled_monitor_active': False,
-              }, indent=2) + '\\n',
+              }, indent=2) + '\n',
               encoding='utf-8'
           )
           PY
