@@ -1,0 +1,57 @@
+name: W2 Research 24h Five-minute Watchdog (Research Only)
+# Best-effort GitHub five-minute cron; UTC window expires 2026-11-09 02:38.
+# No paid Fugle/GCS calls, no workflow replay, no trading/Production changes.
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/w2-research-24h-watchdog.yml'
+      - 'research/w2_research_24h_watchdog.py'
+      - 'tests/test_w2_research_24h_watchdog.py'
+  workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'
+concurrency:
+  group: w2-research-24h-watchdog-${{ github.event_name }}
+  cancel-in-progress: false
+jobs:
+  tests:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Offline W2 watchdog contracts (no secrets, no issue writes)
+        run: PYTHONPATH=. python -m unittest discover -s tests -p test_w2_research_24h_watchdog.py -v
+  monitor:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    permissions:
+      contents: read
+      actions: write  # disable ONLY this watchdog on expiry
+      issues: write   # de-duplicated Issue #360 failure note
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify offline monitoring logic
+        run: PYTHONPATH=. python -m unittest discover -s tests -p test_w2_research_24h_watchdog.py -v
+      - name: Read research Actions; alert only confirmed failures; expire after deadline
+        run: PYTHONPATH=. python -m research.w2_research_24h_watchdog
+      - name: Preserve sanitized monitor output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: w2-research-watchdog-${{ github.run_id }}
+          path: output/w2_research_24h_watchdog/latest.json
+          retention-days: 7
+          if-no-files-found: warn
