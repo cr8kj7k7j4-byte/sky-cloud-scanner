@@ -133,7 +133,8 @@ def test_ledger_timestamp_provenance_requires_valid_timezone():
         assert result["status"] == "RISK_INPUT_REQUIRED", (bad, result)
         assert result["portfolio_allowed"] is False
         assert result["recommended_shares"] == 0
-        assert "ledger_asof_invalid" in result["required_inputs"], (bad, result)
+        expected = "ledger_asof_invalid" if bad else "ledger_asof"
+        assert expected in result["required_inputs"], (bad, result)
 
     for bad in (False, 123, [], "   "):
         result = evaluate_candidate(C, dict(CTX, ledger_source=bad), P)
