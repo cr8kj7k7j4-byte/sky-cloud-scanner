@@ -125,6 +125,19 @@ def run(store, bucket, key, as_of, *, fetch=read_fugle):
         raise ValueError("missing_fugle_key")
     if as_of > datetime.now(TPE).date():
         raise ValueError("future_followup_requested")
+    # Non-trading weekends cannot produce a completed next-session D candle.
+    # Skip before querying Fugle, while retaining an explicit audit status.
+    if as_of.weekday() >= 5:
+        return {"status": "SKIPPED_NO_COMPLETED_WEEKEND_SESSION",
+                "as_of_tpe": as_of.isoformat(),
+                "observations_scanned": 0, "unique_symbols_queried": 0,
+                "completed_outcomes": 0, "new_outcomes": 0,
+                "already_exists_identical": 0, "pending_count": 0,
+                "pending_reasons": [],
+                "write_evidence": [], "historical_only": True,
+                "realized_net_pnl": None, "production_signal": False,
+                "trading_enabled": False,
+                "note": "Weekend: no new session evaluated. Prior pending observations remain untouched."}
     blobs = list(store.list_blobs(bucket, prefix=OBS_PREFIX,
                                   max_results=MAX_SCAN + 1))
     if len(blobs) > MAX_SCAN:
