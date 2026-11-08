@@ -1,0 +1,23 @@
+name: AI Direction Research Contract (No Production)
+on:
+  pull_request:
+    paths:
+      - "research/ai_direction_classifier.py"
+      - "tests/test_ai_direction_classifier.py"
+      - ".github/workflows/ai-direction-research-ci.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  offline-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install isolated research dependencies
+        run: python -m pip install "numpy>=1.26,<3" "pandas>=2,<3" "scikit-learn>=1.4,<2" "xgboost>=2,<4" "lightgbm>=4,<5"
+      - name: Offline contract tests only (no actual market training)
+        run: python -m unittest -v tests.test_ai_direction_classifier
