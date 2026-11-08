@@ -1,0 +1,25 @@
+name: Scan History Offline Replay Contract
+on:
+  pull_request:
+    paths:
+      - 'src/scan_history_archive.py'
+      - 'src/scan_history_replay.py'
+      - 'tests/test_scan_history_archive.py'
+      - 'tests/test_scan_history_replay.py'
+      - '.github/workflows/scan-history-replay-tests.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run 53-slot offline replay and archive contract
+        run: |
+          python -m unittest discover -s tests -p 'test_scan_history*.py' -v
+          python -m src.scan_history_replay
