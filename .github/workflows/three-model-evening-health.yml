@@ -1,0 +1,38 @@
+name: Three Model Evening Schedule Health (Research Only)
+# UTC 11:45 = Taipei 19:45, Monday-Friday.
+# Runs after both 17:30 and 18:30 scheduled research dispatch windows.
+# Read-only GitHub run inspection. GitHub Actions failure is an alarm signal,
+# NOT proof that account email/Telegram notifications were delivered.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '45 11 * * 1-5'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  evening-health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SKY_THREE_MODEL_SCHEDULE_ENABLED: ${{ vars.SKY_THREE_MODEL_SCHEDULE_ENABLED }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test run timing and fail-closed checks
+        run: |
+          python -m pip install pytest
+          PYTHONPATH=. python -m pytest -q tests/test_three_model_evening_health.py
+      - name: Check real scheduled dispatch and downstream runs (read only)
+        run: PYTHONPATH=. python -m research.three_model_evening_health
+      - name: Retain audit including when a check fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: three-model-evening-health-${{ github.run_id }}
+          path: output/three_model_evening_health/
+          retention-days: 90
+          if-no-files-found: warn
