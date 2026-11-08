@@ -148,6 +148,8 @@ def run(symbols, end, bucket, prefix, key, store, out):
     last_allowed=as_of.date() if as_of.time()>=time(16,30) else as_of.date()-timedelta(days=1)
     if end > as_of.date():
         raise ValueError("future_research_session_requested")
+    if not symbols or len(symbols)>10 or len(symbols)!=len(set(symbols)):
+        raise ValueError("invalid_symbol_count")
     # A weekend is not a completed TWSE/TPEx trading session. Skip before
     # requesting paid candles; do not reuse Friday data as Sunday evidence.
     if end.weekday() >= 5:
@@ -164,8 +166,6 @@ def run(symbols, end, bucket, prefix, key, store, out):
         return audit
     if end > last_allowed:
         raise ValueError("historical_candles_not_yet_final")
-    if not symbols or len(symbols)>10 or len(symbols)!=len(set(symbols)):
-        raise ValueError("invalid_symbol_count")
     inputs={}
     for symbol in symbols:
         # A closed/suspended session may legitimately return an empty historical
