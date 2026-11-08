@@ -50,6 +50,17 @@ class HorizonLabelsTests(unittest.TestCase):
         self.assertTrue(all(x["label_start_at"].endswith("09:40:00+08:00") for x in rows))
         self.assertTrue(all(x["label_end_at"].endswith("13:25:00+08:00") for x in rows))
 
+    def test_fugle_1330_closing_auction_stamp_is_accepted_but_not_a_label(self):
+        p = payload("intraday")
+        bars = p["symbols"]["2330"]["bars_5m"]
+        for offset in range(3):
+            d = date(2026, 1, 5) + timedelta(days=offset)
+            bars.append(bar(datetime.combine(d, time(13,30), TPE), 40 + offset))
+        bars.sort(key=lambda item:item["timestamp"])
+        rows = build_rows(p, horizon="intraday")
+        self.assertEqual(len(rows), 2)
+        self.assertTrue(all(x["label_end_at"].endswith("13:25:00+08:00") for x in rows))
+
     def test_unverified_bar_semantics_fails_closed(self):
         with self.assertRaisesRegex(ValueError,"semantics"):
             build_rows(payload("intraday",bar_end=False),horizon="intraday")
