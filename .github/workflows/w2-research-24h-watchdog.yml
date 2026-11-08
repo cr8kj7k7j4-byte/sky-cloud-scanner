@@ -1,7 +1,6 @@
 name: W2 Research 24h Five-minute Watchdog (Research Only)
-# Five-minute cron is best effort, not guaranteed punctual. Ends after TPE 11/09 10:38.
-# Read-only research runs; may write de-duplicated Issue #360 alerts and disable itself.
-# Never reruns paid Fugle/GCS, deploys, or modifies the live trading system.
+# Best-effort GitHub five-minute cron; UTC window expires 2026-11-09 02:38.
+# No paid Fugle/GCS calls, no workflow replay, no trading/Production changes.
 on:
   pull_request:
     paths:
@@ -11,18 +10,31 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '*/5 * * * *'
-permissions:
-  contents: read
-  actions: write
-  issues: write
 concurrency:
-  group: w2-research-24h-watchdog
+  group: w2-research-24h-watchdog-${{ github.event_name }}
   cancel-in-progress: false
 jobs:
-  watchdog:
-    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+  tests:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 4
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Offline W2 watchdog contracts (no secrets, no issue writes)
+        run: PYTHONPATH=. python -m unittest discover -s tests -p test_w2_research_24h_watchdog.py -v
+  monitor:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    permissions:
+      contents: read
+      actions: write  # disable ONLY this watchdog on expiry
+      issues: write   # de-duplicated Issue #360 failure note
     env:
       GH_TOKEN: ${{ github.token }}
       GITHUB_REPOSITORY: ${{ github.repository }}
@@ -31,13 +43,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Verify offline research safety contracts
+      - name: Verify offline monitoring logic
         run: PYTHONPATH=. python -m unittest discover -s tests -p test_w2_research_24h_watchdog.py -v
-      - name: Observe four research workflows and record new failures
-        if: github.event_name != 'pull_request'
+      - name: Read research Actions; alert only confirmed failures; expire after deadline
         run: PYTHONPATH=. python -m research.w2_research_24h_watchdog
-      - name: Preserve sanitized audit even on failure
-        if: always() && github.event_name != 'pull_request'
+      - name: Preserve sanitized monitor output
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: w2-research-watchdog-${{ github.run_id }}
