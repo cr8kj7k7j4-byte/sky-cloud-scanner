@@ -65,3 +65,27 @@ def test_long_stop_cannot_be_at_or_above_entry():
         assert result["status"] == "BLOCK"
         assert result["recommended_shares"] == 0
         assert any("做多停損必須低於買進價" in text for text in result["reasons"])
+
+
+def test_execution_gate_default_requires_cost_inputs():
+    import os
+    import subprocess
+    import sys
+    env = dict(os.environ)
+    env.pop("EXEC_ENFORCE_GATE", None)
+    program = "from src.config import EXEC_ENFORCE_GATE; print(int(EXEC_ENFORCE_GATE))"
+    completed = subprocess.run([sys.executable, "-c", program],
+                               capture_output=True, text=True, env=env, check=True)
+    assert completed.stdout.strip() == "1"
+
+
+def test_unknown_execution_cost_blocks_risk_entry_when_gate_is_enabled():
+    from src.execution_engine import ExecutionCostPolicy
+    result = evaluate_trade(
+        entry=50, stop=48, target=55, account_equity=500000,
+        policy=RiskPolicy(risk_per_trade_pct=0.01),
+        execution_policy=ExecutionCostPolicy(enforce_gate=True),
+    )
+    assert result["status"] == "BLOCK"
+    assert result["recommended_shares"] == 0
+    assert result["execution_status"] == "EXECUTION_INPUT_REQUIRED"
