@@ -13,8 +13,8 @@
 
 | Workflow | cron (UTC) | 台灣時間 | 限制 |
 | --- | --- | --- | --- |
-| Three Model Fugle Historical Private Ledger | `30 9 * * 1-5` | 週一～週五 17:30 | 1101、8088；指定當日最新日 K 與 5m 必須皆有當日時間；僅 3 種研究規則；每日 6 筆上限（含 NO_TRADE） |
-| Three Model Next Session Markout | `30 10 * * 1-5` | 週一～週五 18:30 | 讀取私有研究 ledger；每筆對上嚴格較晚的第一個有資料交易日 D close；Immutable followup prefix |
+| Three Model Research Daily Dispatcher → Fugle Private Ledger | `30 9 * * 1-5` | 週一～週五 17:30 | dispatcher 透過 GitHub API 觸發 main `workflow_dispatch`；1101、8088；當日日 K 與 5m 必須都有當日時間才寫入；每日最多 6 筆（含 NO_TRADE） |
+| Three Model Research Daily Dispatcher → Next Session Markout | `30 10 * * 1-5` | 週一～週五 18:30 | dispatcher 觸發 main `workflow_dispatch`；私有 GCS 的下個實際交易日 D close；Immutable followup prefix |
 
 - 週末不排程。休市日／停牌／Fugle 不完整回應不直接猜測：資料時間覆蓋不足則不寫入新觀察，摘要 `SKIPPED_SESSION_COVERAGE_UNCONFIRMED`（不等於已確認官方休市）。實際是否為台股交易日尚待官方 TWSE/TPEx 行事曆交叉驗證。
 - 同一日期重新執行使用既有 `if_generation_match=0`、讀回 SHA256 和 `ALREADY_EXISTS_IDENTICAL`；任何不同版本覆蓋同一 ID 必須失敗，不能偷偷替換。
@@ -25,8 +25,8 @@
 
 ## 排程啟用前的硬性阻礙
 
-1. 本 PR 目前研究分支，不會觸發主分支排程；必須 CI 成功、W0 審查與審慎合併後才可能於下一個排程時間觸發。**不能以 Workflow 有 cron 便宣稱已排程成功。**
-2. **先確認 GCP Workload Identity Provider 的 attribute condition 是否允許 GitHub `event_name=schedule`**，既有證據主要為 `main+workflow_dispatch`。若 WIF 限制手動事件，定時 GitHub 身分驗證會失敗。需在最低權限範圍內檢查/調整，不得以權限錯誤為理由改用 JSON key。
+1. 本 PR 目前研究分支，不會觸發主分支排程；必須 CI 成功、W0 審查與審慎合併後，main 的 dispatcher 才可能在下一次 GitHub `schedule` 觸發。**不能以 Workflow 有 cron 便宣稱已排程成功。**
+2. **不改動 GCP Workload Identity Provider 的 attribute condition**。既有文件明確只允許 `main + workflow_dispatch`。新增的 **無 GCP 權限** `three-model-research-daily-dispatch.yml` 用 GitHub Actions `actions:write` GITHUB_TOKEN 僅 dispatch 指定的兩個 main 研究 workflow；下游由 `workflow_dispatch` 取得原 WIF 身分。必須先審核 dispatcher 權限及 GitHub Token dispatch 行為，在 main 確認實際 schedule → dispatch → WIF 的 run chain 成功後才稱排程啟用驗收通過。不能拓寬 provider 到 `schedule`、不得建立 JSON key。
 3. 確認 WIF 身分有研究 Bucket 的 objectCreator、objectViewer 及 list 權限，並能在新 prefix 寫入；目前已證實原研究紀錄寫入，不代表新 outcome prefix 的執行結果已通過。
 4. 兩條排程首次實際 run 後，核對 run ID、使用者查看方式、排程 UTC/TPE、Fugle 的最後交易日、是否跳過休市日、create-only 物件數與 hash、模型數、唯一 ID、NO_TRADE 及缺失時間數量；下一交易日才核對有實際後續行情的 markout。
 5. GitHub Action error 由 GitHub run failure 顯示，但「使用者會收到通知」尚未證實，需核對通知設定。取消／重複排程、跨日補跑、完整性≥95%、至少 200 獨立樣本／20 未來交易日／兩個 regime 都尚未完成。
