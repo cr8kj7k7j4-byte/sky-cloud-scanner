@@ -14,6 +14,7 @@ on:
 permissions:
   contents: read
   actions: write # Only rerun failed jobs for the code-level allowlisted PR unit test.
+  issues: write # One-time schedule proof in existing W0 issue #363.
 
 concurrency:
   group: sky-research-ci-watchdog
@@ -48,6 +49,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Bounded fail-closed research-CI check
+        id: watchdog_check
         run: python ops/recovery/sky_research_watchdog.py
       - name: Upload independent audit report (even on failure)
         if: always()
@@ -57,3 +59,26 @@ jobs:
           path: recovery-reports/latest.json
           if-no-files-found: warn
           retention-days: 7
+      - name: Record first real schedule execution in W0 issue (once only)
+        if: ${{ always() && github.event_name == 'schedule' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHECK_OUTCOME: ${{ steps.watchdog_check.outcome }}
+        run: |
+          set -euo pipefail
+          MARKER="SKY_WATCHDOG_FIRST_SCHEDULE_RUN_V1"
+          # Never repost on subsequent 5-minute runs. Issue #363 is the W0 log.
+          if gh api "repos/${GITHUB_REPOSITORY}/issues/363/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$MARKER"; then
+            echo "Schedule proof already recorded"
+            exit 0
+          fi
+          RUN_LINK="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          BODY="$MARKER
+          W0/P0-OPS real schedule event observed (not PR CI).
+          GitHub event: ${GITHUB_EVENT_NAME}
+          Run: ${RUN_LINK}
+          Watchdog check outcome: ${CHECK_OUTCOME}
+          JSON artifact: sky-watchdog-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}
+          A schedule event proves invocation, not recovery success or real-market data. Verify the artifact and retry details before closing the gate."
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/363/comments" -f body="$BODY"
