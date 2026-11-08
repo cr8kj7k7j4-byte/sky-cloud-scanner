@@ -5,6 +5,10 @@ on:
       - "research/ai_direction_classifier.py"
       - "tests/test_ai_direction_classifier.py"
       - "research/ai_direction_labels.py"
+      - "research/ai_direction_2026_pilot.py"
+      - "tests/test_ai_direction_2026_pilot.py"
+      - ".github/workflows/ai-direction-2026-pilot.yml"
+      - ".github/workflows/ai-direction-watchdog-5m.yml"
       - "tests/test_ai_direction_labels.py"
       - ".github/workflows/ai-direction-research-ci.yml"
   workflow_dispatch:
@@ -22,4 +26,4 @@ jobs:
       - name: Install isolated research dependencies
         run: python -m pip install "numpy>=1.26,<3" "pandas>=2,<3" "scikit-learn>=1.4,<2" "xgboost>=2,<4" "lightgbm>=4,<5"
       - name: Offline contract tests only (no actual market training)
-        run: python -m unittest -v tests.test_ai_direction_classifier tests.test_ai_direction_labels
+        run: python -m unittest -v tests.test_ai_direction_classifier tests.test_ai_direction_labels tests.test_ai_direction_2026_pilot
