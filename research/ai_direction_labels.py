@@ -113,6 +113,14 @@ def build_rows(payload, *, horizon):
                 i, j, k = [positions[x] for x in (time(9,30),time(9,35),time(13,20))]
                 if not i < j < k or j != i+1:
                     continue
+                # Reject missing, irregular or incomplete intraday bars.
+                # A future terminal close cannot substitute for a continuous path.
+                expected_bars = int((times[k] - times[i]).total_seconds() // 300)
+                if k - i != expected_bars:
+                    continue
+                if any((times[n+1]-times[n]).total_seconds() != 300
+                       for n in range(i,k)):
+                    continue
                 features = _features(bars,i)
                 if features is None:
                     continue
