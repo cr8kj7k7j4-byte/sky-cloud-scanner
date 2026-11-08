@@ -45,8 +45,12 @@ def assess(pr: dict, runs: list[dict], now: datetime) -> dict:
     head = (pr.get("head") or {}).get("sha")
     if not re.fullmatch(r"[0-9a-f]{40}", str(head)):
         raise ValueError("invalid_head_sha")
-    if pr.get("merged") is True or pr.get("state") != "open":
-        return {"status": "PR_CLOSED_REQUIRES_W0_REVIEW", "head_sha": head,
+    if pr.get("merged") is True:
+        return {"status": "PR_MERGED_MONITOR_MAIN", "head_sha": head,
+                "checks": {}, "failed_run_urls": [],
+                "research_only": True, "production_approved": False}
+    if pr.get("state") != "open":
+        return {"status": "ACTION_REQUIRED_PR_CLOSED_UNMERGED", "head_sha": head,
                 "checks": {}, "failed_run_urls": [],
                 "research_only": True, "production_approved": False}
     now_utc = now.astimezone(timezone.utc)
@@ -98,6 +102,65 @@ def assess(pr: dict, runs: list[dict], now: datetime) -> dict:
         status = "OFFLINE_CI_PASS_REAL_E2E_HOLD"
     return {
         "status": status, "head_sha": head, "checks": checks,
+        "failed_run_urls": sorted(set(failed)),
+        "research_only": True, "production_approved": False,
+        "real_gcs_new_audit_verified": False,
+        "first_nov9_schedule_verified": False,
+        "trained_six_model_inference_verified": False,
+    }
+
+
+MAIN_WORKFLOW_EVENTS = {
+    "schedule": (
+        "Three Model Research Daily Dispatcher (No Cloud Credentials)",
+        "Three Model Evening Schedule Health (Research Only)",
+    ),
+    "workflow_dispatch": (
+        "Three Model Research Daily Dispatcher (No Cloud Credentials)",
+        "Three Model Fugle Historical Private Ledger (Research Only)",
+        "Three Model Next Session Markout (Research Only)",
+    ),
+}
+
+
+def assess_main_research_runs(schedule_runs: list[dict],
+                              dispatch_runs: list[dict],
+                              now: datetime, head: str) -> dict:
+    """Monitor live main runs after PR merges; do not infer paid data validity."""
+    if now.utcoffset() is None:
+        raise ValueError("monitor_requires_timezone")
+    failed = []
+    in_progress = []
+    count = 0
+    for event, runs in (("schedule", schedule_runs),
+                        ("workflow_dispatch", dispatch_runs)):
+        for run in runs:
+            if (run.get("event") != event or run.get("head_branch") != "main"
+                    or run.get("name") not in MAIN_WORKFLOW_EVENTS[event]):
+                continue
+            try:
+                when = utc_time(run["created_at"])
+            except (KeyError, ValueError, TypeError):
+                continue
+            if not START.astimezone(timezone.utc) <= when <= now.astimezone(timezone.utc):
+                continue
+            count += 1
+            if run.get("status") != "completed":
+                in_progress.append(str(run.get("id")))
+            elif run.get("conclusion") != "success":
+                failed.append(str(run.get("html_url") or
+                                  f"https://github.com/{REPO}/actions/runs/{run.get('id')}"))
+    if failed:
+        status = "ACTION_REQUIRED_MAIN_RESEARCH_RUN_FAILURE"
+    elif in_progress:
+        status = "MAIN_RESEARCH_RUN_IN_PROGRESS"
+    else:
+        # A manual dispatch success never proves that a schedule event fired.
+        status = "MAIN_RESEARCH_MONITORED_SCHEDULE_NOT_YET_VERIFIED"
+    return {
+        "status": status, "head_sha": head,
+        "checks": {"main_research_runs_seen": count,
+                   "main_research_in_progress": len(in_progress)},
         "failed_run_urls": sorted(set(failed)),
         "research_only": True, "production_approved": False,
         "real_gcs_new_audit_verified": False,
@@ -167,6 +230,14 @@ def main() -> None:
     if not isinstance(runs, list):
         raise ValueError("missing_workflow_run_list")
     result = assess(pr, runs, now)
+    if result["status"] == "PR_MERGED_MONITOR_MAIN":
+        # After W0 merges this research-only PR, monitor real main workflow
+        # metadata instead of stopping on PR state=closed.
+        schedule = api("GET", f"/repos/{REPO}/actions/runs?event=schedule&per_page=100")
+        dispatch = api("GET", f"/repos/{REPO}/actions/runs?event=workflow_dispatch&per_page=100")
+        result = assess_main_research_runs(schedule.get("workflow_runs", []),
+                                           dispatch.get("workflow_runs", []),
+                                           now, sha)
     issue = api("GET", f"/repos/{REPO}/issues/{ISSUE_NUMBER}")
     if issue.get("number") != ISSUE_NUMBER or "pull_request" in issue:
         raise ValueError("incorrect_tracking_issue")
