@@ -116,7 +116,8 @@ def train(df, feature_cols, *, horizon, embargo_sessions):
         "UP" if train_prevalence >= .5 else "DOWN"
     )
     report={"schema":"sky-ai-direction-training-audit-v1", "horizon":horizon,
-            "features":list(feature_cols),"embargo_sessions":embargo_sessions,\n            "train_only_constant_baseline_oos":constant_metrics,
+            "features":list(feature_cols),"embargo_sessions":embargo_sessions,
+            "train_only_constant_baseline_oos":constant_metrics,
             "splits":{"train_n":len(train_data),"calibration_n":len(cal_data),"oos_n":len(test_data),
                       "train_end":str(train_data["date"].max()),"calibration_end":str(cal_data["date"].max()),
                       "oos_end":str(test_data["date"].max())},
