@@ -37,5 +37,51 @@ class ReadOnlyCloudRunAuditTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             extract(body)
 
+    def test_traffic_and_tagged_canary_are_both_attested(self):
+        service = sample()
+        service["status"]["latestReadyRevisionName"] = "tw-ai-mobile-00157-wiw"
+        service["status"]["traffic"] = [
+            {"revisionName": "tw-ai-mobile-00154-csh", "percent": 100},
+            {"revisionName": "tw-ai-mobile-00157-wiw", "percent": 0, "tag": "ledger-canary"},
+        ]
+        revisions = {
+            name: {"metadata": {"name": name}, "spec": {"containers": [{"image": image}]}}
+            for name, image in (
+                ("tw-ai-mobile-00154-csh", "example.invalid/prod@sha256:old"),
+                ("tw-ai-mobile-00157-wiw", "example.invalid/canary@sha256:new"),
+            )
+        }
+        report = extract(service, revisions["tw-ai-mobile-00157-wiw"], revisions)
+        self.assertTrue(report["all_revisions_inspected"])
+        self.assertEqual(len(report["revision_images"]), 2)
+        self.assertEqual(report["revision_images"]["tw-ai-mobile-00154-csh"]["spec_image"],
+                         "example.invalid/prod@sha256:old")
+        self.assertEqual(report["traffic"][1]["tag"], "ledger-canary")
+
+    def test_incomplete_revision_attestation_fails_closed(self):
+        service = sample()
+        service["status"]["traffic"] = [
+            {"revisionName": "tw-ai-mobile-001", "percent": 100},
+            {"revisionName": "tw-ai-mobile-002", "percent": 0, "tag": "ledger-canary"},
+        ]
+        only_ready = {"tw-ai-mobile-001":
+            {"metadata": {"name": "tw-ai-mobile-001"},
+             "spec": {"containers": [{"image": "example.invalid/v1"}]}}}
+        with self.assertRaisesRegex(ValueError, "revision_set_incomplete"):
+            extract(service, only_ready["tw-ai-mobile-001"], only_ready)
+
+    def test_revision_identity_mismatch_fails_closed(self):
+        service = sample()
+        revision = {"metadata": {"name": "unexpected-revision"},
+                    "spec": {"containers": [{"image": "example.invalid/v1"}]}}
+        with self.assertRaisesRegex(ValueError, "revision_identity_mismatch"):
+            extract(service, revision, {"tw-ai-mobile-001": revision})
+
+    def test_empty_traffic_revision_rejected(self):
+        service = sample()
+        service["status"]["traffic"][0]["revisionName"] = None
+        with self.assertRaisesRegex(ValueError, "invalid_traffic_revision"):
+            extract(service)
+
 if __name__=="__main__":
     unittest.main()
