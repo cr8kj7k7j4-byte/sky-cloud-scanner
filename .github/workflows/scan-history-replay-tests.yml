@@ -6,6 +6,8 @@ on:
       - 'src/scan_history_replay.py'
       - 'tests/test_scan_history_archive.py'
       - 'tests/test_scan_history_replay.py'
+      - 'research/scan_history_markout.py'
+      - 'tests/test_scan_history_markout.py'
       - '.github/workflows/scan-history-replay-tests.yml'
   workflow_dispatch:
 permissions:
