@@ -4,6 +4,7 @@ import argparse
 from datetime import datetime
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -95,6 +96,30 @@ def read_only_audit(store, bucket, *, max_scan=MAX_SCAN):
                 direction = record.get("direction_at_observation")
                 if direction not in DIRECTIONS:
                     raise ValueError("invalid_markout_direction")
+                if record.get("followup_type") != "OBSERVATIONAL_PRICE_CHANGE_ONLY":
+                    raise ValueError("invalid_markout_observational_type")
+                # The follow-up is immutable market evidence, not a trade. A
+                # forged/invalid close or return must fail even if all ledger
+                # IDs, timestamps and safety flags match. Keep price data
+                # private: never include these fields in the audit report.
+                prices = []
+                for field in ("reference_close", "next_session_close"):
+                    value = record.get(field)
+                    if isinstance(value, bool) or not isinstance(value, (int, float)):
+                        raise ValueError("invalid_markout_price")
+                    if not math.isfinite(value) or value <= 0:
+                        raise ValueError("invalid_markout_price")
+                    prices.append(float(value))
+                observed_return = record.get("next_session_return_pct")
+                if isinstance(observed_return, bool) or not isinstance(
+                        observed_return, (int, float)):
+                    raise ValueError("invalid_markout_return")
+                if not math.isfinite(observed_return):
+                    raise ValueError("invalid_markout_return")
+                calculated_return = round((prices[1] / prices[0] - 1) * 100, 8)
+                if not math.isclose(float(observed_return), calculated_return,
+                                    rel_tol=0.0, abs_tol=1e-6):
+                    raise ValueError("markout_return_mismatch")
                 observation_time = _stamp(record.get("observation_bar_time"))
                 next_time = _stamp(record.get("next_session_close_time"))
                 if next_time[:10] <= observation_time[:10]:
