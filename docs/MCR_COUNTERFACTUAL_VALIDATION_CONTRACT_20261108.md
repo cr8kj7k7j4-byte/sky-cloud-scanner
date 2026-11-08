@@ -46,3 +46,12 @@
 - 正式規範：`SKY_SYSTEM_REGISTRY_V2_1.md`、`research/RESEARCH_FREEZE_REGISTRY.md`、`docs/SKY_VALIDATION_PROTOCOL_V1_0.md`。
 - 稽核產出：`research_output/mcr_event_ledger/YYYY-MM-DD.json`、`research_output/mcr_episode_audit_latest.json`。
 - `research/mcr_forward_markouts.py` 接受經獨立驗證的未來 EOD 行情；無價格來源時產出待驗證而不捏造結果。
+
+## 2026-11-08：交易日完整性及結果缺口增補（不改研究假設）
+- 只接受已封存的 TWSE／TPEx **雙市場同日官方價格快照**作為 EOD 研究時鐘；不按單一股票有價日期推進持有天數。
+- 任意兩個快照間若缺少平日日期，列為 `UNVERIFIED_SESSION_GAP` 並暫停跨越此缺口的結果；不自行猜測國定假日、停市或正常交易日。只有取得獨立可靠的官方休市證據，才能釋出相應缺口。
+- 個股在交易日缺報價（含停牌、資料缺漏）列為 `MISSING_REFERENCE_PRICE` 或 `MISSING_PRICE_ON_REQUIRED_SESSION`；不可把下一筆價格往前挪成第 1／3／5／10 日結果。
+- `research_output/mcr_evidence_gaps_latest.json` 必須顯示完成的各持有期參考觀察數、交易日時鐘缺口、未來交易日及可執行樣本不足等原因。
+- `research_output/mcr_markout_latest.json` 即使有參考漲跌幅，仍禁止推論成交可行性、真實損益、成本後正期望值及升級 Production。
+- 週一至週五 18:40（台灣時間）使用既有 GitHub Action；週末沒有新交易日；排程是否定時準點觸發仍須交易日實際執行證明。
+- 任何修訂只能改善 **資料與驗證完整性**；不能借機調整已凍結策略假設、門檻、交易報酬目標或出場規則。
