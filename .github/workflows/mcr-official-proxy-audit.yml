@@ -34,6 +34,8 @@ on:
       - '.github/workflows/mcr-official-proxy-audit.yml'
   pull_request:
     paths:
+      - 'research/mcr_episode_audit.py'
+      - 'tests/test_mcr_episode_validation.py'
       - 'research/mcr_official_margin_proxy.py'
       - 'tests/test_mcr_official_margin_proxy.py'
       - '.github/workflows/mcr-official-proxy-audit.yml'
