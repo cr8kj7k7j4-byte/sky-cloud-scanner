@@ -29,6 +29,10 @@ def extract(service, revision=None, revisions=None):
         if not isinstance(percent, int) or percent < 0 or percent > 100:
             raise ValueError("invalid_traffic_percent")
         name = row.get("revisionName")
+        # Cloud Run may represent a tagged latestRevision traffic target
+        # without revisionName. Resolve it against the actual ready revision.
+        if name is None and row.get("latestRevision") is True:
+            name = latest
         if not isinstance(name, str) or not name.startswith(SERVICE + "-"):
             raise ValueError("invalid_traffic_revision")
         selected.append({"revision": name,
@@ -61,8 +65,24 @@ def extract(service, revision=None, revisions=None):
             containers = ((data.get("spec") or {}).get("containers") or [])
             spec_image = containers[0].get("image") if containers and isinstance(containers[0], dict) else None
             digest = (data.get("status") or {}).get("imageDigest")
+            # Only container start configuration is attested. Never persist
+            # environment variables, volumes, service account tokens or full
+            # gcloud JSON, which can contain secret names and values.
+            runtime = {
+                "container_count": len(containers),
+                "first_container_command": containers[0].get("command") if containers else None,
+                "first_container_args": containers[0].get("args") if containers else None,
+                "first_container_ports": [
+                    {"name": p.get("name"), "containerPort": p.get("containerPort")}
+                    for p in (containers[0].get("ports") or []) if isinstance(p, dict)
+                ] if containers and isinstance(containers[0], dict) else [],
+                "revision_service_account_set": bool((data.get("spec") or {}).get("serviceAccountName")),
+                "commit_label": (data.get("metadata") or {}).get("labels", {}).get("commit-sha"),
+                "cloud_build_id_label": (data.get("metadata") or {}).get("labels", {}).get("gcb-build-id"),
+            }
             inspected[name] = {"spec_image": spec_image, "status_image_digest": digest,
-                               "image_evidence_present": bool(spec_image or digest)}
+                               "image_evidence_present": bool(spec_image or digest),
+                               "runtime": runtime}
     conditions = status.get("conditions") or []
     ready = any(c.get("type") == "Ready" and c.get("status") == "True"
                 for c in conditions if isinstance(c, dict))
@@ -105,9 +125,14 @@ def main():
         # Strictly bound service names; never query arbitrary caller-supplied IDs.
         names={rev}
         for row in rows:
-            if not isinstance(row,dict) or not isinstance(row.get("revisionName"),str) or not row["revisionName"].startswith(SERVICE+"-"):
+            if not isinstance(row, dict):
                 raise ValueError("invalid_traffic_revision")
-            names.add(row["revisionName"])
+            name = row.get("revisionName")
+            if name is None and row.get("latestRevision") is True:
+                name = rev
+            if not isinstance(name, str) or not name.startswith(SERVICE + "-"):
+                raise ValueError("invalid_traffic_revision")
+            names.add(name)
         revisions={name:gcloud_json("run","revisions","describe",name,"--region",REGION)
                    for name in sorted(names)}
         report["evidence"]=extract(service,revisions[rev],revisions)
