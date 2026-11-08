@@ -123,6 +123,34 @@ def test_only_a_plus_can_enter_candidate_risk_admission():
     assert evaluate_candidate(C, CTX, P)["status"] == "ALLOW"
 
 
+def test_default_risk_policy_matches_confirmed_500k_p0r():
+    defaults = RiskPolicy()
+    assert defaults.risk_per_trade_pct == 0.01
+    assert defaults.daily_loss_limit_pct == 0.02
+    assert defaults.max_portfolio_heat_pct == 0.03
+    assert defaults.max_position_pct == 0.20
+    assert defaults.max_concurrent_positions == 3
+    assert defaults.stop_after_consecutive_losses == 2
+    decision = evaluate_trade(
+        entry=50, stop=48, target=55, account_equity=500000,
+        policy=defaults, grade="A+",
+    )
+    assert decision["risk_budget"] == 5000
+    assert decision["remaining_daily_risk_budget"] == 10000
+    assert decision["remaining_portfolio_heat"] == 15000
+    assert decision["recommended_shares"] * 50 <= 100000
+    for blocked in (
+        {"daily_pnl": -10000},
+        {"open_risk": 15000},
+        {"concurrent_positions": 3},
+        {"consecutive_losses": 2},
+    ):
+        assert evaluate_trade(
+            entry=50, stop=48, target=55, account_equity=500000,
+            policy=defaults, grade="A+", **blocked,
+        )["status"] == "BLOCK"
+
+
 if __name__ == "__main__":
     test_unknown_state_blocks()
     test_missing_ledger_proof_blocks()
@@ -134,4 +162,5 @@ if __name__ == "__main__":
     test_malformed_account_state_is_never_safely_zero()
     test_nonfinite_candidate_prices_fail_closed()
     test_only_a_plus_can_enter_candidate_risk_admission()
+    test_default_risk_policy_matches_confirmed_500k_p0r()
     print("PASS W6 candidate fail-closed checks")
