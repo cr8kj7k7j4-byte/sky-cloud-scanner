@@ -23,7 +23,9 @@ concurrency:
   cancel-in-progress: false
 jobs:
   dispatch-research-only:
-    if: github.ref == 'refs/heads/main'
+    # Default OFF: merging the PR does not start paid recurring data collection.
+    # Manual workflow_dispatch allows one controlled acceptance run on main.
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || vars.SKY_THREE_MODEL_SCHEDULE_ENABLED == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
