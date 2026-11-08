@@ -4,12 +4,18 @@ Produces a minimal sanitized report using actual gcloud describe responses.
 The report never claims a healthy site based solely on a revision being ready.
 """
 import json
+import re
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
 SERVICE = "tw-ai-mobile"
 REGION = "asia-east1"
+IMMUTABLE_IMAGE_RE = re.compile(r"^[^\\s@]+@sha256:[0-9a-fA-F]{64}$")
+
+
+def is_immutable_digest(value):
+    return isinstance(value, str) and IMMUTABLE_IMAGE_RE.fullmatch(value) is not None
 
 def extract(service, revision=None, revisions=None):
     if not isinstance(service, dict):
@@ -87,7 +93,7 @@ def extract(service, revision=None, revisions=None):
             }
             inspected[name] = {"spec_image": spec_image, "status_image_digest": digest,
                                "image_evidence_present": bool(spec_image or digest),
-                               "immutable_digest_present": bool(isinstance(digest, str) and "@sha256:" in digest),
+                               "immutable_digest_present": is_immutable_digest(digest),
                                "runtime": runtime}
     conditions = status.get("conditions") or []
     ready = any(c.get("type") == "Ready" and c.get("status") == "True"
