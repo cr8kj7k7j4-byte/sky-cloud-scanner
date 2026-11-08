@@ -260,6 +260,23 @@ def evaluate_candidate(candidate, portfolio_context, policy=None):
             n != int(n)
         ):
             absent.append(key + "_invalid")
+    # Prices are also untrusted candidate inputs; reject non-finite/booleans
+    # before float conversion reaches risk sizing or execution-cost arithmetic.
+    for key, raw in (
+        ("entry", candidate.get("entry", candidate.get("last"))),
+        ("stop", candidate.get("stop")),
+        ("target", candidate.get("target")),
+    ):
+        if raw is None:
+            absent.append(key)
+            continue
+        try:
+            number = float(raw)
+        except (ValueError, TypeError, OverflowError):
+            absent.append(key + "_invalid")
+            continue
+        if isinstance(raw, bool) or not math.isfinite(number) or number <= 0:
+            absent.append(key + "_invalid")
     # Do not accept an unsigned / stale / research-only context as live truth.
     if portfolio_context.get("ledger_verified") is not True:
         absent.append("ledger_verified")
