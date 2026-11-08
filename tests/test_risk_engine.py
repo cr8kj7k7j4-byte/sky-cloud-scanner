@@ -69,6 +69,7 @@ def main():
     # Execute W6 fail-closed cases in the existing P0-R Actions job.
     import runpy
     runpy.run_path(str(ROOT / "tests" / "test_w6_risk_admission.py"), run_name="__main__")
+    runpy.run_path(str(ROOT / "tests" / "test_w6_ledger_reconciliation.py"), run_name="__main__")
     print("PASS P0-R risk engine tests")
 
 
