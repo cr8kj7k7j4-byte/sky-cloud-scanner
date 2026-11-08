@@ -137,5 +137,43 @@ class ReadOnlyCloudRunAuditTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "invalid_traffic_revision"):
             extract(service)
 
+    def test_wrong_service_name_cannot_be_attested(self):
+        service = sample()
+        service["metadata"]["name"] = "unexpected-service"
+        with self.assertRaisesRegex(ValueError, "service_identity_mismatch"):
+            extract(service)
+
+    def test_bool_percent_must_not_count_as_one_percent(self):
+        service = sample()
+        service["status"]["traffic"] = [
+            {"revisionName": "tw-ai-mobile-001", "percent": 99},
+            {"revisionName": "tw-ai-mobile-002", "percent": True},
+        ]
+        with self.assertRaisesRegex(ValueError, "invalid_traffic_percent"):
+            extract(service)
+
+    def test_missing_and_invalid_ready_revision_identity_fails_closed(self):
+        service = sample()
+        service["status"]["latestReadyRevisionName"] = "other-service-001"
+        with self.assertRaisesRegex(ValueError, "missing_ready_revision_or_traffic"):
+            extract(service)
+
+    def test_empty_traffic_must_not_attest_ready_revision(self):
+        service = sample()
+        service["status"]["traffic"] = []
+        with self.assertRaisesRegex(ValueError, "missing_ready_revision_or_traffic"):
+            extract(service)
+
+    def test_immutable_digest_proof_is_separate_from_image_name(self):
+        revision = {
+            "metadata": {"name": "tw-ai-mobile-001"},
+            "spec": {"containers": [{"image": "example.invalid/app:latest"}]},
+            "status": {},
+        }
+        data = extract(sample(), revision, {"tw-ai-mobile-001": revision})
+        proof = data["revision_images"]["tw-ai-mobile-001"]
+        self.assertTrue(proof["image_evidence_present"])
+        self.assertFalse(proof["immutable_digest_present"])
+
 if __name__=="__main__":
     unittest.main()
