@@ -169,3 +169,130 @@ def test_v11_candidate_with_fresh_executed_trade_can_be_observed(monkeypatch):
     assert quotes["1234"]["last"] == 40.2
     assert meta["fugle"] == 1
     assert meta["requested"] == 1
+
+
+# W3A data-integrity regressions: exercised by the existing realtime-contract CI.
+def test_w3a_missing_otc_quotes_are_reported_separately():
+    from src.realtime_quote_evidence import validate_whole_market_rows
+    pool = [{"symbol": "2330", "exchange": "TWSE"}, {"symbol": "8088", "exchange": "TPEx"}]
+    rows = [{"symbol": "2330", "last": 50, "quote_source": "Fugle bulk snapshot",
+             "quote_date": NOW.date().isoformat(), "last_trade_timestamp": NOW.isoformat()}]
+    result = validate_whole_market_rows(pool, rows, now=NOW)
+    assert result["missing_by_exchange"] == {"TWSE": 0, "TPEx": 1}
+    assert result["status"] == "BLOCKED_EXTERNAL_DATA"
+
+
+def test_w3a_invalid_otc_timestamp_is_received_but_rejected():
+    from src.realtime_quote_evidence import validate_whole_market_rows
+    pool = [{"symbol": "2330", "exchange": "TWSE"}, {"symbol": "8088", "exchange": "TPEx"}]
+    rows = [{"symbol": "2330", "last": 50, "quote_source": "Fugle bulk snapshot",
+             "quote_date": NOW.date().isoformat(), "last_trade_timestamp": NOW.isoformat()},
+            {"symbol": "8088", "last": 51, "quote_source": "Fugle bulk snapshot",
+             "quote_date": NOW.date().isoformat(), "last_trade_timestamp": None}]
+    result = validate_whole_market_rows(pool, rows, now=NOW)
+    assert result["missing_by_exchange"] == {"TWSE": 0, "TPEx": 0}
+    assert result["valid_quote_count"] == 1
+
+
+def test_w3a_trial_and_infinite_values_fail_closed():
+    from src.realtime_quote_evidence import validate_whole_market_rows
+    pool = [{"symbol": "2330", "exchange": "TWSE"}, {"symbol": "8088", "exchange": "TPEx"}]
+    base = {"quote_source": "Fugle bulk snapshot",
+            "quote_date": NOW.date().isoformat(), "last_trade_timestamp": NOW.isoformat()}
+    for override in ({"last": float("inf")}, {"last": 50, "isTrial": True}):
+        rows = [dict(base, symbol="2330", last=50), dict(base, symbol="8088", **override)]
+        result = validate_whole_market_rows(pool, rows, now=NOW,
+                                            min_coverage_pct=100, min_exchange_pct=100)
+        assert result["valid_quote_count"] == 1
+        assert result["valid_whole_market_operational"] is False
+
+
+def test_w3a_market_data_reason_breakdown_is_exchange_specific():
+    from src.realtime_quote_evidence import validate_whole_market_rows
+    pool = [
+        {"symbol": "2330", "exchange": "TWSE"},
+        {"symbol": "1101", "exchange": "TWSE"},
+        {"symbol": "8088", "exchange": "TPEx"},
+    ]
+    base = {"quote_source": "Fugle bulk snapshot",
+            "quote_date": NOW.date().isoformat(), "last_trade_timestamp": NOW.isoformat()}
+    rows = [
+        dict(base, symbol="2330", last=45),
+        dict(base, symbol="1101", last=50, isTrial=True),
+        dict(base, symbol="8088", last=50, last_trade_timestamp=None),
+    ]
+    result = validate_whole_market_rows(pool, rows, now=NOW)
+    assert result["received_by_exchange"] == {"TWSE": 2, "TPEx": 1}
+    assert result["missing_by_exchange"] == {"TWSE": 0, "TPEx": 0}
+    assert result["rejected_by_exchange"]["TWSE"] == {"TRIAL_QUOTE": 1}
+    assert result["rejected_by_exchange"]["TPEx"] == {"STALE_OR_UNVERIFIED_EXECUTED_TRADE": 1}
+    assert result["rejected"] == {
+        "TRIAL_QUOTE": 1,
+        "STALE_OR_UNVERIFIED_EXECUTED_TRADE": 1,
+    }
+    assert result["valid_whole_market_operational"] is False
+
+
+def test_w3a_integrated_fugle_first_route_keeps_provider_evidence():
+    from src.quote_provider import collect_market_quotes
+    pool = [{"symbol": "2330", "exchange": "TWSE"}, {"symbol": "8088", "exchange": "TPEx"}]
+    rows = [
+        {"symbol": code, "last": 60, "quote_date": NOW.date().isoformat(),
+         "quote_source": "Fugle bulk snapshot", "last_trade_timestamp": NOW.isoformat()}
+        for code in ("2330", "8088")
+    ]
+    result = collect_market_quotes(
+        pool, now=NOW,
+        fugle_fetch=lambda universe, trading_date: (rows, []),
+        mis_fetch=lambda _: (_ for _ in ()).throw(
+            AssertionError("MIS must not be queried when paid primary passes")
+        ),
+    )
+    assert result["provider"] == "Fugle bulk snapshot"
+    assert result["fallback_used"] is False
+    assert result["primary_evidence"]["valid_quote_count"] == 2
+    assert result["primary_evidence"]["missing_by_exchange"] == {"TWSE": 0, "TPEx": 0}
+
+
+def test_w3a_integrated_route_never_mixes_two_partial_sources():
+    from src.quote_provider import collect_market_quotes
+    pool = [{"symbol": "2330", "exchange": "TWSE"}, {"symbol": "8088", "exchange": "TPEx"}]
+    a = {"symbol": "2330", "last": 60, "quote_date": NOW.date().isoformat(),
+         "quote_source": "Fugle bulk snapshot", "last_trade_timestamp": NOW.isoformat()}
+    b = {"symbol": "8088", "last": 60, "quote_date": NOW.strftime("%Y%m%d"),
+         "quote_time": "10:14:30", "quote_source": "TWSE MIS"}
+    result = collect_market_quotes(
+        pool, now=NOW,
+        fugle_fetch=lambda universe, trading_date: ([a], []),
+        mis_fetch=lambda universe: ([b], []),
+    )
+    assert result["fallback_used"] is True
+    assert result["audit"]["valid_whole_market_operational"] is False
+    assert result["audit"]["valid_quote_count"] == 1
+    assert result["primary_evidence"]["valid_quote_count"] == 1
+    assert result["primary_evidence"]["missing_by_exchange"]["TPEx"] == 1
+    assert all(row["quote_source"] == "TWSE MIS" for row in result["rows"])
+
+
+def test_w3a_no_candidate_diagnostic_does_not_mask_data_block():
+    from src.w3a_candidate_funnel import build_candidate_funnel
+    result = build_candidate_funnel(
+        universe_count=2, quote_audit={"valid_quote_count": 1},
+        source="TWSE MIS (fallback)", data_gate="BLOCKED_EXTERNAL_DATA_NO_TRADE",
+        working_count=0, first_pass=0, top=0, deep=0, rejected=0,
+        unverified=0, gate_failures=[],
+    )
+    assert result["zero_candidate_diagnostic"] == "MARKET_DATA_GATE_BLOCKED"
+    assert result["new_trade_approval"] is False
+
+
+def test_w3a_first_gate_diagnostics_preserve_rejection_counts():
+    from src.w3a_candidate_funnel import build_candidate_funnel
+    result = build_candidate_funnel(
+        universe_count=2, quote_audit={"valid_quote_count": 2},
+        source="Fugle bulk snapshot", data_gate="PASS_FULL_MARKET_LIVE",
+        working_count=2, first_pass=0, top=0, deep=0, rejected=0,
+        unverified=0, gate_failures=["PRICE", "PRICE", "VOLUME"],
+    )
+    assert result["zero_candidate_diagnostic"] == "FIRST_GATE_REJECTED_ALL"
+    assert result["first_gate_reasons"] == {"PRICE": 2, "VOLUME": 1}
