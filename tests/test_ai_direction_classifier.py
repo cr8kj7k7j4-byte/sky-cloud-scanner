@@ -16,6 +16,34 @@ class DirectionTrainingTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             split_by_session(None, embargo_sessions=0)
 
+    def test_future_feature_rejected(self):
+        import pandas as pd
+        dates = pd.date_range("2026-01-02", periods=70, freq="B", tz="Asia/Taipei")
+        frame = pd.DataFrame({
+            "date": dates,
+            "feature_available_at": dates + pd.Timedelta(minutes=1),
+            "label_end_at": dates + pd.Timedelta(days=1),
+        })
+        with self.assertRaisesRegex(ValueError, "lookahead"):
+            split_by_session(frame, embargo_sessions=2)
+
+    def test_label_overlap_purged(self):
+        import pandas as pd
+        dates = pd.date_range("2026-01-02", periods=70, freq="B", tz="Asia/Taipei")
+        frame = pd.DataFrame({
+            "date": dates,
+            "feature_available_at": dates - pd.Timedelta(minutes=1),
+            "label_end_at": dates + pd.Timedelta(days=4),
+        })
+        train, calibration, oos = split_by_session(frame, embargo_sessions=1)
+        self.assertLess(train["label_end_at"].max(), calibration["date"].min())
+        self.assertLess(calibration["label_end_at"].max(), oos["date"].min())
+
+    def test_missing_causal_timestamps_rejected(self):
+        import pandas as pd
+        with self.assertRaisesRegex(ValueError, "missing timestamp"):
+            split_by_session(pd.DataFrame({"date": pd.date_range("2026-01-02", periods=70, freq="B", tz="UTC")}), embargo_sessions=1)
+
     def test_horizon_is_never_production(self):
         import inspect
         from research.ai_direction_classifier import train
