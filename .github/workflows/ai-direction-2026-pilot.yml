@@ -1,0 +1,43 @@
+name: AI Direction 2026 Fugle Pilot (Manual Research Only)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: sky-ai-direction-fugle-pilot
+  cancel-in-progress: false
+jobs:
+  historical-pilot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install research ML dependencies
+        run: python -m pip install "numpy>=1.26,<3" "pandas>=2,<3" "scikit-learn>=1.4,<2" "xgboost>=2,<4" "lightgbm>=4,<5"
+      - name: Stop when credentials are not configured
+        shell: bash
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+        run: |
+          if [ -z "$FUGLE_API_KEY" ]; then
+            echo "::error::FUGLE_API_KEY missing; no historical backtest executed"
+            exit 1
+          fi
+      - name: Execute genuine 2026 two-symbol historical PILOT
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+        run: |
+          python -m research.ai_direction_2026_pilot \
+            --start 2026-01-01 --end 2026-11-07 \
+            --symbols 1101,8088 \
+            --out research_output/ai_direction_2026_pilot_summary.json
+      - name: Publish sanitized aggregate evidence only
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-direction-2026-aggregates-${{ github.run_id }}
+          path: research_output/ai_direction_2026_pilot_summary.json
+          retention-days: 30
+          if-no-files-found: error
