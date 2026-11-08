@@ -99,8 +99,8 @@ def build_rows(payload, *, horizon):
                           **features}
                 rows.append(record)
         else:
-            # Clock definitions are contract choices and require W0 review.
-            if any(t.minute % 5 != 0 or not (time(9,0) <= t.time() <= time(13,25)) for t in times):
+            # Clock definitions are contract choices and require W0 review.\n            # Fugle may include a distinct 13:30 closing-auction timestamp.\n            # Accept the timestamp in the source series, but never use it\n            # as a 09:40-13:20 execution path bar.
+            if any(t.minute % 5 != 0 or not (time(9,0) <= t.time() <= time(13,30)) for t in times):
                 raise ValueError("unexpected_5m_bar_timestamp")
             by_day = {}
             for i, stamp in enumerate(times):
