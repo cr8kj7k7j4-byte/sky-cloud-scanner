@@ -145,6 +145,14 @@ jobs:
         with:
           path: output/monitor_state.json
           key: sky-monitor-state-${{ github.run_id }}
+      - name: Archive scan history to GCS (create-only, fail closed)
+        if: always()
+        continue-on-error: true
+        env:
+          SKY_SCAN_HISTORY_BUCKET: ${{ vars.SKY_SCAN_HISTORY_BUCKET }}
+          SKY_SCAN_HISTORY_PREFIX: scan-history
+        run: |
+          python -m src.scan_history_archive
       - name: Upload scan report
         if: always()
         uses: actions/upload-artifact@v4
