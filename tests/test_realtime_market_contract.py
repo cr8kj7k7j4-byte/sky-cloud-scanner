@@ -169,3 +169,39 @@ def test_v11_candidate_with_fresh_executed_trade_can_be_observed(monkeypatch):
     assert quotes["1234"]["last"] == 40.2
     assert meta["fugle"] == 1
     assert meta["requested"] == 1
+
+
+# W3A data-integrity regressions: exercised by the existing realtime-contract CI.
+def test_w3a_missing_otc_quotes_are_reported_separately():
+    from src.realtime_quote_evidence import validate_whole_market_rows
+    pool = [{"symbol": "2330", "exchange": "TWSE"}, {"symbol": "8088", "exchange": "TPEx"}]
+    rows = [{"symbol": "2330", "last": 50, "quote_source": "Fugle bulk snapshot",
+             "quote_date": NOW.date().isoformat(), "last_trade_timestamp": NOW.isoformat()}]
+    result = validate_whole_market_rows(pool, rows, now=NOW)
+    assert result["missing_by_exchange"] == {"TWSE": 0, "TPEx": 1}
+    assert result["status"] == "BLOCKED_EXTERNAL_DATA"
+
+
+def test_w3a_invalid_otc_timestamp_is_received_but_rejected():
+    from src.realtime_quote_evidence import validate_whole_market_rows
+    pool = [{"symbol": "2330", "exchange": "TWSE"}, {"symbol": "8088", "exchange": "TPEx"}]
+    rows = [{"symbol": "2330", "last": 50, "quote_source": "Fugle bulk snapshot",
+             "quote_date": NOW.date().isoformat(), "last_trade_timestamp": NOW.isoformat()},
+            {"symbol": "8088", "last": 51, "quote_source": "Fugle bulk snapshot",
+             "quote_date": NOW.date().isoformat(), "last_trade_timestamp": None}]
+    result = validate_whole_market_rows(pool, rows, now=NOW)
+    assert result["missing_by_exchange"] == {"TWSE": 0, "TPEx": 0}
+    assert result["valid_quote_count"] == 1
+
+
+def test_w3a_trial_and_infinite_values_fail_closed():
+    from src.realtime_quote_evidence import validate_whole_market_rows
+    pool = [{"symbol": "2330", "exchange": "TWSE"}, {"symbol": "8088", "exchange": "TPEx"}]
+    base = {"quote_source": "Fugle bulk snapshot",
+            "quote_date": NOW.date().isoformat(), "last_trade_timestamp": NOW.isoformat()}
+    for override in ({"last": float("inf")}, {"last": 50, "isTrial": True}):
+        rows = [dict(base, symbol="2330", last=50), dict(base, symbol="8088", **override)]
+        result = validate_whole_market_rows(pool, rows, now=NOW,
+                                            min_coverage_pct=100, min_exchange_pct=100)
+        assert result["valid_quote_count"] == 1
+        assert result["valid_whole_market_operational"] is False
