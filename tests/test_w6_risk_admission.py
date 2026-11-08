@@ -140,7 +140,8 @@ def test_ledger_timestamp_provenance_requires_valid_timezone():
         assert result["status"] == "RISK_INPUT_REQUIRED", (bad, result)
         assert result["portfolio_allowed"] is False
         assert result["recommended_shares"] == 0
-        assert "ledger_source_invalid" in result["required_inputs"], (bad, result)
+        expected = "ledger_source_invalid" if bad else "ledger_source"
+        assert expected in result["required_inputs"], (bad, result)
 
     # Format validation is not authenticated provenance or true freshness.
     for asof in ("2026-11-08T10:00:00+08:00", "2026-11-08T02:00:00Z"):
