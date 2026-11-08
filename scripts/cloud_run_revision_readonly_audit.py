@@ -11,7 +11,7 @@ from pathlib import Path
 SERVICE = "tw-ai-mobile"
 REGION = "asia-east1"
 
-def extract(service, revision=None):
+def extract(service, revision=None, revisions=None):
     if not isinstance(service, dict):
         raise ValueError("service_payload_missing")
     status = service.get("status") or {}
@@ -28,8 +28,12 @@ def extract(service, revision=None):
         percent = row.get("percent", 0)
         if not isinstance(percent, int) or percent < 0 or percent > 100:
             raise ValueError("invalid_traffic_percent")
-        selected.append({"revision": row.get("revisionName"),
+        name = row.get("revisionName")
+        if not isinstance(name, str) or not name.startswith(SERVICE + "-"):
+            raise ValueError("invalid_traffic_revision")
+        selected.append({"revision": name,
                          "percent": percent,
+                         "tag": row.get("tag"),
                          "latest_revision": row.get("latestRevision") is True})
     if sum(row["percent"] for row in selected) != 100:
         raise ValueError("traffic_not_fully_attributed")
@@ -43,6 +47,22 @@ def extract(service, revision=None):
             rev_image = candidates[0].get("image")
         rev_image = ((revision.get("status") or {}).get("imageDigest")
                      or rev_image)
+    # Independently inspect every traffic revision, including tagged 0%-traffic
+    # canaries. The service template does not attest a serving revision image.
+    inspected = {}
+    if revisions is not None:
+        required = {latest} | {row["revision"] for row in selected}
+        if set(revisions) != required:
+            raise ValueError("revision_set_incomplete")
+        for name in sorted(required):
+            data = revisions[name]
+            if not isinstance(data, dict) or (data.get("metadata") or {}).get("name") != name:
+                raise ValueError("revision_identity_mismatch")
+            containers = ((data.get("spec") or {}).get("containers") or [])
+            spec_image = containers[0].get("image") if containers and isinstance(containers[0], dict) else None
+            digest = (data.get("status") or {}).get("imageDigest")
+            inspected[name] = {"spec_image": spec_image, "status_image_digest": digest,
+                               "image_evidence_present": bool(spec_image or digest)}
     conditions = status.get("conditions") or []
     ready = any(c.get("type") == "Ready" and c.get("status") == "True"
                 for c in conditions if isinstance(c, dict))
@@ -52,6 +72,8 @@ def extract(service, revision=None):
         "traffic": selected,
         "service_template_image": image,
         "ready_revision_image_or_digest": rev_image,
+        "revision_images": inspected,
+        "all_revisions_inspected": revisions is not None,
         "service_ready_condition": ready,
         "deployed_commit": "UNVERIFIED_NO_TRUSTED_BUILD_ATTESTATION",
         "http_health_verified": False,
@@ -79,8 +101,18 @@ def main():
         rev=(service.get("status") or {}).get("latestReadyRevisionName")
         if not rev:
             raise ValueError("missing_ready_revision")
-        revision=gcloud_json("run","revisions","describe",rev,"--region",REGION)
-        report["evidence"]=extract(service,revision)
+        rows=(service.get("status") or {}).get("traffic") or []
+        # Strictly bound service names; never query arbitrary caller-supplied IDs.
+        names={rev}
+        for row in rows:
+            if not isinstance(row,dict) or not isinstance(row.get("revisionName"),str) or not row["revisionName"].startswith(SERVICE+"-"):
+                raise ValueError("invalid_traffic_revision")
+            names.add(row["revisionName"])
+        revisions={name:gcloud_json("run","revisions","describe",name,"--region",REGION)
+                   for name in sorted(names)}
+        report["evidence"]=extract(service,revisions[rev],revisions)
+        if not all(item["image_evidence_present"] for item in report["evidence"]["revision_images"].values()):
+            raise ValueError("revision_image_evidence_missing")
         report["status"]="REVISION_READ_ONLY_CONFIRMED"
     except (ValueError,RuntimeError,subprocess.TimeoutExpired,json.JSONDecodeError) as ex:
         report["blocker"]=str(ex) if isinstance(ex,(ValueError,RuntimeError)) else type(ex).__name__
