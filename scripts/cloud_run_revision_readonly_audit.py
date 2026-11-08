@@ -70,8 +70,10 @@ def extract(service, revision=None, revisions=None):
             # gcloud JSON, which can contain secret names and values.
             runtime = {
                 "container_count": len(containers),
-                "first_container_command": containers[0].get("command") if containers else None,
-                "first_container_args": containers[0].get("args") if containers else None,
+                "command_override_present": bool(containers[0].get("command")) if containers else False,
+                "args_override_present": bool(containers[0].get("args")) if containers else False,
+                "command_arg_count": len(containers[0].get("command") or []) if containers else 0,
+                "args_count": len(containers[0].get("args") or []) if containers else 0,
                 "first_container_ports": [
                     {"name": p.get("name"), "containerPort": p.get("containerPort")}
                     for p in (containers[0].get("ports") or []) if isinstance(p, dict)
