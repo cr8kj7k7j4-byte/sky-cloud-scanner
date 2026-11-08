@@ -9,6 +9,8 @@ on:
       - 'tests/test_sky_meta_filter_source_gate.py'
       - 'research/sky_meta_filter_followup.py'
       - 'tests/test_sky_meta_filter_followup.py'
+      - 'research/sky_meta_filter_forward_preflight.py'
+      - 'tests/test_sky_meta_filter_forward_preflight.py'
       - 'tests/test_sky_meta_filter_ledger.py'
       - 'research/SKY_META_FILTER_V0_1_INTAKE_20261109.md'
       - '.github/workflows/sky-meta-filter-contract-ci.yml'
@@ -25,9 +27,9 @@ jobs:
         with:
           python-version: '3.11'
       - name: Reject unsupported behavior using synthetic fixtures only
-        run: python -m unittest -v tests.test_sky_meta_filter_v0_1 tests.test_sky_meta_filter_ledger tests.test_sky_meta_filter_source_gate tests.test_sky_meta_filter_followup
+        run: python -m unittest -v tests.test_sky_meta_filter_v0_1 tests.test_sky_meta_filter_ledger tests.test_sky_meta_filter_source_gate tests.test_sky_meta_filter_followup tests.test_sky_meta_filter_forward_preflight
       - name: Syntax-check research module
-        run: python -m py_compile research/sky_meta_filter_v0_1.py research/sky_meta_filter_ledger.py research/sky_meta_filter_source_gate.py research/sky_meta_filter_followup.py tests/test_sky_meta_filter_followup.py tests/test_sky_meta_filter_source_gate.py tests/test_sky_meta_filter_v0_1.py tests/test_sky_meta_filter_ledger.py
+        run: python -m py_compile research/sky_meta_filter_v0_1.py research/sky_meta_filter_ledger.py research/sky_meta_filter_source_gate.py research/sky_meta_filter_followup.py tests/test_sky_meta_filter_followup.py tests/test_sky_meta_filter_forward_preflight.py research/sky_meta_filter_forward_preflight.py tests/test_sky_meta_filter_source_gate.py tests/test_sky_meta_filter_v0_1.py tests/test_sky_meta_filter_ledger.py
       - name: Audit actual canonical frozen v1.4 source registry (read-only)
         run: |
           python -m research.sky_meta_filter_source_gate \
@@ -47,5 +49,27 @@ jobs:
         with:
           name: sky-meta-v01-source-readiness-${{ github.run_id }}
           path: research_output/sky_meta_filter_source_readiness.json
+          retention-days: 30
+          if-no-files-found: error
+      - name: Audit actual Sky v0.5 scanner versus v1.4 forward decision contract
+        run: |
+          python -m research.sky_meta_filter_forward_preflight \
+            --registry research/SKY_DAY_V14_FROZEN_RULE_SOURCE_REGISTRY.json \
+            --scan-workflow .github/workflows/scan.yml \
+            --out research_output/sky_meta_filter_forward_preflight.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          record=json.loads(Path("research_output/sky_meta_filter_forward_preflight.json").read_text())
+          assert record["admitted_candidates"] == 0
+          assert record["forward_private_ledger_enabled"] is False
+          assert record["scanner_workflow_name"] == "Sky Cloud Scanner v0.5 + P0-R"
+          print("blocked candidate source:",record["candidate_stream_status"])
+          PY
+      - name: Save forward-source preflight evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-meta-v01-forward-preflight-${{ github.run_id }}
+          path: research_output/sky_meta_filter_forward_preflight.json
           retention-days: 30
           if-no-files-found: error
