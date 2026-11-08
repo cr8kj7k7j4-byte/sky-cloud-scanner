@@ -123,6 +123,22 @@ def test_only_a_plus_can_enter_candidate_risk_admission():
     assert evaluate_candidate(C, CTX, P)["status"] == "ALLOW"
 
 
+def test_integer_count_wire_format_cannot_crash_admission():
+    # An upstream JSON string "1.0" used to pass float validation but raise
+    # ValueError inside evaluate_trade's int("1.0"), aborting the scan.
+    for key in ("concurrent_positions", "consecutive_losses"):
+        for raw in ("1.0", "1e0", " 1 ", "-0", "not_available"):
+            result = evaluate_candidate(C, dict(CTX, **{key: raw}), P)
+            assert result["status"] == "RISK_INPUT_REQUIRED", (key, raw, result)
+            assert result["portfolio_allowed"] is False
+            assert result["recommended_shares"] == 0
+            assert key + "_invalid" in result["required_inputs"]
+        # A canonical integer string from an authenticated feed remains
+        # parseable by the legacy arithmetic helper; this is not proof of origin.
+        valid = evaluate_candidate(C, dict(CTX, **{key: "1"}), P)
+        assert valid["status"] == "ALLOW", (key, valid)
+
+
 def test_default_risk_policy_matches_confirmed_500k_p0r():
     defaults = RiskPolicy()
     assert defaults.risk_per_trade_pct == 0.01
@@ -163,4 +179,5 @@ if __name__ == "__main__":
     test_nonfinite_candidate_prices_fail_closed()
     test_only_a_plus_can_enter_candidate_risk_admission()
     test_default_risk_policy_matches_confirmed_500k_p0r()
+    test_integer_count_wire_format_cannot_crash_admission()
     print("PASS W6 candidate fail-closed checks")
