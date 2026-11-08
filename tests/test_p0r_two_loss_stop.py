@@ -55,3 +55,13 @@ def test_cost_assumptions_are_not_conflated_with_net_rr():
     assert result["execution_status"] == "EXECUTION_INPUT_REQUIRED"
     assert result["execution_adjusted_rr"] is None
     # P0-R arithmetic is not a proven production entry permit.
+
+
+def test_long_stop_cannot_be_at_or_above_entry():
+    params = dict(entry=50, target=55, account_equity=500000,
+                  policy=RiskPolicy(risk_per_trade_pct=0.01, lot_size=1000))
+    for invalid_stop in (50, 51):
+        result = evaluate_trade(stop=invalid_stop, **params)
+        assert result["status"] == "BLOCK"
+        assert result["recommended_shares"] == 0
+        assert any("做多停損必須低於買進價" in text for text in result["reasons"])
