@@ -272,3 +272,27 @@ def test_w3a_integrated_route_never_mixes_two_partial_sources():
     assert result["primary_evidence"]["valid_quote_count"] == 1
     assert result["primary_evidence"]["missing_by_exchange"]["TPEx"] == 1
     assert all(row["quote_source"] == "TWSE MIS" for row in result["rows"])
+
+
+def test_w3a_no_candidate_diagnostic_does_not_mask_data_block():
+    from src.w3a_candidate_funnel import build_candidate_funnel
+    result = build_candidate_funnel(
+        universe_count=2, quote_audit={"valid_quote_count": 1},
+        source="TWSE MIS (fallback)", data_gate="BLOCKED_EXTERNAL_DATA_NO_TRADE",
+        working_count=0, first_pass=0, top=0, deep=0, rejected=0,
+        unverified=0, gate_failures=[],
+    )
+    assert result["zero_candidate_diagnostic"] == "MARKET_DATA_GATE_BLOCKED"
+    assert result["new_trade_approval"] is False
+
+
+def test_w3a_first_gate_diagnostics_preserve_rejection_counts():
+    from src.w3a_candidate_funnel import build_candidate_funnel
+    result = build_candidate_funnel(
+        universe_count=2, quote_audit={"valid_quote_count": 2},
+        source="Fugle bulk snapshot", data_gate="PASS_FULL_MARKET_LIVE",
+        working_count=2, first_pass=0, top=0, deep=0, rejected=0,
+        unverified=0, gate_failures=["PRICE", "PRICE", "VOLUME"],
+    )
+    assert result["zero_candidate_diagnostic"] == "FIRST_GATE_REJECTED_ALL"
+    assert result["first_gate_reasons"] == {"PRICE": 2, "VOLUME": 1}
