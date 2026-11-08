@@ -23,6 +23,7 @@ from .config import (
 from .official import load_official_universe, fetch_mis_quotes
 from .quote_provider import collect_market_quotes
 from .realtime_quote_evidence import validate_whole_market_rows
+from .w3a_candidate_funnel import build_candidate_funnel
 from .fugle import get_ticker, get_quote, get_candles
 from .decision_engine import first_gate, evaluate_decision
 from .feature_engine import build_features, enrich_candidate_context
@@ -412,11 +413,14 @@ def run():
             row["gainer_rank_source"] = "current_snapshot_change_pct"
 
         passed = []
+        first_gate_reasons = []
         for r in working_rows:
             ok, reasons = first_gate(r)
             r["gate_reasons"] = reasons
             if ok:
                 passed.append(r)
+            else:
+                first_gate_reasons.extend(str(reason) for reason in reasons)
 
         top = rank_screening_candidates(passed)[:TOP_N]
         st["top100"] = top
@@ -542,6 +546,19 @@ def run():
         st["deep"] = deep
         st["deep_rejected"] = rejected[:20]
         st["deep_unverified"] = unverified[:20]
+        st["candidate_funnel"] = build_candidate_funnel(
+            universe_count=len(universe),
+            quote_audit=quote_audit,
+            source=market["provider"],
+            data_gate=st["market_data_gate"],
+            working_count=len(working_rows),
+            first_pass=len(passed),
+            top=len(top),
+            deep=len(deep),
+            rejected=len(rejected),
+            unverified=len(unverified),
+            gate_failures=first_gate_reasons,
+        )
         st["monitor_engine"]["decisions"] = [
             d.to_dict() for d in monitor_decisions
         ]
