@@ -21,7 +21,7 @@ from research.three_model_fugle_pipeline import TPE, read_fugle
 
 OBS_PREFIX = "three-model-research/v1/"
 OUTCOME_PREFIX = "three-model-followup/v1/"
-MAX_SCAN = 500
+MAX_SCAN = 20000  # explicit safety ceiling (~13 years at 2 symbols x 3/day)
 MODEL_IDS = frozenset(("bidirectional_intraday", "next_day", "swing_3_20d"))
 DIRECTIONS = frozenset(("LONG_WATCH", "SHORT_WATCH", "NO_TRADE"))
 
@@ -126,8 +126,8 @@ def run(store, bucket, key, as_of, *, fetch=read_fugle):
     if as_of > datetime.now(TPE).date():
         raise ValueError("future_followup_requested")
     blobs = list(store.list_blobs(bucket, prefix=OBS_PREFIX,
-                                  max_results=MAX_SCAN))
-    if len(blobs) >= MAX_SCAN:
+                                  max_results=MAX_SCAN + 1))
+    if len(blobs) > MAX_SCAN:
         raise ValueError("ledger_scan_limit_reached")
     valid = []
     pending = []
@@ -158,7 +158,14 @@ def run(store, bucket, key, as_of, *, fetch=read_fugle):
     updates = []
     for symbol, group in sorted(by_symbol.items()):
         start = min(r["bar_time"].date() for r in group) + timedelta(days=1)
-        candles = fetch(symbol, "D", start, as_of, key)
+        try:
+            candles = fetch(symbol, "D", start, as_of, key)
+        except ValueError as exc:
+            # On exchange holidays the provider can legitimately return no
+            # completed session. Do not misreport that as an API or IAM failure.
+            if str(exc) != "provider_empty_data":
+                raise
+            candles = []
         for row in group:
             outcome = first_next_session(row, candles)
             if outcome is None:
