@@ -18,12 +18,19 @@ on:
       - 'research/mcr_proxy_event_ledger.py'
       - 'research/mcr_episode_audit.py'
       - 'research/mcr_forward_markouts.py'
+      - 'research/mcr_session_calendar.py'
+      - 'research/mcr_evidence_gaps.py'
+      - 'tests/test_mcr_session_calendar_gaps.py'
       - 'research/mcr_forward_price_snapshots.py'
       - 'tests/test_mcr_forward_price_snapshots.py'
       - 'tests/test_mcr_episode_validation.py'
       - 'tests/test_mcr_proxy_event_ledger.py'
       - 'tests/test_mcr_merged_proxy.py'
       - 'tests/test_mcr_official_margin_proxy.py'
+      - 'research/mcr_forward_markouts.py'
+      - 'research/mcr_session_calendar.py'
+      - 'research/mcr_evidence_gaps.py'
+      - 'tests/test_mcr_session_calendar_gaps.py'
       - '.github/workflows/mcr-official-proxy-audit.yml'
   pull_request:
     paths:
@@ -47,7 +54,7 @@ jobs:
       - name: Offline parser, date, and no-trade tests
         run: python -m unittest tests.test_mcr_official_margin_proxy -v
       - name: Test cross-market verified-session merge
-        run: python -m unittest tests.test_mcr_tpex_margin_proxy tests.test_mcr_merged_proxy tests.test_mcr_proxy_event_ledger tests.test_mcr_daily_volume tests.test_mcr_episode_validation tests.test_mcr_forward_price_snapshots -v
+        run: python -m unittest tests.test_mcr_tpex_margin_proxy tests.test_mcr_merged_proxy tests.test_mcr_proxy_event_ledger tests.test_mcr_daily_volume tests.test_mcr_episode_validation tests.test_mcr_forward_price_snapshots tests.test_mcr_session_calendar_gaps -v
       - name: Validate live official closing-volume schemas (no secret)
         run: |
           python - <<'PY'
@@ -146,23 +153,14 @@ jobs:
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         continue-on-error: true
         run: python -m research.mcr_forward_price_snapshots
-      - name: Produce no-fabrication outcome completeness report
+      - name: Produce calendar-validated forward EOD reference outcomes
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         run: |
-          python - <<'PY'
-          import json,pathlib
-          from research.mcr_forward_markouts import research_markouts
-          d=json.loads(pathlib.Path("research_output/mcr_episode_audit_latest.json").read_text(encoding="utf-8"))
-          rows=[]
-          for path in sorted(pathlib.Path("research_output/mcr_eod_price_evidence").glob("????-??-??.json")):
-              snap=json.loads(path.read_text(encoding="utf-8"))
-              if snap.get("schema")!="MCR_OFFICIAL_EOD_PRICES_V1" or snap.get("execution_authorized") is not False or snap.get("session")!=path.stem:
-                  raise ValueError("INVALID_PRICE_SNAPSHOT")
-              rows.extend(snap["rows"])
-          outcome=research_markouts(d["episodes"],rows,asof_session=d["last_session"])
-          pathlib.Path("research_output/mcr_markout_latest.json").write_text(json.dumps(outcome,ensure_ascii=False,indent=2),encoding="utf-8")
-          print("MCR_FORWARD_REFERENCE_EVIDENCE",len(rows),"episodes",len(d["episodes"]),"status",outcome["report_status"])
-          PY
+          DAY=$(python -c 'import json;print(json.load(open("research_output/mcr_episode_audit_latest.json"))["last_session"])')
+          python -m research.mcr_forward_markouts --asof "$DAY"
+      - name: Publish research evidence gap and no-trade governance verdict
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        run: python -m research.mcr_evidence_gaps
       - name: Record outcome completeness only until real forward prices exist
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         run: |
@@ -182,6 +180,6 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           # Force-add only these two audited public research artifacts.
           # research_output/ is otherwise deliberately ignored.
-          git add -f research_output/mcr_official_proxy_combined_latest.json research_output/mcr_event_ledger/*.json research_output/mcr_episode_audit_latest.json research_output/mcr_markout_latest.json
+          git add -f research_output/mcr_official_proxy_combined_latest.json research_output/mcr_event_ledger/*.json research_output/mcr_episode_audit_latest.json research_output/mcr_markout_latest.json research_output/mcr_evidence_gaps_latest.json
           if compgen -G "research_output/mcr_eod_price_evidence/*.json" > /dev/null; then git add -f research_output/mcr_eod_price_evidence/*.json; fi
           git diff --cached --quiet || (git commit -m "data(research): TWSE TPEx verified financing snapshot [skip ci]" && git pull --rebase && git push)
