@@ -34,6 +34,9 @@ class FugleHistoricalRunnerTests(unittest.TestCase):
                 self.assertTrue(report["historical_only"])
                 self.assertFalse(report["production_signal"])
                 self.assertEqual(len(report["results"]), 3)
+                self.assertEqual(report["requested_models"], 3)
+                self.assertEqual(report["completed_models"] + report["blocked_models"], 3)
+                self.assertEqual(report["complete_coverage"], report["blocked_models"] == 0)
 
 
 if __name__ == "__main__":
