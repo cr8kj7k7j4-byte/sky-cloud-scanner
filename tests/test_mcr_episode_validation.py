@@ -56,13 +56,17 @@ class MarkoutTests(unittest.TestCase):
         return build_episode_audit([ledger("2026-11-06",["1101"])])["episodes"]
     def test_no_future_data_is_pending_not_loss(self):
         r=research_markouts(self.episodes(),[],asof_session="2026-11-08")
-        self.assertEqual(r["results"][0]["status"],"PENDING_FORWARD_SESSIONS")
+        self.assertEqual(r["results"][0]["status"],"PENDING_SESSION_CALENDAR")
         self.assertEqual(r["trade_count"],0)
         self.assertIsNone(r["cost_adjusted_expectancy_pct"])
     def test_reference_markouts_cannot_be_claimed_as_real_fills(self):
         prices=[price("2026-11-09",10),price("2026-11-10",11),
                 price("2026-11-11",12),price("2026-11-12",13)]
-        r=research_markouts(self.episodes(),prices,asof_session="2026-11-12")
+        calendar={"schema":"MCR_SESSION_CALENDAR_V1","source":"VERIFIED_DUAL_MARKET_EOD_SNAPSHOTS",
+                  "exchange_sessions":{"TWSE":["2026-11-09","2026-11-10","2026-11-11","2026-11-12"],
+                                       "TPEx":["2026-11-09","2026-11-10","2026-11-11","2026-11-12"]},
+                  "unverified_weekday_gaps":[],"coverage_days":4}
+        r=research_markouts(self.episodes(),prices,asof_session="2026-11-12",session_calendar=calendar)
         h=r["results"][0]["horizons"]
         self.assertEqual(h["1"]["long_reference_change_pct"],10.0)
         self.assertFalse(h["1"]["execution_validated"])
