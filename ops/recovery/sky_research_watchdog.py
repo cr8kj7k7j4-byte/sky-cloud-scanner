@@ -120,6 +120,12 @@ def main():
         api("POST", root + "/actions/runs/" + str(run_id) + "/rerun-failed-jobs", token)
 
     report = check_once(fetch, retry, now, cutoff, enabled)
+    if report["expired"]:
+        # Disable this *exact* monitoring workflow after its bounded 24h window.
+        # This prevents endless 5-minute no-op jobs and future compute charges.
+        workflow = "sky-research-ci-watchdog.yml"
+        api("PUT", root + "/actions/workflows/" + workflow + "/disable", token)
+        report["workflow_disabled"] = True
     os.makedirs("recovery-reports", exist_ok=True)
     with open("recovery-reports/latest.json", "w", encoding="utf-8") as fp:
         json.dump(report, fp, ensure_ascii=False, indent=2)
