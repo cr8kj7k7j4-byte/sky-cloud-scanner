@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   scan:
@@ -145,6 +146,12 @@ jobs:
         with:
           path: output/monitor_state.json
           key: sky-monitor-state-${{ github.run_id }}
+      - name: Authenticate GCS for scan-history archival
+        if: always() && vars.SKY_SCAN_HISTORY_BUCKET != ''
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
       - name: Archive scan history to GCS (create-only, fail closed)
         if: always()
         continue-on-error: true
