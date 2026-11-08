@@ -64,7 +64,9 @@ EXEC_LIQUIDITY_PENALTY_BPS = _f_optional("EXEC_LIQUIDITY_PENALTY_BPS")
 EXEC_FILL_PROBABILITY = _f_optional("EXEC_FILL_PROBABILITY")
 EXEC_FINANCING_INTEREST_PER_SHARE = _f_optional("EXEC_FINANCING_INTEREST_PER_SHARE")
 EXEC_MIN_RR = float(os.getenv("EXEC_MIN_RR", "1.5"))
-EXEC_ENFORCE_GATE = _b("EXEC_ENFORCE_GATE", "0")
+# P0-R cost-after-execution authorization: unknown spread/slippage/impact must BLOCK.
+# This does not authorize live trades when the source ledger is missing.
+EXEC_ENFORCE_GATE = _b("EXEC_ENFORCE_GATE", "1")
 
 
 # P0-LAB / Paper Trading
