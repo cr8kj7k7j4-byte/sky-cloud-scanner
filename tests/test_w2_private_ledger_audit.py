@@ -169,3 +169,15 @@ def test_read_only_report_never_exports_paid_markout_price_or_return():
     assert '"next_session_close"' not in serialized
     assert '"next_session_return_pct"' not in serialized
     assert '"followup_type"' not in serialized
+
+
+def test_markout_reference_price_must_match_original_immutable_observation():
+    # A mathematically coherent return is insufficient if it uses a forged
+    # observation reference price. The private comparison must not leak it.
+    forged = outcome(reference_close=28.5,
+                     next_session_return_pct=0.35087719)
+    store = Store([blob(OBS_PREFIX, observation()),
+                   blob(OUTCOME_PREFIX, forged)])
+    with pytest.raises(ValueError, match="markout_reference_close_mismatch"):
+        read_only_audit(store, "private-test-ledger")
+    assert store.write_calls == 0
