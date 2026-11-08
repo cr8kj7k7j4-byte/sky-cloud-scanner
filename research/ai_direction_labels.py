@@ -59,6 +59,8 @@ def build_rows(payload, *, horizon):
         raise ValueError("invalid_horizon")
     if not isinstance(payload, dict) or payload.get("source") != "FUGLE":
         raise ValueError("source_claim_required_not_verified")
+    if payload.get("bar_timestamp_semantics") != "BAR_END":
+        raise ValueError("bar_end_timestamp_semantics_unverified")
     as_of = parse_timestamp(payload.get("as_of"))
     symbols = payload.get("symbols")
     if not isinstance(symbols, dict) or not symbols:
@@ -101,7 +103,10 @@ def build_rows(payload, *, horizon):
                 raise ValueError("unexpected_5m_bar_timestamp")
             by_day = {}
             for i, stamp in enumerate(times):
-                by_day.setdefault(stamp.date(), {})[stamp.time()] = i
+                day_bars = by_day.setdefault(stamp.date(), {})
+                if stamp.time() in day_bars:
+                    raise ValueError("duplicate_5m_session_time")
+                day_bars[stamp.time()] = i
             for day, positions in sorted(by_day.items()):
                 if not all(x in positions for x in (time(9,30), time(9,35), time(13,20))):
                     continue
