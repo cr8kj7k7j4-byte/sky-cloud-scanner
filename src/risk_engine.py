@@ -239,6 +239,27 @@ def evaluate_candidate(candidate, portfolio_context, policy=None):
         "drawdown_pct", "consecutive_losses",
     )
     absent = [key for key in required if portfolio_context.get(key) is None]
+    # Reject invalid values instead of coercing them to a supposedly safe zero.
+    # Daily P&L may legitimately be negative; other risk utilization is nonnegative.
+    for key in required:
+        raw = portfolio_context.get(key)
+        if raw is None:
+            continue
+        try:
+            n = float(raw)
+        except (TypeError, ValueError, OverflowError):
+            absent.append(key + "_invalid")
+            continue
+        if isinstance(raw, bool) or not math.isfinite(n):
+            absent.append(key + "_invalid")
+        elif key != "daily_pnl" and n < 0:
+            absent.append(key + "_invalid")
+        elif key == "account_equity" and n <= 0:
+            absent.append(key + "_invalid")
+        elif key in ("concurrent_positions", "consecutive_losses") and (
+            n != int(n)
+        ):
+            absent.append(key + "_invalid")
     # Do not accept an unsigned / stale / research-only context as live truth.
     if portfolio_context.get("ledger_verified") is not True:
         absent.append("ledger_verified")
