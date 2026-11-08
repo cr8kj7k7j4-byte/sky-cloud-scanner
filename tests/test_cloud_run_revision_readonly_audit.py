@@ -1,5 +1,5 @@
 import unittest
-from scripts.cloud_run_revision_readonly_audit import extract
+from scripts.cloud_run_revision_readonly_audit import extract, is_immutable_digest
 
 def sample():
     return {
@@ -174,6 +174,28 @@ class ReadOnlyCloudRunAuditTests(unittest.TestCase):
         proof = data["revision_images"]["tw-ai-mobile-001"]
         self.assertTrue(proof["image_evidence_present"])
         self.assertFalse(proof["immutable_digest_present"])
+
+    def test_immutable_digest_requires_64_hex_characters(self):
+        valid = "asia-east1-docker.pkg.dev/project/repo/app@sha256:" + "a" * 64
+        self.assertTrue(is_immutable_digest(valid))
+        for value in (
+            None, True, 5, "", "app:latest",
+            "app@sha256:", "app@sha256:abc", "app@sha256:" + "a" * 63,
+            "app@sha256:" + "g" * 64, valid + "garbage",
+            "app with space@sha256:" + "a" * 64
+        ):
+            with self.subTest(value=value):
+                self.assertFalse(is_immutable_digest(value))
+
+    def test_complete_immutable_digest_attests_not_just_tag(self):
+        valid = "example.invalid/repo/app@sha256:" + "b" * 64
+        revision = {
+            "metadata": {"name": "tw-ai-mobile-001"},
+            "spec": {"containers": [{"image": "example.invalid/repo/app:latest"}]},
+            "status": {"imageDigest": valid}
+        }
+        result = extract(sample(), revision, {"tw-ai-mobile-001": revision})
+        self.assertTrue(result["revision_images"]["tw-ai-mobile-001"]["immutable_digest_present"])
 
 if __name__=="__main__":
     unittest.main()
