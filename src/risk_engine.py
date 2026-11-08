@@ -1,5 +1,6 @@
 from dataclasses import dataclass, asdict
 import math
+from datetime import datetime
 
 from .execution_engine import ExecutionCostPolicy, evaluate_execution_rr, execution_gate
 
@@ -283,10 +284,25 @@ def evaluate_candidate(candidate, portfolio_context, policy=None):
     # Do not accept an unsigned / stale / research-only context as live truth.
     if portfolio_context.get("ledger_verified") is not True:
         absent.append("ledger_verified")
-    if not portfolio_context.get("ledger_asof"):
+    asof = portfolio_context.get("ledger_asof")
+    if not asof:
         absent.append("ledger_asof")
-    if not portfolio_context.get("ledger_source"):
+    elif not isinstance(asof, str):
+        absent.append("ledger_asof_invalid")
+    else:
+        try:
+            # A non-empty but malformed/naive timestamp does not prove a
+            # completed brokerage snapshot. Require offset-aware ISO 8601.
+            parsed_asof = datetime.fromisoformat(asof.replace("Z", "+00:00"))
+            if parsed_asof.tzinfo is None or parsed_asof.utcoffset() is None:
+                absent.append("ledger_asof_invalid")
+        except (ValueError, TypeError, OverflowError):
+            absent.append("ledger_asof_invalid")
+    source = portfolio_context.get("ledger_source")
+    if not source:
         absent.append("ledger_source")
+    elif not isinstance(source, str) or not source.strip():
+        absent.append("ledger_source_invalid")
     if portfolio_context.get("ledger_fresh") is not True:
         absent.append("ledger_fresh")
     if portfolio_context.get("ledger_complete") is not True:
