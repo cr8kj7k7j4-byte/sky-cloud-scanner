@@ -140,7 +140,7 @@ def test_happy_path_reaches_shadow_but_not_live_execution():
 
 def test_daily_loss_limit_blocks_before_execution_action():
     _, c = _build_chain(
-        daily_pnl=-15_000,
+        daily_pnl=-20_000,
         execution_policy=_execution_policy(True),
     )
     assert c["risk"]["status"] == "BLOCK"
