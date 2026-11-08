@@ -83,5 +83,59 @@ class ReadOnlyCloudRunAuditTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "invalid_traffic_revision"):
             extract(service)
 
+    def test_latest_revision_without_revision_name_is_supported(self):
+        service = sample()
+        service["status"]["latestReadyRevisionName"] = "tw-ai-mobile-002"
+        service["status"]["traffic"] = [
+            {"revisionName": "tw-ai-mobile-001", "percent": 100},
+            {"latestRevision": True, "tag": "ledger-canary", "percent": 0},
+        ]
+        revisions = {
+            name: {"metadata": {"name": name},
+                   "spec": {"containers": [{"image": "example.invalid/" + name}]}}
+            for name in ("tw-ai-mobile-001", "tw-ai-mobile-002")
+        }
+        data = extract(service, revisions["tw-ai-mobile-002"], revisions)
+        self.assertEqual(data["traffic"][1]["revision"], "tw-ai-mobile-002")
+        self.assertTrue(data["all_revisions_inspected"])
+
+    def test_runtime_evidence_never_exposes_environment_or_command_secrets(self):
+        service = sample()
+        revision = {
+            "metadata": {
+                "name": "tw-ai-mobile-001",
+                "labels": {"commit-sha": "abcdef", "gcb-build-id": "build-123"}
+            },
+            "spec": {
+                "serviceAccountName": "private-service-account@internal.invalid",
+                "containers": [{
+                    "image": "example.invalid/rev@sha256:abcd",
+                    "command": ["python", "--password=COMMAND_PRIVATE"],
+                    "args": ["--api-key=ARGS_PRIVATE"],
+                    "ports": [{"name": "http1", "containerPort": 8080}],
+                    "env": [{"name": "MOBILE_PASSWORD", "value": "ENV_PRIVATE"}],
+                }]
+            },
+            "status": {"imageDigest": "example.invalid/rev@sha256:abcd"}
+        }
+        data = extract(service, revision, {"tw-ai-mobile-001": revision})
+        evidence = data["revision_images"]["tw-ai-mobile-001"]["runtime"]
+        self.assertTrue(evidence["command_override_present"])
+        self.assertTrue(evidence["args_override_present"])
+        self.assertEqual(evidence["first_container_ports"][0]["containerPort"], 8080)
+        self.assertEqual(evidence["commit_label"], "abcdef")
+        self.assertTrue(evidence["revision_service_account_set"])
+        import json
+        dump = json.dumps(data)
+        for secret in ("COMMAND_PRIVATE", "ARGS_PRIVATE", "ENV_PRIVATE",
+                       "private-service-account@internal.invalid"):
+            self.assertNotIn(secret, dump)
+
+    def test_traffic_latest_flag_without_revision_name_requires_true(self):
+        service = sample()
+        service["status"]["traffic"] = [{"latestRevision": False, "percent": 100}]
+        with self.assertRaisesRegex(ValueError, "invalid_traffic_revision"):
+            extract(service)
+
 if __name__=="__main__":
     unittest.main()
