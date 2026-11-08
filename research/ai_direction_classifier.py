@@ -106,8 +106,17 @@ def train(df, feature_cols, *, horizon, embargo_sessions):
     ytest=(test_data["target_return_pct"]>0).astype(int)
     if min(ytrain.nunique(),ycal.nunique(),ytest.nunique())<2:
         raise ValueError("class collapsed in one of the temporal partitions")
+    # Always report a no-skill historical comparator based on TRAIN ONLY.
+    # No held-out outcomes are used to set its predicted probability.
+    train_prevalence = float(ytrain.mean())
+    constant_oos = np.full(len(ytest), train_prevalence, dtype=float)
+    constant_metrics = metrics(ytest, constant_oos)
+    constant_metrics["predicted_up_rate_from_training"] = train_prevalence
+    constant_metrics["direction_of_constant_classifier"] = (
+        "UP" if train_prevalence >= .5 else "DOWN"
+    )
     report={"schema":"sky-ai-direction-training-audit-v1", "horizon":horizon,
-            "features":list(feature_cols),"embargo_sessions":embargo_sessions,
+            "features":list(feature_cols),"embargo_sessions":embargo_sessions,\n            "train_only_constant_baseline_oos":constant_metrics,
             "splits":{"train_n":len(train_data),"calibration_n":len(cal_data),"oos_n":len(test_data),
                       "train_end":str(train_data["date"].max()),"calibration_end":str(cal_data["date"].max()),
                       "oos_end":str(test_data["date"].max())},
