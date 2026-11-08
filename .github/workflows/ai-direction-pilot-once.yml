@@ -19,14 +19,14 @@ jobs:
       - name: Checkout fixed research commit (not Production)
         uses: actions/checkout@v4
         with:
-          ref: d45158ebe50e5baa5c1be87dde43dbc5421c07a5
+          ref: 2712a8934ca7a387d779808f1dd5d8e0b01d236c
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
       - name: Install isolated research dependencies
         run: python -m pip install "numpy>=1.26,<3" "pandas>=2,<3" "scikit-learn>=1.4,<2" "xgboost>=2,<4" "lightgbm>=4,<5"
-      - name: Execute actual two-symbol 2026 historical research audit
+      - name: Execute expanded ten-symbol 2026 historical research audit
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
         shell: bash
@@ -38,12 +38,12 @@ jobs:
           fi
           python -m research.ai_direction_2026_pilot \
             --start 2026-01-01 --end 2026-11-07 \
-            --symbols 1101,8088 \
+            --symbols 1101,8088,2330,2317,2303,2603,2882,1301,2002,2454 \
             --out research_output/ai_direction_2026_pilot_summary.json
       - name: Save only sanitized research metrics
         uses: actions/upload-artifact@v4
         with:
-          name: sky-ai-direction-2026-two-symbol-pilot-${{ github.run_id }}
+          name: sky-ai-direction-2026-cohort10-pilot-${{ github.run_id }}
           path: research_output/ai_direction_2026_pilot_summary.json
           if-no-files-found: error
           retention-days: 14
@@ -54,7 +54,7 @@ jobs:
           script: |
             const {owner,repo}=context.repo;
             const marker='<!-- sky-ai-direction-one-shot:'+context.runId+' -->';
-            const body=marker+'\n2026/1/1～11/7 真實富果兩檔歷史研究試跑未成功；'
+            const body=marker+'\n2026/1/1～11/7 真實富果十檔歷史研究試跑未成功；'
               +'執行紀錄：https://github.com/'+owner+'/'+repo+'/actions/runs/'+context.runId
               +'\n勿將未取得的 Brier/ECE 或機率當成已驗證。未改動 Production。';
             const comments=await github.paginate(github.rest.issues.listComments,
