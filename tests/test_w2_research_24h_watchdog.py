@@ -1,5 +1,6 @@
 """Offline W2 watchdog contracts; no network, paid API or cloud access."""
 import unittest
+from unittest.mock import patch
 from datetime import datetime, timedelta, timezone
 from research.w2_research_24h_watchdog import START, END, WORKFLOWS, assess
 
@@ -50,6 +51,55 @@ class WatchdogTest(unittest.TestCase):
                                          run(int((END - START).total_seconds() / 60),
                                              conclusion="failure")]})
         self.assertEqual(result["observed_runs"], 0)
+
+    def test_dedup_scans_second_page_without_posting(self):
+        from research import w2_research_24h_watchdog as wd
+        failure = {"workflow": wd.WORKFLOWS[0], "run_id": 42, "reason": "COMPLETED_NOT_SUCCESSFUL",
+                   "event": "schedule", "conclusion": "failure"}
+        key = "W2_WATCHDOG_EVENT:" + failure["workflow"] + ":42:COMPLETED_NOT_SUCCESSFUL"
+        pages = [[{"body": "unrelated"}] * 100, [{"body": key}]]
+        calls = []
+
+        def fake_api(method, path, body=None):
+            calls.append((method, path))
+            if method == "GET":
+                return pages[int(path.rsplit("=", 1)[1]) - 1]
+            raise AssertionError("duplicate alert must not be posted")
+
+        with patch.object(wd, "_api", side_effect=fake_api):
+            self.assertEqual(wd.alert_once(failure), "ALREADY_RECORDED")
+        self.assertEqual(len(calls), 2)
+
+    def test_new_failure_posts_after_last_page(self):
+        from research import w2_research_24h_watchdog as wd
+        failure = {"workflow": wd.WORKFLOWS[0], "run_id": 43, "reason": "COMPLETED_NOT_SUCCESSFUL",
+                   "event": "schedule", "conclusion": "failure", "url": "https://example.invalid/43"}
+        calls = []
+
+        def fake_api(method, path, body=None):
+            calls.append((method, path, body))
+            return [] if method == "GET" else {}
+
+        with patch.object(wd, "_api", side_effect=fake_api):
+            self.assertEqual(wd.alert_once(failure), "ISSUE_COMMENT_CREATED")
+        self.assertEqual([x[0] for x in calls], ["GET", "POST"])
+        self.assertIn("W2_WATCHDOG_EVENT:", calls[-1][2]["body"])
+
+    def test_pagination_limit_fails_closed_without_duplicate_post(self):
+        from research import w2_research_24h_watchdog as wd
+        failure = {"workflow": wd.WORKFLOWS[0], "run_id": 44, "reason": "COMPLETED_NOT_SUCCESSFUL"}
+        with patch.object(wd, "_api", return_value=[{"body": "x"}] * 100) as api:
+            with self.assertRaisesRegex(RuntimeError, "pagination_limit"):
+                wd.alert_once(failure)
+        self.assertEqual(api.call_count, 20)
+
+    def test_malformed_comment_page_fails_closed(self):
+        from research import w2_research_24h_watchdog as wd
+        failure = {"workflow": wd.WORKFLOWS[0], "run_id": 45, "reason": "COMPLETED_NOT_SUCCESSFUL"}
+        with patch.object(wd, "_api", return_value={"message": "bad"}) as api:
+            with self.assertRaisesRegex(RuntimeError, "invalid_response"):
+                wd.alert_once(failure)
+        api.assert_called_once()
 
 
 if __name__ == "__main__":
