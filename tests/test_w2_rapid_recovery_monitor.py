@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from research.w2_rapid_recovery_monitor import (
-    PR_NUMBER, REQUIRED_WORKFLOWS, assess, update_issue_body,
+    PR_NUMBER, REQUIRED_WORKFLOWS, assess, assess_main_research_runs, update_issue_body,
 )
 
 TPE = ZoneInfo("Asia/Taipei")
@@ -83,7 +83,7 @@ def test_monitor_window_closes_without_production_changes():
 
 def test_closed_pr_requires_w0_review_and_never_self_merges():
     result = assess(pr(state="closed", merged=True), all_success(), NOW)
-    assert result["status"] == "PR_CLOSED_REQUIRES_W0_REVIEW"
+    assert result["status"] == "PR_MERGED_MONITOR_MAIN"
     assert result["production_approved"] is False
 
 
@@ -107,3 +107,33 @@ def test_issue_write_is_idempotent_and_preserves_manual_notes():
 def test_unexpected_pr_identity_fails_closed(bad):
     with pytest.raises(ValueError, match="unexpected_pr_identity"):
         assess(bad, [], NOW)
+
+
+def test_post_merge_monitor_checks_real_main_failed_research_run():
+    failed = workflow("Three Model Next Session Markout (Research Only)",
+                      event="workflow_dispatch", conclusion="failure",
+                      created_at="2026-11-08T02:45:00Z")
+    failed["head_branch"] = "main"
+    result = assess_main_research_runs([], [failed], NOW, HEAD)
+    assert result["status"] == "ACTION_REQUIRED_MAIN_RESEARCH_RUN_FAILURE"
+    assert result["failed_run_urls"]
+    assert result["real_gcs_new_audit_verified"] is False
+
+
+def test_post_merge_manual_success_never_proves_actual_schedule():
+    good = workflow("Three Model Research Daily Dispatcher (No Cloud Credentials)",
+                    event="workflow_dispatch", created_at="2026-11-08T02:45:00Z")
+    good["head_branch"] = "main"
+    result = assess_main_research_runs([], [good], NOW, HEAD)
+    assert result["status"] == "MAIN_RESEARCH_MONITORED_SCHEDULE_NOT_YET_VERIFIED"
+    assert result["first_nov9_schedule_verified"] is False
+
+
+def test_old_legacy_failure_does_not_trigger_monitor_repair():
+    old = workflow("Three Model Next Session Markout (Research Only)",
+                   event="workflow_dispatch", conclusion="failure",
+                   created_at="2026-11-08T02:10:44Z")
+    old["head_branch"] = "main"
+    result = assess_main_research_runs([], [old], NOW, HEAD)
+    assert result["status"] == "MAIN_RESEARCH_MONITORED_SCHEDULE_NOT_YET_VERIFIED"
+    assert result["failed_run_urls"] == []
