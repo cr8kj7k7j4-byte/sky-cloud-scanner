@@ -98,6 +98,20 @@ def test_malformed_account_state_is_never_safely_zero():
         assert key + "_invalid" in decision["required_inputs"]
 
 
+def test_nonfinite_candidate_prices_fail_closed():
+    for key, value in (
+        ("entry", float("nan")), ("entry", True),
+        ("stop", float("inf")), ("stop", "not reported"),
+        ("target", float("-inf")), ("target", 0),
+    ):
+        candidate = dict(C, **{key: value})
+        result = evaluate_candidate(candidate, CTX, P)
+        assert result["status"] == "RISK_INPUT_REQUIRED", (key, value, result)
+        assert result["portfolio_allowed"] is False
+        assert result["recommended_shares"] == 0
+        assert key + "_invalid" in result["required_inputs"]
+
+
 if __name__ == "__main__":
     test_unknown_state_blocks()
     test_missing_ledger_proof_blocks()
@@ -107,4 +121,5 @@ if __name__ == "__main__":
     test_default_cost_gate_matches_p0r_355()
     test_p0r_355_hard_boundaries()
     test_malformed_account_state_is_never_safely_zero()
+    test_nonfinite_candidate_prices_fail_closed()
     print("PASS W6 candidate fail-closed checks")
