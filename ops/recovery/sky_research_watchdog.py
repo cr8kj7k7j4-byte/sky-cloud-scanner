@@ -107,8 +107,13 @@ def main():
 
     def fetch(workflow):
         uri = urllib.parse.quote(workflow, safe="")
-        data = api("GET", root + "/actions/workflows/" + uri +
-                   "/runs?per_page=5&event=pull_request", token)
+        try:
+            data = api("GET", root + "/actions/workflows/" + uri +
+                       "/runs?per_page=5&event=pull_request", token)
+        except urllib.error.HTTPError as exc:
+            if exc.code == 404:  # Allowed research workflow not merged to main yet.
+                return []
+            raise
         return data.get("workflow_runs", [])
 
     def retry(workflow, run_id):
