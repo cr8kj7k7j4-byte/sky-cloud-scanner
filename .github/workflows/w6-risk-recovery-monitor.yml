@@ -1,0 +1,44 @@
+name: W6 Risk CI 5-Minute Recovery Monitor (Read Only)
+# Schedule only runs after W0 approves and merges this monitoring-only PR.
+# Stop performing checks after 2026-11-09 10:38 Asia/Taipei; W0 should
+# remove this cron afterwards so GitHub runners do not continue launching.
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/w6-risk-recovery-monitor.yml'
+      - 'scripts/w6_risk_monitor.py'
+      - 'tests/test_w6_risk_monitor.py'
+  workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'
+permissions:
+  contents: read
+  actions: read
+  issues: write
+concurrency:
+  group: w6-risk-ci-read-only-watchdog
+  cancel-in-progress: false
+jobs:
+  offline-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test read-only W6 monitor contracts
+        run: PYTHONPATH=. python -m unittest discover -s tests -p test_w6_risk_monitor.py -v
+      - name: Read live PR/CI state and notify W0 only on new issue
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: PYTHONPATH=. python -m scripts.w6_risk_monitor
+      - name: Persist sanitized CI report including failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: w6-risk-monitor-${{ github.run_id }}
+          path: output/w6_risk_monitor/report.json
+          retention-days: 7
+          if-no-files-found: warn
