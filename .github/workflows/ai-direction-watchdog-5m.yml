@@ -1,0 +1,59 @@
+name: AI Direction 5m Evidence Watchdog (Research Only)
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+permissions:
+  actions: write
+  issues: write
+  contents: read
+concurrency:
+  group: ai-direction-evidence-watchdog
+  cancel-in-progress: false
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Inspect only research CI; deduplicate Issue #375 alerts
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const {owner,repo} = context.repo;
+            const now=Date.now();
+            const start=Date.parse('2026-11-08T02:38:00Z');
+            const end=Date.parse('2026-11-09T02:38:00Z');
+            if(now >= end) {
+              core.info('24h acceptance window ended; disable this monitor to avoid ongoing 5m billing');
+              // Idempotent and self-limiting; never touches trading strategies or secrets.
+              await github.request('PUT /repos/{owner}/{repo}/actions/workflows/{workflow_id}/disable',
+                {owner,repo,workflow_id:'ai-direction-watchdog-5m.yml'});
+              return;
+            }
+            if(now < start) {core.info('Before authorized monitoring window'); return;}
+            const branch='research/ai-direction-calibration-20261108';
+            const response=await github.rest.actions.listWorkflowRunsForRepo({owner,repo,branch,per_page:80});
+            const runs=response.data.workflow_runs.filter(x=>x.name==='AI Direction Research Contract (No Production)');
+            const latest=runs[0];
+            if(!latest) {core.warning('No AI direction CI run found'); return;}
+            core.info(JSON.stringify({run_id:latest.id,sha:latest.head_sha,
+              status:latest.status,conclusion:latest.conclusion,url:latest.html_url}));
+            let reason=null;
+            if(latest.status==='completed' && latest.conclusion!=='success')
+              reason='CI_'+String(latest.conclusion).toUpperCase();
+            else if(latest.status!=='completed'
+                    && now-Date.parse(latest.created_at)>30*60000)
+              reason='CI_STALLED_OVER_30_MINUTES';
+            if(!reason) return;
+            const marker='<!-- sky-ai-direction-watchdog:'+latest.head_sha+':'+reason+' -->';
+            const comments=await github.paginate(github.rest.issues.listComments,
+              {owner,repo,issue_number:375,per_page:100});
+            if(comments.some(x=>String(x.body||'').includes(marker))){
+              core.info('Alert already recorded for this revision and reason');return;
+            }
+            await github.rest.issues.createComment({owner,repo,issue_number:375,
+              body:marker+'\n研究 CI 異常：'+reason+
+              '\n最新 Commit：'+latest.head_sha+
+              '\n執行紀錄：'+latest.html_url+
+              '\n只記錄異常；未修改程式、未重新部署、未重試非冪等工作。'});
+            core.setFailed(reason);
