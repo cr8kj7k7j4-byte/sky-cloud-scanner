@@ -1,0 +1,63 @@
+name: AI Direction 2026 One-shot Historical Pilot (Research Only)
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/ai-direction-pilot-once.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+concurrency:
+  group: ai-direction-one-shot-2026-research
+  cancel-in-progress: false
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout fixed research commit (not Production)
+        uses: actions/checkout@v4
+        with:
+          ref: 298a9877a271c8233d74f72cd0fea812993da398
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install isolated research dependencies
+        run: python -m pip install "numpy>=1.26,<3" "pandas>=2,<3" "scikit-learn>=1.4,<2" "xgboost>=2,<4" "lightgbm>=4,<5"
+      - name: Execute actual two-symbol 2026 historical research audit
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "$FUGLE_API_KEY" ]; then
+            echo "::error::Fugle historical access secret is not configured"
+            exit 1
+          fi
+          python -m research.ai_direction_2026_pilot \
+            --start 2026-01-01 --end 2026-11-07 \
+            --symbols 1101,8088 \
+            --out research_output/ai_direction_2026_pilot_summary.json
+      - name: Save only sanitized research metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-ai-direction-2026-two-symbol-pilot-${{ github.run_id }}
+          path: research_output/ai_direction_2026_pilot_summary.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Record failed pilot run in Issue 375
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const {owner,repo}=context.repo;
+            const marker='<!-- sky-ai-direction-one-shot:'+context.runId+' -->';
+            const body=marker+'\n2026/1/1～11/7 真實富果兩檔歷史研究試跑未成功；'
+              +'執行紀錄：https://github.com/'+owner+'/'+repo+'/actions/runs/'+context.runId
+              +'\n勿將未取得的 Brier/ECE 或機率當成已驗證。未改動 Production。';
+            const comments=await github.paginate(github.rest.issues.listComments,
+              {owner,repo,issue_number:375,per_page:100});
+            if(!comments.some(x=>String(x.body||'').includes(marker)))
+              await github.rest.issues.createComment({owner,repo,issue_number:375,body});
