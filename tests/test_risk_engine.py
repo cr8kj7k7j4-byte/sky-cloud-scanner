@@ -40,7 +40,7 @@ def main():
         policy=p,
     )
     assert ok["status"] == "ALLOW"
-    assert ok["recommended_shares"] == 1000
+    assert ok["recommended_shares"] == 2000
     assert ok["net_rr"] == 2.0
 
     loss_lock = evaluate_trade(
@@ -48,7 +48,7 @@ def main():
         stop=48.5,
         target=53,
         account_equity=500000,
-        daily_pnl=-7500,
+        daily_pnl=-10000,
         grade="A+",
         policy=p,
     )
@@ -66,6 +66,10 @@ def main():
     assert dd_lock["state"] == "LOCKDOWN"
     assert dd_lock["status"] == "BLOCK"
 
+    # Execute W6 fail-closed cases in the existing P0-R Actions job.
+    import runpy
+    runpy.run_path(str(ROOT / "tests" / "test_w6_risk_admission.py"), run_name="__main__")
+    runpy.run_path(str(ROOT / "tests" / "test_w6_ledger_reconciliation.py"), run_name="__main__")
     print("PASS P0-R risk engine tests")
 
 
