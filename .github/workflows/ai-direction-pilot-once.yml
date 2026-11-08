@@ -19,7 +19,7 @@ jobs:
       - name: Checkout fixed research commit (not Production)
         uses: actions/checkout@v4
         with:
-          ref: 7b54eceb7d24285268f0640783d6567f6bcf414f
+          ref: 2712a8934ca7a387d779808f1dd5d8e0b01d236c
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
