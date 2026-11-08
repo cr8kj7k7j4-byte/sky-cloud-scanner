@@ -120,3 +120,15 @@ def test_provider_schema_error_is_not_silently_pending():
         raise ValueError("provider_symbol_or_timeframe_mismatch")
     with pytest.raises(ValueError,match="mismatch"):
         run(store,"test-private-ledger","test-key",date(2026,11,6),fetch=invalid)
+
+def test_weekend_is_successful_audited_skip_no_paid_request():
+    store=Storage([obs()])
+    def forbidden(*args, **kwargs):
+        raise AssertionError("weekend must not call paid Fugle API")
+    result=run(store,"test-private-ledger","test-key",
+               date(2026,11,8),fetch=forbidden)
+    assert result["status"]=="SKIPPED_NO_COMPLETED_WEEKEND_SESSION"
+    assert result["new_outcomes"]==0
+    assert result["production_signal"] is False
+    assert result["trading_enabled"] is False
+    assert not any(k.startswith(OUTCOME_PREFIX) for k in store.db)
