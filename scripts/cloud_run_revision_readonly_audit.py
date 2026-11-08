@@ -17,16 +17,19 @@ def extract(service, revision=None, revisions=None):
     status = service.get("status") or {}
     metadata = service.get("metadata") or {}
     spec = service.get("spec") or {}
+    if metadata.get("name") != SERVICE:
+        raise ValueError("service_identity_mismatch")
     latest = status.get("latestReadyRevisionName")
     traffic = status.get("traffic") or []
-    if not latest or not isinstance(traffic, list):
+    if (not isinstance(latest, str) or not latest.startswith(SERVICE + "-")
+            or not isinstance(traffic, list) or not traffic):
         raise ValueError("missing_ready_revision_or_traffic")
     selected = []
     for row in traffic:
         if not isinstance(row, dict):
             raise ValueError("invalid_traffic")
         percent = row.get("percent", 0)
-        if not isinstance(percent, int) or percent < 0 or percent > 100:
+        if type(percent) is not int or percent < 0 or percent > 100:
             raise ValueError("invalid_traffic_percent")
         name = row.get("revisionName")
         # Cloud Run may represent a tagged latestRevision traffic target
@@ -84,6 +87,7 @@ def extract(service, revision=None, revisions=None):
             }
             inspected[name] = {"spec_image": spec_image, "status_image_digest": digest,
                                "image_evidence_present": bool(spec_image or digest),
+                               "immutable_digest_present": bool(isinstance(digest, str) and "@sha256:" in digest),
                                "runtime": runtime}
     conditions = status.get("conditions") or []
     ready = any(c.get("type") == "Ready" and c.get("status") == "True"
@@ -140,6 +144,8 @@ def main():
         report["evidence"]=extract(service,revisions[rev],revisions)
         if not all(item["image_evidence_present"] for item in report["evidence"]["revision_images"].values()):
             raise ValueError("revision_image_evidence_missing")
+        if not all(item["immutable_digest_present"] for item in report["evidence"]["revision_images"].values()):
+            raise ValueError("revision_immutable_digest_missing")
         report["status"]="REVISION_READ_ONLY_CONFIRMED"
     except (ValueError,RuntimeError,subprocess.TimeoutExpired,json.JSONDecodeError) as ex:
         report["blocker"]=str(ex) if isinstance(ex,(ValueError,RuntimeError)) else type(ex).__name__
