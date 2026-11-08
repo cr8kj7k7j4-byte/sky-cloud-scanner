@@ -148,6 +148,20 @@ def run(symbols, end, bucket, prefix, key, store, out):
     last_allowed=as_of.date() if as_of.time()>=time(16,30) else as_of.date()-timedelta(days=1)
     if end > last_allowed:
         raise ValueError("historical_candles_not_yet_final")
+    # A weekend is not a completed TWSE/TPEx trading session. Skip before
+    # requesting paid candles; do not reuse Friday data as Sunday evidence.
+    if end.weekday() >= 5:
+        audit={"status":"SKIPPED_NO_COMPLETED_WEEKEND_SESSION",
+               "checked_at_tpe":as_of.isoformat(),
+               "source":"Fugle historical/candles",
+               "symbols_requested":symbols,"end_date":end.isoformat(),
+               "coverage_gaps":[],"saved_records":0,"observations_total":0,
+               "storage_statuses":[],"provider_authenticated":False,
+               "historical_not_intraday_live":True,
+               "trained_model_used":False,"production_signal":False,"orders":False}
+        out.parent.mkdir(parents=True,exist_ok=True)
+        out.write_text(json.dumps(audit,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+        return audit
     if not symbols or len(symbols)>10 or len(symbols)!=len(set(symbols)):
         raise ValueError("invalid_symbol_count")
     inputs={}
