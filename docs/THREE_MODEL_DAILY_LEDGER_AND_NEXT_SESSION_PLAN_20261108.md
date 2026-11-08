@@ -20,7 +20,7 @@
 - 同一日期重新執行使用既有 `if_generation_match=0`、讀回 SHA256 和 `ALREADY_EXISTS_IDENTICAL`；任何不同版本覆蓋同一 ID 必須失敗，不能偷偷替換。
 - 次日回填寫在不同的 `three-model-followup/v1/` 私有前綴，不會被手機研究帳本誤當作研究訊號。必須有嚴格較晚的已完成日 K 交易日才會寫入；不能把當天價當事後結果。
 - markout 是**可觀察收盤價變動**，不表示已觸發、可放空、可借券、成交、滑價、停損／停利、成本後獲利或正期望值。對 NO_TRADE 也可做市場事實觀察，但不得納入策略交易樣本。
-- 單次回填最多掃描 500 個私有原始 JSON，超限 fail closed；超過 29 日未取得後續觀察的紀錄保留 pending，須另設長期研究保全與分頁治理才可擴張，不能宣稱永久完整收集。
+- 單次回填最多掃描 20,000 個私有原始 JSON（2 檔 × 3 類型在全部交易日均入帳時，約可涵蓋多年，但非無限）；超限 fail closed；超過 29 日未取得後續觀察的紀錄保留 pending，須另設長期研究保全與分頁治理才可擴張，不能宣稱永久完整收集。空的下一交易日 K 線則保持 pending，不當成錯誤成交。
 - Fugle API key 仍採 GitHub secrets，不寫入 log／PR；GCP 以 WIF/OIDC 身分驗證，不新增 JSON key；研究 Bucket 私有且不重用 disclosure Bucket。
 
 ## 排程啟用前的硬性阻礙
