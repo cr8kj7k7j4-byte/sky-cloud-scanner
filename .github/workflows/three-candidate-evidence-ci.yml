@@ -1,0 +1,23 @@
+name: Three Candidate Evidence Gate CI
+on:
+  pull_request:
+    paths:
+      - 'research/three_candidate_evidence_gate.py'
+      - 'tests/test_three_candidate_evidence_gate.py'
+      - '.github/workflows/three-candidate-evidence-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  evidence-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile evidence gate
+        run: python -m py_compile research/three_candidate_evidence_gate.py
+      - name: Test evidence gate
+        run: python -m unittest discover -s tests -p 'test_three_candidate_evidence_gate.py' -v
