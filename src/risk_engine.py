@@ -12,6 +12,7 @@ class RiskPolicy:
     max_position_pct: float = 0.20
     correlation_limit_pct: float = 0.02
     max_concurrent_positions: int = 3
+    stop_after_consecutive_losses: int = 2
     caution_loss_streak: int = 3
     defensive_loss_streak: int = 5
     lockdown_drawdown_pct: float = 0.06
@@ -136,6 +137,8 @@ def evaluate_trade(
 
     if state == "LOCKDOWN":
         reasons.append("回撤達 LOCKDOWN 門檻，禁止新開倉")
+    if int(consecutive_losses or 0) >= policy.stop_after_consecutive_losses:
+        reasons.append("連續兩筆停損，停止新進場")
     if state == "DEFENSIVE" and grade not in (None, "A+"):
         reasons.append("DEFENSIVE 僅允許 A+ 候選")
 
