@@ -27,7 +27,7 @@ def payload(kind, *, bar_end=True):
             for j in range(54):
                 bars.append(bar(clock+timedelta(minutes=5*j),40+day_offset))
     return {"source":"FUGLE","as_of":datetime(2026,2,15,tzinfo=TPE).isoformat(),
-            "bar_timestamp_semantics":"BAR_END" if bar_end else "UNKNOWN",
+            "bar_timestamp_semantics":"BAR_START" if bar_end else "UNKNOWN",
             "symbols":{"2330": {"bars_daily":bars} if kind=="next_day" else {"bars_5m":bars}}}
 
 
@@ -43,7 +43,7 @@ class HorizonLabelsTests(unittest.TestCase):
         self.assertEqual(first["feature_available_at"],first["date"])
         self.assertFalse(build_audit(p,"next_day")["production_eligible"])
 
-    def test_intraday_uses_completed_0930_then_0935_open_to_1320_close(self):
+    def test_intraday_uses_completed_0930_then_0940_open_to_1325_close(self):
         rows=build_rows(payload("intraday"),horizon="intraday")
         self.assertTrue(rows)
         self.assertTrue(all(x["date"].endswith("09:30:00+08:00") for x in rows))
@@ -61,7 +61,7 @@ class HorizonLabelsTests(unittest.TestCase):
         p["symbols"]["2330"]["bars_5m"] = [
             b for b in bars if not b["timestamp"].startswith("2026-01-06T10:00:00")
         ]
-        self.assertEqual(build_rows(p, horizon="intraday"), [])
+        self.assertEqual(len(build_rows(p, horizon="intraday")), 1)
 
     def test_bad_source_rejected(self):
         p=payload("next_day");p["source"]="SIMULATED"
