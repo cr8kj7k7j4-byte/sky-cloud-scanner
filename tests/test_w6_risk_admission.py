@@ -77,6 +77,27 @@ def test_p0r_355_hard_boundaries():
     assert evaluate_trade(**dict(args, stop=51))["status"] == "BLOCK"
 
 
+def test_malformed_account_state_is_never_safely_zero():
+    for key, bad in (
+        ("daily_pnl", float("nan")),
+        ("open_risk", float("inf")),
+        ("open_risk", -1),
+        ("correlated_open_risk", -2),
+        ("drawdown_pct", -0.01),
+        ("concurrent_positions", 1.5),
+        ("consecutive_losses", 0.5),
+        ("consecutive_losses", "not available"),
+        ("account_equity", True),
+        ("account_equity", 0),
+    ):
+        ctx = dict(CTX, **{key: bad})
+        decision = evaluate_candidate(C, ctx, P)
+        assert decision["status"] == "RISK_INPUT_REQUIRED", (key, bad, decision)
+        assert decision["recommended_shares"] == 0
+        assert decision["portfolio_allowed"] is False
+        assert key + "_invalid" in decision["required_inputs"]
+
+
 if __name__ == "__main__":
     test_unknown_state_blocks()
     test_missing_ledger_proof_blocks()
@@ -85,4 +106,5 @@ if __name__ == "__main__":
     test_limits_and_stop_direction()
     test_default_cost_gate_matches_p0r_355()
     test_p0r_355_hard_boundaries()
+    test_malformed_account_state_is_never_safely_zero()
     print("PASS W6 candidate fail-closed checks")
