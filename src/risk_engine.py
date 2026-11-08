@@ -201,7 +201,7 @@ def evaluate_trade(
         "execution_status": "EXECUTION_INPUT_REQUIRED",
     }
 
-    if unit_risk > 0 and reward > 0 and execution_policy is not None:
+    if entry > 0 and stop > 0 and target > 0 and stop < entry < target and execution_policy is not None:
         ex = evaluate_execution_rr(
             entry=entry,
             stop=stop,
