@@ -12,6 +12,7 @@ class RiskPolicy:
     max_position_pct: float = 0.20
     correlation_limit_pct: float = 0.02
     max_concurrent_positions: int = 3
+    stop_after_consecutive_losses: int = 2
     caution_loss_streak: int = 3
     defensive_loss_streak: int = 5
     lockdown_drawdown_pct: float = 0.06
@@ -131,11 +132,15 @@ def evaluate_trade(
     gross_rr = reward / unit_risk if unit_risk > 0 else None
     if unit_risk <= 0:
         reasons.append("Entry 與 Stop 不可相同")
+    if stop >= entry:
+        reasons.append("做多停損必須低於買進價")
     if reward <= 0:
         reasons.append("Long 模式 Target 必須高於 Entry")
 
     if state == "LOCKDOWN":
         reasons.append("回撤達 LOCKDOWN 門檻，禁止新開倉")
+    if int(consecutive_losses or 0) >= policy.stop_after_consecutive_losses:
+        reasons.append("連續兩筆停損，停止新進場")
     if state == "DEFENSIVE" and grade not in (None, "A+"):
         reasons.append("DEFENSIVE 僅允許 A+ 候選")
 
@@ -218,21 +223,73 @@ def evaluate_trade(
 
 
 def evaluate_candidate(candidate, portfolio_context, policy=None):
+    """Fail closed for candidate admission when live account state is unknown.
+
+    These fields MUST be reconciled from the actual position / trade ledger.
+    A synthetic zero or environment default is not evidence of reconciliation.
+    The upstream caller must supply metadata showing provenance and freshness.
+    This is an admission gate, not a broker integration or an order placer.
+    """
     policy = policy or RiskPolicy()
     candidate = candidate or {}
     portfolio_context = portfolio_context or {}
+    required = (
+        "account_equity", "daily_pnl", "open_risk",
+        "concurrent_positions", "correlated_open_risk",
+        "drawdown_pct", "consecutive_losses",
+    )
+    absent = [key for key in required if portfolio_context.get(key) is None]
+    # Do not accept an unsigned / stale / research-only context as live truth.
+    if portfolio_context.get("ledger_verified") is not True:
+        absent.append("ledger_verified")
+    if not portfolio_context.get("ledger_asof"):
+        absent.append("ledger_asof")
+    if not portfolio_context.get("ledger_source"):
+        absent.append("ledger_source")
+    if portfolio_context.get("ledger_fresh") is not True:
+        absent.append("ledger_fresh")
+    if portfolio_context.get("ledger_complete") is not True:
+        absent.append("ledger_complete")
+    if portfolio_context.get("execution_policy") is None:
+        absent.append("execution_policy")
+    if absent:
+        return {
+            "status": "RISK_INPUT_REQUIRED",
+            "portfolio_allowed": False,
+            "required_inputs": sorted(set(absent)),
+            "reasons": ["實際持倉、損益或成本證據不完整，禁止新進場"],
+            "recommended_shares": 0,
+            "net_rr": None,
+            "gross_rr": None,
+            "fee_tax_adjusted_rr": None,
+            "execution_adjusted_rr": None,
+            "execution_status": "EXECUTION_INPUT_REQUIRED",
+        }
+
+    # Full execution-cost inputs are mandatory for new candidate admission.
+    execution_policy = portfolio_context["execution_policy"]
+    if not getattr(execution_policy, "enforce_gate", False):
+        return {
+            "status": "BLOCK",
+            "portfolio_allowed": False,
+            "required_inputs": ["execution_policy.enforce_gate"],
+            "reasons": ["成本後風險報酬閘門未啟用，禁止新進場"],
+            "recommended_shares": 0,
+            "execution_status": "EXECUTION_GATE_DISABLED",
+        }
+
     return evaluate_trade(
         entry=candidate.get("entry", candidate.get("last")),
         stop=candidate.get("stop"),
         target=candidate.get("target"),
-        account_equity=portfolio_context.get("account_equity", 0),
-        daily_pnl=portfolio_context.get("daily_pnl", 0),
-        open_risk=portfolio_context.get("open_risk", 0),
-        concurrent_positions=portfolio_context.get("concurrent_positions", 0),
-        correlated_open_risk=portfolio_context.get("correlated_open_risk", 0),
-        drawdown_pct=portfolio_context.get("drawdown_pct", 0),
-        consecutive_losses=portfolio_context.get("consecutive_losses", 0),
+        account_equity=portfolio_context["account_equity"],
+        daily_pnl=portfolio_context["daily_pnl"],
+        open_risk=portfolio_context["open_risk"],
+        concurrent_positions=portfolio_context["concurrent_positions"],
+        correlated_open_risk=portfolio_context["correlated_open_risk"],
+        drawdown_pct=portfolio_context["drawdown_pct"],
+        consecutive_losses=portfolio_context["consecutive_losses"],
         grade=candidate.get("grade"),
         policy=policy,
-        execution_policy=portfolio_context.get("execution_policy"),
+        execution_policy=execution_policy,
     )
