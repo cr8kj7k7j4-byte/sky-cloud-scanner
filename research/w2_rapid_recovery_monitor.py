@@ -17,6 +17,8 @@ from zoneinfo import ZoneInfo
 REPO = "cr8kj7k7j4-byte/sky-cloud-scanner"
 PR_NUMBER = 361
 ISSUE_NUMBER = 368
+# Last observed green W2 PR baseline: GitHub commit 21/21 PR CI success.
+KNOWN_GREEN_BASELINE = "1974573462c6f89dfe5beb80220598bc6e5dbb60"
 START = datetime(2026, 11, 8, 10, 38, tzinfo=ZoneInfo("Asia/Taipei"))
 DEADLINE = datetime(2026, 11, 9, 10, 38, tzinfo=ZoneInfo("Asia/Taipei"))
 REQUIRED_WORKFLOWS = (
@@ -172,8 +174,8 @@ def assess_main_research_runs(schedule_runs: list[dict],
 def update_issue_body(existing: str, result: dict) -> tuple[str, bool]:
     """Idempotent state updates, preserves human-authored notes outside markers."""
     tracked = {k: result.get(k) for k in (
-        "status", "head_sha", "checks", "failed_run_urls",
-        "research_only", "production_approved", "real_gcs_new_audit_verified",
+        "status", "head_sha", "last_confirmed_green_sha",
+        "checks", "failed_run_urls", "research_only", "production_approved", "real_gcs_new_audit_verified",
         "first_nov9_schedule_verified", "trained_six_model_inference_verified")}
     payload = json.dumps(tracked, ensure_ascii=False, sort_keys=True, indent=2)
     signature = hashlib.sha256(payload.encode()).hexdigest()[:24]
@@ -238,6 +240,11 @@ def main() -> None:
         result = assess_main_research_runs(schedule.get("workflow_runs", []),
                                            dispatch.get("workflow_runs", []),
                                            now, sha)
+    # Never present a failing new HEAD as the most recent verified good build.
+    result["last_confirmed_green_sha"] = (
+        sha if result["status"] == "OFFLINE_CI_PASS_REAL_E2E_HOLD"
+        else KNOWN_GREEN_BASELINE
+    )
     issue = api("GET", f"/repos/{REPO}/issues/{ISSUE_NUMBER}")
     if issue.get("number") != ISSUE_NUMBER or "pull_request" in issue:
         raise ValueError("incorrect_tracking_issue")
