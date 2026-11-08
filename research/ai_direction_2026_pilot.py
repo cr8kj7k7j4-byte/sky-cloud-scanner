@@ -63,13 +63,14 @@ def run(*, api_key, start, end, symbols=DEFAULT_SYMBOLS, reader=None):
                 "max_symbol_share": round(float(df["symbol"].value_counts(normalize=True).max()), 6),
                 "holdout": report["splits"],
                 "metrics": report["models"],
+                "train_only_constant_baseline_oos": report["train_only_constant_baseline_oos"],
             }
         except (ValueError, RuntimeError) as exc:
             audits[horizon] = {"status": "INSUFFICIENT_DATA",
                                "labeled_rows": len(df),
                                "reason": type(exc).__name__}
     return {
-        "schema": "sky-ai-direction-2026-two-symbol-historical-pilot-v1",
+        "schema": "sky-ai-direction-2026-fixed-cohort-historical-pilot-v1",
         "period_requested": {"start":start.isoformat(), "end":end.isoformat()},
         "source": "Fugle historical/candles",
         "historical_api_response_received": True,
@@ -83,7 +84,7 @@ def run(*, api_key, start, end, symbols=DEFAULT_SYMBOLS, reader=None):
         "probabilities_verified_for_mobile": False,
         "production_eligible": False,
         "order_authorized": False,
-        "note": "Retrospective 2026 two-symbol pilot; 2026 has already been researched. "
+        "note": "Retrospective 2026 fixed-cohort pilot; 2026 has already been researched. "
                 "No fresh OOS, no calibrated live probabilities, no cost-after-execution claim."
     }
 
