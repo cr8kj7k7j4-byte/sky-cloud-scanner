@@ -1,0 +1,61 @@
+name: Cloud Run Revision Read-only Attestation
+on:
+  pull_request:
+    paths:
+      - 'scripts/cloud_run_revision_readonly_audit.py'
+      - 'tests/test_cloud_run_revision_readonly_audit.py'
+      - '.github/workflows/cloud-run-revision-readonly-audit.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/cloud_run_revision_readonly_audit.py'
+      - 'tests/test_cloud_run_revision_readonly_audit.py'
+      - '.github/workflows/cloud-run-revision-readonly-audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  revision-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test audit parser with offline evidence
+        run: python -m unittest discover -s tests -p 'test_cloud_run_revision_readonly_audit.py' -v
+      - name: Confirm auth settings exist without revealing their values
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          GCP_WIF_PROVIDER: ${{ secrets.GCP_WIF_PROVIDER }}
+          GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+        run: |
+          test -n "$GCP_WIF_PROVIDER" && test -n "$GCP_SERVICE_ACCOUNT" || { echo "BLOCKED_GCP_WIF_SETTINGS"; exit 1; }
+      - name: Authenticate read-only gcloud access
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      - name: Set up Cloud SDK
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: google-github-actions/setup-gcloud@v2
+      - name: Describe running Cloud Run service and latest ready revision (NO DEPLOY)
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        run: python -m scripts.cloud_run_revision_readonly_audit
+      - name: Publish sanitized audit artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloud-run-readonly-revision-${{ github.run_id }}
+          path: output/cloud_run_revision_readonly_audit.json
+          retention-days: 14
+          if-no-files-found: warn
+      - name: Report scope
+        if: always()
+        run: |
+          echo '## Cloud Run read-only revision check' >> "$GITHUB_STEP_SUMMARY"
+          echo 'PR runs: offline unit tests only. Main runs: Google Cloud service + revision read only.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'No deployment, no production strategy promotion, no orders.' >> "$GITHUB_STEP_SUMMARY"
