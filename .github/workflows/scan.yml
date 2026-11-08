@@ -54,6 +54,10 @@ jobs:
           python-version: "3.12"
           cache: "pip"
           cache-dependency-path: requirements.txt
+      - name: Verify offline five-minute scan-history replay contract
+        run: |
+          python -m unittest tests.test_scan_history_archive tests.test_scan_history_replay -v
+          python -m src.scan_history_replay
       - name: Restore P0-A monitor state cache
         uses: actions/cache/restore@v4
         with:
