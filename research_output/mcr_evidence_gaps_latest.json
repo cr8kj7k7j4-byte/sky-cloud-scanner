@@ -1,0 +1,69 @@
+{
+  "schema": "MCR_EVIDENCE_GAPS_V1",
+  "research_status": "INSUFFICIENT_DATA",
+  "source_session": "2026-11-06",
+  "observed_trading_sessions": 1,
+  "official_eod_snapshot_days": 1,
+  "raw_research_observations": 520,
+  "deduplicated_episodes": 520,
+  "independent_executable_trades": 0,
+  "official_reference_price_rows": 1972,
+  "forward_reference_completed_by_horizon": {
+    "1": 0,
+    "3": 0,
+    "5": 0,
+    "10": 0
+  },
+  "completed_5d_reference_count": 0,
+  "five_day_reference_coverage_pct": 0.0,
+  "outcome_state_counts": {
+    "PENDING_FORWARD_SESSIONS": 520
+  },
+  "outcome_gap_reasons": {},
+  "unverified_calendar_gap_dates": [],
+  "blockers": [
+    {
+      "key": "FORWARD_TRADING_DAYS",
+      "state": "INSUFFICIENT_DATA",
+      "observed": 0,
+      "required": 20,
+      "deficit": 20,
+      "detail": "Verified EOD session coverage, not independent live signal days."
+    },
+    {
+      "key": "EVALUABLE_EXECUTABLE_SAMPLES",
+      "state": "INSUFFICIENT_DATA",
+      "observed": 0,
+      "required": 200,
+      "deficit": 200,
+      "detail": "Reference EOD observations are not executable trades."
+    },
+    {
+      "key": "PIT_AND_EXECUTION",
+      "state": "NOT_VALIDATED",
+      "detail": "Issuer availability, signal timestamp, spread, slippage and fills unverified."
+    },
+    {
+      "key": "BASELINE_AND_REGIME",
+      "state": "NOT_EVALUABLE",
+      "detail": "A/B/C/D controls, market regimes and walk-forward not proven."
+    },
+    {
+      "key": "COST_ADJUSTED_EXPECTANCY",
+      "state": "NOT_EVALUABLE",
+      "detail": "No verifiable fills or post-cost trade ledger."
+    }
+  ],
+  "minimum_gates": {
+    "forward_days": 20,
+    "evaluable_samples": 200,
+    "regimes": 2,
+    "outcome_completeness_pct": 95
+  },
+  "engineering_data_status": "PUBLISHED_EVIDENCE_VALIDATED",
+  "counterfactual_abcd_status": "NOT_EVALUABLE",
+  "cost_adjusted_expectancy_pct": null,
+  "production_promotion_eligible": false,
+  "requires_governance_approval": true,
+  "notice": "This is an evidence sufficiency report, never a live buy/sell signal."
+}
