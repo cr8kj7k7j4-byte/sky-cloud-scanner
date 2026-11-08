@@ -1,0 +1,24 @@
+name: Sky Meta-Filter Research Contract CI (No Production)
+on:
+  pull_request:
+    paths:
+      - 'research/sky_meta_filter_v0_1.py'
+      - 'tests/test_sky_meta_filter_v0_1.py'
+      - 'research/SKY_META_FILTER_V0_1_INTAKE_20261109.md'
+      - '.github/workflows/sky-meta-filter-contract-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  offline-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Reject unsupported behavior using synthetic fixtures only
+        run: python -m unittest -v tests.test_sky_meta_filter_v0_1
+      - name: Syntax-check research module
+        run: python -m py_compile research/sky_meta_filter_v0_1.py tests/test_sky_meta_filter_v0_1.py
