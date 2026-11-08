@@ -128,6 +128,20 @@ def upload_immutable(store, bucket, prefix, report):
                        "object_sha256":digest})
     return result
 
+def session_coverage_gaps(inputs, end):
+    """Check actual last candle day for every symbol and timeframe, never guess a holiday."""
+    gaps=[]
+    for symbol, series in sorted(inputs.items()):
+        for label, field in (("5m","bars_5m"),("daily","bars_daily")):
+            bars=series.get(field) or []
+            if not bars:
+                gaps.append({"symbol":symbol,"timeframe":label,"reason":"NO_BARS"})
+                continue
+            latest=datetime.fromisoformat(bars[-1]["timestamp"])
+            if latest.utcoffset() is None or latest.astimezone(TPE).date()!=end:
+                gaps.append({"symbol":symbol,"timeframe":label,"reason":"END_SESSION_NOT_PRESENT"})
+    return gaps
+
 def run(symbols, end, bucket, prefix, key, store, out):
     as_of=datetime.now(TPE)
     # Historical candles are refreshed after close. Avoid treating today's unfinished candles as final.
@@ -138,15 +152,44 @@ def run(symbols, end, bucket, prefix, key, store, out):
         raise ValueError("invalid_symbol_count")
     inputs={}
     for symbol in symbols:
-        five=read_fugle(symbol,"5",end-timedelta(days=8),end,key)
+        # A closed/suspended session may legitimately return an empty historical
+        # array. Convert only provider_empty_data to an auditable coverage gap;
+        # authorization, timestamp, symbol and schema errors still fail.
+        try:
+            five=read_fugle(symbol,"5",end-timedelta(days=8),end,key)
+        except ValueError as exc:
+            if str(exc) != "provider_empty_data":
+                raise
+            five=[]
         clock.sleep(1.05)
-        daily=read_fugle(symbol,"D",end-timedelta(days=90),end,key)
+        try:
+            daily=read_fugle(symbol,"D",end-timedelta(days=90),end,key)
+        except ValueError as exc:
+            if str(exc) != "provider_empty_data":
+                raise
+            daily=[]
         clock.sleep(1.05)
         inputs[symbol]={"name":None,"bars_5m":five,"bars_daily":daily}
+    # Never turn stale prior-session candles into observations labelled with
+    # today's date (e.g. holidays, suspensions, incomplete provider coverage).
+    coverage_gaps=session_coverage_gaps(inputs,end)
+    if coverage_gaps:
+        audit={"status":"SKIPPED_SESSION_COVERAGE_UNCONFIRMED",
+               "checked_at_tpe":as_of.isoformat(),
+               "source":"Fugle historical/candles",
+               "symbols_requested":symbols,"end_date":end.isoformat(),
+               "coverage_gaps":coverage_gaps,"saved_records":0,
+               "observations_total":0,"storage_statuses":[],
+               "provider_authenticated":True,"historical_not_intraday_live":True,
+               "trained_model_used":False,"production_signal":False,"orders":False}
+        out.parent.mkdir(parents=True,exist_ok=True)
+        out.write_text(json.dumps(audit,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+        return audit
     report=generate({"source":"FUGLE","as_of":as_of.isoformat(),"symbols":inputs})
     report["requested_end_date"]=end.isoformat()
     ledger=upload_immutable(store,bucket,prefix,report)
-    audit={"checked_at_tpe":as_of.isoformat(),"source":"Fugle historical/candles",
+    audit={"checked_at_tpe":as_of.isoformat(),"source":"Fugle historical/candles","status":"PRIVATE_LEDGER_SAVED",
+           "coverage_gaps":[],
            "provider_authenticated":True, "historical_not_intraday_live":True,
            "trained_model_used":False,"production_signal":False,"orders":False,
            "observations_total":len(report["observations"]),
@@ -173,8 +216,8 @@ def main():
     from google.cloud import storage
     result=run(symbols,date.fromisoformat(args.end),args.bucket,args.prefix,
                os.environ.get("FUGLE_API_KEY",""),storage.Client(),Path(args.out))
-    print(json.dumps({"status":"PRIVATE_LEDGER_SAVED","count":result["saved_records"],
-                      "production_signal":False},ensure_ascii=False))
+    print(json.dumps({"status":result["status"],"count":result["saved_records"],
+                      "production_signal":False,"coverage_gaps":result.get("coverage_gaps",[])},ensure_ascii=False))
 
 if __name__=="__main__":
     main()
