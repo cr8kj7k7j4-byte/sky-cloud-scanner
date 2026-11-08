@@ -3,9 +3,11 @@ name: Sky Cloud Scanner v0.5 + P0-R
 on:
   workflow_dispatch:
   schedule:
-    # UTC; Asia/Taipei is UTC+8 year-round: 09:05, 09:15, 09:30, 09:50, 10:15.
-    - cron: "5,15,30,50 1 * * 1-5"
-    - cron: "15 2 * * 1-5"
+    # UTC; Asia/Taipei is UTC+8 year-round. Every 5 minutes 09:05-13:25 on weekdays.
+    # TWSE calendar step below prevents non-trading-day scans.
+    - cron: "5-55/5 1 * * 1-5"
+    - cron: "*/5 2-4 * * 1-5"
+    - cron: "0-25/5 5 * * 1-5"
 
 permissions:
   contents: read
@@ -36,8 +38,9 @@ jobs:
               "run_attempt": os.environ["GITHUB_RUN_ATTEMPT"],
               "source": "GitHub event payload and runner clock",
               "cron_utc": [
-                  "5,15,30,50 1 * * 1-5",
-                  "15 2 * * 1-5"
+                  "5-55/5 1 * * 1-5",
+                  "*/5 2-4 * * 1-5",
+                  "0-25/5 5 * * 1-5"
               ],
               "note": "Run/job start may be delayed; cron proves schedule rule identity, not punctuality. A cron entry contains multiple local slots; compare run times with expected Asia/Taipei schedule and check missed slots separately."
           }
