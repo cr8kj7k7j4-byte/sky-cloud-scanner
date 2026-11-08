@@ -1,0 +1,37 @@
+name: Sky Acceptance Gate (read-only)
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'research/sky_acceptance_gate.py'
+      - 'tests/test_sky_acceptance_gate.py'
+      - '.github/workflows/sky-acceptance-gate.yml'
+      - 'src/sky_command_router.py'
+      - 'SKY_SYSTEM_REGISTRY_V2_1.md'
+      - 'research/RESEARCH_FREEZE_REGISTRY.md'
+permissions:
+  contents: read
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test dependency
+        run: python -m pip install pytest
+      - name: Validate known command routes and fail-closed signal contract
+        run: python -m pytest -q tests/test_sky_command_router.py tests/test_sky_acceptance_gate.py
+      - name: Publish evidence-class acceptance receipt
+        if: always()
+        run: python -m research.sky_acceptance_gate --out output/acceptance/sky_acceptance.json
+      - name: Upload sanitized receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-acceptance-${{ github.run_id }}
+          path: output/acceptance/
+          if-no-files-found: warn
+          retention-days: 30
