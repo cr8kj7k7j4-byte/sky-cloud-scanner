@@ -47,10 +47,42 @@ def test_limits_and_stop_direction():
     assert allowed["proposed_risk"] <= 5000
     assert allowed["execution_adjusted_rr"] >= 1.5
 
+def test_default_cost_gate_matches_p0r_355():
+    import os
+    import subprocess
+    import sys
+    env = dict(os.environ)
+    env.pop("EXEC_ENFORCE_GATE", None)
+    command = "from src.config import EXEC_ENFORCE_GATE; print(int(EXEC_ENFORCE_GATE))"
+    result = subprocess.run([sys.executable, "-c", command],
+                            check=True, capture_output=True, text=True, env=env)
+    assert result.stdout.strip() == "1"
+
+
+def test_p0r_355_hard_boundaries():
+    args = dict(entry=50, stop=48, target=55, account_equity=500000,
+                grade="A+", policy=P)
+    ok = evaluate_trade(**args)
+    assert ok["status"] == "ALLOW"
+    assert ok["risk_budget"] == 5000
+    assert ok["recommended_shares"] == 2000
+    assert ok["proposed_risk"] == 4000
+    assert ok["remaining_portfolio_heat"] == 15000
+    for extra in ({"daily_pnl": -10000}, {"open_risk": 15000},
+                  {"concurrent_positions": 3}, {"consecutive_losses": 2}):
+        blocked = evaluate_trade(**args, **extra)
+        assert blocked["status"] == "BLOCK"
+        assert blocked["recommended_shares"] == 0
+    assert evaluate_trade(**dict(args, stop=50))["status"] == "BLOCK"
+    assert evaluate_trade(**dict(args, stop=51))["status"] == "BLOCK"
+
+
 if __name__ == "__main__":
     test_unknown_state_blocks()
     test_missing_ledger_proof_blocks()
     test_cost_gate_unavailable_blocks()
     test_two_stops_block_and_one_stop_does_not()
     test_limits_and_stop_direction()
+    test_default_cost_gate_matches_p0r_355()
+    test_p0r_355_hard_boundaries()
     print("PASS W6 candidate fail-closed checks")
