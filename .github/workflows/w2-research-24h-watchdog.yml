@@ -32,7 +32,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Verify offline research safety contracts
-        run: PYTHONPATH=. python -m unittest -v tests.test_w2_research_24h_watchdog
+        run: PYTHONPATH=. python -m unittest discover -s tests -p test_w2_research_24h_watchdog.py -v
       - name: Observe four research workflows and record new failures
         if: github.event_name != 'pull_request'
         run: PYTHONPATH=. python -m research.w2_research_24h_watchdog
