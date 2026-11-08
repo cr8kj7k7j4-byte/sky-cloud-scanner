@@ -276,7 +276,9 @@ def run():
         st["quote_scope"] = quote_audit["quote_scope"]
         st["live_whole_market_certified"] = False
         st["live_whole_market_coverage_pct"] = quote_audit["quote_coverage_pct"]
-        st["mis_unverified_quote_count"] = 0  # accepted MIS rows only
+        st["mis_unverified_quote_count"] = (
+            sum(quote_audit["rejected"].values()) if market["fallback_used"] else 0
+        )
         if not quote_audit["valid_whole_market_operational"]:
             st["warnings"].append(
                 "BLOCKED_EXTERNAL_DATA: independent full-market executed-trade "
@@ -317,7 +319,9 @@ def run():
                 "TPEx official public/free full-market real-time feed "
                 "not certified; paid Fugle bulk or TWSE MIS OTC is operational only"
             ),
-            "fallback_count": len(otc_rows),
+            "fallback_count": len(otc_rows) if market["fallback_used"] else 0,
+            "count": len(otc_rows),
+            "provider": market["provider"],
         }
 
         if STRICT_OFFICIAL_MODE:
@@ -338,9 +342,9 @@ def run():
 
         if st["operational_full_market_scan"] and not st["full_market_scan"]:
             st["warnings"].append(
-                "實務全市場行情鏈可用：TWSE + TPEx 官方母池，盤中以 TWSE MIS "
-                "批次讀取 TSE + OTC；OTC 為 operational fallback，不能誤稱為 "
-                "TPEx 官方認證即時來源。"
+                "實務行情涵蓋 TWSE + TPEx 官方母池；本輪使用 "
+                + market["provider"]
+                + "，上櫃行情屬營運資料證據，不等於 TPEx 官方完整即時認證。"
             )
 
         # Data-quality gate occurs before ranking, P0-C/P0-R decisions,
@@ -355,7 +359,8 @@ def run():
             else "BLOCKED_EXTERNAL_DATA_NO_TRADE"
         )
         working_rows = (
-            rows if ALLOW_MIS_OTC_FALLBACK else twse_rows
+            rows if (not market["fallback_used"] or ALLOW_MIS_OTC_FALLBACK)
+            else twse_rows
         ) if market_evidence_eligible else []
         st["market_intelligence"] = summarize_market(working_rows)
 
@@ -376,12 +381,12 @@ def run():
         }
         st["event_risk"] = assess_event_risk(snapshot_events)
 
-        # Do not silently replace an incomplete official chain with a
-        # plan-restricted Fugle Snapshot endpoint.
+        # Do not combine a partial paid Fugle primary and MIS fallback
+        # to fabricate full-market operational certification.
         if len(working_rows) < 300:
             st["warnings"].append(
-                "盤中有效報價不足 300 檔；本次不以 Fugle Snapshot 補洞，"
-                "避免把方案權限或資料缺口誤判為完整市場。"
+                "有效且獲准進入策略流程的即時行情不足 300 檔；"
+                "不混合兩路報價補洞，資料或嚴格認證閘門未過時禁止新進場。"
             )
 
         working_rows = apply_relative_strength(working_rows)
@@ -572,7 +577,7 @@ def run():
             f"Sky Cloud Scanner v{SCANNER_VERSION}｜{now:%Y-%m-%d %H:%M}",
             (
                 f"官方母池 TWSE {ust['twse']}｜TPEx {ust['tpex']}｜"
-                f"MIS有效報價 {len(rows)}｜第一層通過 {len(passed)}"
+                f"有效成交證據 {len(rows)}｜第一層通過 {len(passed)}"
             ),
         ]
 
