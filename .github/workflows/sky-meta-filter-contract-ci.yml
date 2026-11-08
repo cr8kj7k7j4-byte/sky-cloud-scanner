@@ -4,6 +4,8 @@ on:
     paths:
       - 'research/sky_meta_filter_v0_1.py'
       - 'tests/test_sky_meta_filter_v0_1.py'
+      - 'research/sky_meta_filter_ledger.py'
+      - 'tests/test_sky_meta_filter_ledger.py'
       - 'research/SKY_META_FILTER_V0_1_INTAKE_20261109.md'
       - '.github/workflows/sky-meta-filter-contract-ci.yml'
   workflow_dispatch:
@@ -19,6 +21,6 @@ jobs:
         with:
           python-version: '3.11'
       - name: Reject unsupported behavior using synthetic fixtures only
-        run: python -m unittest -v tests.test_sky_meta_filter_v0_1
+        run: python -m unittest -v tests.test_sky_meta_filter_v0_1 tests.test_sky_meta_filter_ledger
       - name: Syntax-check research module
-        run: python -m py_compile research/sky_meta_filter_v0_1.py tests/test_sky_meta_filter_v0_1.py
+        run: python -m py_compile research/sky_meta_filter_v0_1.py research/sky_meta_filter_ledger.py tests/test_sky_meta_filter_v0_1.py tests/test_sky_meta_filter_ledger.py
