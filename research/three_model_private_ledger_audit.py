@@ -105,6 +105,8 @@ def read_only_audit(store, bucket, *, max_scan=MAX_SCAN):
                     "next_session_close_time_tpe": next_time,
                     "object_sha256": digest, "object_path": name,
                 }
+    if not observations:
+        raise ValueError("no_research_observations_found")
     for rid, row in markouts.items():
         source = observations.get(rid)
         if source is None:
