@@ -21,7 +21,7 @@ def payload(kind, *, bar_end=True):
             d = day + timedelta(days=i)
             bars.append(bar(datetime.combine(d,time(13,30),TPE),40+i*.1))
     else:
-        for day_offset in range(2):
+        for day_offset in range(3):
             d = day + timedelta(days=day_offset)
             clock=datetime.combine(d,time(9,0),TPE)
             for j in range(54):
