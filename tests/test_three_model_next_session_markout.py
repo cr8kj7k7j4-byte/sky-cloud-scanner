@@ -104,3 +104,19 @@ def test_duplicate_record_id_blocks_followup():
     store.db[f"{OBS_PREFIX}swing_3_20d/1101/{extra['ledger_record_id']}.json"]=json.dumps(extra).encode()
     with pytest.raises(ValueError,match="duplicate_ledger_record_id"):
         run(store,"test-private-ledger","test-key",date(2026,11,6),fetch=fake_candles)
+
+def test_empty_provider_next_session_keeps_pending_instead_of_failing():
+    store=Storage([obs()])
+    def empty(*args):
+        raise ValueError("provider_empty_data")
+    result=run(store,"test-private-ledger","test-key",date(2026,11,6),fetch=empty)
+    assert result["completed_outcomes"]==0
+    assert result["pending_count"]==1
+    assert result["pending_reasons"][0]["reason"]=="NEXT_SESSION_CANDLE_NOT_AVAILABLE"
+
+def test_provider_schema_error_is_not_silently_pending():
+    store=Storage([obs()])
+    def invalid(*args):
+        raise ValueError("provider_symbol_or_timeframe_mismatch")
+    with pytest.raises(ValueError,match="mismatch"):
+        run(store,"test-private-ledger","test-key",date(2026,11,6),fetch=invalid)
