@@ -1,0 +1,57 @@
+name: Six Model Integrated Engineering Acceptance (Research-safe)
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - scripts/six_model_integration_gate.py
+      - tests/test_six_model_integration_gate.py
+      - .github/workflows/six-model-integration-acceptance.yml
+permissions:
+  contents: read
+concurrency:
+  group: six-model-integration-acceptance-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  integration-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test evidence gate (offline)
+        run: python -m unittest -v tests.test_six_model_integration_gate
+      - name: Audit independently collected evidence (fail closed)
+        id: audit
+        continue-on-error: true
+        run: python -m scripts.six_model_integration_gate
+      - name: Publish audit outcome, including missing proof
+        if: always()
+        run: |
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+          f=Path("output/six_model_integration_acceptance.json")
+          if not f.is_file():
+              print("Evidence audit did not run: FAILED")
+          else:
+              x=json.loads(f.read_text())
+              print("## Six-model integrated engineering acceptance")
+              print("Status:", x["overall"])
+              for n,v in x["checks"].items():
+                  print("- "+n+": "+v["status"]+"; "+", ".join(v["reasons"]))
+              print("Production promotion: NO; orders: NO")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: six-model-integration-gate-${{ github.run_id }}
+          path: output/six_model_integration_acceptance.json
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Enforce complete evidence
+        if: steps.audit.outcome != 'success'
+        run: |
+          echo "Insufficient verified evidence; do not claim end-to-end acceptance."
+          exit 1
