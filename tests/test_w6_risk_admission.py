@@ -248,6 +248,54 @@ def test_w6_to_p0c_contract_never_upgrades_unverified_admission():
     assert decision.status == "WAIT"
 
 
+def test_w0_367_risk_projection_snapshot_accepts_w6_fail_closed_result():
+    # Reviewed source snapshot: W0 PR #367 head
+    # 4ffe8adc064263c72138c44e7837f533c116c521.
+    # This deliberately exercises the exact projection helper and maps from
+    # that review revision without modifying src/main.py or importing its
+    # unrelated scanner/HTTP packages. W0 must rerun on a joint merge HEAD.
+    risk_status_zh = {
+        "ALLOW": "允許進場",
+        "BLOCK": "禁止進場",
+        "RISK_INPUT_REQUIRED": "風控資料不足",
+    }
+    risk_state_zh = {
+        "NORMAL": "正常", "CAUTION": "警戒",
+        "DEFENSIVE": "防守", "LOCKDOWN": "鎖定",
+    }
+
+    def _annotate_risk_display(risk):
+        """Keep missing-ledger admission failures renderable without inventing state."""
+        if not isinstance(risk, dict):
+            raise TypeError("risk result must be a dictionary")
+        risk["status_zh"] = risk_status_zh.get(risk.get("status"), "禁止新進場／待確認")
+        state = risk.get("state")
+        risk["state_zh"] = risk_state_zh.get(state, "未知／資料不足")
+        return risk
+
+    missing = dict(CTX)
+    for key in ("ledger_verified", "ledger_asof", "ledger_source",
+                "ledger_fresh", "ledger_complete"):
+        missing.pop(key)
+    unverified = evaluate_candidate(C, missing, P)
+    shown = _annotate_risk_display(unverified)
+    assert shown["status"] == "RISK_INPUT_REQUIRED"
+    assert shown["status_zh"] == "風控資料不足"
+    assert shown["state_zh"] == "未知／資料不足"
+    assert shown["portfolio_allowed"] is False
+    assert shown["recommended_shares"] == 0
+    assert "ledger_verified" in shown["required_inputs"]
+
+    # W0 projection must not upgrade an explicit P0-R BLOCK to an ALLOW.
+    blocked = _annotate_risk_display(evaluate_candidate(
+        C, dict(CTX, consecutive_losses=2), P
+    ))
+    assert blocked["status"] == "BLOCK"
+    assert blocked["status_zh"] == "禁止進場"
+    assert blocked["portfolio_allowed"] is False
+    assert blocked["recommended_shares"] == 0
+
+
 def test_default_risk_policy_matches_confirmed_500k_p0r():
     defaults = RiskPolicy()
     assert defaults.risk_per_trade_pct == 0.01
@@ -292,4 +340,5 @@ if __name__ == "__main__":
     test_ledger_timestamp_provenance_requires_valid_timezone()
     test_scanner_source_portfolio_context_missing_broker_proof_is_fail_closed()
     test_w6_to_p0c_contract_never_upgrades_unverified_admission()
+    test_w0_367_risk_projection_snapshot_accepts_w6_fail_closed_result()
     print("PASS W6 candidate fail-closed checks")
