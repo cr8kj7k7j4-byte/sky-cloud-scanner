@@ -2,7 +2,7 @@
 import argparse
 import json
 import os
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from research.three_model_fugle_pipeline import read_fugle
 from research.scan_history_markout import research_markout
@@ -20,7 +20,8 @@ def main():
     if not 40 <= args.days <= 300:
         raise ValueError("invalid_days")
     end = date.fromisoformat(args.end)
-    if end >= date.today():
+    taipei_today = datetime.now(timezone(timedelta(hours=8))).date()
+    if end >= taipei_today:
         raise ValueError("end_must_be_completed_past_date")
     start = end - timedelta(days=args.days)
     key = os.getenv("FUGLE_API_KEY", "")
