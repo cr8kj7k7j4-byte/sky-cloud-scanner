@@ -205,3 +205,29 @@ def test_w3a_trial_and_infinite_values_fail_closed():
                                             min_coverage_pct=100, min_exchange_pct=100)
         assert result["valid_quote_count"] == 1
         assert result["valid_whole_market_operational"] is False
+
+
+def test_w3a_market_data_reason_breakdown_is_exchange_specific():
+    from src.realtime_quote_evidence import validate_whole_market_rows
+    pool = [
+        {"symbol": "2330", "exchange": "TWSE"},
+        {"symbol": "1101", "exchange": "TWSE"},
+        {"symbol": "8088", "exchange": "TPEx"},
+    ]
+    base = {"quote_source": "Fugle bulk snapshot",
+            "quote_date": NOW.date().isoformat(), "last_trade_timestamp": NOW.isoformat()}
+    rows = [
+        dict(base, symbol="2330", last=45),
+        dict(base, symbol="1101", last=50, isTrial=True),
+        dict(base, symbol="8088", last=50, last_trade_timestamp=None),
+    ]
+    result = validate_whole_market_rows(pool, rows, now=NOW)
+    assert result["received_by_exchange"] == {"TWSE": 2, "TPEx": 1}
+    assert result["missing_by_exchange"] == {"TWSE": 0, "TPEx": 0}
+    assert result["rejected_by_exchange"]["TWSE"] == {"TRIAL_QUOTE": 1}
+    assert result["rejected_by_exchange"]["TPEx"] == {"STALE_OR_UNVERIFIED_EXECUTED_TRADE": 1}
+    assert result["rejected"] == {
+        "TRIAL_QUOTE": 1,
+        "STALE_OR_UNVERIFIED_EXECUTED_TRADE": 1,
+    }
+    assert result["valid_whole_market_operational"] is False
