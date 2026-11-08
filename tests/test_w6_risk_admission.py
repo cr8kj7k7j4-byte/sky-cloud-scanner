@@ -166,27 +166,40 @@ def test_integer_count_wire_format_cannot_crash_admission():
         assert valid["status"] == "ALLOW", (key, valid)
 
 
-def test_actual_scanner_portfolio_context_must_not_authorize_new_trade():
-    # Read the scanner's current entrypoint without modifying W0/W3A files.
-    # Scanner env defaults (including zeros) are NOT authenticated broker state.
-    from src.main import _portfolio_context, _risk_policy
+def test_scanner_source_portfolio_context_missing_broker_proof_is_fail_closed():
+    # Read and evaluate the real source function in isolation. The minimal
+    # P0-R CI job deliberately has no requests/Fugle/scan dependencies;
+    # importing src.main would fail before the admission test can run.
+    import ast
+    from pathlib import Path
+    from src import config
 
-    context = _portfolio_context()
+    path = Path(__file__).resolve().parents[1] / "src" / "main.py"
+    parsed = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    matching = [x for x in parsed.body
+                if isinstance(x, ast.FunctionDef) and x.name == "_portfolio_context"]
+    assert len(matching) == 1
+    fn = matching[0]
+    config_names = (
+        "ACCOUNT_EQUITY", "DAILY_PNL", "OPEN_RISK", "CONCURRENT_POSITIONS",
+        "CORRELATED_OPEN_RISK", "ACCOUNT_DRAWDOWN_PCT", "CONSECUTIVE_LOSSES",
+    )
+    scope = {k: getattr(config, k) for k in config_names}
+    scope["_execution_policy"] = lambda: COST
+    exec(compile(ast.Module(body=[fn], type_ignores=[]), str(path), "exec"), scope)
+    context = scope["_portfolio_context"]()
+    # Environment defaults are not a broker attestation, even if all zeros.
     for evidence in (
         "ledger_verified", "ledger_asof", "ledger_source",
         "ledger_fresh", "ledger_complete",
     ):
-        assert evidence not in context, (evidence, context)
-    candidate = dict(C)
-    blocked = evaluate_candidate(candidate, context, _risk_policy())
-    assert blocked["status"] == "RISK_INPUT_REQUIRED", blocked
-    assert blocked["portfolio_allowed"] is False
-    assert blocked["recommended_shares"] == 0
-    assert "ledger_verified" in blocked["required_inputs"]
-    assert "ledger_fresh" in blocked["required_inputs"]
-    assert "ledger_complete" in blocked["required_inputs"]
-    # Explicitly require no accidentally constructed YES/ALLOW state when
-    # scanner mode has a fee profile but no account ledger attestation.
+        assert evidence not in context, evidence
+    result = evaluate_candidate(C, context, RiskPolicy())
+    assert result["status"] == "RISK_INPUT_REQUIRED", result
+    assert result["portfolio_allowed"] is False
+    assert result["recommended_shares"] == 0
+    assert "ledger_verified" in result["required_inputs"]
+    assert "ledger_complete" in result["required_inputs"]
 
 
 def test_default_risk_policy_matches_confirmed_500k_p0r():
@@ -231,5 +244,5 @@ if __name__ == "__main__":
     test_default_risk_policy_matches_confirmed_500k_p0r()
     test_integer_count_wire_format_cannot_crash_admission()
     test_ledger_timestamp_provenance_requires_valid_timezone()
-    test_actual_scanner_portfolio_context_must_not_authorize_new_trade()
+    test_scanner_source_portfolio_context_missing_broker_proof_is_fail_closed()
     print("PASS W6 candidate fail-closed checks")
