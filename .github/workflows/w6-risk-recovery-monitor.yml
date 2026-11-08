@@ -29,6 +29,27 @@ jobs:
           python-version: '3.12'
       - name: Test read-only W6 monitor contracts
         run: PYTHONPATH=. python -m unittest discover -s tests -p test_w6_risk_monitor.py -v
+      - name: Save explicit PR-only fixture audit artifact
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          mkdir -p output/w6_risk_monitor
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          Path('output/w6_risk_monitor/report.json').write_text(
+              json.dumps({
+                  'schema': 'W6_PR_MONITOR_V1',
+                  'status': 'PR_OFFLINE_TEST_ONLY',
+                  'fixture_only': True,
+                  'broker_ledger_verified': False,
+                  'production_eligible': False,
+                  'trading_enabled': False,
+                  'scheduled_monitor_active': False,
+              }, indent=2) + '\\n',
+              encoding='utf-8'
+          )
+          PY
       - name: Read live PR/CI state and notify W0 only on new issue
         if: github.event_name != 'pull_request'
         env:
