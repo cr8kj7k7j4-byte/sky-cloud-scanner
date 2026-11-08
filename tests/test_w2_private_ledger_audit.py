@@ -46,6 +46,7 @@ def outcome(**kwargs):
                direction_at_observation="LONG_WATCH",
                observation_bar_time="2026-11-06T13:30:00+08:00",
                next_session_close_time="2026-11-09T13:30:00+08:00",
+               reference_close=28.4,
                next_session_close=28.6, next_session_return_pct=0.70422535,
                followup_type="OBSERVATIONAL_PRICE_CHANGE_ONLY",
                actual_fill=False, trade_eligible=False,
