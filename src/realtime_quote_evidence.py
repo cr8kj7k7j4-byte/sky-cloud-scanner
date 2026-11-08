@@ -7,6 +7,7 @@ confirmed same-day executed trade.
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from math import isfinite
 from zoneinfo import ZoneInfo
 
 TPE = ZoneInfo("Asia/Taipei")
@@ -53,7 +54,7 @@ def fugle_executed_trade(quote, now=None, *, max_age_seconds=120):
         raw = quote.get("lastPrice")
     try:
         price = float(raw)
-        if price <= 0:
+        if not isfinite(price) or price <= 0:
             raise ValueError()
     except (TypeError, ValueError):
         return None, None, "MISSING_EXECUTED_LAST_PRICE"
@@ -98,7 +99,7 @@ def mis_executed_trade_row(row, now=None, *, max_age_seconds=180):
     now = now or datetime.now(TPE)
     try:
         price = float(row.get("last"))
-        if price <= 0:
+        if not isfinite(price) or price <= 0:
             raise ValueError()
     except (ValueError, TypeError, AttributeError):
         return False
@@ -131,14 +132,20 @@ def validate_whole_market_rows(universe, rows, now=None, *, min_coverage_pct=80.
     }
     accepted = {}
     rejection = {}
+    received = set()
     for row in rows:
         symbol = str(row.get("symbol") or "")
         meta = by_symbol.get(symbol)
         if not meta or meta.get("exchange") not in target:
             rejection["NOT_IN_OFFICIAL_UNIVERSE"] = rejection.get("NOT_IN_OFFICIAL_UNIVERSE", 0) + 1
             continue
+        received.add(symbol)
         # A bulk snapshot is acceptable only when it explicitly carries a
         # verified last-executed timestamp, not the snapshot download time.
+        # Trial and non-finite prices are never executed-trade evidence.
+        if row.get("isTrial") is True:
+            rejection["TRIAL_QUOTE"] = rejection.get("TRIAL_QUOTE", 0) + 1
+            continue
         if row.get("quote_source") == "Fugle bulk snapshot":
             ts = timestamp_tpe(row.get("last_trade_timestamp"))
             try:
@@ -147,7 +154,7 @@ def validate_whole_market_rows(universe, rows, now=None, *, min_coverage_pct=80.
                 price = 0.0
             age = (now - ts).total_seconds() if ts else None
             valid = (
-                price > 0 and ts is not None
+                isfinite(price) and price > 0 and ts is not None
                 and str(row.get("quote_date") or "") == now.date().isoformat()
                 and ts.date() == now.date()
                 and age is not None and -30 <= age <= max_age_seconds
@@ -165,6 +172,16 @@ def validate_whole_market_rows(universe, rows, now=None, *, min_coverage_pct=80.
 
     counts = {
         k: sum(by_symbol[s].get("exchange") == k for s in accepted)
+        for k in target
+    }
+    # Report uncovered official symbols separately from received-but-rejected
+    # rows. This prevents a zero-candidate scan from being misdiagnosed as
+    # "no setups" when exchange data was never received.
+    missing_by_exchange = {
+        k: sum(
+            x.get("exchange") == k and str(x.get("symbol")) not in received
+            for x in universe
+        )
         for k in target
     }
     rates = {
@@ -188,6 +205,7 @@ def validate_whole_market_rows(universe, rows, now=None, *, min_coverage_pct=80.
             for k in target
         },
         "rejected": rejection,
+        "missing_by_exchange": missing_by_exchange,
         "data_time": now.isoformat(),
         "quote_scope": "WHOLE_MARKET_EXECUTED_LIVE" if passed else "PARTIAL_EXECUTED_LIVE",
         "otc_mis_is_official_tpex_live": False,
