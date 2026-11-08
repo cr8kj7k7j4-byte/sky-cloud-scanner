@@ -1,0 +1,46 @@
+name: W2 Research 24h Five-minute Watchdog (Research Only)
+# Five-minute cron is best effort, not guaranteed punctual. Ends after TPE 11/09 10:38.
+# Read-only research runs; may write de-duplicated Issue #360 alerts and disable itself.
+# Never reruns paid Fugle/GCS, deploys, or modifies the live trading system.
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/w2-research-24h-watchdog.yml'
+      - 'research/w2_research_24h_watchdog.py'
+      - 'tests/test_w2_research_24h_watchdog.py'
+  workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'
+permissions:
+  contents: read
+  actions: write
+  issues: write
+concurrency:
+  group: w2-research-24h-watchdog
+  cancel-in-progress: false
+jobs:
+  watchdog:
+    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify offline research safety contracts
+        run: PYTHONPATH=. python -m unittest -v tests.test_w2_research_24h_watchdog
+      - name: Observe four research workflows and record new failures
+        if: github.event_name != 'pull_request'
+        run: PYTHONPATH=. python -m research.w2_research_24h_watchdog
+      - name: Preserve sanitized audit even on failure
+        if: always() && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: w2-research-watchdog-${{ github.run_id }}
+          path: output/w2_research_24h_watchdog/latest.json
+          retention-days: 7
+          if-no-files-found: warn
