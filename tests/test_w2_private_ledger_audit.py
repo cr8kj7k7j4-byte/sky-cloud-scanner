@@ -46,7 +46,8 @@ def outcome(**kwargs):
                direction_at_observation="LONG_WATCH",
                observation_bar_time="2026-11-06T13:30:00+08:00",
                next_session_close_time="2026-11-09T13:30:00+08:00",
-               next_session_close=28.6, next_session_return_pct=0.704225,
+               next_session_close=28.6, next_session_return_pct=0.70422535,
+               followup_type="OBSERVATIONAL_PRICE_CHANGE_ONLY",
                actual_fill=False, trade_eligible=False,
                production_signal=False, trading_enabled=False,
                realized_net_pnl=None, net_strategy_return=None)
@@ -133,3 +134,37 @@ def test_empty_private_bucket_is_not_successful_authentic_evidence():
     with pytest.raises(ValueError, match="no_research_observations_found"):
         read_only_audit(store, "private-test-ledger")
     assert store.write_calls == 0
+
+
+@pytest.mark.parametrize("bad,error", [
+    ({"reference_close": None}, "invalid_markout_price"),
+    ({"next_session_close": None}, "invalid_markout_price"),
+    ({"reference_close": True}, "invalid_markout_price"),
+    ({"next_session_close": float("nan")}, "invalid_markout_price"),
+    ({"next_session_close": float("inf")}, "invalid_markout_price"),
+    ({"next_session_close": -1}, "invalid_markout_price"),
+    ({"next_session_close": 0}, "invalid_markout_price"),
+    ({"next_session_return_pct": None}, "invalid_markout_return"),
+    ({"next_session_return_pct": True}, "invalid_markout_return"),
+    ({"next_session_return_pct": float("nan")}, "invalid_markout_return"),
+    ({"next_session_return_pct": float("inf")}, "invalid_markout_return"),
+    ({"next_session_return_pct": 99.9}, "markout_return_mismatch"),
+    ({"followup_type": "REALIZED_TRADE"}, "invalid_markout_observational_type"),
+])
+def test_private_markout_rejects_nonfinite_or_inconsistent_price_evidence(bad, error):
+    store = Store([blob(OBS_PREFIX, observation()),
+                   blob(OUTCOME_PREFIX, outcome(**bad))])
+    with pytest.raises(ValueError, match=error):
+        read_only_audit(store, "private-test-ledger")
+    assert store.write_calls == 0
+
+
+def test_read_only_report_never_exports_paid_markout_price_or_return():
+    report = read_only_audit(Store([blob(OBS_PREFIX, observation()),
+                                    blob(OUTCOME_PREFIX, outcome())]),
+                             "private-test-ledger")
+    serialized = json.dumps(report)
+    assert '"reference_close"' not in serialized
+    assert '"next_session_close"' not in serialized
+    assert '"next_session_return_pct"' not in serialized
+    assert '"followup_type"' not in serialized
