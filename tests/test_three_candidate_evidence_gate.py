@@ -58,6 +58,26 @@ class CandidateEvidenceGateTest(unittest.TestCase):
         self.assertIn("DIVIDEND_SPLIT_BASIS_UNVERIFIED", reasons)
         self.assertIn("MISMATCHED_COST_BASIS", reasons)
 
+    def test_nonfinite_margin_is_rejected(self):
+        row = dict(symbol="1101", decision_at=T2, observed_at=T1,
+                   source_url="https://example.org", margin_maintenance_ratio_pct=float("nan"),
+                   ratio_asof=T0, ratio_scope="VERIFIED_SYMBOL_LEVEL", signal_claim="BELOW_130")
+        self.assertIn("INVALID_TIMESTAMP_OR_NUMERIC",
+                      self.check("MCR", [row])["results"][0]["reasons"])
+
+    def test_etf_nonfinite_returns_invalid_calendar_and_missing_basis(self):
+        row = dict(symbol="0050", decision_at=T2, observed_at=T1,
+                   source_url="https://example.org", strategy_total_return_pct=float("inf"),
+                   benchmark_total_return_pct=40, cost_pct=0.45,
+                   adjustment_basis="TOTAL_RETURN_SAME_BASIS",
+                   evaluation_start="2026-15-33", evaluation_end="2026-11-01")
+        self.assertIn("INVALID_TIMESTAMP_OR_NUMERIC",
+                      self.check("ETF_0050_TREND", [row])["results"][0]["reasons"])
+        row["evaluation_start"] = "2025-11-01"
+        row["strategy_total_return_pct"] = 38
+        self.assertIn("MISMATCHED_COST_BASIS",
+                      self.check("ETF_0050_TREND", [row])["results"][0]["reasons"])
+
 
 if __name__ == "__main__":
     unittest.main()
