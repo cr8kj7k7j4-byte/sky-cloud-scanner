@@ -10,7 +10,10 @@ on:
       - 'tests/test_w2_rapid_recovery_monitor.py'
   workflow_dispatch:
   schedule:
-    - cron: '*/5 * 8-9 11 *'
+    # UTC Nov 8 02:40-23:55, Nov 9 00:00-02:35 (TPE deadline 10:38).
+    - cron: '*/5 2-23 8 11 *'
+    - cron: '*/5 0-1 9 11 *'
+    - cron: '0-35/5 2 9 11 *'
 permissions:
   contents: read
 concurrency:
