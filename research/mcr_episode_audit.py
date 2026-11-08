@@ -58,6 +58,8 @@ def build_episode_audit(daily_ledgers, *, source_merged=None):
             if last and (day-last["last_day"]).days<=EPISODE_GAP_CALENDAR_DAYS:
                 last["last_day"]=day
                 last["n_observation_days"]+=1
+                last["episode"]["last_session"]=day.isoformat()
+                last["episode"]["observation_days"]=last["n_observation_days"]
                 repeat+=1
                 continue
             eid=hashlib.sha256(f"{VERSION}|{market}|{symbol}|{day.isoformat()}".encode()).hexdigest()

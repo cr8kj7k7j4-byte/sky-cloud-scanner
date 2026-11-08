@@ -33,6 +33,16 @@ class AuditTests(unittest.TestCase):
         out=build_episode_audit([ledger("2026-11-06",["1101"]),
                                  ledger("2026-11-16",["1101"])])
         self.assertEqual(out["episode_count"],2)
+    def test_previous_episode_end_retained_after_reactivation(self):
+        out=build_episode_audit([
+            ledger("2026-11-02",["1101"]),
+            ledger("2026-11-03",["1101"]),
+            ledger("2026-11-13",["1101"])])
+        self.assertEqual(out["episode_count"],2)
+        self.assertEqual(out["episodes"][0]["first_session"],"2026-11-02")
+        self.assertEqual(out["episodes"][0]["last_session"],"2026-11-03")
+        self.assertEqual(out["episodes"][0]["observation_days"],2)
+        self.assertEqual(out["episodes"][1]["first_session"],"2026-11-13")
     def test_duplicate_session_or_symbol_rejected(self):
         a=ledger("2026-11-06",["1101"])
         with self.assertRaisesRegex(ValueError,"DUPLICATE_SESSION"):
