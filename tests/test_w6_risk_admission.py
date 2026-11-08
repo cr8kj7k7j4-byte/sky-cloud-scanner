@@ -202,6 +202,52 @@ def test_scanner_source_portfolio_context_missing_broker_proof_is_fail_closed():
     assert "ledger_complete" in result["required_inputs"]
 
 
+def test_w6_to_p0c_contract_never_upgrades_unverified_admission():
+    # Actual P0-C accepts a P0-R risk dictionary; no scanner HTTP imports,
+    # broker access, live order simulation or production execution.
+    from src.decision_engine import evaluate_decision
+
+    cases = (
+        ("NO_LEDGER", C, {k: v for k, v in CTX.items()
+                         if k not in ("ledger_verified", "ledger_asof",
+                                      "ledger_source", "ledger_fresh",
+                                      "ledger_complete")}),
+        ("NO_CANDIDATE_GRADE", dict(C, grade="A"), CTX),
+        ("TWO_STOP_LOSSES", C, dict(CTX, consecutive_losses=2)),
+        ("DAILY_LOSS_LIMIT", C, dict(CTX, daily_pnl=-10000)),
+    )
+    for label, candidate, context in cases:
+        risk = evaluate_candidate(candidate, context, P)
+        assert risk["portfolio_allowed"] is False, (label, risk)
+        assert risk["recommended_shares"] == 0, (label, risk)
+        decision = evaluate_decision({
+            "symbol": "TEST_ONLY", "risk": risk,
+            "monitor": {"state": "TRIGGERED", "action": "等待"},
+            "evidence_ledger": {"decision_eligible": True, "items": [{"id": "fixture"}]},
+            "agent_orchestration": {"decision_status": "REVIEW_READY"},
+            "strategy_plan": {"production_eligible": True},
+        })
+        assert decision.live_execution_allowed is False, (label, decision)
+        assert decision.action != "買進", (label, decision)
+        assert decision.status in {"BLOCK", "DATA_REQUIRED"}, (label, decision)
+        assert decision.risk_status == risk["status"]
+
+    # Even when a synthetic risk calculation says ALLOW, the unverified
+    # research strategy is not promoted by P0-C to live execution.
+    arithmetic_only = evaluate_candidate(C, CTX, P)
+    assert arithmetic_only["status"] == "ALLOW"
+    decision = evaluate_decision({
+        "symbol": "TEST_ONLY", "risk": arithmetic_only,
+        "monitor": {"state": "TRIGGERED", "action": "等待"},
+        "evidence_ledger": {"decision_eligible": True, "items": [{"id": "fixture"}]},
+        "agent_orchestration": {"decision_status": "REVIEW_READY"},
+        "strategy_plan": {"production_eligible": False},
+    })
+    assert decision.live_execution_allowed is False
+    assert decision.action == "等待"
+    assert decision.status == "WAIT"
+
+
 def test_default_risk_policy_matches_confirmed_500k_p0r():
     defaults = RiskPolicy()
     assert defaults.risk_per_trade_pct == 0.01
@@ -245,4 +291,5 @@ if __name__ == "__main__":
     test_integer_count_wire_format_cannot_crash_admission()
     test_ledger_timestamp_provenance_requires_valid_timezone()
     test_scanner_source_portfolio_context_missing_broker_proof_is_fail_closed()
+    test_w6_to_p0c_contract_never_upgrades_unverified_admission()
     print("PASS W6 candidate fail-closed checks")
