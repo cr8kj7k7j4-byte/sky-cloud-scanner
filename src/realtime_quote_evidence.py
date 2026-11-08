@@ -16,6 +16,15 @@ def timestamp_tpe(value):
     """Normalize an actual trade timestamp to Asia/Taipei; reject missing time."""
     if value is None or isinstance(value, bool):
         return None
+    # Fugle can supply ISO 8601 execution timestamps as well as epoch values.
+    # Never interpret a timezone-naive string as a Taiwanese last trade.
+    if isinstance(value, str):
+        try:
+            parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+            if parsed.utcoffset() is not None:
+                return parsed.astimezone(TPE)
+        except ValueError:
+            pass
     try:
         number = float(value)
         if number > 1e14:
