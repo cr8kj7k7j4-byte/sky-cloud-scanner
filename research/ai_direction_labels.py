@@ -5,7 +5,7 @@ This does NOT certify live Fugle access, unbiased universe, executions, or label
 """
 from __future__ import annotations
 
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 import math
 
 from research.three_model_research_signals import parse_timestamp, verify_bars
@@ -52,15 +52,16 @@ def build_rows(payload, *, horizon):
 
     next_day: features at session D 13:30, label next supplied trading day's
               executable OPEN to CLOSE; the label's first execution is D+1 open.
-    intraday: features through exactly 09:30 5m completed candle, label from
-              exactly 09:35 next bar OPEN to 13:20 completed bar CLOSE.
+    intraday: 09:30 5m BAR_START becomes known at 09:35; features at
+              09:35; proxy entry 09:40 bar OPEN to 13:20 bar CLOSE
+              (bar ends at 13:25). Avoid same timestamp execution claims.
     """
     if horizon not in ("intraday", "next_day"):
         raise ValueError("invalid_horizon")
     if not isinstance(payload, dict) or payload.get("source") != "FUGLE":
         raise ValueError("source_claim_required_not_verified")
-    if payload.get("bar_timestamp_semantics") != "BAR_END":
-        raise ValueError("bar_end_timestamp_semantics_unverified")
+    if payload.get("bar_timestamp_semantics") != "BAR_START":
+        raise ValueError("bar_start_timestamp_semantics_unverified")
     as_of = parse_timestamp(payload.get("as_of"))
     symbols = payload.get("symbols")
     if not isinstance(symbols, dict) or not symbols:
@@ -110,8 +111,8 @@ def build_rows(payload, *, horizon):
             for day, positions in sorted(by_day.items()):
                 if not all(x in positions for x in (time(9,30), time(9,35), time(13,20))):
                     continue
-                i, j, k = [positions[x] for x in (time(9,30),time(9,35),time(13,20))]
-                if not i < j < k or j != i+1:
+                i, j, k = [positions[x] for x in (time(9,30),time(9,40),time(13,20))]
+                if not i < j < k or j != i+2:
                     continue
                 # Reject missing, irregular or incomplete intraday bars.
                 # A future terminal close cannot substitute for a continuous path.
@@ -125,10 +126,10 @@ def build_rows(payload, *, horizon):
                 if features is None:
                     continue
                 entry, exit_price = float(bars[j]["open"]), float(bars[k]["close"])
-                record = {"symbol":symbol,"date":times[i].isoformat(),
-                          "feature_available_at":times[i].isoformat(),
+                record = {"symbol":symbol,"date":(times[i]+timedelta(minutes=5)).isoformat(),
+                          "feature_available_at":(times[i]+timedelta(minutes=5)).isoformat(),
                           "label_start_at":times[j].isoformat(),
-                          "label_end_at":times[k].isoformat(),
+                          "label_end_at":(times[k]+__import__("datetime").timedelta(minutes=5)).isoformat(),
                           "target_return_pct":(exit_price/entry-1)*100,**features}
                 rows.append(record)
     # No model credentials, no adjusted prices, no claim of actual fills.
