@@ -11,9 +11,9 @@ on:
       - 'tests/test_w0_research_quickwatch.py'
   workflow_dispatch:
   schedule:
-    # UTC: monitor only Nov 8 after 10:40 TPE until Nov 9 10:35 TPE.
+    # UTC: Nov 8 after 10:40 TPE through Nov 9 10:35 TPE; earlier/later slots are inert.
     # GitHub cron cannot enforce the year; Python deadline makes future runs inert.
-    - cron: '*/5 3-23 8 11 *'
+    - cron: '*/5 2-23 8 11 *'
     - cron: '*/5 0-2 9 11 *'
 permissions:
   contents: read
