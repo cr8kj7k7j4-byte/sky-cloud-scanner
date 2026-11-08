@@ -4,7 +4,7 @@ import io
 import json
 import pytest
 
-from research.three_model_fugle_pipeline import normalize_response, read_fugle, upload_immutable, run
+from research.three_model_fugle_pipeline import normalize_response, read_fugle, upload_immutable, run, session_coverage_gaps
 
 TPE=timezone(timedelta(hours=8))
 def candle(i,tf="D"):
@@ -113,3 +113,32 @@ def test_intraday_volume_is_lots_not_daily_shares():
     response={"symbol":"1101","timeframe":"5","data":[candle(0,"5")]}
     rows=normalize_response("1101","5",response,date(2026,10,1),date(2026,10,1))
     assert rows[0]["volume_unit"]=="lots"
+
+def test_session_coverage_prevents_stale_holiday_or_missing_intraday():
+    expected=date(2026,11,9)
+    dataset={
+        "1101":{"bars_5m":[{"timestamp":"2026-11-06T13:30:00+08:00"}],
+                "bars_daily":[{"timestamp":"2026-11-06T13:30:00+08:00"}]},
+        "8088":{"bars_5m":[{"timestamp":"2026-11-09T13:30:00+08:00"}],
+                "bars_daily":[{"timestamp":"2026-11-09T13:30:00+08:00"}]},
+    }
+    gaps=session_coverage_gaps(dataset,expected)
+    assert len(gaps)==2
+    assert {x["timeframe"] for x in gaps}=={"5m","daily"}
+    assert all(x["symbol"]=="1101" for x in gaps)
+    dataset["1101"]=dataset["8088"]
+    assert session_coverage_gaps(dataset,expected)==[]
+
+def test_coverage_gap_does_not_create_any_ledger_record(monkeypatch,tmp_path):
+    from research import three_model_fugle_pipeline as pipeline
+    end=date(2026,11,6)
+    stale=[{"timestamp":"2026-11-05T13:30:00+08:00"}]
+    monkeypatch.setattr(pipeline,"read_fugle",lambda *args,**kwargs: stale)
+    monkeypatch.setattr(pipeline.clock,"sleep",lambda _: None)
+    store=Storage()
+    report=pipeline.run(["1101"],end,"sky-private-research",
+                        "three-model/v1","fake",store,tmp_path/"coverage.json")
+    assert report["status"]=="SKIPPED_SESSION_COVERAGE_UNCONFIRMED"
+    assert report["saved_records"]==0
+    assert report["coverage_gaps"]
+    assert store.items=={}
