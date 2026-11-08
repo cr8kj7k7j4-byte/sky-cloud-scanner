@@ -7,6 +7,7 @@ Run: python -m research.three_candidate_evidence_gate input.json
 import argparse
 import datetime as dt
 import json
+import math
 from pathlib import Path
 
 CANDIDATES = {"REVENUE_MOM_5D", "MCR", "ETF_0050_TREND"}
@@ -32,6 +33,19 @@ def timestamp(value):
     return parsed
 
 
+def finite_number(value):
+    result = float(value)
+    if not math.isfinite(result):
+        raise ValueError("nonfinite numeric")
+    return result
+
+
+def calendar_date(value):
+    if not isinstance(value, str):
+        raise ValueError("invalid date")
+    return dt.date.fromisoformat(value)
+
+
 def inspect_row(candidate, row):
     missing = [key for key in FIELDS[candidate]
                if key not in row or row[key] is None or row[key] == ""]
@@ -55,7 +69,7 @@ def inspect_row(candidate, row):
                 reasons.append("LOOKAHEAD_RATIO")
             if row["ratio_scope"] != "VERIFIED_SYMBOL_LEVEL":
                 reasons.append("RATIO_SCOPE_NOT_SYMBOL_VERIFIED")
-            ratio = float(row["margin_maintenance_ratio_pct"])
+            ratio = finite_number(row["margin_maintenance_ratio_pct"])
             if ratio <= 0:
                 reasons.append("INVALID_MAINTENANCE_RATIO")
             if row.get("signal_claim") == "BELOW_130" and ratio >= 130:
@@ -65,12 +79,14 @@ def inspect_row(candidate, row):
                 reasons.append("WRONG_ETF_SYMBOL")
             if row["adjustment_basis"] != "TOTAL_RETURN_SAME_BASIS":
                 reasons.append("DIVIDEND_SPLIT_BASIS_UNVERIFIED")
-            if row["evaluation_start"] >= row["evaluation_end"]:
+            if calendar_date(row["evaluation_start"]) >= calendar_date(row["evaluation_end"]):
                 reasons.append("INVALID_EVALUATION_WINDOW")
-            cost = float(row["cost_pct"])
+            cost = finite_number(row["cost_pct"])
+            finite_number(row["strategy_total_return_pct"])
+            finite_number(row["benchmark_total_return_pct"])
             if cost < 0:
                 reasons.append("NEGATIVE_COST")
-            if row.get("benchmark_cost_basis") != row.get("strategy_cost_basis"):
+            if not row.get("benchmark_cost_basis") or not row.get("strategy_cost_basis") or row["benchmark_cost_basis"] != row["strategy_cost_basis"]:
                 reasons.append("MISMATCHED_COST_BASIS")
     except (ValueError, TypeError, OverflowError):
         reasons.append("INVALID_TIMESTAMP_OR_NUMERIC")
