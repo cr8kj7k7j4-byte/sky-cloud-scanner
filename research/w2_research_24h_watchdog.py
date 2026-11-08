@@ -90,9 +90,19 @@ def _api(method, path, body=None):
 def alert_once(failure):
     """Persist one comment per failure fingerprint; read-before-write dedup."""
     key = f"W2_WATCHDOG_EVENT:{failure['workflow']}:{failure['run_id']}:{failure['reason']}"
-    comments = _api("GET", f"issues/{ISSUE_NUMBER}/comments?per_page=100")
-    if any(key in str(item.get("body", "")) for item in comments):
-        return "ALREADY_RECORDED"
+    # GitHub serves oldest comments first. Scan all bounded pages to avoid
+    # duplicate notifications when an issue has accumulated >100 comments.
+    # If pagination cannot be exhausted safely, fail closed: NEVER post.
+    for page in range(1, 21):
+        comments = _api("GET", f"issues/{ISSUE_NUMBER}/comments?per_page=100&page={page}")
+        if not isinstance(comments, list):
+            raise RuntimeError("issue_comments_invalid_response")
+        if any(key in str(item.get("body", "")) for item in comments):
+            return "ALREADY_RECORDED"
+        if len(comments) < 100:
+            break
+    else:
+        raise RuntimeError("issue_comments_pagination_limit_no_alert_sent")
     body = ("W2 24h research-only watchdog: confirmed workflow anomaly.\n\n"
             f"- Fingerprint: `{key}`\n"
             f"- Run: {failure.get('url') or 'URL_NOT_AVAILABLE'}\n"
