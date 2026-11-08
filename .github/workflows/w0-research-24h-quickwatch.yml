@@ -1,0 +1,82 @@
+name: W0 Research 24h Quickwatch (Read-only, 5m)
+# Review-only monitoring; not a chat restart, not a paid research dispatcher.
+# Runs at best-effort 5-minute cadence only after W0 approves merge to main.
+# Ends monitoring after 2026-11-09 10:38 Asia/Taipei; GitHub cron itself
+# remains configured but future jobs exit early without API calls.
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/w0-research-24h-quickwatch.yml'
+      - 'ops/w0_research_quickwatch.py'
+      - 'tests/test_w0_research_quickwatch.py'
+  workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'
+permissions:
+  actions: read
+  contents: read
+  issues: write
+concurrency:
+  group: w0-research-quickwatch
+  cancel-in-progress: false
+jobs:
+  quickwatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GITHUB_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Offline safety and expiry tests
+        run: |
+          python -m pip install pytest
+          PYTHONPATH=. python -m pytest -q tests/test_w0_research_quickwatch.py
+      - name: Check research schedule workflow runs without paid credentials
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        id: watch
+        continue-on-error: true
+        run: PYTHONPATH=. python -m ops.w0_research_quickwatch
+      - name: Comment once per failed run on existing Issue 360
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.watch.outputs.result != '' && (steps.watch.outputs.result == 'ANOMALY_DETECTED' || startsWith(steps.watch.outputs.result, 'MONITOR_BLOCKED_'))
+        shell: bash
+        run: |
+          set -euo pipefail
+          KEY="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path('output/w0_research_quickwatch/latest.json').read_text())
+          ids=','.join(sorted(str(a['run_id']) for a in x.get('anomalies',[])))
+          if not ids:
+              ids=x['status']+':'+x['observed_at_tpe'][:13]
+          print('<!-- sky-w0-quickwatch:'+ids+' -->')
+          PY
+          )"
+          # Dedupe repeated 5-minute checks; never post for a clean or expired window.
+          if gh api "repos/$GITHUB_REPOSITORY/issues/360/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$KEY"; then
+            echo "Existing anomaly already recorded."
+            exit 0
+          fi
+          {
+            echo "$KEY"
+            echo "W0 research quickwatch: new read-only monitor anomaly."
+            echo "Evidence: https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "Sanitized artifact: w0-research-quickwatch-$GITHUB_RUN_ID"
+            echo "Status: $(python -c "import json; print(json.load(open('output/w0_research_quickwatch/latest.json'))['status'])")"
+            echo "No auto-retry of paid workflows, no Production changes, NO_TRADE. W0/W2 to investigate."
+          } > /tmp/w0-quickwatch-comment.md
+          gh issue comment 360 -R "$GITHUB_REPOSITORY" --body-file /tmp/w0-quickwatch-comment.md
+      - name: Upload reproducible redacted audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: w0-research-quickwatch-${{ github.run_id }}
+          path: output/w0_research_quickwatch/latest.json
+          if-no-files-found: warn
+          retention-days: 2
+      - name: Fail job when watch found anomalies or GitHub API is unavailable
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.watch.outputs.result != '' && (steps.watch.outputs.result == 'ANOMALY_DETECTED' || startsWith(steps.watch.outputs.result, 'MONITOR_BLOCKED_'))
+        run: exit 1
