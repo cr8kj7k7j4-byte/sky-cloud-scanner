@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
   schedule:
     # UTC, Asia/Taipei UTC+8. Weekdays; official trading-calendar gate below.
-    # 09:05-09:55 every 5 minutes (11 slots).
-    - cron: "5-55/5 1 * * 1-5"
+    # 09:00-09:55 every 5 minutes (12 slots); 09:00 initial data may fail closed.
+    - cron: "*/5 1 * * 1-5"
     # 10:00-12:55 every 5 minutes (36 slots).
     - cron: "*/5 2-4 * * 1-5"
-    # 13:00-13:30 every 5 minutes (7 slots); total 54.
+    # 13:00-13:30 every 5 minutes (7 slots); total 55.
     # GitHub scheduled jobs can be delayed or skipped; artifacts contain actual start time.
     - cron: "0-30/5 5 * * 1-5"
 
@@ -41,7 +41,7 @@ jobs:
               "run_attempt": os.environ["GITHUB_RUN_ATTEMPT"],
               "source": "GitHub event payload and runner clock",
               "cron_utc": [
-                  "5-55/5 1 * * 1-5",
+                  "*/5 1 * * 1-5",
                   "*/5 2-4 * * 1-5",
                   "0-30/5 5 * * 1-5"
               ],
