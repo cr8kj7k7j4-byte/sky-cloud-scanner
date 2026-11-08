@@ -54,6 +54,15 @@ class HorizonLabelsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"semantics"):
             build_rows(payload("intraday",bar_end=False),horizon="intraday")
 
+    def test_missing_middle_bar_is_not_accepted(self):
+        p = payload("intraday")
+        bars = p["symbols"]["2330"]["bars_5m"]
+        # Remove a completed bar from the second day's 10:00 path.
+        p["symbols"]["2330"]["bars_5m"] = [
+            b for b in bars if not b["timestamp"].startswith("2026-01-06T10:00:00")
+        ]
+        self.assertEqual(build_rows(p, horizon="intraday"), [])
+
     def test_bad_source_rejected(self):
         p=payload("next_day");p["source"]="SIMULATED"
         with self.assertRaises(ValueError):
