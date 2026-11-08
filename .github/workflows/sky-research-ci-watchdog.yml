@@ -1,0 +1,59 @@
+name: Sky 24h Research CI Watchdog (5min)
+
+on:
+  pull_request:
+    paths:
+      - "ops/recovery/**"
+      - ".github/workflows/sky-research-ci-watchdog.yml"
+  schedule:
+    # GitHub schedules use UTC; 5min cadence is approximate, not guaranteed.
+    # No timezone conversion needed for a 5min interval.
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write # Only rerun failed jobs for the code-level allowlisted PR unit test.
+
+concurrency:
+  group: sky-research-ci-watchdog
+  cancel-in-progress: false
+
+jobs:
+  contract-tests:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Contract and negative tests
+        run: python -m unittest discover -s ops/recovery -p 'test_*.py' -v
+
+  five-minute-watchdog:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SKY_RECOVERY_END_UTC: "2026-11-09T22:31:00Z"
+      # Only test-only PR CI may be retried. No Fugle, scanner, GCS, Cloud Run,
+      # research ledger, Production, workflow dispatch or trading retries.
+      SKY_RECOVERY_RETRY_ENABLED: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Bounded fail-closed research-CI check
+        run: python ops/recovery/sky_research_watchdog.py
+      - name: Upload independent audit report (even on failure)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-watchdog-${{ github.run_id }}-${{ github.run_attempt }}
+          path: recovery-reports/latest.json
+          if-no-files-found: warn
+          retention-days: 7
