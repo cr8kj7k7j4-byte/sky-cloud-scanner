@@ -69,7 +69,8 @@ jobs:
           set -euo pipefail
           MARKER="SKY_WATCHDOG_FIRST_SCHEDULE_RUN_V1"
           # Never repost on subsequent 5-minute runs. Issue #363 is the W0 log.
-          if gh api "repos/${GITHUB_REPOSITORY}/issues/363/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$MARKER"; then
+          COMMENTS="$(gh api "repos/${GITHUB_REPOSITORY}/issues/363/comments?per_page=100" --paginate --jq '.[].body')"
+          if grep -Fq "$MARKER" <<< "$COMMENTS"; then
             echo "Schedule proof already recorded"
             exit 0
           fi
