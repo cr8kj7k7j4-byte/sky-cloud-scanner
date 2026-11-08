@@ -1,5 +1,10 @@
-name: Three Model Fugle Historical Private Ledger (Manual Research)
+name: Three Model Fugle Historical Private Ledger (Research Only)
+# Scheduled research is opt-in by a reviewed merge; never Production or auto orders.
+# 09:30 UTC = 17:30 Asia/Taipei, Monday-Friday. TWSE/TPEx holidays
+# are checked against actual requested-session candles before any ledger write.
 on:
+  schedule:
+    - cron: '30 9 * * 1-5'
   workflow_dispatch:
     inputs:
       symbols:
@@ -54,10 +59,14 @@ jobs:
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
           SKY_RESEARCH_GCS_BUCKET: ${{ vars.SKY_RESEARCH_GCS_BUCKET }}
-          INPUT_SYMBOLS: ${{ inputs.symbols }}
-          INPUT_END_DATE: ${{ inputs.end_date }}
+          INPUT_SYMBOLS: ${{ inputs.symbols || '1101,8088' }}
+          INPUT_END_DATE: ${{ inputs.end_date || '' }}
         shell: bash
         run: |
+          if [ -z "$INPUT_END_DATE" ]; then
+            INPUT_END_DATE="$(TZ=Asia/Taipei date +%F)"
+          fi
+          echo "Research request: 2-symbol bounded cohort; date=$INPUT_END_DATE; no orders"
           PYTHONPATH=. python -m research.three_model_fugle_pipeline --symbols "$INPUT_SYMBOLS" --end "$INPUT_END_DATE"
       - name: Publish sanitized research audit only
         if: always()
@@ -69,7 +78,11 @@ jobs:
           from pathlib import Path
           r=json.loads(Path("output/three_model_fugle_evidence_summary.json").read_text())
           print("## Three-Model Fugle Historical Research Audit")
-          print("Private saved records:", r["saved_records"])
+          print("Research audit status:", r.get("status","UNKNOWN"))
+          print("Written/readback records:",r["saved_records"])
+          print("Created objects:",sum(x["status"]=="CREATED" for x in r.get("storage_statuses",[])))
+          print("Identical existing objects:",sum(x["status"]=="ALREADY_EXISTS_IDENTICAL" for x in r.get("storage_statuses",[])))
+          print("Data-sufficiency notes:",r.get("coverage_gaps",[]))
           print("Historical only; trained AI: NO; production trades: NO; mobile deployment: NOT VERIFIED")
           PY
           fi
