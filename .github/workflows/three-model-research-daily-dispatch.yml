@@ -1,0 +1,53 @@
+name: Three Model Research Daily Dispatcher (No Cloud Credentials)
+# This job never assumes GCP identity or accesses paid data.
+# It dispatches existing workflow_dispatch-only research jobs on main,
+# preserving the GCP provider's strict main+workflow_dispatch condition.
+# 09:30 UTC = 17:30 Asia/Taipei Mon-Fri (research ledger).
+# 10:30 UTC = 18:30 Asia/Taipei Mon-Fri (next-session price markout).
+on:
+  schedule:
+    - cron: '30 9 * * 1-5'
+    - cron: '30 10 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      task:
+        description: 'ledger or markout; no arbitrary workflow execution'
+        type: choice
+        required: true
+        options: [ledger, markout]
+permissions:
+  contents: read
+  actions: write
+concurrency:
+  group: three-model-research-daily-dispatcher
+  cancel-in-progress: false
+jobs:
+  dispatch-research-only:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      SCHEDULE: ${{ github.event.schedule }}
+      INPUT_TASK: ${{ inputs.task || '' }}
+    steps:
+      - name: Dispatch only an allowlisted private research workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$INPUT_TASK" = "ledger" ] || [ "$SCHEDULE" = "30 9 * * 1-5" ]; then
+            WORKFLOW="three-model-fugle-private-ledger.yml"
+            ARGS=(-f symbols=1101,8088)
+          elif [ "$INPUT_TASK" = "markout" ] || [ "$SCHEDULE" = "30 10 * * 1-5" ]; then
+            WORKFLOW="three-model-next-session-markout.yml"
+            ARGS=()
+          else
+            echo "Unsupported task or schedule; no dispatch."
+            exit 1
+          fi
+          END_DATE="$(TZ=Asia/Taipei date +%F)"
+          echo "Dispatching allowed research job $WORKFLOW for Taipei date $END_DATE"
+          gh workflow run "$WORKFLOW" -R "$GH_REPO" -r main "${ARGS[@]}" -f "end_date=$END_DATE"
+          echo "Dispatched workflow_dispatch (not a completed or validated outcome)"
+          echo "This step has NO Fugle credentials and NO GCP identity."
