@@ -304,6 +304,21 @@ def evaluate_candidate(candidate, portfolio_context, policy=None):
             "execution_status": "EXECUTION_INPUT_REQUIRED",
         }
 
+    # P0-R admission must never upgrade A / X / missing or unrecognized
+    # classifications into actionable new entries, even with complete figures.
+    # Direct evaluate_trade remains a risk arithmetic helper, not an
+    # authorization surface for research or low-grade candidates.
+    if candidate.get("grade") != "A+":
+        return {
+            "status": "BLOCK",
+            "portfolio_allowed": False,
+            "required_inputs": [],
+            "reasons": ["只有 A+ 候選可進入新進場核准；A／X／未知分類不得交易"],
+            "recommended_shares": 0,
+            "execution_status": "GRADE_NOT_ELIGIBLE",
+            "execution_adjusted_rr": None,
+        }
+
     # Full execution-cost inputs are mandatory for new candidate admission.
     execution_policy = portfolio_context["execution_policy"]
     if not getattr(execution_policy, "enforce_gate", False):
