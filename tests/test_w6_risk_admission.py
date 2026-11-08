@@ -123,6 +123,31 @@ def test_only_a_plus_can_enter_candidate_risk_admission():
     assert evaluate_candidate(C, CTX, P)["status"] == "ALLOW"
 
 
+def test_ledger_timestamp_provenance_requires_valid_timezone():
+    for bad in (
+        "not-a-date", "2026-11-08T10:00:00",
+        "2026-02-30T10:00:00+08:00",
+        "2026-11-08", 123456, True, [],
+    ):
+        result = evaluate_candidate(C, dict(CTX, ledger_asof=bad), P)
+        assert result["status"] == "RISK_INPUT_REQUIRED", (bad, result)
+        assert result["portfolio_allowed"] is False
+        assert result["recommended_shares"] == 0
+        assert "ledger_asof_invalid" in result["required_inputs"], (bad, result)
+
+    for bad in (False, 123, [], "   "):
+        result = evaluate_candidate(C, dict(CTX, ledger_source=bad), P)
+        assert result["status"] == "RISK_INPUT_REQUIRED", (bad, result)
+        assert result["portfolio_allowed"] is False
+        assert result["recommended_shares"] == 0
+        assert "ledger_source_invalid" in result["required_inputs"], (bad, result)
+
+    # Format validation is not authenticated provenance or true freshness.
+    for asof in ("2026-11-08T10:00:00+08:00", "2026-11-08T02:00:00Z"):
+        result = evaluate_candidate(C, dict(CTX, ledger_asof=asof), P)
+        assert result["status"] == "ALLOW", (asof, result)
+
+
 def test_integer_count_wire_format_cannot_crash_admission():
     # An upstream JSON string "1.0" used to pass float validation but raise
     # ValueError inside evaluate_trade's int("1.0"), aborting the scan.
@@ -180,4 +205,5 @@ if __name__ == "__main__":
     test_only_a_plus_can_enter_candidate_risk_admission()
     test_default_risk_policy_matches_confirmed_500k_p0r()
     test_integer_count_wire_format_cannot_crash_admission()
+    test_ledger_timestamp_provenance_requires_valid_timezone()
     print("PASS W6 candidate fail-closed checks")
