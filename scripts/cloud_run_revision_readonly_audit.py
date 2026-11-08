@@ -11,7 +11,7 @@ from pathlib import Path
 
 SERVICE = "tw-ai-mobile"
 REGION = "asia-east1"
-IMMUTABLE_IMAGE_RE = re.compile(r"^[^\\s@]+@sha256:[0-9a-fA-F]{64}$")
+IMMUTABLE_IMAGE_RE = re.compile(r"^[^\s@]+@sha256:[0-9a-fA-F]{64}$")
 
 
 def is_immutable_digest(value):
