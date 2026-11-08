@@ -16,14 +16,32 @@ on:
     - cron: '*/5 3-23 8 11 *'
     - cron: '*/5 0-2 9 11 *'
 permissions:
-  actions: read
   contents: read
-  issues: write
 concurrency:
   group: w0-research-quickwatch
   cancel-in-progress: false
 jobs:
+  offline-contracts:
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Offline safety and expiry tests
+        run: |
+          python -m pip install pytest
+          PYTHONPATH=. python -m pytest -q tests/test_w0_research_quickwatch.py
   quickwatch:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    permissions:
+      actions: read
+      contents: read
+      issues: write
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
@@ -34,17 +52,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Offline safety and expiry tests
-        run: |
-          python -m pip install pytest
-          PYTHONPATH=. python -m pytest -q tests/test_w0_research_quickwatch.py
       - name: Check research schedule workflow runs without paid credentials
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         id: watch
         continue-on-error: true
         run: PYTHONPATH=. python -m ops.w0_research_quickwatch
       - name: Comment once per failed run on existing Issue 360
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.watch.outputs.result != '' && (steps.watch.outputs.result == 'ANOMALY_DETECTED' || startsWith(steps.watch.outputs.result, 'MONITOR_BLOCKED_'))
+        if: steps.watch.outputs.result != '' && (steps.watch.outputs.result == 'ANOMALY_DETECTED' || startsWith(steps.watch.outputs.result, 'MONITOR_BLOCKED_'))
         shell: bash
         run: |
           set -euo pipefail
@@ -82,5 +95,5 @@ jobs:
           if-no-files-found: warn
           retention-days: 2
       - name: Fail job when watch found anomalies or GitHub API is unavailable
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.watch.outputs.result != '' && (steps.watch.outputs.result == 'ANOMALY_DETECTED' || startsWith(steps.watch.outputs.result, 'MONITOR_BLOCKED_'))
+        if: steps.watch.outputs.result != '' && (steps.watch.outputs.result == 'ANOMALY_DETECTED' || startsWith(steps.watch.outputs.result, 'MONITOR_BLOCKED_'))
         run: exit 1
