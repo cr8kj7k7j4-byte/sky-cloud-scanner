@@ -152,9 +152,22 @@ def run(symbols, end, bucket, prefix, key, store, out):
         raise ValueError("invalid_symbol_count")
     inputs={}
     for symbol in symbols:
-        five=read_fugle(symbol,"5",end-timedelta(days=8),end,key)
+        # A closed/suspended session may legitimately return an empty historical
+        # array. Convert only provider_empty_data to an auditable coverage gap;
+        # authorization, timestamp, symbol and schema errors still fail.
+        try:
+            five=read_fugle(symbol,"5",end-timedelta(days=8),end,key)
+        except ValueError as exc:
+            if str(exc) != "provider_empty_data":
+                raise
+            five=[]
         clock.sleep(1.05)
-        daily=read_fugle(symbol,"D",end-timedelta(days=90),end,key)
+        try:
+            daily=read_fugle(symbol,"D",end-timedelta(days=90),end,key)
+        except ValueError as exc:
+            if str(exc) != "provider_empty_data":
+                raise
+            daily=[]
         clock.sleep(1.05)
         inputs[symbol]={"name":None,"bars_5m":five,"bars_daily":daily}
     # Never turn stale prior-session candles into observations labelled with
