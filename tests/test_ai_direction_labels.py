@@ -46,9 +46,9 @@ class HorizonLabelsTests(unittest.TestCase):
     def test_intraday_uses_completed_0930_then_0940_open_to_1325_close(self):
         rows=build_rows(payload("intraday"),horizon="intraday")
         self.assertTrue(rows)
-        self.assertTrue(all(x["date"].endswith("09:30:00+08:00") for x in rows))
-        self.assertTrue(all(x["label_start_at"].endswith("09:35:00+08:00") for x in rows))
-        self.assertTrue(all(x["label_end_at"].endswith("13:20:00+08:00") for x in rows))
+        self.assertTrue(all(x["date"].endswith("09:35:00+08:00") for x in rows))
+        self.assertTrue(all(x["label_start_at"].endswith("09:40:00+08:00") for x in rows))
+        self.assertTrue(all(x["label_end_at"].endswith("13:25:00+08:00") for x in rows))
 
     def test_unverified_bar_semantics_fails_closed(self):
         with self.assertRaisesRegex(ValueError,"semantics"):
