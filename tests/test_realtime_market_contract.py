@@ -231,3 +231,44 @@ def test_w3a_market_data_reason_breakdown_is_exchange_specific():
         "STALE_OR_UNVERIFIED_EXECUTED_TRADE": 1,
     }
     assert result["valid_whole_market_operational"] is False
+
+
+def test_w3a_integrated_fugle_first_route_keeps_provider_evidence():
+    from src.quote_provider import collect_market_quotes
+    pool = [{"symbol": "2330", "exchange": "TWSE"}, {"symbol": "8088", "exchange": "TPEx"}]
+    rows = [
+        {"symbol": code, "last": 60, "quote_date": NOW.date().isoformat(),
+         "quote_source": "Fugle bulk snapshot", "last_trade_timestamp": NOW.isoformat()}
+        for code in ("2330", "8088")
+    ]
+    result = collect_market_quotes(
+        pool, now=NOW,
+        fugle_fetch=lambda universe, trading_date: (rows, []),
+        mis_fetch=lambda _: (_ for _ in ()).throw(
+            AssertionError("MIS must not be queried when paid primary passes")
+        ),
+    )
+    assert result["provider"] == "Fugle bulk snapshot"
+    assert result["fallback_used"] is False
+    assert result["primary_evidence"]["valid_quote_count"] == 2
+    assert result["primary_evidence"]["missing_by_exchange"] == {"TWSE": 0, "TPEx": 0}
+
+
+def test_w3a_integrated_route_never_mixes_two_partial_sources():
+    from src.quote_provider import collect_market_quotes
+    pool = [{"symbol": "2330", "exchange": "TWSE"}, {"symbol": "8088", "exchange": "TPEx"}]
+    a = {"symbol": "2330", "last": 60, "quote_date": NOW.date().isoformat(),
+         "quote_source": "Fugle bulk snapshot", "last_trade_timestamp": NOW.isoformat()}
+    b = {"symbol": "8088", "last": 60, "quote_date": NOW.strftime("%Y%m%d"),
+         "quote_time": "10:14:30", "quote_source": "TWSE MIS"}
+    result = collect_market_quotes(
+        pool, now=NOW,
+        fugle_fetch=lambda universe, trading_date: ([a], []),
+        mis_fetch=lambda universe: ([b], []),
+    )
+    assert result["fallback_used"] is True
+    assert result["audit"]["valid_whole_market_operational"] is False
+    assert result["audit"]["valid_quote_count"] == 1
+    assert result["primary_evidence"]["valid_quote_count"] == 1
+    assert result["primary_evidence"]["missing_by_exchange"]["TPEx"] == 1
+    assert all(row["quote_source"] == "TWSE MIS" for row in result["rows"])
