@@ -70,3 +70,37 @@ def test_stale_fugle_and_failed_mis_fail_closed():
     )
     assert result["audit"]["valid_quote_count"] == 0
     assert not result["audit"]["valid_whole_market_operational"]
+
+
+def test_w3a_primary_audit_reports_exchange_specific_rejection():
+    result = collect_market_quotes(
+        UNIVERSE, now=NOW,
+        fugle_fetch=lambda _, trading_date: (
+            [fugle_row("1001"), dict(fugle_row("2001"), last_trade_timestamp=None)], []
+        ),
+        mis_fetch=lambda _: ([], ["MIS_EMPTY"]),
+    )
+    assert result["fallback_used"] is True
+    assert result["primary_evidence"]["received_by_exchange"] == {"TWSE": 1, "TPEx": 1}
+    assert result["primary_evidence"]["rejected_by_exchange"]["TPEx"] == {
+        "STALE_OR_UNVERIFIED_EXECUTED_TRADE": 1
+    }
+    assert result["audit"]["valid_quote_count"] == 0
+    assert result["audit"]["status"] == "BLOCKED_EXTERNAL_DATA"
+
+
+def test_w3a_primary_complete_source_does_not_get_mixed_with_mis():
+    def must_not_call_mis(_):
+        raise AssertionError("no MIS call after valid Fugle cross-market coverage")
+    result = collect_market_quotes(
+        UNIVERSE, now=NOW,
+        fugle_fetch=lambda _, trading_date: (
+            [fugle_row("1001"), fugle_row("2001")], []
+        ),
+        mis_fetch=must_not_call_mis,
+    )
+    assert result["fallback_used"] is False
+    assert {row["symbol"] for row in result["rows"]} == {"1001", "2001"}
+    assert all(row["quote_source"] == "Fugle bulk snapshot" for row in result["rows"])
+    assert result["primary_evidence"]["received_by_exchange"] == {"TWSE": 1, "TPEx": 1}
+    assert result["primary_evidence"]["missing_by_exchange"] == {"TWSE": 0, "TPEx": 0}
