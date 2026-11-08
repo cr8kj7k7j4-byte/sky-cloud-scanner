@@ -166,6 +166,29 @@ def test_integer_count_wire_format_cannot_crash_admission():
         assert valid["status"] == "ALLOW", (key, valid)
 
 
+def test_actual_scanner_portfolio_context_must_not_authorize_new_trade():
+    # Read the scanner's current entrypoint without modifying W0/W3A files.
+    # Scanner env defaults (including zeros) are NOT authenticated broker state.
+    from src.main import _portfolio_context, _risk_policy
+
+    context = _portfolio_context()
+    for evidence in (
+        "ledger_verified", "ledger_asof", "ledger_source",
+        "ledger_fresh", "ledger_complete",
+    ):
+        assert evidence not in context, (evidence, context)
+    candidate = dict(C)
+    blocked = evaluate_candidate(candidate, context, _risk_policy())
+    assert blocked["status"] == "RISK_INPUT_REQUIRED", blocked
+    assert blocked["portfolio_allowed"] is False
+    assert blocked["recommended_shares"] == 0
+    assert "ledger_verified" in blocked["required_inputs"]
+    assert "ledger_fresh" in blocked["required_inputs"]
+    assert "ledger_complete" in blocked["required_inputs"]
+    # Explicitly require no accidentally constructed YES/ALLOW state when
+    # scanner mode has a fee profile but no account ledger attestation.
+
+
 def test_default_risk_policy_matches_confirmed_500k_p0r():
     defaults = RiskPolicy()
     assert defaults.risk_per_trade_pct == 0.01
@@ -208,4 +231,5 @@ if __name__ == "__main__":
     test_default_risk_policy_matches_confirmed_500k_p0r()
     test_integer_count_wire_format_cannot_crash_admission()
     test_ledger_timestamp_provenance_requires_valid_timezone()
+    test_actual_scanner_portfolio_context_must_not_authorize_new_trade()
     print("PASS W6 candidate fail-closed checks")
