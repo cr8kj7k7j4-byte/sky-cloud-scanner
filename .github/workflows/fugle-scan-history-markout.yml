@@ -1,0 +1,46 @@
+name: Fugle Historical Scan Markout Research (Manual Only)
+on:
+  workflow_dispatch:
+    inputs:
+      symbols:
+        description: "Comma-separated research symbols (max 5)"
+        required: true
+        default: "1101,8088"
+      end_date:
+        description: "Completed historical trading date YYYY-MM-DD"
+        required: true
+        default: "2026-11-06"
+permissions:
+  contents: read
+jobs:
+  historical-markout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify research-only offline contracts
+        run: |
+          python -m unittest discover -s tests -p 'test_scan_history*.py' -v
+      - name: Check paid provider credential is present
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+        run: |
+          if [ -z "$FUGLE_API_KEY" ]; then echo "BLOCKED: Fugle credential missing"; exit 1; fi
+      - name: Historical provider markout (no orders)
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+          INPUT_SYMBOLS: ${{ inputs.symbols }}
+          INPUT_END_DATE: ${{ inputs.end_date }}
+        run: |
+          python -m research.scan_history_fugle_markout --symbols "$INPUT_SYMBOLS" --end "$INPUT_END_DATE"
+      - name: Upload sanitized research summary only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fugle-historical-markout-${{ github.run_id }}
+          path: output/fugle_markout_sanitized.json
+          retention-days: 30
+          if-no-files-found: warn
