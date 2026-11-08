@@ -100,6 +100,12 @@ def _build_chain(last=10.25, daily_pnl=0.0, execution_policy=None):
         "drawdown_pct": 0,
         "consecutive_losses": 0,
         "execution_policy": execution_policy,
+        # Explicitly synthetic acceptance fixture, never a live account snapshot.
+        "ledger_verified": True,
+        "ledger_complete": True,
+        "ledger_fresh": True,
+        "ledger_source": "E2E_SYNTHETIC_FIXTURE_ONLY",
+        "ledger_asof": "2026-10-25T09:35:00+08:00",
     }
     c["risk"] = evaluate_candidate(c, portfolio, policy=RiskPolicy())
     c["monitor"] = evaluate_monitor_state(c).to_dict()
