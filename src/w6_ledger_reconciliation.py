@@ -155,6 +155,7 @@ def reconcile_for_review(snapshot: dict, *, now: datetime, max_age_seconds: int 
                 "open_risk": float(pos_risk),
                 "concurrent_positions": len(used_symbols),
                 "consecutive_stop_losses": streak,
+                "stop_streak_scope": "SINGLE_TRADING_DAY_ONLY_NOT_CROSS_SESSION",
                 "correlated_open_risk": correlated_risk,
                 "drawdown_pct": None,
                 "closed_trades_count": len(trades),
@@ -162,7 +163,8 @@ def reconcile_for_review(snapshot: dict, *, now: datetime, max_age_seconds: int 
             "not_verified": [
                 "broker_source_identity", "account_balance_reconciliation",
                 "closed_trades_completeness", "positions_completeness",
-                "stop_execution_causality", "correlation_exposure", "account_drawdown",
+                "stop_execution_causality", "cross_session_stop_streak",
+                "correlation_exposure", "account_drawdown",
             ],
         }
     except (ValueError, TypeError, OverflowError) as exc:
