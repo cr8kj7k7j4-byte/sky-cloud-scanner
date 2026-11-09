@@ -1,0 +1,41 @@
+name: Sky MCR Intraday Information Tests
+on:
+  pull_request:
+    paths:
+      - 'research/mcr_intraday_information.py'
+      - 'tests/test_mcr_intraday_information.py'
+      - '.github/workflows/scan.yml'
+      - '.github/workflows/mcr-intraday-information-tests.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'research/mcr_intraday_information.py'
+      - 'tests/test_mcr_intraday_information.py'
+      - '.github/workflows/mcr-intraday-information-tests.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run MCR intraday read-only tests
+        run: python -m unittest tests.test_mcr_intraday_information -v
+      - name: Generate report from committed financing evidence without falsely claiming live prices
+        run: |
+          python -m research.mcr_observation_report
+          python -m research.mcr_intraday_information
+      - name: Upload reproducible read-only report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcr-intraday-offline-${{ github.run_id }}
+          path: |
+            output/mcr_intraday_information_latest.json
+            output/mcr_intraday_information_latest.md
+          if-no-files-found: error

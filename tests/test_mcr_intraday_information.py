@@ -1,0 +1,39 @@
+import unittest
+from research.mcr_intraday_information import join, markdown
+
+NOW="2026-11-09T11:35:00+08:00"
+MCR={"financing_source_date":"2026-11-06","rows":[
+    {"stock_id":"1111","stock_name":"A","exchange":"TWSE","two_session_reduction_pct":12.5},
+    {"stock_id":"2222","stock_name":"B","exchange":"TPEx","two_session_reduction_pct":8.1},
+]}
+LIVE={"checked_at_tpe":NOW,"universe_count":1983,"all_symbols":[
+    {"symbol":"1111","exchange":"TWSE","last_price":25.1,"volume":200000,
+    "data_status":"UNVERIFIED_EXECUTION_TIME","source":"Fugle paid bulk snapshot"},
+]}
+class TestMcrLiveObservations(unittest.TestCase):
+    def test_keep_all_candidates_even_if_unverified(self):
+        r=join(MCR,LIVE,NOW)
+        self.assertEqual(r["candidate_count"],2)
+        self.assertEqual(r["with_observed_price"],1)
+        self.assertEqual(r["fresh_executed_count"],0)
+        self.assertFalse(r["trade_eligible"])
+        self.assertEqual(r["rows"][0]["last_price"],25.1)
+        self.assertEqual(r["rows"][0]["data_status"],"UNVERIFIED_EXECUTION_TIME")
+        self.assertEqual(r["rows"][1]["data_status"],"MISSING_LIVE_INFORMATION")
+        self.assertTrue(all(not x["trade_eligible"] for x in r["rows"]))
+        self.assertIn("🔴",markdown(r))
+    def test_missing_live_still_keeps_financing_candidates(self):
+        r=join(MCR,None,NOW)
+        self.assertEqual(r["candidate_count"],2)
+        self.assertEqual(r["with_observed_price"],0)
+        self.assertIn("LIVE_ALL_MARKET_OBSERVATIONS_UNAVAILABLE",r["data_blockers"])
+    def test_only_explicit_fresh_counted(self):
+        live={**LIVE,"all_symbols":[{**LIVE["all_symbols"][0],"data_status":"FRESH_EXECUTED_TRADE"}]}
+        r=join(MCR,live,NOW)
+        self.assertEqual(r["fresh_executed_count"],1)
+        self.assertFalse(r["trade_eligible"])
+    def test_no_candidate_unavailable_not_valid_zero_result(self):
+        r=join(None,LIVE,NOW)
+        self.assertEqual(r["candidate_count"],0)
+        self.assertIn("MCR_FINANCING_CANDIDATES_UNAVAILABLE",r["data_blockers"])
+if __name__=="__main__":unittest.main()

@@ -138,6 +138,13 @@ jobs:
         run: |
           python -m research.sky_full_universe_information
           cat output/sky_quickscan_information/latest.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Join MCR research observations to available all-market information
+        if: always()
+        continue-on-error: true
+        run: |
+          python -m unittest tests.test_mcr_intraday_information -v
+          python -m research.mcr_intraday_information
+          cat output/mcr_intraday_information_latest.md >> "$GITHUB_STEP_SUMMARY"
       - name: Verify operational market coverage
         if: steps.calendar.outputs.should_scan == 'true'
         run: |
