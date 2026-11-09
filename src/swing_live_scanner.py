@@ -366,6 +366,22 @@ def run(mode="swing5d", top_n=20, deep_n=8):
     }
 
     suffix = "swing5d" if mode == "swing5d" else "swing"
+    if mode == "swing":
+        # Preserve ALL observations, not only a top-20 preview. Never certify live execution.
+        full_observations = {
+            "generated_at": now.isoformat(),
+            "source": "Fugle bulk snapshot",
+            "observation_scope": "BULK_SNAPSHOT_INDICATIVE_ONLY",
+            "snapshot_coverage_pct": snapshot_coverage_pct,
+            "snapshot_exchange_counts": snapshot_exchange_counts,
+            "observed_symbols": len(all_snapshot_observations),
+            "trade_eligibility": "禁止新進場：未驗證逐股成交時間及策略資格",
+            "sorting": "trade_value_desc_NOT_validated_swing_alpha",
+            "data": all_snapshot_observations,
+        }
+        (OUT / "snapshot_observations_swing.json").write_text(
+            json.dumps(full_observations, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
     if mode == "swing5d":
         information_rows_13col = build_swing5d_13col_rows(
             all_snapshot_observations, snapshot_deep_confirmation
