@@ -42,6 +42,12 @@ jobs:
             COMMAND="${{ inputs.command }}"
           fi
           python -m src.sky_unified_commands --mode "$COMMAND"
+      - name: Preserve requested columns and partial observations for every command
+        if: always()
+        run: |
+          python -m src.sky_information_report \
+            --input output/unified/all_market.json \
+            --output output/unified/information_first_all_market.json
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@v4
