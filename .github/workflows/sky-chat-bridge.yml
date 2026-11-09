@@ -1,0 +1,70 @@
+name: Sky Chat On-Demand Scan Bridge
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scan_requests/chat/latest.json'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: sky-chat-scan
+  cancel-in-progress: false
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - name: Run read-only paid Fugle observations (market or after-market)
+        id: bridge
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+          SKY_FUGLE_ONLY_MARKETDATA: '1'
+        run: python -m src.sky_chat_bridge
+      - name: Upload complete 13-column report and status
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-chat-${{ github.run_id }}
+          path: |
+            output/chat_bridge/latest.json
+            output/sky_quickscan_information/latest_13col.json
+            output/sky_quickscan_information/latest_13col.md
+            output/sky_quickscan_information/full_universe.json
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Publish sanitized summary for ChatGPT GitHub connector
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("output/chat_bridge/latest.json")
+          if p.exists():
+              data = json.loads(p.read_text(encoding="utf-8"))
+          else:
+              data = {"schema":"SKY_CHAT_SCAN_STATUS_V1","status":"FAILED_NO_STATUS",
+                      "scan_id":__import__("os").environ.get("GITHUB_RUN_ID"),
+                      "production_eligible":False,"automatic_order":False}
+          Path("/tmp/sky-chat-status.json").write_text(
+              json.dumps(data,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+          PY
+          TARGET="repos/${GITHUB_REPOSITORY}/contents/docs/SKY_CHAT_LATEST_STATUS.json"
+          CONTENT=$(base64 -w0 /tmp/sky-chat-status.json)
+          for ATTEMPT in 1 2 3; do
+            SHA=$(gh api "$TARGET" --jq '.sha' 2>/dev/null || true)
+            if [ -n "$SHA" ]; then
+              gh api --method PUT "$TARGET" -f message="ops: publish Sky chat scan status [skip ci]" -f content="$CONTENT" -f sha="$SHA" -f branch=main >/dev/null && break
+            else
+              gh api --method PUT "$TARGET" -f message="ops: publish Sky chat scan status [skip ci]" -f content="$CONTENT" -f branch=main >/dev/null && break
+            fi
+            if [ "$ATTEMPT" = 3 ]; then exit 1; fi
+            sleep 2
+          done
