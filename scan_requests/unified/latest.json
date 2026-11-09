@@ -1,7 +1,8 @@
 {
   "command": "all_market",
   "requested_at": "2026-11-09T12:03:00+08:00",
-  "reason": "verify_merged_PR434_swing5d_13col_information_first",
+  "reason": "pre-close verified evidence capture 2026-11-09; 13-column research visibility, no trades",
   "scope": "TWSE_TPEx_snapshot_plus_bounded_individual_fugle_confirmation_RESEARCH_ONLY_NO_TRADE",
-  "acceptance": "verify_information_columns_13col_and_preview_in_docs_status"
+  "acceptance": "verify_information_columns_13col_and_preview_in_docs_status",
+  "requested_at_utc": "2026-11-09T05:27:14.699Z"
 }
