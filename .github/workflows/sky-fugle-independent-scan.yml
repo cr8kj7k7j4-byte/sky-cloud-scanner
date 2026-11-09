@@ -1,6 +1,13 @@
 name: Sky Fugle Independent Full Market Scan (Research Only)
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - feature/sky-fugle-independent-market-scan-20261109
+    paths:
+      - '.github/workflows/sky-fugle-independent-scan.yml'
+      - 'research/sky_fugle_independent_scan.py'
+      - 'tests/test_sky_fugle_independent_scan.py'
 
 permissions:
   contents: read
