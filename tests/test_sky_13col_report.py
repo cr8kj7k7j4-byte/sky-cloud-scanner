@@ -47,6 +47,43 @@ class TestSky13Col(unittest.TestCase):
         self.assertEqual(preview.count("| X | 不交易 |"), 30)
         self.assertNotIn("| 1044 | 股44 |", preview)
 
+    def test_fugle_ohlc_research_scores_but_no_entry_without_plan(self):
+        item = {"symbol": "1101", "name": "台泥", "exchange": "TWSE",
+                "source": "Fugle paid bulk snapshot",
+                "data_status": "UNVERIFIED_EXECUTION_TIME",
+                "last_price": 31.5, "open_price": 30.0,
+                "high_price": 32.0, "low_price": 29.8,
+                "change_pct": 2.5}
+        row = projection(item)
+        self.assertIsInstance(row["多方評分"], int)
+        self.assertIsInstance(row["空方評分"], int)
+        self.assertEqual(row["即時價"], "待確認")
+        self.assertEqual(row["買進觸發"], "待確認")
+        self.assertEqual(row["停利價格"], "待確認")
+        self.assertEqual(row["分類"], "X")
+
+    def test_old_session_rejects_observation_scores(self):
+        item = {"symbol": "1101", "source": "Fugle paid bulk snapshot",
+                "data_status": "SNAPSHOT_DATE_NOT_TODAY",
+                "last_price": 31.5, "open_price": 30.0,
+                "high_price": 32.0, "low_price": 29.8}
+        self.assertEqual(projection(item)["多方評分"], "—")
+
+    def test_only_existing_strategy_plan_supplies_levels(self):
+        from research.sky_daytrade_evidence_bridge import scanner_plans
+        scanner = {"deep": [{"symbol": "1101", "strategy_plan": {
+            "trigger": 32, "max_entry": 32.2, "stop": 31,
+            "target": 34}, "strategy_version": "research"}]}
+        plan = scanner_plans(scanner)["1101"]
+        item = {"symbol": "1101", "source": "Fugle paid bulk snapshot",
+                "data_status": "FRESH_EXECUTED_TRADE", "last_price": 31.5}
+        row = projection(item, plan)
+        self.assertIn("32.00", row["買進觸發"])
+        self.assertIn("31.00", row["停損／失效"])
+        self.assertEqual(row["加碼價格"], "待確認")
+        self.assertEqual(row["現在動作"], "等待")
+        self.assertEqual(projection(item)["買進觸發"], "待確認")
+
     def test_nan_never_published(self):
         item = {"symbol": "1101", "last_price": float("nan"),
                 "data_status": "FRESH_EXECUTED_TRADE"}
