@@ -269,6 +269,42 @@ def run(mode="swing5d", top_n=20, deep_n=8):
             x["candidate_reason"] = f"{type(exc).__name__}: {exc}"
         deep.append(x)
 
+    # A bulk snapshot has no lastTrade.time. Deep-confirm a bounded shortlist
+    # through the per-symbol execution endpoint without upgrading the market gate.
+    snapshot_deep_confirmation = []
+    if mode == "swing5d" and not operational_full_market_scan:
+        for item in unverified_snapshot[:deep_n]:
+            confirmation = {
+                "symbol": item["symbol"],
+                "name": item.get("name"),
+                "exchange": item.get("exchange"),
+                "snapshot_indicative_price": item.get("indicative_last_price"),
+                "source": "Fugle intraday quote / individual execution check",
+                "strategy_signal": False,
+                "production_eligible": False,
+                "candidate_scope": "INDIVIDUAL_EXECUTION_CHECK_ONLY",
+                "candidate_action": "觀察",
+                "verified_executed_price": None,
+                "verified_executed_at": None,
+                "data_status": "NOT_VERIFIED",
+            }
+            try:
+                quote = get_quote(item["symbol"])
+                verified_price, verified_at, evidence_status = fugle_executed_trade(
+                    quote, datetime.now(TZ), max_age_seconds=180
+                )
+                confirmation["data_status"] = evidence_status
+                if evidence_status == "FRESH_EXECUTED_TRADE":
+                    confirmation["verified_executed_price"] = verified_price
+                    confirmation["verified_executed_at"] = verified_at.isoformat()
+                    if verified_price >= 100:
+                        confirmation["candidate_action"] = "禁止交易"
+                        confirmation["reason"] = "超出新進場股價限制"
+            except Exception as exc:
+                confirmation["data_status"] = "FUGLE_INDIVIDUAL_QUOTE_ERROR"
+                confirmation["reason"] = f"{type(exc).__name__}: {str(exc)[:120]}"
+            snapshot_deep_confirmation.append(confirmation)
+
     payload = {
         "generated_at": now.isoformat(),
         "mode": mode,
@@ -285,6 +321,11 @@ def run(mode="swing5d", top_n=20, deep_n=8):
         "snapshot_coverage_pct": snapshot_coverage_pct,
         "snapshot_exchange_counts": snapshot_exchange_counts,
         "snapshot_observations_full_artifact": "output/swing_live/snapshot_observations_swing5d.json" if mode == "swing5d" else None,
+        "snapshot_individual_confirmation": snapshot_deep_confirmation,
+        "snapshot_individual_verified_count": sum(
+            row.get("data_status") == "FRESH_EXECUTED_TRADE"
+            for row in snapshot_deep_confirmation
+        ),
         "unverified_snapshot_observations": unverified_snapshot,
         "snapshot_observation_warning": (
             "批量報價已取得，但缺乏可驗證的最近成交時間；"
