@@ -104,3 +104,28 @@ def test_main_market_contract_uses_eighty_percent_minimum():
     }
     assert not operational_market_evidence_ok({**baseline, "quote_coverage_pct": 79.99})
     assert operational_market_evidence_ok({**baseline, "quote_coverage_pct": 80.0})
+
+
+def test_bulk_snapshot_reference_does_not_require_last_trade_time():
+    payload = {
+        "symbol": "1001", "quote_source": "Fugle bulk snapshot",
+        "last": 44, "quote_date": "2026-11-04",
+        # No lastTrade.time or last_trade_timestamp is required for reference coverage.
+    }
+    result = validate_whole_market_rows(universe(), [payload], NOW)
+    assert result["snapshot_reference_count"] == 1
+    assert result["snapshot_reference_coverage_pct"] == 25.0
+    assert result["snapshot_reference_requires_last_trade_time"] is False
+    assert result["valid_quote_count"] == 0
+    assert result["valid_whole_market_operational"] is False
+
+
+def test_trial_or_stale_bulk_snapshot_not_counted_as_reference():
+    rows = [
+        {"symbol": "1001", "quote_source": "Fugle bulk snapshot", "last": 44,
+         "quote_date": "2026-11-04", "isTrial": True},
+        {"symbol": "1002", "quote_source": "Fugle bulk snapshot", "last": 45,
+         "quote_date": "2026-11-03"},
+    ]
+    result = validate_whole_market_rows(universe(), rows, NOW)
+    assert result["snapshot_reference_count"] == 0
