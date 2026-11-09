@@ -1,15 +1,15 @@
 {
-  "command": "Sky 當沖現在掃一次",
-  "requested_at_tpe": "2026-11-09T12:11:08+08:00",
+  "command": "Sky 警戒",
+  "requested_at_tpe": "2026-11-09T13:27:02+08:00",
   "market": "TWSE+TPEx",
   "max_price_twd": 100,
   "source": "Fugle paid bulk + TWSE MIS supplemental; timestamps validated independently",
   "execution": "read_only_no_orders",
   "approval": "User explicitly authorized immediate pre-close scan and repair",
-  "purpose": "User requested immediate daytrade full-universe informational scan with 13-column report",
+  "purpose": "Urgent last-session observation before 13:30 close; collect executable timestamps and separated unverified bulk snapshots, 13-column information only",
   "research_info_visible_when_trade_blocked": true,
-  "requested_at_utc": "2026-11-09T04:11:08Z",
+  "requested_at_utc": "2026-11-09T05:27:02.519Z",
   "information_first": true,
   "user_trade_discretion": true,
-  "scan_trigger_reason": "sky_intraday_now_user_request_20261109_1211"
+  "scan_trigger_reason": "last_session_preclose_evidence_20261109"
 }
