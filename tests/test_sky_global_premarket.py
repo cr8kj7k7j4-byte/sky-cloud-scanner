@@ -1,12 +1,17 @@
 import unittest
-from datetime import datetime
+from datetime import datetime, date
 from zoneinfo import ZoneInfo
-from src.sky_global_premarket import render, freshness
+from src.sky_global_premarket import render, freshness, previous_weekday
 
 
 class ReportTests(unittest.TestCase):
     def setUp(self):
         self.now = datetime(2026, 11, 2, 8, tzinfo=ZoneInfo('Asia/Taipei'))
+
+    def test_night_session_uses_previous_weekday_not_report_date(self):
+        self.assertEqual(date(2026, 11, 6), previous_weekday(date(2026, 11, 9)))
+        self.assertEqual(date(2026, 11, 9), previous_weekday(date(2026, 11, 10)))
+        self.assertEqual(date(2026, 11, 6), previous_weekday(date(2026, 11, 8)))
 
     def test_missing_data_is_not_treated_as_safe(self):
         report = render({'source_status': 'PASS', 'market_open': True}, {}, self.now)
