@@ -1,6 +1,7 @@
 {
   "command": "all_market",
-  "requested_at": "2026-11-09T11:45:39+08:00",
-  "reason": "post_merge_PR420_individual_Fugle_trade_confirmation",
-  "scope": "TWSE_TPEx_full_market_snapshot_plus_bounded_verified_single_symbol_quotes_NO_TRADE"
+  "requested_at": "2026-11-09T12:03:00+08:00",
+  "reason": "verify_merged_PR434_swing5d_13col_information_first",
+  "scope": "TWSE_TPEx_snapshot_plus_bounded_individual_fugle_confirmation_RESEARCH_ONLY_NO_TRADE",
+  "acceptance": "verify_information_columns_13col_and_preview_in_docs_status"
 }
