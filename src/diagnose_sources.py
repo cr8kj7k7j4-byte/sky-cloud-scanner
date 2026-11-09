@@ -74,7 +74,7 @@ def run():
     out["official_universe"] = st
     out["universe_count"] = len(universe)
 
-    if os.getenv("SKY_FUGLE_ONLY_MARKETDATA", "0") == "1":
+    if os.getenv("SKY_FUGLE_ONLY_MARKETDATA", "1") == "1":
         out["mis_sample"] = {
             "status": "SKIPPED_FUGLE_ONLY",
             "scope": "NO_FREE_MARKETDATA_REQUESTS",
