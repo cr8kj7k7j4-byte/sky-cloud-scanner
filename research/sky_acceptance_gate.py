@@ -20,7 +20,7 @@ COMMANDS = {
     "Sky 當沖更新 2330": "SKY_SINGLE_STOCK_UPDATE",
     "Sky 波段現在掃一次": "SKY_SWING_V11_LIVE_ALIAS",
     "Sky Swing 5D 快掃": "SKY_SWING_5D",
-    "Sky 警戒": "SKY_MONITOR",
+    "Sky 警戒": "SKY_ALERT_WHOLE_MARKET_OBSERVATION",
     "Sky 持倉監控": "SKY_MONITOR",
     "Sky 波段持倉更新 2330，成本50，1張": "SKY_POSITION_UPDATE",
     "Sky 回測目前模型": "SKY_RESEARCH_VALIDATION",
