@@ -1,0 +1,39 @@
+name: Sky Observation-Only Research Contract Tests
+on:
+  pull_request:
+    paths:
+      - 'research/sky_observation_only.py'
+      - 'tests/test_sky_observation_only.py'
+      - '.github/workflows/sky-observation-only-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  observation-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test observation without trading gate bypass
+        run: PYTHONPATH=. python -m unittest discover -s tests -p test_sky_observation_only.py -v
+      - name: Test CLI against deliberately blocked fixture
+        shell: bash
+        run: |
+          mkdir -p output
+          printf '%s\n' '{"run_time":"2026-11-09T11:00:00+08:00","market_data_gate":"BLOCKED_EXTERNAL_DATA_NO_TRADE","quote_coverage_pct":2.77,"deep_unverified":[{"symbol":"1101","name":"台泥","price":27.05}]}' > output/latest.json
+          PYTHONPATH=. python -m research.sky_observation_only --input output/latest.json --output output/observation_only.json
+          python - <<'PY'
+          import json
+          x=json.load(open('output/observation_only.json'))
+          assert x['trade_eligible'] is False
+          assert x['full_market_prediction_verified'] is False
+          assert x['observations'][0]['symbol']=='1101'
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: observation-only-research-ci
+          path: output/observation_only.json
+          retention-days: 7
