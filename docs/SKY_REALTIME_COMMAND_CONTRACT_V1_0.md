@@ -162,3 +162,18 @@ Authoritative matrix: `docs/SKY_UNIFIED_REALTIME_SCOPE_20261104.md`.
 - Historical validation must continue using true PIT data; combining live evidence does not reset historical OOS or lift research freezes.
 - GitHub REST bulk snapshot entitlement remains independently blocked by HTTP 403 in the last verified runtime. The connected ChatGPT Fugle realtime quote does not grant that secret scope.
 - The 2026-11-04 verified MIS executed quote coverage was 90/1,985 (4.53%). Until a legitimate full-market source is validated, all whole-market realtime commands fail closed or explicitly report split-scope research. Do not buy a data plan without verifying entitlement/need.
+
+
+## 2026-11-09 Research visibility contract (all Sky scan commands)
+
+User presentation preference: always provide the best currently **verifiable** research evidence even if the final trading decision is **🔴 禁止新進場、未驗證通過**. This preference does not waive P0-R or data-integrity gates.
+
+1. Separate `data_available`, `observation_scope`, `candidate_evidence`, `trade_eligibility`, and `production_status`. Always disclose each separately.
+2. For verified fresh partial-market prices, display symbol, timestamp, source, observed price/volume and candidate observation where supported; label `PARTIAL_SAMPLE_OBSERVATION`. Never call it a complete market scan, a validated cross-sectional ranking, or a buy signal.
+3. Preserve actual verified observations when the whole-market data gate fails; do not silently replace an observed partial sample with an empty market-wide no-candidate conclusion. If zero verified rows exist, state zero and the data blocker, without made-up symbols.
+4. Continue reporting risks, research direction, explicit unverified/missing fields, and known rejection reasons. Numeric scores, stop/entry/target/RR and order sizes require their own independently sufficient causal evidence and applicable governed P0-C/P0-R gates. Missing means `待確認`, not a guessed number.
+5. `research_only`, `HOLD`, `DATA_BLOCKED`, and `禁止新進場` are user-visible status warnings, **not instructions to hide evidence**. User retains discretion to make personal decisions; the system never auto-orders or authorizes trading when required gates fail.
+6. Include last data timestamp, TWSE/TPEx breakdown, achieved/required live coverage, latest workflow run URL, warnings, and a maximum eight-item sanitized research preview in output where available. Keep partial, stale, proxy and historical fields distinct.
+7. This is a presentation/observation contract, not a blanket claim that every existing command implementation has already migrated. Each route must demonstrate output acceptance separately before being marked implemented.
+
+First implemented path: `src.swing_live_scanner --mode swing5d` via `sky-unified-commands.yml:all_market`, PR #398. Other routes require independent verification of adoption.
