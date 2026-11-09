@@ -20,9 +20,15 @@ def quotes(market):
                                            "closeTime": "2026-11-09T10:00:00+08:00"}]}
 
 
+def official():
+    return ([{"symbol": "2330", "name": "TEST", "exchange": "TWSE"},
+             {"symbol": "8299", "name": "TEST", "exchange": "TPEx"}],
+            {"twse": 1, "tpex": 1, "warnings": []})
+
+
 class IndependentScanTests(unittest.TestCase):
     def test_both_markets_and_no_synthetic_live_quote(self):
-        data = scan(now=NOW, ticker_fetch=tickers, snapshot_fetch=quotes)
+        data = scan(now=NOW, ticker_fetch=tickers, snapshot_fetch=quotes, official_fetch=official)
         self.assertEqual(data["universe_count"], 2)
         self.assertEqual(data["observed_price_count"], 2)
         self.assertEqual(data["fresh_executed_count"], 0)
@@ -46,14 +52,14 @@ class IndependentScanTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             scan(now=NOW, ticker_fetch=lambda m: (_ for _ in ()).throw(
                 RuntimeError("denied")) if m == "OTC" else tickers(m),
-                snapshot_fetch=quotes)
+                snapshot_fetch=quotes, official_fetch=official)
 
     def test_snapshot_fail_is_reported_not_fabricated(self):
         def failing(market):
             if market == "OTC":
                 raise PermissionError("denied")
             return quotes(market)
-        data = scan(now=NOW, ticker_fetch=tickers, snapshot_fetch=failing)
+        data = scan(now=NOW, ticker_fetch=tickers, snapshot_fetch=failing, official_fetch=official)
         self.assertIn("snapshot_OTC", data["errors"])
         self.assertEqual(data["by_exchange"]["TPEx"]["observed_price"], 0)
         self.assertEqual(len(data["all_symbols"]), 2)
@@ -61,12 +67,31 @@ class IndependentScanTests(unittest.TestCase):
     def test_otc_ticker_empty_uses_paid_snapshot_with_uncertified_scope(self):
         def partial_tickers(market):
             return {"data": []} if market == "OTC" else tickers(market)
-        data = scan(now=NOW, ticker_fetch=partial_tickers, snapshot_fetch=quotes)
+        data = scan(now=NOW, ticker_fetch=partial_tickers, snapshot_fetch=quotes, official_fetch=official)
         self.assertEqual(data["universe_count"], 2)
-        self.assertFalse(data["full_market_universe_certified"])
+        self.assertTrue(data["full_market_universe_certified"])
         self.assertEqual(data["universe_basis"]["TPEx"]["snapshot_fallback_symbols"], 1)
         self.assertEqual(data["by_exchange"]["TPEx"]["observed_price"], 1)
         self.assertTrue(all(x["production_eligible"] is False for x in data["all_symbols"]))
+
+    def test_official_symbols_missing_from_paid_snapshot_still_reported(self):
+        def official_more():
+            rows, status = official()
+            return rows + [{"symbol": "1101", "name": "ADDED", "exchange": "TWSE"}], status
+        data = scan(now=NOW, ticker_fetch=tickers, snapshot_fetch=quotes,
+                    official_fetch=official_more)
+        self.assertEqual(data["universe_count"], 3)
+        self.assertEqual(data["observed_price_count"], 2)
+        self.assertEqual(len(data["universe_comparison"]["official_not_in_fugle"]), 1)
+        self.assertFalse(next(x for x in data["all_symbols"] if x["symbol"] == "1101")["production_eligible"])
+
+    def test_official_market_unavailable_fails_closed(self):
+        def broken_official():
+            return ([{"symbol": "2330", "exchange": "TWSE"}],
+                    {"warnings": ["TPEx unavailable"]})
+        with self.assertRaises(RuntimeError):
+            scan(now=NOW, ticker_fetch=tickers, snapshot_fetch=quotes,
+                 official_fetch=broken_official)
 
 
 if __name__ == "__main__":
