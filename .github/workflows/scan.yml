@@ -130,6 +130,14 @@ jobs:
         run: |
           python -m unittest tests.test_mcr_observation_report -v
           python -m research.mcr_observation_report
+      - name: Always publish all-market informational observations (non-trading)
+        if: always() && steps.calendar.outputs.should_scan == 'true'
+        continue-on-error: true
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+        run: |
+          python -m research.sky_full_universe_information
+          cat output/sky_quickscan_information/latest.md >> "$GITHUB_STEP_SUMMARY"
       - name: Verify operational market coverage
         if: steps.calendar.outputs.should_scan == 'true'
         run: |
