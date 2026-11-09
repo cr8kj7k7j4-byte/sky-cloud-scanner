@@ -1,6 +1,10 @@
 name: Sky Preopen Information Readiness (read only)
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/sky-preopen-information-readiness.yml'
   schedule:
     # GitHub cron uses UTC. Asia/Taipei UTC+8:
     # Previous UTC 23:30 -> local 07:30 on the next calendar day.
