@@ -84,3 +84,23 @@ def test_stale_observation_not_promoted_to_live_trade():
     assert row["即時價"] is None
     assert row["目標一"] is None
     assert row["最高接受價"] is None
+
+
+def test_requested_13_column_report_with_blocked_market():
+    report = build(U, {}, NOW)
+    md = summary(report)
+    header = "| 股票代碼 | 股票名稱 | 即時價 | 分類 | 方向 | 多方評分 | 空方評分 | 買進觸發 | 最高接受價 | 停損／失效 | 現在動作 | 加碼價格 | 停利價格 |"
+    assert header in md
+    assert "| — | 暫無合格候選 | 待確認 | X | 不交易 | — | — | 待確認 | 待確認 | 待確認 | 等待 | 待確認 | 待確認 |" in md
+    assert report["trade_decision"] in md
+
+
+def test_stale_price_disclosed_separately_not_as_realtime():
+    old = NOW - timedelta(minutes=30)
+    report = build(U, {"TSE": {"date": NOW.date().isoformat(), "data": [
+        {"symbol": "1001", "lastPrice": 37.0, "lastTrade": {"time": old.isoformat()}}
+    ]}}, NOW)
+    md = summary(report)
+    assert "| 1001 | A | 待確認 | X | 不交易 |" in md
+    assert "| 1001 | 37.00 |" in md
+    assert "STALE_EXECUTION_TIME" in md
