@@ -110,6 +110,20 @@ def scan(*, now=None, ticker_fetch=get_tickers, snapshot_fetch=snapshot_quotes):
             errors[f"snapshot_{market}"] = type(exc).__name__
     if len(ticker_payloads) != 2:
         raise RuntimeError(f"FUGLE_TICKER_UNIVERSE_UNAVAILABLE: {errors}")
+    diagnostic = {}
+    for market, payload in ticker_payloads.items():
+        raw = payload.get("data") if isinstance(payload, dict) else None
+        raw = raw if isinstance(raw, list) else []
+        diagnostic[market] = {
+            "payload_keys": sorted(str(k) for k in payload.keys()) if isinstance(payload, dict) else [],
+            "returned": len(raw),
+            "valid_4digit": sum(
+                bool(SYMBOL.fullmatch(str(x.get("symbol") or "")))
+                for x in raw if isinstance(x, dict)),
+            "first_row_keys": sorted(str(k) for k in raw[0].keys()) if raw and isinstance(raw[0], dict) else [],
+            "first_row_type": str(raw[0].get("type")) if raw and isinstance(raw[0], dict) else None,
+        }
+    print("FUGLE_TICKER_DIAGNOSTIC", json.dumps(diagnostic, ensure_ascii=False), flush=True)
     universe = universe_from_tickers(ticker_payloads)
     by_market = {}
     rows = []
