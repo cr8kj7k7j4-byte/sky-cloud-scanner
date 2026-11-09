@@ -49,19 +49,28 @@ def projection(item):
     return row
 
 
-def render(report, *, limit=30):
+def render(report, *, limit=0):
     if not isinstance(report, dict) or report.get("schema") != "SKY_INFORMATION_FIRST_FULL_UNIVERSE_V1":
         raise ValueError("unsupported_source_schema")
     if not isinstance(report.get("all_symbols"), list):
         raise ValueError("all_symbols_missing")
-    if not isinstance(limit, int) or limit < 1:
+    if not isinstance(limit, int) or limit < 0:
         raise ValueError("invalid_limit")
+    # The full 13-column artifact MUST include every official symbol.
+    # Ranked observations affect display order only; never truncate coverage.
     rows = report["all_symbols"]
-    # Prefer ranked observations for the first screen, but keep the full source
-    # in the underlying JSON. Do not imply ranked rows are trade candidates.
     ranked = report.get("ranked_observations")
     if isinstance(ranked, list) and ranked:
-        rows = ranked
+        ordered = []
+        seen = set()
+        for item in ranked + rows:
+            if not isinstance(item, dict):
+                continue
+            key = (item.get("exchange"), item.get("symbol"))
+            if key not in seen:
+                seen.add(key)
+                ordered.append(item)
+        rows = ordered
     lines = [
         "# Sky｜13 欄市場研究資訊（非隔日預測）",
         "",
@@ -72,7 +81,7 @@ def render(report, *, limit=30):
         "| " + " | ".join(COLUMNS) + " |",
         "| " + " | ".join("---" for _ in COLUMNS) + " |",
     ]
-    for item in rows[:limit]:
+    for item in (rows[:limit] if limit else rows):
         if not isinstance(item, dict):
             continue
         projected = projection(item)
@@ -93,7 +102,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", type=Path, default=Path("output/sky_quickscan_information/full_universe.json"))
     parser.add_argument("--output", type=Path, default=Path("output/sky_quickscan_information/latest_13col.md"))
-    parser.add_argument("--limit", type=int, default=30)
+    parser.add_argument("--limit", type=int, default=0, help="0 exports all symbols; positive values are previews")
     args = parser.parse_args()
     report = json.loads(args.input.read_text(encoding="utf-8"))
     rendered = render(report, limit=args.limit)
