@@ -257,7 +257,7 @@ def fetch_fugle_snapshot_quotes(universe, trading_date=None):
                     "last_trade_timestamp": (
                         (q.get("lastTrade") or {}).get("time")
                         if isinstance(q.get("lastTrade"), dict)
-                        else q.get("closeTime")
+                        else None  # closeTime is not last executed trade time
                     ),
                     "quote_time":str(q.get("lastUpdated") or payload.get("time") or ""),
                     "quote_source":"Fugle bulk snapshot"})
