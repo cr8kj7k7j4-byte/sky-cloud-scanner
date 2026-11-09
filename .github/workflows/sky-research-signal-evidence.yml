@@ -8,6 +8,8 @@ on:
     paths:
       - "research/export_model_research_signals.py"
       - "tests/test_model_research_signal_export.py"
+      - "research/render_six_model_research_13col.py"
+      - "tests/test_render_six_model_research_13col.py"
       - ".github/workflows/sky-research-signal-evidence.yml"
   workflow_dispatch:
     inputs:
@@ -35,7 +37,7 @@ jobs:
       - name: Install pytest
         run: pip install pytest
       - name: Run research observation unit tests
-        run: PYTHONPATH=. python -m pytest -q tests/test_model_research_signal_export.py
+        run: PYTHONPATH=. python -m pytest -q tests/test_model_research_signal_export.py tests/test_render_six_model_research_13col.py
       - name: Download canonical scan evidence only
         if: github.event_name != 'pull_request'
         shell: bash
@@ -69,6 +71,13 @@ jobs:
           PYTHONPATH=. python -m research.export_model_research_signals \
             --scan _scan/input.json --source-run-id "$SCAN_RUN_ID" \
             --source-sha "$SOURCE_SHA" --out output/research_signals/latest.json
+      - name: Render fixed 13-column research information view
+        if: github.event_name != 'pull_request'
+        run: |
+          PYTHONPATH=. python -m research.render_six_model_research_13col \
+            --input output/research_signals/latest.json \
+            --out output/research_signals/latest_13col.json \
+            --markdown output/research_signals/latest_13col.md
       - name: Publish mobile-readable evidence summary
         if: always()
         shell: bash
