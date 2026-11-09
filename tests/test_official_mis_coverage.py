@@ -1,3 +1,12 @@
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _offline_legacy_mis_unit_tests_only(monkeypatch):
+    """Allow mocked legacy MIS internals here only; no live/free API requests."""
+    monkeypatch.setenv("SKY_FUGLE_ONLY_MARKETDATA", "0")
+
+
 from src import official
 
 class Response:
