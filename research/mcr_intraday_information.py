@@ -92,48 +92,59 @@ def join(mcr, live, generated_at, accepted_evidence=None):
     }
 
 def markdown(report):
-    """Publish every MCR observation with explicit provenance and empty trade fields.
+    """Show every MCR observation using the fixed 13-column mobile contract.
 
-    An unverified snapshot is an observed price, never an executable live quote.
-    Keep all rows; the legacy 30-row summary silently hid most observations.
+    The user's 即時價 column is never filled from an unverified bulk snapshot.
+    Unverified prices remain in JSON as last_price with their data_status.
     """
+    columns = (
+        "股票代碼", "股票名稱", "即時價", "分類", "方向", "多方評分",
+        "空方評分", "買進觸發", "最高接受價", "停損／失效",
+        "現在動作", "加碼價格", "停利價格",
+    )
     lines = [
-        "# Sky 融資清洗反轉｜全候選資訊觀察（非正式交易訊號）", "",
+        "# Sky 融資清洗反轉｜全候選資訊觀察（研究用途）", "",
         "融資資料日期：" + str(report.get("margin_source_date") or "待確認"),
         "行情觀察時間：" + str(report.get("quote_observed_at") or "待確認"),
-        "研究候選：" + str(report["candidate_count"]) +
-        " 檔；有觀察價：" + str(report["with_observed_price"]) +
-        " 檔；已驗證富果逐股成交：" + str(report["fresh_executed_count"]) +
-        " 檔；獨立來源已驗證成交：" + str(report["independent_accepted_executed_count"]) + " 檔",
-        "以下完整列出全部研究候選。價格未驗證時只顯示「觀察價」，不得稱為即時成交。",
-        "所有未取得的交易欄位顯示「待確認」，不得自動推導買點、停損或維持率。", "",
-        "|代碼|名稱|市場|融資降幅|最近觀察價|成交量|資料時間|資料狀態|方向|多方評分|空方評分|買進觸發|最高接受價|停損／失效|加碼|目標一／二|維持率|分類|現在動作|",
-        "|---|---|---|---:|---:|---:|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+        "研究候選：" + str(report.get("candidate_count", 0)) +
+        " 檔；有價格觀察：" + str(report.get("with_observed_price", 0)) +
+        " 檔；富果已驗證逐股成交：" + str(report.get("fresh_executed_count", 0)) +
+        " 檔；獨立已驗證成交：" + str(report.get("independent_accepted_executed_count", 0)) + " 檔",
+        "即時價僅呈現已驗證當日成交；未驗證的快照價留在 JSON，不冒稱即時。",
+        "全部研究候選均保留，缺少資訊時填「待確認」，不虛構分數、交易價或維持率。", "",
+        "|" + "|".join(columns) + "|",
+        "|" + "|".join(":---:" for _ in columns) + "|",
     ]
-    def fmt_number(value, suffix="", decimals=2):
-        if not isinstance(value, (float, int)) or isinstance(value, bool):
-            return "待確認"
-        return f"{value:,.{decimals}f}{suffix}"
-    for row in report["rows"]:
-        values = [
+    rows = report.get("rows") if isinstance(report.get("rows"), list) else []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        # Even independently accepted executed prices are informational only.
+        # Match the independently verified price to this observation's market.
+        price = row.get("accepted_executed_price")
+        if price is None and row.get("data_status") == "FRESH_EXECUTED_TRADE":
+            price = row.get("last_price")
+        verified_price = (
+            f"{price:,.2f}" if isinstance(price, (float, int))
+            and not isinstance(price, bool) and 0 < price < float("inf")
+            else "待確認"
+        )
+        values = (
             str(row.get("stock_id") or "待確認"),
-            str(row.get("stock_name") or "待確認").replace("|", "／"),
-            str(row.get("exchange") or "待確認"),
-            fmt_number(row.get("two_session_reduction_pct"), "%", 1),
-            fmt_number(row.get("last_price")),
-            fmt_number(row.get("volume"), "", 0),
-            str(row.get("last_trade_time") or "待確認"),
-            str(row.get("data_status") or "待確認"),
-            "待確認", "待確認", "待確認", "待確認", "待確認",
-            "待確認", "待確認", "待確認", "待確認",
-            "X（研究未驗證）", "觀察",
-        ]
-        lines.append("|" + "|".join(values) + "|")
+            str(row.get("stock_name") or "待確認"),
+            verified_price, "X", "不交易", "—", "—",
+            "待確認", "待確認", "待確認", "觀察",
+            "待確認", "待確認",
+        )
+        lines.append("|" + "|".join(v.replace("|", "／").replace("\n", " ") for v in values) + "|")
+    if not rows:
+        lines.append("|—|暫無可核對候選（資料待確認）|待確認|X|不交易|—|—|待確認|待確認|待確認|等待|待確認|待確認|")
     lines.extend([
         "",
-        "本清單是融資餘額變化研究代理，不等於個股融資維持率低於130%、確定反轉或具備可交易買點。",
-        "詳細逐股來源與驗證欄位：output/mcr_intraday_information_latest.json。",
-        "**🔴 禁止新進場、未驗證通過。資訊供自主判斷，不代表正式交易訊號。**",
+        "未驗證快照價格、融資降幅、成交量、資料時間與資料狀態，請查 JSON 明細：",
+        "output/mcr_intraday_information_latest.json",
+        "融資餘額降幅不代表個股融資維持率低於130%；未確認反轉觸發條件。",
+        "**🔴 禁止新進場、未驗證通過；資訊提供使用者自主判斷，不代表交易資格。**",
     ])
     return "\n".join(lines) + "\n"
 
