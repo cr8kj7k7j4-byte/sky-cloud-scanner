@@ -191,18 +191,48 @@ def summary(report):
         x = report["by_exchange"][exchange]
         lines.append(f"| {label} | {x['universe']} | {x['snapshot_rows']} | "
                      f"{x['observed_price']} | {x['fresh_executed']} | {x['fresh_executed_pct']:.1f}% |")
-    lines += ["", "## 價格與漲幅觀察（未驗證者不得視為即時成交）",
-              "| 代碼 | 名稱 | 觀察價 | 漲跌幅 | 成交量 | 資料狀態 |",
-              "|---|---|---:|---:|---:|---|"]
-    for row in report["ranked_observations"][:30]:
-        pct = f"{row['change_pct']:+.1f}%" if row["change_pct"] is not None else "—"
-        vol = f"{row['volume']:,.0f}" if row["volume"] is not None else "—"
-        lines.append(f"| {row['symbol']} | {row['name']} | {row['last_price']:.2f} | "
-                     f"{pct} | {vol} | {row['data_status']} |")
-    lines += ["", "其餘全部代號、資料時間與缺失原因詳見 full_universe.json。",
-              "多空評分、預測機率、進出場價：未執行經驗證模型時保持空值。",
-              "", f"**{report['trade_decision']}**",
-              "資訊仍提供；最終交易選擇由使用者自行決定。"]
+    # User-facing contract: always render the same 13 columns, including when
+    # verification blocks new entries. Never substitute stale observed prices
+    # for a verified real-time trade, nor fabricate strategy levels or scores.
+    columns = (
+        "股票代碼", "股票名稱", "即時價", "分類", "方向",
+        "多方評分", "空方評分", "買進觸發", "最高接受價",
+        "停損／失效", "現在動作", "加碼價格", "停利價格",
+    )
+    lines += ["", "## 全市場股票資訊（正式交易未驗證，僅資訊觀察）",
+              "| " + " | ".join(columns) + " |",
+              "| " + " | ".join("---" for _ in columns) + " |"]
+    displayed = report["ranked_observations"][:30]
+    for row in displayed:
+        confirmed = row["data_status"] == "FRESH_EXECUTED_TRADE"
+        price = f"{row['last_price']:.2f}" if confirmed else "待確認"
+        values = (
+            row["symbol"], row["name"], price, "X", "不交易",
+            "—", "—", "待確認", "待確認", "待確認",
+            "觀察", "待確認", "待確認",
+        )
+        lines.append("| " + " | ".join(str(value).replace("|", "／") for value in values) + " |")
+    if not displayed:
+        lines.append("| — | 暫無合格候選 | 待確認 | X | 不交易 | — | — | 待確認 | 待確認 | 待確認 | 等待 | 待確認 | 待確認 |")
+    lines += [
+        "",
+        "## 觀察價與成交時間（可能延遲；不得視為即時價）",
+        "| 股票代碼 | 最近觀察價 | 成交時間 | 資料狀態 |",
+        "|---|---:|---|---|",
+    ]
+    for row in displayed:
+        observed = f"{row['last_price']:.2f}" if row["last_price"] is not None else "待確認"
+        timestamp = row.get("last_trade_time") or "待確認"
+        lines.append(f"| {row['symbol']} | {observed} | {timestamp} | {row['data_status']} |")
+    lines += [
+        "",
+        "以上只列前 30 筆價格觀察，不代表全市場排名或交易候選。"
+        "其餘完整母池、資料時間與缺漏原因詳見 full_universe.json。",
+        "多空評分、買進／加碼／停損／停利價：未有通過驗證的策略輸出時保持待確認。",
+        "",
+        f"**{report['trade_decision']}**",
+        "資訊仍提供；最終交易選擇由使用者自行決定。",
+    ]
     return "\n".join(lines) + "\n"
 
 
