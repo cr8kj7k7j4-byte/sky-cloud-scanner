@@ -1,0 +1,8 @@
+{
+  "command": "mcr_intraday_information",
+  "requested_at_tpe": "2026-11-09T11:38:00+08:00",
+  "reason": "user_authorized_preclose_live_mcr_market_evidence_scan",
+  "scope": "TWSE_TPEx_financing_520_plus_Fugle_bulk_information_only",
+  "trade_eligible": false,
+  "production_upgrade": false
+}
