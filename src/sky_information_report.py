@@ -60,8 +60,8 @@ def _display_row(row: dict[str, Any], *, full_live: bool) -> dict[str, Any]:
         "多方評分": _first(row, "bull_score") if row.get("score_inputs_verified") is True else None,
         "空方評分": _first(row, "bear_score") if row.get("score_inputs_verified") is True else None,
         "停損／失效": _first(row, "invalid_reason", "risk_block_reason"),
-        "分類": "X" if not full_live else _first(row, "classification", "grade"),
-        "現在動作": "禁止交易" if not full_live else "觀察",
+        "分類": "X",
+        "現在動作": "禁止交易",
         "模型／驗證狀態": "未驗證／僅供觀察" if not full_live else "資料符合全市場閘門；交易仍須個別驗證",
     })
     # Never promote source-provided unverified trigger/targets into a
