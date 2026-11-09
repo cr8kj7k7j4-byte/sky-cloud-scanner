@@ -73,7 +73,15 @@ def verify_samples(observations, now=None, *, quote_fetch=get_quote, limit=MAX_S
                     ("TSE", "TWSE") if exchange == "TWSE" else ("OTC", "TPEX")):
                 result["status"] = "EXCHANGE_MISMATCH"
             else:
-                price, executed, status = fugle_executed_trade(raw, now=now)
+                trade = raw.get("lastTrade")
+                # closeTime/lastUpdated are not substitutes for lastTrade.time.
+                if not isinstance(trade, dict) or trade.get("time") is None or trade.get("price") is None:
+                    price, executed, status = None, None, "MISSING_LAST_TRADE_EVIDENCE"
+                else:
+                    price, executed, status = fugle_executed_trade(raw, now=now)
+                if not (9 <= now.hour < 13 or (now.hour == 13 and now.minute < 30)):
+                    status = "OUTSIDE_REGULAR_SESSION"
+                    price = None
                 result["status"] = status
                 result["last_trade_time"] = executed.isoformat() if executed else None
                 # Keep only verified executions as executable evidence; other
