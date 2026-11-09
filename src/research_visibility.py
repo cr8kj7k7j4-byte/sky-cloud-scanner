@@ -9,6 +9,7 @@ from __future__ import annotations
 
 def build_research_visibility(universe, accepted_rows, quote_audit, observed_at):
     valid = []
+    by_exchange = quote_audit.get("by_exchange") or {}
     for row in accepted_rows:
         if not isinstance(row, dict):
             continue
@@ -22,9 +23,11 @@ def build_research_visibility(universe, accepted_rows, quote_audit, observed_at)
             "last": row.get("last"),
             "change_pct": row.get("change_pct"),
             "volume": row.get("volume"),
-            "trade_time": row.get("trade_time") or row.get("last_trade_time")
-                          or row.get("timestamp"),
-            "source": row.get("source") or "TWSE_MIS_OPERATIONAL",
+            "trade_time": row.get("last_trade_timestamp") or (
+                f"{row.get('quote_date')}T{row.get('quote_time')}+08:00"
+                if row.get("quote_date") and row.get("quote_time") else None
+            ),
+            "source": row.get("quote_source") or "UNKNOWN",
             "data_state": "ACCEPTED_EXECUTED_TRADE_BY_MARKET_GATE",
             "research_direction": None,
             "bull_score": None,
@@ -43,6 +46,8 @@ def build_research_visibility(universe, accepted_rows, quote_audit, observed_at)
         "accepted_count": len(valid),
         "not_verified_count": max(0, len(universe) - len(valid)),
         "quote_coverage_pct": round(100 * len(valid) / len(universe), 2) if universe else 0.0,
+        "by_exchange": by_exchange,
+        "quote_rejections": quote_audit.get("rejected") or {},
         "operational_full_market_verified": quote_audit.get("valid_whole_market_operational") is True,
         "data_scope": "OBSERVED_ACCEPTED_EXECUTED_TRADES_ONLY",
         "not_six_model_inference": True,
