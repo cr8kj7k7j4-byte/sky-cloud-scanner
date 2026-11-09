@@ -1,0 +1,103 @@
+name: Sky Fugle Daytrade Preopen Repeated Readiness
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/sky-daytrade-preopen-readiness.yml'
+  schedule:
+    # Taipei UTC+8. Four independent pre-open checks on Taiwan weekdays.
+    # Does not claim schedule punctuality or trading-day completion.
+    - cron: '15,30,45,55 0 * * 1-5'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sky-fugle-daytrade-preopen-${{ github.ref }}-${{ github.event.schedule || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  preopen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SKY_FUGLE_ONLY_MARKETDATA: "1"
+      ALLOW_MIS_OTC_FALLBACK: "0"
+      FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies and pytest
+        run: |
+          pip install -r requirements.txt
+          pip install pytest
+      - name: Test main-market quote and reporting contracts
+        run: |
+          python -m compileall -q src research
+          pytest -q \
+            tests/test_fugle_only_daytrade.py \
+            tests/test_sky_13col_report.py \
+            tests/test_sky_13col_artifact_integrity.py \
+            tests/test_fugle_individual_execution_probe.py \
+            tests/test_fugle_paid_otc_candidate_routing.py \
+            tests/test_sky_daytrade_preopen_readiness.py
+      - name: Verify trading calendar before paid calls
+        id: calendar
+        run: |
+          set -euo pipefail
+          python -m src.trading_calendar --out trading_calendar_status.json
+          python - <<'PY'
+          import json, os
+          x = json.load(open('trading_calendar_status.json', encoding='utf-8'))
+          # Preopen API diagnostics may run on a weekday fallback even when
+          # the official calendar is unavailable. This NEVER authorizes trades.
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as f:
+              f.write('should_check=' + ('true' if x.get('should_scan') is True else 'false') + '\n')
+          PY
+      - name: Probe paid Fugle all-market and individual permissions
+        if: steps.calendar.outputs.should_check == 'true'
+        run: |
+          set -euo pipefail
+          python -m src.diagnose_sources > source-diagnostics.json
+          python -m research.sky_daytrade_preopen_readiness \
+            --diagnostics source-diagnostics.json \
+            --output preopen_readiness.json
+      - name: Publish source and evidence summary
+        if: always()
+        run: |
+          python - <<'PY'
+          import json, os
+          from datetime import datetime, timezone
+          from pathlib import Path
+          output = Path(os.environ['GITHUB_STEP_SUMMARY'])
+          with output.open('a', encoding='utf-8') as f:
+              f.write('# Sky 當沖盤前重複檢查\n\n')
+              f.write('GitHub runner UTC: ' + datetime.now(timezone.utc).isoformat() + '\n\n')
+              f.write('時段：台灣 08:15／08:30／08:45／08:55（週一至週五，須通過交易日曆）。\n\n')
+              p=Path('preopen_readiness.json')
+              if p.exists():
+                  d=json.loads(p.read_text(encoding='utf-8'))
+                  f.write('富果付費 API: **' + d['api_readiness'] + '**；盤前成交即時性：**' +
+                          d['execution_freshness'] + '**；正式交易資格：**否**。\n')
+                  for name,passed in d['provider_and_permission_checks'].items():
+                      f.write('- ' + name + ': ' + ('PASS' if passed else 'BLOCKED') + '\n')
+              else:
+                  f.write('本次無有效富果盤前檢查結果；請查看交易日曆與 API 日誌。\n')
+          PY
+      - name: Upload preopen audit (even when blocked)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-daytrade-preopen-${{ github.run_id }}
+          path: |
+            preopen_readiness.json
+            source-diagnostics.json
+            trading_calendar_status.json
+          if-no-files-found: warn
+          retention-days: 14
