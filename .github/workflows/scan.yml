@@ -139,6 +139,17 @@ jobs:
         run: |
           python -m research.sky_full_universe_information
           cat output/sky_quickscan_information/latest.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Render ChatGPT daytrade 13-column observation report
+        if: always() && steps.calendar.outputs.should_scan == 'true'
+        continue-on-error: true
+        run: |
+          python -m unittest tests.test_sky_daytrade_chat_report -v
+          if [ -f output/sky_quickscan_information/full_universe.json ]; then
+            python -m src.sky_daytrade_chat_report
+            cat output/sky_daytrade_chat/latest.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Sky chat report unavailable: full_universe.json missing" >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Join MCR research observations to available all-market information
         if: always()
         continue-on-error: true
