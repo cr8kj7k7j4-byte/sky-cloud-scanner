@@ -105,11 +105,19 @@ def market_mode() -> dict:
                 "operational_full_market_scan": report.get("operational_full_market_scan"),
                 "quote_coverage_pct": report.get("quote_coverage_pct"),
                 "candidate_count": report.get("candidate_count"),
+                "observation_mode": report.get("observation_mode"),
+                "trade_decision": report.get("trade_decision"),
+                "observed_sample_count": report.get("observed_sample_count"),
+                "market_data_gate": report.get("market_data_gate"),
+                "warnings": (report.get("warnings") or [])[:5],
                 "candidate_preview": [
                     {"symbol": row.get("symbol"),
                      "name": row.get("name"),
                      "price": (row.get("fugle_close") if row.get("data_status") == "VERIFIED_EXECUTED_TRADE" else None),
-                     "action": row.get("candidate_action", "觀察")}
+                     "action": row.get("candidate_action", "觀察"),
+                     "data_status": row.get("data_status"),
+                     "sample_scope": row.get("candidate_scope"),
+                     "trade_signal": False}
                     for row in report.get("deep_candidates", [])[:8]
                 ],
                 "research_only": label != "intraday",
