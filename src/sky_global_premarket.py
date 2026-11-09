@@ -14,6 +14,14 @@ FIELDS = (('sp500', '標普500'), ('nasdaq', '那斯達克'),
           ('ntdusd', '新台幣匯率'), ('wti', 'WTI原油'))
 
 
+def previous_weekday(day):
+    """Calendar weekday only, not an official market-session confirmation."""
+    previous = day - timedelta(days=1)
+    while previous.weekday() >= 5:
+        previous -= timedelta(days=1)
+    return previous
+
+
 def freshness(as_of, now):
     raw = str(as_of or '').strip()
     parsed = None
@@ -96,9 +104,7 @@ def collect_context(now):
     def night_fetch():
         # The Monday 08:00 report describes the most recent prior session,
         # not Monday's as-yet-untraded night session. Holidays remain unverified.
-        previous_session = now.date() - timedelta(days=1)
-        while previous_session.weekday() >= 5:
-            previous_session -= timedelta(days=1)
+        previous_session = previous_weekday(now.date())
         expected_date = previous_session.strftime('%Y%m%d')
         url = 'https://openapi.taifex.com.tw/v1/DailyMarketReportFut'
         response = requests.get(url, timeout=15)
