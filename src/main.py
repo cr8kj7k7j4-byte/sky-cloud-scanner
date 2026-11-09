@@ -20,7 +20,8 @@ from .config import (
     EXEC_ENFORCE_GATE, PAPER_TRADING_MODE, P0S_OOS_VERDICT, PAPER_GCS_BUCKET,
     P0S_5M_BREAKOUT_ENABLED,
 )
-from .official import load_official_universe, fetch_mis_quotes, fetch_fugle_snapshot_quotes
+from .official import load_official_universe
+from .quote_provider import collect_market_quotes
 from .realtime_quote_evidence import validate_whole_market_rows
 from .fugle import get_ticker, get_quote, get_candles
 from .decision_engine import first_gate, evaluate_decision
@@ -259,33 +260,23 @@ def run():
         st["source_health"]["official_universe"] = ust
         st["universe_count"] = len(universe)
 
-        rows, miswarn = fetch_mis_quotes(universe)
-        st["warnings"].extend(miswarn)
-        st["mis_quote_count"] = len(rows)
-        # Fugle paid bulk snapshots provide another *observed* quote source.
-        # Each row must still pass the identical executed-trade timestamp/date
-        # validation below. A snapshot's mere symbol membership is not live
-        # price evidence, and an inaccessible endpoint must fail closed.
-        fugle_rows, fugle_warnings = fetch_fugle_snapshot_quotes(
-            universe, trading_date=now.date().isoformat()
-        )
-        st["warnings"].extend(fugle_warnings)
-        st["fugle_bulk_raw_count"] = len(fugle_rows)
-        rows.extend(fugle_rows)
-        # A returned HTTP quote is not automatically a current executed trade.
-        # Check actual MIS exchange session date + last-trade timestamp first.
-        quote_audit = validate_whole_market_rows(
-            universe, rows, now=datetime.now(TZ), min_coverage_pct=80.0,
-            min_exchange_pct=70.0,
-        )
+        # Choose one independently validated executed-price provider, never
+        # combine partial bulk and MIS feeds to manufacture coverage.
+        market = collect_market_quotes(universe, now=datetime.now(TZ))
+        rows = market["rows"]
+        quote_audit = market["audit"]
+        st["warnings"].extend(market["warnings"])
+        st["quote_provider"] = market["provider"]
+        st["fugle_primary_evidence"] = market["primary_evidence"]
+        st["market_source_fallback_used"] = market["fallback_used"]
+        st["mis_quote_count"] = len(rows) if market["fallback_used"] else 0
         st["live_market_evidence"] = {
             k: v for k, v in quote_audit.items() if k != "accepted_rows"
         }
         st["quote_scope"] = quote_audit["quote_scope"]
         st["live_whole_market_certified"] = False
         st["live_whole_market_coverage_pct"] = quote_audit["quote_coverage_pct"]
-        st["mis_unverified_quote_count"] = len(rows) - quote_audit["valid_quote_count"]
-        rows = quote_audit["accepted_rows"]
+        st["mis_unverified_quote_count"] = 0  # the provider returned accepted rows only
         # Read-only observability is independent of Production eligibility.
         # These rows were already accepted by the same-session trade validator.
         # Never feed this research report back into strategy/portfolio gates.
@@ -334,7 +325,7 @@ def run():
 
         st["source_health"]["twse_intraday"] = {
             "ok": twse_intraday_ok,
-            "source": "TWSE MIS",
+            "source": market["provider"],
             "count": len(twse_rows),
         }
         st["source_health"]["tpex_intraday"] = {
