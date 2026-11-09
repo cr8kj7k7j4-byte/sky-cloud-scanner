@@ -231,16 +231,16 @@ def route_command(command: str) -> CommandRoute:
     )
 
 
-UPDATE_PRESENTATION = "SKY_MOBILE_TABLE_V1_0"
+UPDATE_PRESENTATION = "SKY_MOBILE_TABLE_V2_13_COLUMN"
 
 
 def presentation_for_command(command: str) -> str | None:
-    """Canonical presentation for Sky commands.
+    """Present all recognized Sky stock-bearing commands in 13 columns.
 
-    Every Sky command containing 更新 uses the same 10-column mobile decision
-    table. Position updates may append position/P&L details after the table.
+    Operational audits without symbols may show separate status tables.
+    Rendering uses src.sky_thirteen_column_report.
     """
     normalized = " ".join((command or "").strip().split())
-    if normalized.lower().startswith("sky") and "更新" in normalized:
+    if normalized.lower().startswith("sky") and route_command(normalized).command_family != "SKY_UNRECOGNIZED":
         return UPDATE_PRESENTATION
     return None
