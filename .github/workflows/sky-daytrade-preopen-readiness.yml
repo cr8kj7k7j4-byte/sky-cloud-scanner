@@ -61,26 +61,53 @@ jobs:
           with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as f:
               f.write('should_check=' + ('true' if x.get('should_scan') is True else 'false') + '\n')
           PY
-      - name: Probe paid Fugle all-market and individual permissions
+      - name: Probe paid Fugle all-market and individual permissions (up to 3 tries)
         if: steps.calendar.outputs.should_check == 'true'
         run: |
           set -euo pipefail
-          python -m src.diagnose_sources > source-diagnostics.json
-          python -m research.sky_daytrade_preopen_readiness \
-            --diagnostics source-diagnostics.json \
-            --output preopen_readiness.json
+          ok=0
+          for attempt in 1 2 3; do
+            echo "Fugle preopen attempt $attempt/3" | tee -a preopen_retry_attempts.log
+            if python -m src.diagnose_sources > source-diagnostics.json &&
+               python -m research.sky_daytrade_preopen_readiness \
+                 --diagnostics source-diagnostics.json \
+                 --output preopen_readiness.json; then
+              ok=1
+              echo "attempt $attempt: PASS" >> preopen_retry_attempts.log
+              break
+            fi
+            echo "attempt $attempt: FAILED" >> preopen_retry_attempts.log
+            if [ "$attempt" -lt 3 ]; then sleep 10; fi
+          done
+          test "$ok" -eq 1
       - name: Verify last completed scanner Artifact contains every stock and 13 columns
         if: steps.calendar.outputs.should_check == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          LAST_RUN="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/scan.yml/runs?per_page=20" \
-            --jq '.workflow_runs[] | select(.status == "completed") | .id' | head -n 1)"
+          LAST_RUN=""
+          for attempt in 1 2 3; do
+            LAST_RUN="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/scan.yml/runs?per_page=20" \
+              --jq '[.workflow_runs[] | select(.status == "completed")][0].id // empty')" && test -n "$LAST_RUN" && break
+            echo "find scanner run attempt $attempt/3 FAILED" >> preopen_retry_attempts.log
+            if [ "$attempt" -lt 3 ]; then sleep 10; fi
+          done
           test -n "$LAST_RUN"
-          mkdir -p previous-scan
-          gh run download "$LAST_RUN" --repo "$GITHUB_REPOSITORY" \
-            --name "sky-scan-$LAST_RUN" --dir previous-scan
+          ok=0
+          for attempt in 1 2 3; do
+            rm -rf previous-scan
+            mkdir -p previous-scan
+            if gh run download "$LAST_RUN" --repo "$GITHUB_REPOSITORY" \
+              --name "sky-scan-$LAST_RUN" --dir previous-scan; then
+              ok=1
+              echo "Artifact download attempt $attempt: PASS" >> preopen_retry_attempts.log
+              break
+            fi
+            echo "Artifact download attempt $attempt: FAILED" >> preopen_retry_attempts.log
+            if [ "$attempt" -lt 3 ]; then sleep 10; fi
+          done
+          test "$ok" -eq 1
           python -m research.verify_13col_artifact \
             --source previous-scan/output/sky_quickscan_information/full_universe.json \
             --json previous-scan/output/sky_quickscan_information/latest_13col.json \
@@ -118,5 +145,6 @@ jobs:
             preopen_readiness.json
             source-diagnostics.json
             trading_calendar_status.json
+            preopen_retry_attempts.log
           if-no-files-found: warn
           retention-days: 14
