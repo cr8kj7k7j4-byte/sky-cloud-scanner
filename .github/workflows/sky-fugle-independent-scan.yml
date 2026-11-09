@@ -8,7 +8,6 @@ on:
       - 'research/sky_fugle_independent_scan.py'
       - 'tests/test_sky_fugle_independent_scan.py'
       - 'research/verify_sky_fugle_independent.py'
-      - 'research/verify_sky_fugle_independent.py'
   push:
     branches:
       - feature/sky-fugle-independent-market-scan-20261109
@@ -16,6 +15,7 @@ on:
       - '.github/workflows/sky-fugle-independent-scan.yml'
       - 'research/sky_fugle_independent_scan.py'
       - 'tests/test_sky_fugle_independent_scan.py'
+      - 'research/verify_sky_fugle_independent.py'
 
 permissions:
   contents: read
