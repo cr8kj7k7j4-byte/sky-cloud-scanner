@@ -67,6 +67,16 @@ def main():
         return api("/actions/workflows/" + workflow + "/runs?per_page=30").get("workflow_runs", [])
     try:
         status = evaluate(now, runs)
+        pre = status.get("workflows", {}).get("sky-global-premarket.yml", {})
+        today_runs = pre.get("target_runs") or []
+        succeeded = next((x for x in today_runs if x.get("conclusion") == "success"), None)
+        if succeeded:
+            artifact_data = api("/actions/runs/" + str(succeeded["id"]) + "/artifacts")
+            has_report = any(a.get("name", "").startswith("sky-global-premarket-")
+                             and not a.get("expired") for a in artifact_data.get("artifacts", []))
+            pre["artifact_present"] = has_report
+            pre["report_content_verified"] = False
+            pre["readiness"] = "REPORT_ARTIFACT_PRESENT_CONTENT_UNVERIFIED" if has_report else "MISSING_REPORT_ARTIFACT"
         if status.get("status") == "EXPIRED":
             api("/actions/workflows/sky-preopen-watch-20261110.yml/disable", {})
             status["status"] = "DISABLED_AFTER_DEADLINE"
