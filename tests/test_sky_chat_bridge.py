@@ -21,6 +21,29 @@ class ChatScanBridgeTests(unittest.TestCase):
         self.assertFalse(status["production_eligible"])
         self.assertEqual(status["row_count"],1)
 
+    def test_market_coverage_status(self):
+        row = {key: "待確認" for key in COLUMNS}
+        report = {"schema": "SKY_DAYTRADE_13COL_RESEARCH_V2",
+                  "rows": [row], "row_count": 1, "universe_count": 1,
+                  "production_eligible": False}
+        observation = {"observed_price_count": 1, "fresh_executed_count": 0,
+                       "by_exchange": {"TWSE": {"universe": 1, "observed_price": 1}},
+                       "snapshot_errors": {}}
+        result = make_status("chat-20261109-a", report, observation=observation)
+        self.assertEqual(result["observed_price_count"], 1)
+        self.assertEqual(result["fresh_executed_count"], 0)
+        self.assertEqual(result["status"], "REPORT_READY_RESEARCH_ONLY")
+
+    def test_zero_observed_never_claims_paid_success(self):
+        row = {key: "待確認" for key in COLUMNS}
+        report = {"schema": "SKY_DAYTRADE_13COL_RESEARCH_V2",
+                  "rows": [row], "row_count": 1, "universe_count": 1,
+                  "production_eligible": False}
+        result = make_status("chat-20261109-a", report,
+                             observation={"observed_price_count": 0})
+        self.assertEqual(result["status"], "DATA_BLOCKED_NO_OBSERVATIONS")
+        self.assertIsNone(result["source"])
+
     def test_report_missing_column(self):
         report={"schema":"SKY_DAYTRADE_13COL_RESEARCH_V2","rows":[{"股票代碼":"2330"}],"row_count":1,"production_eligible":False}
         with self.assertRaisesRegex(ValueError,"MISSING_13_COLUMNS"):
