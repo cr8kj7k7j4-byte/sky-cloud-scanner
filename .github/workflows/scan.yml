@@ -90,6 +90,7 @@ jobs:
       - name: Diagnose data sources
         if: steps.calendar.outputs.should_scan == 'true'
         env:
+          SKY_FUGLE_ONLY_MARKETDATA: "1"
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
         run: python -m src.diagnose_sources | tee source-diagnostics.json
         continue-on-error: true
@@ -103,7 +104,8 @@ jobs:
           MIN_VOLUME: "500"
           MIN_TRADE_VALUE: "10000000"
           STRICT_OFFICIAL_MODE: "1"
-          ALLOW_MIS_OTC_FALLBACK: "1"
+          ALLOW_MIS_OTC_FALLBACK: "0"
+          SKY_FUGLE_ONLY_MARKETDATA: "1"
           ACCOUNT_EQUITY: ${{ vars.ACCOUNT_EQUITY || '500000' }}
           RISK_PER_TRADE_PCT: ${{ vars.RISK_PER_TRADE_PCT || '0.01' }}
           DAILY_LOSS_LIMIT_PCT: ${{ vars.DAILY_LOSS_LIMIT_PCT || '0.02' }}

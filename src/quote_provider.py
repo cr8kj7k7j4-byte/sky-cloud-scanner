@@ -2,6 +2,8 @@
 
 This module does not certify an official TPEx realtime feed or authorize trades.
 """
+import os
+
 from .official import fetch_fugle_snapshot_quotes, fetch_mis_quotes
 from .realtime_quote_evidence import validate_whole_market_rows
 
@@ -24,6 +26,21 @@ def collect_market_quotes(universe, *, now, fugle_fetch=None, mis_fetch=None,
             "audit": primary, "provider": "Fugle bulk snapshot",
             "primary_status": "PASS_VALID_EXECUTED_LIVE",
             "fallback_used": False, "official_tpex_realtime_certified": False,
+            "primary_evidence": {k: v for k, v in primary.items() if k != "accepted_rows"},
+        }
+
+    # Explicit user preference: never call free MIS quote endpoints in Fugle-only mode.
+    # Failed paid-data validation stays blocked; do not substitute stale quotes.
+    if os.getenv("SKY_FUGLE_ONLY_MARKETDATA", "0") == "1":
+        return {
+            "rows": primary["accepted_rows"],
+            "warnings": list(warnings) + ["FUGLE_ONLY_NO_FREE_MARKETDATA_FALLBACK"],
+            "audit": primary,
+            "provider": "Fugle bulk snapshot (partial research)",
+            "primary_status": primary["status"],
+            "primary_quote_coverage_pct": primary["quote_coverage_pct"],
+            "fallback_used": False,
+            "official_tpex_realtime_certified": False,
             "primary_evidence": {k: v for k, v in primary.items() if k != "accepted_rows"},
         }
 

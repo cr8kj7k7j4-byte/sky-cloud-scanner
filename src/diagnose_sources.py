@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import json
@@ -73,23 +74,32 @@ def run():
     out["official_universe"] = st
     out["universe_count"] = len(universe)
 
-    sample = stratified_mis_sample(universe)
-    q, w = fetch_mis_quotes(sample)
-    now = datetime.now(ZoneInfo("Asia/Taipei"))
-    audit = validate_whole_market_rows(sample, q, now=now)
-    out["mis_sample"] = {
-        "scope": "STRATIFIED_DIAGNOSTIC_SAMPLE_NOT_WHOLE_MARKET",
-        "requested": len(sample),
-        "returned": len(q),  # legacy diagnostic contract: parsed MIS quotes, not fresh trades
-        "returned_with_parseable_last": len(q),
-        "verified_current_session_trade_count": audit["valid_quote_count"],
-        "by_exchange": audit["by_exchange"],
-        "rejections": audit["rejected"],
-        "status": audit["status"],
-        "observed_at_tpe": now.isoformat(),
-        "no_full_market_certification": True,
-        "warnings": w,
-    }
+    if os.getenv("SKY_FUGLE_ONLY_MARKETDATA", "0") == "1":
+        out["mis_sample"] = {
+            "status": "SKIPPED_FUGLE_ONLY",
+            "scope": "NO_FREE_MARKETDATA_REQUESTS",
+            "requested": 0,
+            "returned": 0,
+        }
+    else:
+        sample = stratified_mis_sample(universe)
+        q, w = fetch_mis_quotes(sample)
+        now = datetime.now(ZoneInfo("Asia/Taipei"))
+        audit = validate_whole_market_rows(sample, q, now=now)
+        out["mis_sample"] = {
+            "scope": "STRATIFIED_DIAGNOSTIC_SAMPLE_NOT_WHOLE_MARKET",
+            "requested": len(sample),
+            "returned": len(q),  # legacy diagnostic contract: parsed MIS quotes, not fresh trades
+            "returned_with_parseable_last": len(q),
+            "verified_current_session_trade_count": audit["valid_quote_count"],
+            "by_exchange": audit["by_exchange"],
+            "rejections": audit["rejected"],
+            "status": audit["status"],
+            "observed_at_tpe": now.isoformat(),
+            "no_full_market_certification": True,
+            "warnings": w,
+        }
+    
 
     # Intraday APIs are the capabilities actually used for deep-dive.
     out["fugle_tickers_TSE"] = _probe(
