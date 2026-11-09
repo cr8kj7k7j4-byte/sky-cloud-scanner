@@ -1,0 +1,27 @@
+name: Sky 13-Column Presentation Contract Tests
+on:
+  pull_request:
+    paths:
+      - 'src/sky_command_router.py'
+      - 'src/sky_thirteen_column_report.py'
+      - 'tests/test_six_model_status_command_route.py'
+      - 'tests/test_sky_thirteen_column_report.py'
+      - 'docs/SKY_MOBILE_RESULT_TABLE_V1_0.md'
+      - '.github/workflows/sky-thirteen-column-contract-tests.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  presentation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test 13-column rendering and six-model routing
+        env:
+          PYTHONPATH: .
+        run: |
+          python -m unittest discover -s tests -p 'test_sky_thirteen_column_report.py' -v
+          python -m unittest discover -s tests -p 'test_six_model_status_command_route.py' -v
