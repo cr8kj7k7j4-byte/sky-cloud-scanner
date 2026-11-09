@@ -234,8 +234,54 @@ jobs:
             if [ "$TRY" = 3 ]; then exit 1; fi
             sleep 2
           done
-      - name: Verify operational market coverage
+      # Manually requested post-close checks are informational; the original
+      # intraday trading gate remains mandatory during the regular session.
+      - name: Classify session for manual coverage validation
         if: steps.calendar.outputs.should_scan == 'true'
+        id: scan_mode
+        env:
+          SCAN_EVENT: ${{ github.event_name }}
+        run: |
+          python - <<'PY'
+          import os
+          from datetime import datetime, time
+          from zoneinfo import ZoneInfo
+          from pathlib import Path
+          now = datetime.now(ZoneInfo("Asia/Taipei"))
+          regular = now.weekday() < 5 and time(9, 0) <= now.time() <= time(13, 30)
+          informational = os.environ["SCAN_EVENT"] == "workflow_dispatch" and not regular
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write(f"require_live_gate={'false' if informational else 'true'}\\n")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              if informational:
+                  summary.write("### 盤後手動資訊檢查（非正式交易驗證）\\n")
+                  summary.write(f"台灣時間：{now.isoformat()}。盤中最新成交驗證不適用；")
+                  summary.write("需另外核對觀察價覆蓋率與成交來源。正式交易仍禁止。\\n")
+              else:
+                  summary.write(f"### 正式盤中成交覆蓋率 Gate 適用：{now.isoformat()}\\n")
+          PY
+      - name: Verify informational post-close coverage artifact
+        if: steps.calendar.outputs.should_scan == 'true' && steps.scan_mode.outputs.require_live_gate == 'false'
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          path=Path("output/sky_quickscan_information/full_universe.json")
+          report=Path("output/sky_quickscan_information/latest_13col.json")
+          if not path.is_file() or not report.is_file():
+              raise SystemExit("INFORMATION_ARTIFACT_MISSING: no post-close coverage claim")
+          data=json.loads(path.read_text(encoding="utf-8"))
+          universe=data.get("universe_count")
+          observed=data.get("observed_price_count")
+          if not isinstance(universe,int) or universe <= 0 or not isinstance(observed,int) or not 0 <= observed <= universe:
+              raise SystemExit("INFORMATION_COVERAGE_INVALID: cannot verify observation counts")
+          pct=round(100*observed/universe,2)
+          with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as out:
+              out.write(f"盤後觀察價：{observed}/{universe}（{pct}%）；未驗證盤中成交，NO_TRADE。\\n")
+          print(f"POSTCLOSE_INFORMATION_ONLY observed={observed} universe={universe} pct={pct}% NO_TRADE")
+          PY
+      - name: Verify operational market coverage
+        if: steps.calendar.outputs.should_scan == 'true' && steps.scan_mode.outputs.require_live_gate == 'true'
         run: |
           python - <<'PY'
           import json
