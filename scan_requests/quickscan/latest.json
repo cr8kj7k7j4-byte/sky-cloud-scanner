@@ -5,11 +5,11 @@
   "source": "Fugle paid bulk + TWSE MIS supplemental; timestamps validated independently",
   "execution": "read_only_no_orders",
   "approval": "User explicitly requested all-market closing-data scan now",
-  "purpose": "Explicit user-authorized Fugle paid full-market direct scanner artifact 13-column integrity E2E smoke test",
+  "purpose": "Fugle paid full-market + bounded 8-symbol lastTrade evidence smoke test after PR458 merge",
   "research_info_visible_when_trade_blocked": true,
   "information_first": true,
   "user_trade_discretion": true,
-  "scan_trigger_reason": "validate_pr456_pr457_full_13col_json_md_same_scan_artifact_20261109",
+  "scan_trigger_reason": "p0_pr458_fugle_individual_lasttrade_evidence_smoke_20261109",
   "postclose_test_requested_on_tpe": "2026-11-09",
   "validation_target": "paid_Fugle_quotes_and_full_13col_report_in_same_artifact",
   "read_only_no_trades": true
