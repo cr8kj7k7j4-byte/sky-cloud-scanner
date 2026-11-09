@@ -134,7 +134,16 @@ _PATTERNS = [
         ),
     ),
     (
-        re.compile(r"^Sky\s*(?:持倉|持倉監控|警戒)$", re.I),
+        re.compile(r"^Sky\s*(?:警戒|即時警戒|全市場警戒)(?:\s*現在掃一次)?$", re.I),
+        CommandRoute(
+            "SKY_ALERT_WHOLE_MARKET_OBSERVATION", "WHOLE_MARKET_REALTIME_OBSERVATION",
+            True, True, False, "scan.yml: output/latest.json alert_observation",
+            "Show timestamped observations even when production is blocked. "
+            "Always display data coverage, trade prohibition and missing values; no A+ promotion."
+        ),
+    ),
+    (
+        re.compile(r"^Sky\s*(?:持倉|持倉監控)$", re.I),
         CommandRoute(
             "SKY_MONITOR", "WATCHLIST_OR_POSITION_REALTIME", True, False, False,
             "P0-A/PMS realtime refresh",
