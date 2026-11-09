@@ -49,7 +49,6 @@ Required:
 ### Monitoring realtime
 Use for:
 - `Sky 持倉`
-- `Sky 警戒`
 
 Refresh every monitored symbol/position before calculating status, stop/target proximity, or invalidation state.
 
@@ -154,3 +153,12 @@ Authoritative matrix: `docs/SKY_UNIFIED_REALTIME_SCOPE_20261104.md`.
 - Historical validation must continue using true PIT data; combining live evidence does not reset historical OOS or lift research freezes.
 - GitHub REST bulk snapshot entitlement remains independently blocked by HTTP 403 in the last verified runtime. The connected ChatGPT Fugle realtime quote does not grant that secret scope.
 - The 2026-11-04 verified MIS executed quote coverage was 90/1,985 (4.53%). Until a legitimate full-market source is validated, all whole-market realtime commands fail closed or explicitly report split-scope research. Do not buy a data plan without verifying entitlement/need.
+
+
+## 2026-11-09 Sky 警戒 observation-only amendment
+
+- `Sky 警戒` is **not** `Sky 持倉監控`. It requires the full TWSE+TPEx current-session universe and displays all available trade-validated observation records, regardless of Production market-data gate result.
+- Scanner report `output/latest.json.alert_observation` contains observation-only quotes, coverage counts by exchange, timestamps, and an explicit new-entry prohibition. It is not an A+ pool and does not bypass P0-C/P0-R or authorize orders.
+- Market-wide completion requires independently verifiable actual trade coverage. A 20-symbol or Top 100 shortlist is never proof of whole-market completion.
+- `Sky 持倉監控` and `Sky 持倉` retain position-only monitored quote refresh.
+- Further contract: `docs/SKY_ALERT_OBSERVATION_CONTRACT_V1_0.md`.
