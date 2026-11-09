@@ -163,6 +163,8 @@ def build(universe, snapshots, checked_at, errors=None):
         "fresh_executed_pct": round(100 * verified / len(rows), 1) if rows else 0.0,
         "priced_under_100_count": len(eligible),
         "ranked_observations": candidates[:100],
+        "display_columns_13": list(DISPLAY_COLUMNS_13),
+        "display_rows_13": [display_row_13(row) for row in candidates[:100]],
         "all_symbols": rows,
         "required_information_columns": list(REQUIRED_INFORMATION_COLUMNS),
         "missing_field_label": "待確認（未有可驗證資料）",
@@ -175,6 +177,56 @@ def build(universe, snapshots, checked_at, errors=None):
                  "No model inference, entry, target, or score is fabricated."),
     }
     return report
+
+
+DISPLAY_COLUMNS_13 = (
+    "股票代碼", "股票名稱", "即時價", "分類", "方向", "多方評分",
+    "空方評分", "買進觸發", "最高接受價", "停損／失效",
+    "現在動作", "加碼價格", "停利價格",
+)
+
+
+def display_row_13(row):
+    """Information-only 13-column contract; never label an unverified snapshot live."""
+    fields = row.get("required_fields") or project_required_fields(row)
+    fresh = row.get("data_status") == "FRESH_EXECUTED_TRADE"
+    price = row.get("last_price")
+    if price is None:
+        price_label = "待確認"
+    elif fresh:
+        price_label = f"{price:.2f}"
+    else:
+        price_label = f"待確認（觀察價 {price:.2f}，未驗證）"
+    return {
+        "股票代碼": row.get("symbol") or "—",
+        "股票名稱": row.get("name") or "待確認",
+        "即時價": price_label,
+        "分類": "X",
+        "方向": "不交易",
+        "多方評分": "—",
+        "空方評分": "—",
+        "買進觸發": "待確認",
+        "最高接受價": "待確認",
+        "停損／失效": "待確認",
+        "現在動作": "禁止交易",
+        "加碼價格": "待確認",
+        "停利價格": "待確認",
+    }
+
+
+def render_13_table(rows):
+    header = "| " + " | ".join(DISPLAY_COLUMNS_13) + " |"
+    divider = "| " + " | ".join("---" for _ in DISPLAY_COLUMNS_13) + " |"
+    if not rows:
+        rows = [{"symbol": "—", "name": "暫無合格候選", "data_status": "MISSING_QUOTE"}]
+    lines = [header, divider]
+    for row in rows:
+        shown = display_row_13(row)
+        lines.append("| " + " | ".join(
+            str(shown[key]).replace("|", "／").replace("\\n", " ")
+            for key in DISPLAY_COLUMNS_13
+        ) + " |")
+    return "\\n".join(lines)
 
 
 def summary(report):
@@ -191,14 +243,7 @@ def summary(report):
         x = report["by_exchange"][exchange]
         lines.append(f"| {label} | {x['universe']} | {x['snapshot_rows']} | "
                      f"{x['observed_price']} | {x['fresh_executed']} | {x['fresh_executed_pct']:.1f}% |")
-    lines += ["", "## 價格與漲幅觀察（未驗證者不得視為即時成交）",
-              "| 代碼 | 名稱 | 觀察價 | 漲跌幅 | 成交量 | 資料狀態 |",
-              "|---|---|---:|---:|---:|---|"]
-    for row in report["ranked_observations"][:30]:
-        pct = f"{row['change_pct']:+.1f}%" if row["change_pct"] is not None else "—"
-        vol = f"{row['volume']:,.0f}" if row["volume"] is not None else "—"
-        lines.append(f"| {row['symbol']} | {row['name']} | {row['last_price']:.2f} | "
-                     f"{pct} | {vol} | {row['data_status']} |")
+    lines += ["", "## 固定 13 欄｜資訊觀察（非正式交易訊號）", render_13_table(report["ranked_observations"][:30])]
     lines += ["", "其餘全部代號、資料時間與缺失原因詳見 full_universe.json。",
               "多空評分、預測機率、進出場價：未執行經驗證模型時保持空值。",
               "", f"**{report['trade_decision']}**",
