@@ -17,6 +17,8 @@ jobs:
     timeout-minutes: 4
     steps:
       - uses: actions/checkout@v4
+      - name: Validate fail-closed monitor contract
+        run: python -m unittest discover -s ops/recovery -p 'test_sky_overnight_readonly_acceptance.py' -v
       - name: Evaluate bounded monitoring window and workflow health
         env:
           GH_TOKEN: ${{ github.token }}
