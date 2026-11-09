@@ -6,6 +6,8 @@ on:
     paths:
       - ".github/workflows/swing-v11-live-scan.yml"
       - "src/swing_v11_live_scanner.py"
+      - "src/swing_split_scope_scanner.py"
+      - "src/swing_observation_report.py"
       - "research/verify_swing_v11_live_output.py"
       - "src/sky_command_router.py"
       - "research/SKY_SWING_V11_INTRADAY_EXECUTION_OVERLAY_V1.md"
@@ -14,6 +16,7 @@ on:
       - "src/swing_v11_live_scanner.py"
       - "tests/test_swing_v11_freshness.py"
       - "tests/test_verify_swing_v11_live_output.py"
+      - "tests/test_swing_observation_report.py"
       - ".github/workflows/swing-v11-live-scan.yml"
   workflow_dispatch:
     inputs:
@@ -40,7 +43,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install -r requirements.txt pytest
-      - run: PYTHONPATH=. pytest -q tests/test_swing_v11_freshness.py tests/test_swing_v11_live_scanner.py tests/test_verify_swing_v11_live_output.py
+      - run: PYTHONPATH=. pytest -q tests/test_swing_v11_freshness.py tests/test_swing_v11_live_scanner.py tests/test_verify_swing_v11_live_output.py tests/test_swing_observation_report.py tests/test_swing_split_scope_scanner.py
 
   live-scan:
     if: github.event_name != 'pull_request'
@@ -91,43 +94,10 @@ jobs:
         run: |
           python -m src.swing_split_scope_scanner --deep-n 8
 
-      - name: Publish research observations even when V1.1 freshness fails
+      - name: Publish complete thirteen-column research observations
         if: always()
         run: |
-          python - <<'PY'
-          import json, os
-          from pathlib import Path
-          p = Path('output/swing_split_scope/latest.json')
-          lines = ['## Sky 波段：研究觀察（非正式交易訊號）', '']
-          if not p.is_file():
-              lines += ['分範圍觀察資料未產生；不得以過期訊號填補。']
-          else:
-              d = json.loads(p.read_text(encoding='utf-8'))
-              lines += [
-                  f"產生時間：{d.get('generated_at')}；前日官方收盤日期：{d.get('official_daily_signal_date')}",
-                  f"上市與上櫃日線：{d.get('official_daily_count')}/{d.get('universe_count')}（{d.get('official_daily_coverage_pct')}%）",
-                  f"富果當日成交候選：{d.get('live_quote_available')}/{d.get('live_quote_requested')}；全市場盤中成交價覆蓋率：未驗證",
-                  f"資料狀態：{d.get('daily_scope_status')}；策略狀態：RESEARCH_ONLY_NOT_PRODUCTION",
-                  "🔴 正式進場資格未通過仍展示觀察，不表示可買、不表示預測機率。",
-                  '',
-                  '| 股票 | 前日收盤 | 當日已驗證成交價 | 報價時間 | 報價狀態 | 現在動作 |',
-                  '|---|---:|---:|---|---|---|',
-              ]
-              for c in d.get('candidates', []):
-                  def fmt(v):
-                      return '—' if v is None else str(v).replace('|', '/')
-                  lines.append(
-                      f"| {fmt(c.get('symbol'))} | {fmt(c.get('close'))} | "
-                      f"{fmt(c.get('current_price'))} | {fmt(c.get('current_price_updated_at'))} | "
-                      f"{fmt(c.get('live_quote_status'))} | 觀察 |"
-                  )
-              if not d.get('candidates'):
-                  lines.append('| 無可呈現候選 | — | — | — | — | 觀察 |')
-              lines += ['', '註：候選來源為前一日官方日線篩選，只對少數候選取得富果當日成交價；不是全市場即時成交報價。']
-          with Path(os.environ['GITHUB_STEP_SUMMARY']).open('a', encoding='utf-8') as out:
-              out.write('\n'.join(lines) + '\n')
-          print('\n'.join(lines))
-          PY
+          python -m src.swing_observation_report --input output/swing_split_scope/latest.json
 
       - name: Enforce fresh canonical D-close signal
         if: always()
