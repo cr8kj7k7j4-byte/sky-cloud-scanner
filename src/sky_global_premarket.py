@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -94,16 +94,32 @@ def collect_context(now):
     from .gold_context import fetch_gold_context
     import requests
     def night_fetch():
+        # The Monday 08:00 report describes the most recent prior session,
+        # not Monday's as-yet-untraded night session. Holidays remain unverified.
+        previous_session = now.date() - timedelta(days=1)
+        while previous_session.weekday() >= 5:
+            previous_session -= timedelta(days=1)
+        expected_date = previous_session.strftime('%Y%m%d')
         url = 'https://openapi.taifex.com.tw/v1/DailyMarketReportFut'
         response = requests.get(url, timeout=15)
         response.raise_for_status()
         rows = response.json()
-        candidates = [r for r in rows if str(r.get('Contract', '')).strip() == 'TX' and str(r.get('TradingSession', '')).strip() == '盤後' and len(str(r.get('ContractMonth(Week)', ''))) == 6 and str(r.get('ContractMonth(Week)', '')).isdigit() and str(r.get('Date', '')).strip() == now.strftime('%Y%m%d') and str(r.get('Last', '')).replace(',', '').replace('.', '', 1).isdigit()]
+        candidates = [
+            r for r in rows
+            if str(r.get('Contract', '')).strip() == 'TX'
+            and str(r.get('TradingSession', '')).strip() == '盤後'
+            and len(str(r.get('ContractMonth(Week)', ''))) == 6
+            and str(r.get('ContractMonth(Week)', '')).isdigit()
+            and str(r.get('Date', '')).strip() == expected_date
+            and str(r.get('Last', '')).replace(',', '').replace('.', '', 1).isdigit()
+        ]
         if candidates:
-            latest = max(r['Date'] for r in candidates)
-            item = min((r for r in candidates if r['Date'] == latest), key=lambda r: r['ContractMonth(Week)'])
-            return {'status': 'AVAILABLE_UNVERIFIED', 'last': item['Last'], 'date': item['Date'], 'contract_month': item['ContractMonth(Week)'], 'source_url': url}
-        return {'status': 'UNAVAILABLE'}
+            item = min(candidates, key=lambda r: r['ContractMonth(Week)'])
+            return {'status': 'AVAILABLE_UNVERIFIED', 'last': item['Last'],
+                    'date': item['Date'], 'contract_month': item['ContractMonth(Week)'],
+                    'source_url': url, 'expected_previous_weekday': expected_date,
+                    'warning': 'Previous weekday is not an official trading-calendar verification.'}
+        return {'status': 'UNAVAILABLE', 'expected_previous_weekday': expected_date}
     funcs = {
         'vix': fetch_vix, 'us10y': fetch_us10y, 'ntdusd': fetch_ntdusd,
         'sp500': lambda: fetch_fred_market_series('SP500', 'S&P 500', FRED_SP500_CSV, 'index'),
