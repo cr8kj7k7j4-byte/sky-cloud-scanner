@@ -35,12 +35,20 @@ def projection(item, plan=None):
     """All unavailable strategy fields remain unknown, never inferred."""
     verified = item.get("data_status") == "FRESH_EXECUTED_TRADE"
     price = _number(item.get("last_price")) if verified else None
+    observed = _number(item.get("last_price"))
+    # A same-session paid Fugle observation is visible but NOT a live trade.
+    show_observed = (
+        not verified and observed is not None
+        and item.get("source") == "Fugle paid bulk snapshot"
+        and item.get("data_status") in ("UNVERIFIED_EXECUTION_TIME", "STALE_EXECUTION_TIME")
+    )
     # Data quality X is not a model's directional recommendation.
     row = dict.fromkeys(COLUMNS, UNKNOWN)
     row.update({
         "股票代碼": item.get("symbol") or "—",
         "股票名稱": item.get("name") or UNKNOWN,
-        "即時價": f"{price:.2f}" if price is not None else UNKNOWN,
+        "即時價": (f"{price:.2f}" if price is not None else
+                    f"待確認（觀察價 {observed:.2f}，未驗證）" if show_observed else UNKNOWN),
         "分類": "X",
         "方向": "不交易",
         "多方評分": "—",
