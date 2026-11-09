@@ -1,6 +1,6 @@
 {
   "command": "Sky 當沖現在掃一次",
-  "request_id": "chat-20261109-coverage-002",
+  "request_id": "chat-20261110-preopen-0720-readback",
   "read_only_no_orders": true,
-  "reason": "Verify new per-exchange paid Fugle coverage status and 13-col after merge PR468"
+  "reason": "User-authorized 2026-11-10 preopen live read-only Fugle TSE+OTC bridge smoke and full 13-column artifact validation; no trading promotion"
 }
