@@ -110,3 +110,18 @@ All Sky current-state tables use the same 10 columns. Bull and bear scores rende
 ## General scan/update table v1.5
 
 一般快掃、掃一次、單檔更新、完整分析等非持倉主決策表，固定使用：股票｜現價｜方向｜多方評分｜空方評分｜買進觸發｜最高接受價｜停損／失效｜分類｜現在動作。方向欄亦固定粗體；多空評分固定為 **XX / 100**；現價、買進觸發、最高接受價（若有）、停損／失效、分類、現在動作皆粗體。持倉更新仍使用 Position presentation v1.4，不與一般表混用。
+
+## User-approved 13-column informational presentation V2 (2026-11-09)
+
+For all recognized Sky stock-related commands, when stock observations exist, the primary stock table MUST use exactly:
+
+| 股票代碼 | 股票名稱 | 即時價 | 分類 | 方向 | 多方評分 | 空方評分 | 買進觸發 | 最高接受價 | 停損／失效 | 現在動作 | 加碼價格 | 停利價格 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+
+- Display all actually obtained, sourced observations despite X / DATA_BLOCKED / research-only status. Never suppress evidence solely due to blocked trade eligibility.
+- Never fabricate stock identifiers, live executions, scores, triggers, stops or objectives. Show 待確認 or — when absent. Historical/snapshot quotes must carry a distinct label and cannot masquerade as executed live price in 即時價.
+- When no stock evidence exists, use one 13-column placeholder: — | 暫無合格候選 | 待確認 | X | 不交易 | — | — | 待確認 | 待確認 | 待確認 | 等待 | 待確認 | 待確認.
+- State source, observation time, coverage by TWSE/TPEx, run reference, limitations and trade status. The warning 🔴 禁止新進場、未驗證通過 does not conceal actual evidence.
+- Operational-only commands may have separate diagnostic tables. Apply 13 columns when presenting individual stocks.
+- Shared renderer: src.sky_thirteen_column_report.render_sky_table. Integrating into production/mobile call sites and end-to-end deployment still requires independent evidence.
+- The previous 10-column layout is superseded for presentation only. P0-R risk, model promotion, execution quality and no-auto-order requirements stay unchanged.
