@@ -1,0 +1,59 @@
+name: Sky 13-column report from completed scanner artifacts (research only)
+on:
+  workflow_run:
+    workflows: ["Sky Cloud Scanner v0.5 + P0-R"]
+    types: [completed]
+permissions:
+  actions: read
+  contents: read
+concurrency:
+  group: sky-13col-from-scan-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch existing scanner artifact (never re-query paid APIs)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p source-artifact output/sky_quickscan_information
+          echo "Source scanner run: ${SOURCE_RUN_ID}"
+          gh run download "${SOURCE_RUN_ID}" --repo "${GITHUB_REPOSITORY}" \
+            --name "sky-scan-${SOURCE_RUN_ID}" --dir source-artifact
+          test -s source-artifact/output/sky_quickscan_information/full_universe.json
+          cp source-artifact/output/sky_quickscan_information/full_universe.json \
+            output/sky_quickscan_information/full_universe.json
+      - name: Generate 13-column informational report
+        run: python -m research.sky_13col_report
+      - name: Add provenance and summary
+        if: always()
+        env:
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+        shell: bash
+        run: |
+          {
+            echo "### Sky 13 欄研究資訊"
+            echo "原始掃描 Run: https://github.com/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}"
+            echo "原始掃描結果: ${SOURCE_RUN_CONCLUSION}"
+            echo "本報告只使用掃描 artifact，不執行富果 API，不授權交易。"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ -f output/sky_quickscan_information/latest_13col.md ]; then
+            cat output/sky_quickscan_information/latest_13col.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "報告產生失敗；請檢查 source artifact／日誌。" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Publish standalone report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-13col-report-${{ github.event.workflow_run.id }}-${{ github.run_id }}
+          path: output/sky_quickscan_information/latest_13col.md
+          retention-days: 14
+          if-no-files-found: warn
