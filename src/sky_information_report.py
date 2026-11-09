@@ -126,6 +126,57 @@ def project_information_first(scan: dict[str, Any] | None) -> dict[str, Any]:
     }
 
 
+
+def project_unified_information(payload: dict[str, Any]) -> dict[str, Any]:
+    """List actual strategy observations from a composite, without fake live quotes."""
+    result = payload.get("result")
+    result = result if isinstance(result, dict) else {}
+    reports = result.get("reports")
+    reports = reports if isinstance(reports, dict) else {}
+    observations: list[dict[str, Any]] = []
+    strategy_states: dict[str, dict[str, Any]] = {}
+    for strategy, raw_report in reports.items():
+        report = raw_report if isinstance(raw_report, dict) else {}
+        strategy_states[str(strategy)] = {
+            key: report.get(key) for key in (
+                "available", "data_timestamp", "quote_scope", "source_scope",
+                "operational_full_market_scan", "quote_coverage_pct",
+                "candidate_count", "research_only", "reason"
+            )
+        }
+        preview = report.get("candidate_preview")
+        if not isinstance(preview, list):
+            continue
+        for candidate in preview:
+            if not isinstance(candidate, dict) or not candidate.get("symbol"):
+                continue
+            safe = {
+                "symbol": candidate.get("symbol"),
+                "name": candidate.get("name"),
+                "direction": candidate.get("direction"),
+                "source": report.get("source_scope"),
+                # Historical preview price is not equivalent to executed-trade
+                # price without a trade time/status for this exact symbol.
+                "data_status": "UNVERIFIED_COMPOSITE_PREVIEW",
+            }
+            observations.append({
+                "strategy": str(strategy), **_display_row(safe, full_live=False)
+            })
+    return {
+        "schema": "SKY_INFORMATION_FIRST_UNIFIED_V1",
+        "information_available": bool(reports),
+        "data_status": "PARTIAL_OR_UNVERIFIED",
+        "decision": result.get("decision", "UNKNOWN"),
+        "run_id": payload.get("run_id"),
+        "generated_at": payload.get("utc_generated_at"),
+        "required_display_fields": list(DISPLAY_FIELDS),
+        "strategies": strategy_states,
+        "display_rows": observations,
+        "display_missing_value": "待確認（缺少可驗證資料）",
+        "trading_permission": "NO_TRADE_UNLESS_SEPARATELY_AUTHORIZED_BY_P0_R",
+    }
+
+
 def main() -> None:
     import argparse
     import json
@@ -148,7 +199,11 @@ def main() -> None:
                 source_status = "REPORT_INVALID_TYPE"
         except (OSError, ValueError):
             source_status = "REPORT_INVALID_JSON"
-    result = project_information_first(payload)
+    result = (
+        project_unified_information(payload)
+        if isinstance(payload, dict) and isinstance(payload.get("result"), dict)
+        else project_information_first(payload)
+    )
     result["source_status"] = source_status
     dest = Path(args.output)
     dest.parent.mkdir(parents=True, exist_ok=True)
