@@ -154,6 +154,7 @@ def run(deep_n=8):
     # intraday executed prices or TPEx-certified realtime quotes.
 
     assessment=evaluate_daily_scope(universe,tw,tp,now)
+    official_names = {item["symbol"]: item.get("name") or None for item in universe}
     # Market-wide is historical D-close; a quote for one candidate does not
     # change daily coverage or certify a live whole-market scanner.
     eligible=[]
@@ -165,6 +166,19 @@ def run(deep_n=8):
     candidates=[]
     for row in eligible[:max(1,deep_n)]:
         candidate=dict(row)
+        candidate["name"] = official_names.get(row["symbol"])
+        candidate["candidate_scope"] = "PRIOR_CLOSE_DAILY_PLUS_SELECTED_FUGLE_LIVE"
+        candidate["direction"] = "待確認"
+        candidate["bull_score"] = None
+        candidate["bear_score"] = None
+        candidate["buy_trigger"] = None
+        candidate["highest_acceptable_price"] = None
+        candidate["stop"] = None
+        candidate["invalidation_text"] = "正式 V1.1 訊號日期未驗證"
+        candidate["add_price"] = None
+        candidate["target_price"] = None
+        candidate["classification"] = "研究觀察／未評級"
+        candidate["missing_decision_evidence"] = ["有效 V1.1 日週線訊號", "進場觸發", "停損", "目標", "成本後 RR"]
         candidate.update({"live_quote_status":"UNVERIFIED",
             "current_price":None,"current_price_date":None,"current_price_source":None,
             "strategy_signal":False,"production_eligible":False,"action":"等待"})
@@ -192,6 +206,7 @@ def run(deep_n=8):
     report={
         "generated_at":now.isoformat(),
         "mode":"SWING_SPLIT_SCOPE_RESEARCH",
+        "presentation_schema":"SKY_SWING_OBSERVATION_13_COLUMNS_V1",
         "strategy_status":"RESEARCH_ONLY_NOT_PRODUCTION",
         "daily_scope_status":assessment["status"],
         "official_universe_health":health,
