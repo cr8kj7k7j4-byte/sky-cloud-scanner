@@ -30,6 +30,15 @@ class PreopenWatchTests(unittest.TestCase):
                      lambda _: [sample(status="in_progress", conclusion=None)])
         self.assertEqual("NO_RETRY_IN_PROGRESS", x["retry"])
 
+    def test_missing_report_warns_at_0850(self):
+        x = evaluate(datetime(2026, 11, 10, 8, 50, tzinfo=TPE), lambda _: [])
+        self.assertEqual("PREOPEN_REPORT_FAILED", x["status"])
+
+    def test_successful_report_no_false_alarm(self):
+        x = evaluate(datetime(2026, 11, 10, 8, 50, tzinfo=TPE),
+                     lambda _: [sample(conclusion="success")])
+        self.assertNotEqual("PREOPEN_REPORT_FAILED", x.get("status"))
+
     def test_after_deadline_expired(self):
         x = evaluate(datetime(2026, 11, 10, 9, 51, tzinfo=TPE), lambda _: [])
         self.assertEqual("EXPIRED", x["status"])
