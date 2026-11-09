@@ -6,9 +6,6 @@ on:
     branches: [main]
     paths:
       - 'scan_requests/mcr/now.json'
-  push:
-    branches: [main]
-    paths:
       - 'scan_requests/quickscan/latest.json'
   schedule:
     # UTC, Asia/Taipei UTC+8. Weekdays; official trading-calendar gate below.
@@ -21,7 +18,7 @@ on:
     - cron: "0-30/5 5 * * 1-5"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   scan:
@@ -149,6 +146,56 @@ jobs:
           python -m unittest tests.test_mcr_intraday_information -v
           python -m research.mcr_intraday_information
           cat output/mcr_intraday_information_latest.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish sanitized MCR scan receipt for mobile status and independent audit
+        if: always() && github.ref == 'refs/heads/main'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from datetime import datetime, timezone
+          from pathlib import Path
+          def get(path):
+              try: return json.loads(Path(path).read_text(encoding='utf-8'))
+              except (OSError, ValueError): return {}
+          mcr=get('output/mcr_intraday_information_latest.json')
+          observed=get('output/sky_quickscan_information/full_universe.json')
+          status={
+            'schema':'SKY_MCR_INTRADAY_HEALTH_V1',
+            'published_at_utc':datetime.now(timezone.utc).isoformat(),
+            'run_id':os.getenv('GITHUB_RUN_ID'),
+            'run_url':'https://github.com/'+os.getenv('GITHUB_REPOSITORY','')+'/actions/runs/'+os.getenv('GITHUB_RUN_ID',''),
+            'financing_source_date':mcr.get('margin_source_date'),
+            'quote_observed_at':mcr.get('quote_observed_at'),
+            'mcr_observation_count':mcr.get('candidate_count'),
+            'mcr_with_observed_price':mcr.get('with_observed_price'),
+            'mcr_fresh_executed_count':mcr.get('fresh_executed_count'),
+            'all_market_universe_count':observed.get('universe_count'),
+            'all_market_observed_price_count':observed.get('observed_price_count'),
+            'all_market_fresh_executed_count':observed.get('fresh_executed_count'),
+            'by_exchange':observed.get('by_exchange'),
+            'mcr_quote_status_counts':mcr.get('quote_status_counts'),
+            'data_blockers':mcr.get('data_blockers'),
+            'action':'禁止交易',
+            'trade_eligible':False,
+            'notice':'Research only. No new trading approval; never substitute financing balance for margin maintenance.'
+          }
+          Path('/tmp/sky_mcr_status.json').write_text(json.dumps(status,ensure_ascii=False,indent=2)+chr(10))
+          print('MCR_RECEIPT',status['mcr_observation_count'],status['mcr_with_observed_price'],status['mcr_fresh_executed_count'])
+          PY
+          TARGET="repos/${GITHUB_REPOSITORY}/contents/docs/SKY_MCR_INTRADAY_HEALTH_LATEST.json"
+          CONTENT=$(base64 -w0 /tmp/sky_mcr_status.json)
+          for TRY in 1 2 3; do
+            SHA=$(gh api "$TARGET" --jq '.sha' 2>/dev/null || true)
+            if [ -n "$SHA" ]; then
+              gh api --method PUT "$TARGET" -f message="ops: publish MCR scan health [skip ci]" -f content="$CONTENT" -f sha="$SHA" -f branch=main >/dev/null && break
+            else
+              gh api --method PUT "$TARGET" -f message="ops: publish MCR scan health [skip ci]" -f content="$CONTENT" -f branch=main >/dev/null && break
+            fi
+            if [ "$TRY" = 3 ]; then exit 1; fi
+            sleep 2
+          done
       - name: Verify operational market coverage
         if: steps.calendar.outputs.should_scan == 'true'
         run: |
