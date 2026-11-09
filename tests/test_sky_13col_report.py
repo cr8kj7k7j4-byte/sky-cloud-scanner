@@ -57,10 +57,16 @@ class TestSky13Col(unittest.TestCase):
         row = projection(item)
         self.assertIsInstance(row["多方評分"], int)
         self.assertIsInstance(row["空方評分"], int)
-        self.assertEqual(row["即時價"], "待確認")
+        self.assertIn("觀察價 31.50，未驗證", row["即時價"])
         self.assertEqual(row["買進觸發"], "待確認")
         self.assertEqual(row["停利價格"], "待確認")
         self.assertEqual(row["分類"], "X")
+
+    def test_stale_date_cannot_show_paid_observed_price_as_today(self):
+        item = {"symbol": "1101", "source": "Fugle paid bulk snapshot",
+                "data_status": "SNAPSHOT_DATE_NOT_TODAY",
+                "last_price": 33.3}
+        self.assertEqual(projection(item)["即時價"], "待確認")
 
     def test_old_session_rejects_observation_scores(self):
         item = {"symbol": "1101", "source": "Fugle paid bulk snapshot",
