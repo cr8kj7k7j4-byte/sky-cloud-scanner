@@ -46,6 +46,18 @@ _PATTERNS = [
         ),
     ),
     (
+        re.compile(r"^Sky\\s*(?:全市場完整掃描|六模型全市場即時掃描|查詢六模型研究訊號)$", re.I),
+        CommandRoute(
+            "SKY_SIX_MODEL_RESEARCH_VISIBILITY",
+            "WHOLE_MARKET_LIVE_RESEARCH_WITH_EXPLICIT_MODEL_VERIFICATION",
+            True, True, False,
+            "scan.yml + output/research_visibility/latest.json + W2 model registry",
+            "Return real observed market evidence even when Production denies entry; "
+            "six-model actual inference requires six verified runners, not three research rules. "
+            "No fabricated scores, prices, probability or trade authorization."
+        ),
+    ),
+    (
         re.compile(r"^Sky\s*全市場掃描$", re.I),
         CommandRoute(
             "SKY_UNIFIED_MARKET_SCAN", "MULTI_MODEL_MARKET", True, True, False,
