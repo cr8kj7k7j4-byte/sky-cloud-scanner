@@ -86,6 +86,14 @@ Current-state Sky outputs use `docs/SKY_MOBILE_RESULT_TABLE_V1_0.md` as the prim
 Missing governed levels remain `—`; presentation must not invent prices just to fill the table.
 
 
+## Always-disclose observation policy (2026-11-09)
+
+For every Sky scan command, return all **actually acquired, source-attributed** observations even when the trading-qualification gate rejects them. Include timestamps, symbol universe count, data coverage by market and scope, source, candidate list if produced, unavailable values, blocked reasons, and model validation status. Do not suppress an observation report just because the final recommendation is **🔴 禁止新進場 / 未驗證**. The user independently decides whether to trade.
+
+Separate output fields for `observation_available`, `live_execution_evidence`, `production_eligible`, and `block_reason`. Do not turn observed daily closes into executed live quotes, invent missing execution prices/scores, or override P0-R risk and research promotion gates. No automatic orders.
+
+Swing V1.1's historical `*_D.json` artifact may be stale. If frozen D-close freshness fails, preserve the hard failure, but run an independent TWSE/TPEx daily cross-section with Fugle candidate-only live verification; publish its observational candidate table and JSON artifact regardless of the V1.1 verification result. This split-scope report **is not a replacement V1.1 signal** and **is not full-market live executed-price coverage**. Refreshing the frozen historical data source is a separate unresolved engineering prerequisite.
+
 ## Chat execution bridge
 
 For `Sky 波段現在掃一次` / `Sky Swing V1.1｜現在掃一次`:
