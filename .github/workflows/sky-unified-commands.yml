@@ -90,7 +90,8 @@ jobs:
                       "snapshot_coverage_pct", "snapshot_exchange_counts",
                       "snapshot_observations_full_artifact",
                       "snapshot_individual_verified_count", "snapshot_individual_confirmation",
-                      "snapshot_observation_warning")}
+                      "snapshot_observation_warning", "information_columns_13col",
+                      "information_count_13col", "information_preview_13col")}
               for name, report in reports.items() if isinstance(report, dict)
           }
           safe = {
