@@ -1,6 +1,12 @@
 name: Sky Repair Watchdog and Preopen Readiness
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/sky-repair-watchdog.yml'
+      - 'research/sky_recovery_watchdog.py'
+      - 'docs/SKY_UNIFIED_LATEST_ALL_MARKET.json'
   schedule:
     # UTC -> Asia/Taipei +08. 15-min status checks, not repeated market-data scans.
     - cron: "*/15 * * * *"
