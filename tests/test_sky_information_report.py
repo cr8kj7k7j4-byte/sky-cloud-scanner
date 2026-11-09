@@ -93,3 +93,32 @@ def test_verified_single_quote_is_visible_without_full_market_buy():
     assert row["資料來源"] == "Fugle"
     assert row["現在動作"] == "禁止交易"
     assert row["融資維持率"] is None
+
+
+def test_unified_report_keeps_strategy_and_all_columns():
+    from src.sky_information_report import project_unified_information
+    payload = {"run_id": "123", "result": {
+        "decision": "DATA_COVERAGE_INSUFFICIENT_NO_TRADE",
+        "reports": {
+            "intraday": {
+                "available": True, "quote_coverage_pct": 5.04,
+                "candidate_count": None,
+                "candidate_preview": [{"symbol": "1101", "name": "台泥", "price": 40,
+                                       "action": "買進"}],
+            },
+            "swing5d_research": {
+                "available": True, "candidate_count": 0, "candidate_preview": [],
+                "research_only": True,
+            },
+        },
+    }}
+    result = project_unified_information(payload)
+    assert result["strategies"]["intraday"]["quote_coverage_pct"] == 5.04
+    assert result["strategies"]["intraday"]["candidate_count"] is None
+    assert result["strategies"]["swing5d_research"]["candidate_count"] == 0
+    assert len(result["display_rows"]) == 1
+    row = result["display_rows"][0]
+    assert row["即時價"] is None
+    assert row["股票代碼"] == "1101"
+    assert row["現在動作"] == "禁止交易"
+    assert row["買進觸發"] is None
