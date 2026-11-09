@@ -29,8 +29,15 @@ jobs:
           test -s source-artifact/output/sky_quickscan_information/full_universe.json
           cp source-artifact/output/sky_quickscan_information/full_universe.json \
             output/sky_quickscan_information/full_universe.json
+          # Both files originate from the SAME upstream scan artifact.
+          if [ -s source-artifact/output/latest.json ]; then
+            cp source-artifact/output/latest.json output/sky_quickscan_information/scanner_latest.json
+          fi
       - name: Generate 13-column informational report
-        run: python -m research.sky_13col_report
+        run: |
+          python -m research.sky_13col_report \
+            --scanner-input output/sky_quickscan_information/scanner_latest.json \
+            --json-output output/sky_quickscan_information/latest_13col.json
       - name: Add provenance and summary
         if: always()
         env:
@@ -45,7 +52,11 @@ jobs:
             echo "本報告只使用掃描 artifact，不執行富果 API，不授權交易。"
           } >> "$GITHUB_STEP_SUMMARY"
           if [ -f output/sky_quickscan_information/latest_13col.md ]; then
-            cat output/sky_quickscan_information/latest_13col.md >> "$GITHUB_STEP_SUMMARY"
+            # Mobile-first preview: avoid a 1,900-row GitHub Step Summary.
+            python -m research.sky_13col_report --limit 30 \
+              --scanner-input output/sky_quickscan_information/scanner_latest.json \
+              --output /tmp/sky_13col_preview.md
+            cat /tmp/sky_13col_preview.md >> "$GITHUB_STEP_SUMMARY"
           else
             echo "報告產生失敗；請檢查 source artifact／日誌。" >> "$GITHUB_STEP_SUMMARY"
           fi
@@ -54,6 +65,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: sky-13col-report-${{ github.event.workflow_run.id }}-${{ github.run_id }}
-          path: output/sky_quickscan_information/latest_13col.md
+          path: |
+            output/sky_quickscan_information/latest_13col.md
+            output/sky_quickscan_information/latest_13col.json
           retention-days: 14
           if-no-files-found: warn
