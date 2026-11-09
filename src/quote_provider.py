@@ -69,3 +69,22 @@ def collect_market_quotes(universe, *, now, fugle_fetch=None, mis_fetch=None,
         "fallback_used": not use_primary, "official_tpex_realtime_certified": False,
         "primary_evidence": {k: v for k, v in primary.items() if k != "accepted_rows"},
     }
+
+
+def select_certified_candidate_rows(market, *, allow_mis_otc_fallback=False):
+    """Retain both exchanges for certified PAID Fugle, independently of MIS flag.
+
+    The caller must first require BOTH whole-market executed-quote evidence and
+    strict strategy data gates. This helper cannot certify or authorize trades.
+    """
+    audit = (market or {}).get("audit") or {}
+    if audit.get("valid_whole_market_operational") is not True:
+        return []
+    rows = (market or {}).get("rows") or []
+    if not isinstance(rows, list):
+        return []
+    if (market or {}).get("provider") == "Fugle bulk snapshot" and not market.get("fallback_used"):
+        return list(rows)
+    if allow_mis_otc_fallback:
+        return list(rows)
+    return [x for x in rows if x.get("exchange") == "TWSE"]

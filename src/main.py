@@ -21,7 +21,7 @@ from .config import (
     P0S_5M_BREAKOUT_ENABLED,
 )
 from .official import load_official_universe
-from .quote_provider import collect_market_quotes
+from .quote_provider import collect_market_quotes, select_certified_candidate_rows
 from .realtime_quote_evidence import validate_whole_market_rows
 from .fugle import get_ticker, get_quote, get_candles
 from .decision_engine import first_gate, evaluate_decision
@@ -329,13 +329,15 @@ def run():
             "count": len(twse_rows),
         }
         st["source_health"]["tpex_intraday"] = {
-            "ok": False,
+            "ok": bool(tpex_official_intraday_ok),
             "operational_ok": otc_operational_ok,
-            "source": (
-                "TPEx official public/free full-market real-time feed "
-                "not certified; TWSE MIS OTC is operational fallback only"
+            "source": market["provider"],
+            "paid_fugle_marketdata": (
+                market["provider"] == "Fugle bulk snapshot"
+                or market["provider"] == "Fugle bulk snapshot (partial research)"
             ),
-            "fallback_count": len(otc_rows),
+            "verified_executed_count": len(otc_rows),
+            "official_tpex_realtime_certified": False,
         }
 
         if STRICT_OFFICIAL_MODE:
@@ -346,8 +348,8 @@ def run():
             )
             if not st["full_market_scan"]:
                 st["warnings"].append(
-                    "未完成全市場掃描：TPEx 官方免費公開來源未能驗證完整盤中"
-                    "全市場即時資料鏈；候選最高只列 A。"
+                    "全市場正式交易資格未通過：TPEx 官方即時來源認證仍未完成，"
+                    "且富果批次快照不能單獨證明每檔成交時間；不放寬風控。"
                 )
         else:
             st["full_market_scan"] = bool(
@@ -356,9 +358,8 @@ def run():
 
         if st["operational_full_market_scan"] and not st["full_market_scan"]:
             st["warnings"].append(
-                "實務全市場行情鏈可用：TWSE + TPEx 官方母池，盤中以 TWSE MIS "
-                "批次讀取 TSE + OTC；OTC 為 operational fallback，不能誤稱為 "
-                "TPEx 官方認證即時來源。"
+                "Fugle 付費 TSE + OTC 批次行情已觀察；正式交易仍須個股"
+                "最新成交時間、全市場有效證據及風控分別通過。"
             )
 
         # Data-quality gate occurs before ranking, P0-C/P0-R decisions,
@@ -372,9 +373,13 @@ def run():
             "PASS_FULL_MARKET_LIVE" if market_evidence_eligible
             else "BLOCKED_EXTERNAL_DATA_NO_TRADE"
         )
+        # MIS fallback policy is NOT a switch for Fugle paid OTC coverage.
+        # This remains guarded by both existing whole-market and strict gates.
         working_rows = (
-            rows if ALLOW_MIS_OTC_FALLBACK else twse_rows
-        ) if market_evidence_eligible else []
+            select_certified_candidate_rows(
+                market, allow_mis_otc_fallback=ALLOW_MIS_OTC_FALLBACK)
+            if market_evidence_eligible else []
+        )
         st["market_intelligence"] = summarize_market(working_rows)
 
         premarket_state = load_premarket_event_snapshot(
