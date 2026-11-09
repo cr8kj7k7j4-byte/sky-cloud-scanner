@@ -234,7 +234,7 @@ def summary(report):
         lines.append("| — | 暫無可用價格觀察 | 待確認 | X | 不交易 | — | — | 待確認 | 待確認 | 待確認 | 等待 | 待確認 | 待確認 |")
     for row in rows:
         vals = alert_row(row)
-        lines.append("| " + " | ".join(str(v).replace("|", "／").replace("\\n", " ") for v in vals) + " |")
+        lines.append("| " + " | ".join(str(v).replace("|", "／").replace("\n", " ") for v in vals) + " |")
     lines += [
         "", "警戒排序僅依可取得的觀察價／漲幅／成交量，不等於多方評分、正式警戒訊號或經驗證全市場即時排名。",
         "完整股票母池、資料時間、成交量、來源、缺值與狀態詳見 full_universe.json。",
@@ -242,7 +242,7 @@ def summary(report):
         "", f"**{report['trade_decision']}**",
         "研究資訊持續呈現；交易由使用者自行判斷，系統不自動下單。",
     ]
-    return "\\n".join(lines) + "\\n"
+    return "\n".join(lines) + "\n"
 
 
 def main():
