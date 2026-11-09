@@ -54,4 +54,20 @@ class TestMcrLiveObservations(unittest.TestCase):
         r=join(None,LIVE,NOW)
         self.assertEqual(r["candidate_count"],0)
         self.assertIn("MCR_FINANCING_CANDIDATES_UNAVAILABLE",r["data_blockers"])
+    def test_markdown_includes_all_rows_and_missing_trade_columns(self):
+        rows = [
+            {"stock_id":str(1000+i),"stock_name":"研究股","exchange":"TWSE",
+             "two_session_reduction_pct":10.0,"last_price":20.0,"volume":1000,
+             "data_status":"UNVERIFIED_EXECUTION_TIME"}
+            for i in range(35)
+        ]
+        report = join({"financing_source_date":"2026-11-06","rows":rows},LIVE,NOW)
+        text = markdown(report)
+        self.assertIn("|1034|",text)
+        self.assertIn("最高接受價",text)
+        self.assertIn("融資維持率低於130%",text)
+        self.assertIn("UNVERIFIED_EXECUTION_TIME",text)
+        self.assertEqual(text.count("|研究股|"),35)
+        self.assertIn("\\n|1034|",text)
+
 if __name__=="__main__":unittest.main()
