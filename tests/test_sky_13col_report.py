@@ -1,5 +1,9 @@
 """Regression tests for 13-column read-only rendering."""
 import unittest
+import json
+import tempfile
+from pathlib import Path
+from unittest.mock import patch
 
 from research.sky_13col_report import COLUMNS, projection, render
 
@@ -89,6 +93,27 @@ class TestSky13Col(unittest.TestCase):
         self.assertEqual(row["加碼價格"], "待確認")
         self.assertEqual(row["現在動作"], "等待")
         self.assertEqual(projection(item)["買進觸發"], "待確認")
+
+    def test_13col_json_uses_labeled_snapshot_collection_clock(self):
+        from research.sky_13col_report import main
+        item = {"symbol": "1101", "name": "台泥", "exchange": "TWSE",
+                "source": "Fugle paid bulk snapshot", "last_price": 31.2,
+                "data_status": "UNVERIFIED_EXECUTION_TIME",
+                "snapshot_observed_at": "2026-11-09T11:00:00+08:00",
+                "last_trade_time": None}
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "input.json"
+            destination = root / "output.json"
+            source.write_text(json.dumps(self.source([item])), encoding="utf-8")
+            with patch("sys.argv", ["sky_13col_report", "--input", str(source),
+                                    "--output", str(root / "out.md"),
+                                    "--json-output", str(destination)]):
+                main()
+            row = json.loads(destination.read_text(encoding="utf-8"))["rows"][0]
+            self.assertEqual(row["資料時間"], item["snapshot_observed_at"])
+            self.assertEqual(row["資料時間類型"], "快照擷取時間")
+            self.assertFalse(row["正式交易資格"])
 
     def test_nan_never_published(self):
         item = {"symbol": "1101", "last_price": float("nan"),
