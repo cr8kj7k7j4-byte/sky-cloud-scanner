@@ -1,0 +1,68 @@
+name: Sky MCR Preopen Readiness (read-only)
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/mcr-preopen-readiness.yml'
+      - 'research/mcr_preopen_readiness.py'
+      - 'tests/test_mcr_preopen_readiness.py'
+  schedule:
+    # Asia/Taipei 20:30 previous weekday, 00:30 and 04:30 next trading day.
+    - cron: '30 12 * * 1-5'
+    - cron: '30 16,20 * * 0-4'
+    # Asia/Taipei 08:30, 08:45 and 08:55 on weekdays, before 09:00 opening.
+    - cron: '30,45,55 0 * * 1-5'
+permissions:
+  contents: read
+concurrency:
+  group: sky-mcr-preopen-readiness
+  cancel-in-progress: false
+jobs:
+  preopen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - run: pip install -r requirements.txt
+      - name: Verify report formatting and safety regression
+        run: |
+          python -m unittest tests.test_mcr_intraday_information tests.test_mcr_observation_report tests.test_mcr_preopen_readiness -v
+      - name: Probe Fugle paid batch source (3 bounded attempts, no orders)
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+        run: python -m research.mcr_preopen_readiness
+      - name: Upload readiness receipt even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcr-preopen-readiness-${{ github.run_id }}
+          path: output/mcr_preopen_readiness.json
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Add human-readable status
+        if: always()
+        run: |
+          echo "## MCR Preopen Readiness" >> "$GITHUB_STEP_SUMMARY"
+          echo "This is a source and test smoke check, NOT current-session whole-market live execution certification." >> "$GITHUB_STEP_SUMMARY"
+          echo "Research information remains available; no trading permission is granted." >> "$GITHUB_STEP_SUMMARY"
+          if test -f output/mcr_preopen_readiness.json; then
+            python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          r=json.load(open('output/mcr_preopen_readiness.json',encoding='utf-8'))
+          print('Time:',r['checked_at_tpe'],' / Result:',r['result'])
+          for k,v in r['markets'].items():
+              print(k,v['status'],'rows:',v.get('snapshot_rows','n/a'),'with lastTrade.time:',v.get('rows_with_last_trade_time','n/a'),'source date:',v.get('source_date','n/a'))
+          PY
+          fi
+      - name: Alert Telegram if readiness fails
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: PYTHONPATH=. python research/intraday_scan_failure_alert.py
