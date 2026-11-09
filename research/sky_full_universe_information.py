@@ -218,13 +218,13 @@ def summary(report):
             "—", "—", "待確認", "待確認", "待確認",
             "禁止交易", "待確認", "待確認",
         )
-        lines.append("| " + " | ".join(str(x).replace("|", "／").replace("\\n", " ") for x in values) + " |")
+        lines.append("| " + " | ".join(str(x).replace("|", "／").replace("\n", " ") for x in values) + " |")
     lines.extend(("", "表內 X 表示交易資格未通過，並非模型對個股的負向預測。",
                   "全部代號、成交量、逐股時間、資料狀態及缺失原因詳見 full_universe.json。",
                   "多空分數、觸發、加碼與停利尚未經波段模型驗證，不得推算或捏造。",
                   "", f"**{report['trade_decision']}**",
                   "已取得的資訊照常揭露；是否自行交易由使用者決定，系統不自動下單。"))
-    return "\\n".join(lines) + "\\n"
+    return "\n".join(lines) + "\n"
 
 
 def main():
