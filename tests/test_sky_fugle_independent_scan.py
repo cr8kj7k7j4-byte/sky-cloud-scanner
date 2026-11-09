@@ -58,6 +58,16 @@ class IndependentScanTests(unittest.TestCase):
         self.assertEqual(data["by_exchange"]["TPEx"]["observed_price"], 0)
         self.assertEqual(len(data["all_symbols"]), 2)
 
+    def test_otc_ticker_empty_uses_paid_snapshot_with_uncertified_scope(self):
+        def partial_tickers(market):
+            return {"data": []} if market == "OTC" else tickers(market)
+        data = scan(now=NOW, ticker_fetch=partial_tickers, snapshot_fetch=quotes)
+        self.assertEqual(data["universe_count"], 2)
+        self.assertFalse(data["full_market_universe_certified"])
+        self.assertEqual(data["universe_basis"]["TPEx"]["snapshot_fallback_symbols"], 1)
+        self.assertEqual(data["by_exchange"]["TPEx"]["observed_price"], 1)
+        self.assertTrue(all(x["production_eligible"] is False for x in data["all_symbols"]))
+
 
 if __name__ == "__main__":
     unittest.main()
