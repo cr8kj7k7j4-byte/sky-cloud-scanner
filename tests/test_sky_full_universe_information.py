@@ -84,3 +84,20 @@ def test_stale_observation_not_promoted_to_live_trade():
     assert row["即時價"] is None
     assert row["目標一"] is None
     assert row["最高接受價"] is None
+
+
+def test_exact_thirteen_column_display_without_fabrication():
+    from src.sky_command_router import SKY_PRESENTATION_COLUMNS
+    report = build(U, {}, NOW)
+    assert len(SKY_PRESENTATION_COLUMNS) == 13
+    assert tuple(report["display_columns"]) == SKY_PRESENTATION_COLUMNS
+    for row in report["all_symbols"]:
+        fields = row["display_fields"]
+        assert tuple(fields) == SKY_PRESENTATION_COLUMNS
+        assert fields["即時價"] == "待確認"
+        assert fields["多方評分"] == "待確認"
+        assert fields["加碼價格"] == "待確認"
+        assert fields["停利價格"] == "待確認"
+        assert fields["現在動作"] == "禁止交易"
+    markdown = summary(report)
+    assert "| " + " | ".join(SKY_PRESENTATION_COLUMNS) + " |" in markdown
