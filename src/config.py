@@ -12,7 +12,9 @@ DEEP_DIVE_N = int(os.getenv("DEEP_DIVE_N", "12"))
 MIN_VOLUME = int(os.getenv("MIN_VOLUME", "500"))
 MIN_TRADE_VALUE = float(os.getenv("MIN_TRADE_VALUE", "10000000"))
 STRICT_OFFICIAL_MODE = _b("STRICT_OFFICIAL_MODE", "1")
-ALLOW_MIS_OTC_FALLBACK = _b("ALLOW_MIS_OTC_FALLBACK", "1")
+ALLOW_MIS_OTC_FALLBACK = _b("ALLOW_MIS_OTC_FALLBACK", "0")
+# User-selected market data policy: Fugle paid market quotes only.
+SKY_FUGLE_ONLY_MARKETDATA = _b("SKY_FUGLE_ONLY_MARKETDATA", "1")
 
 # P0-R Risk & Portfolio Engine
 ACCOUNT_EQUITY = float(os.getenv("ACCOUNT_EQUITY", "500000"))

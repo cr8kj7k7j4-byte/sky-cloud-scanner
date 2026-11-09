@@ -9,6 +9,12 @@ from src.quote_provider import collect_market_quotes
 
 
 class TestFugleOnlyMarketData(unittest.TestCase):
+    def test_direct_mis_quote_request_is_blocked_by_default(self):
+        from src.official import fetch_mis_quotes
+        with patch.dict(os.environ, {"SKY_FUGLE_ONLY_MARKETDATA": "1"}):
+            with self.assertRaisesRegex(PermissionError, "FREE_MIS_MARKETDATA_DISABLED"):
+                fetch_mis_quotes([])
+
     def test_blocked_fugle_does_not_fall_back_to_mis(self):
         calls = []
         def fugle(universe, trading_date=None):
