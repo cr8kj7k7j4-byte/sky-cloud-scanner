@@ -184,7 +184,7 @@ jobs:
             'trade_eligible':False,
             'notice':'Research only. No new trading approval; never substitute financing balance for margin maintenance.'
           }
-          Path('/tmp/sky_mcr_status.json').write_text(json.dumps(status,ensure_ascii=False,indent=2)+'\\n')
+          Path('/tmp/sky_mcr_status.json').write_text(json.dumps(status,ensure_ascii=False,indent=2)+chr(10))
           print('MCR_RECEIPT',status['mcr_observation_count'],status['mcr_with_observed_price'],status['mcr_fresh_executed_count'])
           PY
           TARGET="repos/${GITHUB_REPOSITORY}/contents/docs/SKY_MCR_INTRADAY_HEALTH_LATEST.json"
