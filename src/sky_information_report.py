@@ -70,3 +70,37 @@ def project_information_first(scan: dict[str, Any] | None) -> dict[str, Any]:
             "資料不完整仍提供真實已取得的資訊，但不解除 P0-R、A+、成本後 RR 與停損限制。",
         ],
     }
+
+
+def main() -> None:
+    import argparse
+    import json
+    from pathlib import Path
+
+    parser = argparse.ArgumentParser(description="Publish non-executable scan observations")
+    parser.add_argument("--input", default="output/latest.json")
+    parser.add_argument("--output", default="output/information_first.json")
+    args = parser.parse_args()
+    source = Path(args.input)
+    source_status = "REPORT_MISSING"
+    payload = None
+    if source.is_file():
+        try:
+            candidate = json.loads(source.read_text(encoding="utf-8"))
+            if isinstance(candidate, dict):
+                payload = candidate
+                source_status = "REPORT_READ"
+            else:
+                source_status = "REPORT_INVALID_TYPE"
+        except (OSError, ValueError):
+            source_status = "REPORT_INVALID_JSON"
+    result = project_information_first(payload)
+    result["source_status"] = source_status
+    dest = Path(args.output)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print("Sky information report:", dest, source_status)
+
+
+if __name__ == "__main__":
+    main()
