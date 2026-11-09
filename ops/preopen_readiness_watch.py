@@ -59,6 +59,11 @@ def evaluate(now, getter):
             result["retry"] = "NO_RETRY_IN_PROGRESS"
         else:
             result["retry"] = "ONE_RETRY_PERMITTED"
+    if (now.date().isoformat() == "2026-11-10"
+            and now.time() >= time(8, 50)):
+        report_runs = result["workflows"]["sky-global-premarket.yml"]["target_runs"]
+        if not any(r["conclusion"] == "success" for r in report_runs):
+            result["status"] = "PREOPEN_REPORT_FAILED"
     return result
 
 
@@ -94,8 +99,8 @@ def main():
         out.write("Sky preopen watch; reports are not trading clearance.\n\n")
         out.write(json.dumps(status, ensure_ascii=False, indent=2))
     print(json.dumps(status, ensure_ascii=False))
-    if status.get("status") == "WATCH_ERROR":
-        raise SystemExit("Monitor failure: see artifact")
+    if status.get("status") in ("WATCH_ERROR", "PREOPEN_REPORT_FAILED"):
+        raise SystemExit("Preopen readiness warning: see artifact")
 
 
 if __name__ == "__main__":
