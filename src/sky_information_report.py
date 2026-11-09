@@ -20,6 +20,55 @@ def _safe_number(value: Any) -> float | None:
     return number if number == number and number not in (float("inf"), float("-inf")) else None
 
 
+ 
+# All requested columns are present, even when the source cannot verify them.
+DISPLAY_FIELDS = (
+    "股票代碼", "股票名稱", "即時價", "資料時間", "資料來源",
+    "當日成交量", "融資維持率", "方向", "多方評分", "空方評分",
+    "買進觸發", "買進區間", "最高接受價", "停損／失效",
+    "目標一", "目標二", "加碼條件", "成本後RR",
+    "分類", "現在動作", "模型／驗證狀態",
+)
+
+
+def _first(row: dict[str, Any], *names: str) -> Any:
+    for name in names:
+        value = row.get(name)
+        if value is not None and value != "":
+            return value
+    return None
+
+
+def _display_row(row: dict[str, Any], *, full_live: bool) -> dict[str, Any]:
+    # Executed last-trade evidence must not be confused with an old closing,
+    # opening, bid/ask or reference price.
+    status = _first(row, "data_status", "quote_status")
+    verified = status in ("VERIFIED_EXECUTED_TRADE", "REALTIME_QUOTE_VERIFIED")
+    price = (_first(row, "last_trade_price", "lastPrice", "fugle_close")
+             if verified else None)
+    symbol = _first(row, "symbol", "stock_id", "code")
+    result = {name: None for name in DISPLAY_FIELDS}
+    result.update({
+        "股票代碼": symbol,
+        "股票名稱": _first(row, "name", "stock_name"),
+        "即時價": price,
+        "資料時間": _first(row, "last_trade_time", "lastTradeTime", "quote_time"),
+        "資料來源": _first(row, "source", "quote_source"),
+        "當日成交量": _first(row, "trade_volume", "total_volume", "volume") if verified else None,
+        "融資維持率": _first(row, "margin_maintenance_ratio") if row.get("margin_ratio_verified") is True else None,
+        "方向": _first(row, "direction", "research_direction"),
+        "多方評分": _first(row, "bull_score") if row.get("score_inputs_verified") is True else None,
+        "空方評分": _first(row, "bear_score") if row.get("score_inputs_verified") is True else None,
+        "停損／失效": _first(row, "invalid_reason", "risk_block_reason"),
+        "分類": "X" if not full_live else _first(row, "classification", "grade"),
+        "現在動作": "禁止交易" if not full_live else "觀察",
+        "模型／驗證狀態": "未驗證／僅供觀察" if not full_live else "資料符合全市場閘門；交易仍須個別驗證",
+    })
+    # Never promote source-provided unverified trigger/targets into a
+    # synthetic executable order plan. All trading levels remain unknown.
+    return result
+
+
 def project_information_first(scan: dict[str, Any] | None) -> dict[str, Any]:
     """Preserve available evidence even when the full-market trading gate fails.
 
@@ -51,6 +100,8 @@ def project_information_first(scan: dict[str, Any] | None) -> dict[str, Any]:
     # Only structured evidence already present in the artifact is exposed.
     observed = scan.get("candidates")
     if not isinstance(observed, list):
+        observed = scan.get("deep_candidates")
+    if not isinstance(observed, list):
         observed = []
     records = [row for row in observed if isinstance(row, dict)]
     return {
@@ -63,6 +114,9 @@ def project_information_first(scan: dict[str, Any] | None) -> dict[str, Any]:
         "coverage": coverage,
         "reported_fields": known,
         "observed_candidate_records": records,
+        "required_display_fields": list(DISPLAY_FIELDS),
+        "display_rows": [_display_row(row, full_live=full_live) for row in records],
+        "display_missing_value": "待確認（缺少可驗證資料）",
         "observed_candidate_count": len(records),
         "warnings": [
             "研究觀察不等於正式交易訊號；未驗證成交價不可作即時價。",
