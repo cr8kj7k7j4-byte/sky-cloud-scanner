@@ -67,6 +67,9 @@ def main():
         return api("/actions/workflows/" + workflow + "/runs?per_page=30").get("workflow_runs", [])
     try:
         status = evaluate(now, runs)
+        if status.get("status") == "EXPIRED":
+            api("/actions/workflows/sky-preopen-watch-20261110.yml/disable", {})
+            status["status"] = "DISABLED_AFTER_DEADLINE"
         if status.get("retry") == "ONE_RETRY_PERMITTED":
             api("/actions/workflows/sky-global-premarket.yml/dispatches", {"ref": "main"})
             status["retry"] = "GLOBAL_REPORT_REDISPATCHED_ONCE"
