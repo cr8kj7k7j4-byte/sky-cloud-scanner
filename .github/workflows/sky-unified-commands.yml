@@ -89,6 +89,7 @@ jobs:
                       "unverified_snapshot_observation_count", "unverified_snapshot_preview",
                       "snapshot_coverage_pct", "snapshot_exchange_counts",
                       "snapshot_observations_full_artifact",
+                      "snapshot_individual_verified_count", "snapshot_individual_confirmation",
                       "snapshot_observation_warning")}
               for name, report in reports.items() if isinstance(report, dict)
           }

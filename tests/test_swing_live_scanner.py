@@ -70,6 +70,8 @@ def test_unverified_bulk_snapshot_is_visible_but_never_tradable(monkeypatch, tmp
         "accepted_rows": [], "valid_whole_market_operational": False,
         "quote_scope": "PARTIAL_EXECUTED_LIVE"})
     monkeypatch.setattr(scan, "render_mobile_table", lambda _: "")
+    monkeypatch.setattr(scan, "get_quote", lambda _: {"date": "2026-11-09"})
+    monkeypatch.setattr(scan, "fugle_executed_trade", lambda *a, **k: (None, None, "MISSING_EXECUTED_TRADE_TIME"))
     result = scan.run("swing5d")
     assert result["candidate_count"] == 0
     assert result["unverified_snapshot_observation_count"] == 1
@@ -85,3 +87,34 @@ def test_unverified_bulk_snapshot_is_visible_but_never_tradable(monkeypatch, tmp
     artifact = json.loads((tmp_path / "snapshot_observations_swing5d.json").read_text())
     assert artifact["observed_symbols"] == 1
     assert artifact["data"][0]["strategy_signal"] is False
+    assert result["snapshot_individual_verified_count"] == 0
+    assert result["snapshot_individual_confirmation"][0]["data_status"] == "MISSING_EXECUTED_TRADE_TIME"
+    assert result["snapshot_individual_confirmation"][0]["strategy_signal"] is False
+
+
+def test_individually_confirmed_execution_remains_research_only(monkeypatch, tmp_path):
+    from src import swing_live_scanner as scan
+    from datetime import datetime
+    monkeypatch.setattr(scan, "OUT", tmp_path)
+    universe = [{"symbol": "1234", "exchange": "TWSE", "market": "TSE"}]
+    sample = {"symbol": "1234", "name": "研究樣本", "exchange": "TWSE",
+              "quote_source": "Fugle bulk snapshot", "last": 40.0,
+              "volume": 1000, "trade_value": 40000000, "quote_date": "2026-11-09"}
+    monkeypatch.setattr(scan, "load_official_universe", lambda: (universe, {"twse": 1, "tpex": 0}))
+    monkeypatch.setattr(scan, "fetch_fugle_snapshot_quotes", lambda *a, **kw: ([sample], []))
+    monkeypatch.setattr(scan, "fetch_mis_quotes", lambda *a, **kw: ([], []))
+    monkeypatch.setattr(scan, "validate_whole_market_rows", lambda *a, **kw: {
+        "accepted_rows": [], "valid_whole_market_operational": False,
+        "quote_scope": "PARTIAL_EXECUTED_LIVE"})
+    monkeypatch.setattr(scan, "render_mobile_table", lambda _: "")
+    monkeypatch.setattr(scan, "get_quote", lambda _: {})
+    monkeypatch.setattr(scan, "fugle_executed_trade",
+                        lambda *a, **kw: (40.5, datetime.now(scan.TZ), "FRESH_EXECUTED_TRADE"))
+    result = scan.run("swing5d")
+    assert result["snapshot_individual_verified_count"] == 1
+    x = result["snapshot_individual_confirmation"][0]
+    assert x["verified_executed_price"] == 40.5
+    assert x["verified_executed_at"] is not None
+    assert x["strategy_signal"] is False
+    assert x["production_eligible"] is False
+    assert result["operational_full_market_scan"] is False
