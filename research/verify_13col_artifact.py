@@ -41,6 +41,8 @@ def validate(source, report, markdown):
         if symbol != str(original.get("symbol")) or key in seen:
             raise ValueError("REPORT_SYMBOL_ORDER_OR_DUPLICATE")
         seen.add(key)
+        if original.get("source") not in ("Fugle paid bulk snapshot", "NO_SNAPSHOT_ROW"):
+            raise ValueError("FREE_OR_UNRECOGNIZED_MARKETDATA_SOURCE")
         if row.get("資料來源") != original.get("source") or row.get("資料狀態") != original.get("data_status"):
             raise ValueError("DATA_SOURCE_STATUS_MISMATCH")
         if row.get("正式交易資格") is not False:
