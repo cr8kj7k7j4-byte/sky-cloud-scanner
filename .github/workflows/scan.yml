@@ -2,6 +2,10 @@ name: Sky Cloud Scanner v0.5 + P0-R
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scan_requests/quickscan/latest.json'
   schedule:
     # UTC, Asia/Taipei UTC+8. Weekdays; official trading-calendar gate below.
     # 09:00-09:55 every 5 minutes (12 slots); 09:00 initial data may fail closed.
