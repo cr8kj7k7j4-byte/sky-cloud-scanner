@@ -92,22 +92,61 @@ def join(mcr, live, generated_at, accepted_evidence=None):
     }
 
 def markdown(report):
-    lines = ["# Sky 融資清洗反轉｜資訊觀察（非正式交易訊號）","",
-        "融資資料日期："+str(report.get("margin_source_date") or "待確認"),
-        "行情觀察時間："+str(report.get("quote_observed_at") or "待確認"),
-        "研究候選："+str(report["candidate_count"])+" 檔；有觀察價："+str(report["with_observed_price"])+" 檔；富果批量逐股成交時間驗證："+str(report["fresh_executed_count"])+" 檔；獨立 MIS/富果已驗證成交參考："+str(report["independent_accepted_executed_count"])+" 檔",
-        "全表保留全部候選，以下只列前 30 檔（依融資降幅研究代理原始排序）。","",
-        "|股票|市場|融資降幅|觀察價|漲跌幅|資料狀態|",
-        "|---|---|---:|---:|---:|---|"]
-    for r in report["rows"][:30]:
-        price = r.get("last_price")
-        change = r.get("change_pct")
-        lines.append("|"+str(r.get("stock_id"))+" "+str(r.get("stock_name") or "")+"|"+str(r.get("exchange"))+"|"+
-            (f"{r['two_session_reduction_pct']:.1f}%" if isinstance(r.get("two_session_reduction_pct"),(float,int)) else "待確認")+"|"+
-            (f"{price:.2f}" if isinstance(price,(float,int)) else "待確認")+"|"+
-            (f"{change:+.1f}%" if isinstance(change,(float,int)) else "待確認")+"|"+str(r.get("data_status"))+"|")
-    lines += ["", "**🔴 禁止新進場、未驗證通過。資訊供自主判斷，不代表反轉或已達維持率 130%。**"]
-    return "\n".join(lines)+"\n"
+    """Show every MCR observation using the fixed 13-column mobile contract.
+
+    The user's 即時價 column is never filled from an unverified bulk snapshot.
+    Unverified prices remain in JSON as last_price with their data_status.
+    """
+    columns = (
+        "股票代碼", "股票名稱", "即時價", "分類", "方向", "多方評分",
+        "空方評分", "買進觸發", "最高接受價", "停損／失效",
+        "現在動作", "加碼價格", "停利價格",
+    )
+    lines = [
+        "# Sky 融資清洗反轉｜全候選資訊觀察（研究用途）", "",
+        "融資資料日期：" + str(report.get("margin_source_date") or "待確認"),
+        "行情觀察時間：" + str(report.get("quote_observed_at") or "待確認"),
+        "研究候選：" + str(report.get("candidate_count", 0)) +
+        " 檔；有價格觀察：" + str(report.get("with_observed_price", 0)) +
+        " 檔；富果已驗證逐股成交：" + str(report.get("fresh_executed_count", 0)) +
+        " 檔；獨立已驗證成交：" + str(report.get("independent_accepted_executed_count", 0)) + " 檔",
+        "即時價僅呈現已驗證當日成交；未驗證的快照價留在 JSON，不冒稱即時。",
+        "全部研究候選均保留，缺少資訊時填「待確認」，不虛構分數、交易價或維持率。", "",
+        "|" + "|".join(columns) + "|",
+        "|" + "|".join(":---:" for _ in columns) + "|",
+    ]
+    rows = report.get("rows") if isinstance(report.get("rows"), list) else []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        # Even independently accepted executed prices are informational only.
+        # Match the independently verified price to this observation's market.
+        price = row.get("accepted_executed_price")
+        if price is None and row.get("data_status") == "FRESH_EXECUTED_TRADE":
+            price = row.get("last_price")
+        verified_price = (
+            f"{price:,.2f}" if isinstance(price, (float, int))
+            and not isinstance(price, bool) and 0 < price < float("inf")
+            else "待確認"
+        )
+        values = (
+            str(row.get("stock_id") or "待確認"),
+            str(row.get("stock_name") or "待確認"),
+            verified_price, "X", "不交易", "—", "—",
+            "待確認", "待確認", "待確認", "觀察",
+            "待確認", "待確認",
+        )
+        lines.append("|" + "|".join(v.replace("|", "／").replace("\n", " ") for v in values) + "|")
+    if not rows:
+        lines.append("|—|暫無可核對候選（資料待確認）|待確認|X|不交易|—|—|待確認|待確認|待確認|等待|待確認|待確認|")
+    lines.extend([
+        "",
+        "未驗證快照價格、融資降幅、成交量、資料時間與資料狀態，請查 JSON 明細：",
+        "output/mcr_intraday_information_latest.json",
+        "融資餘額降幅不代表個股融資維持率低於130%；未確認反轉觸發條件。",
+        "**🔴 禁止新進場、未驗證通過；資訊提供使用者自主判斷，不代表交易資格。**",
+    ])
+    return "\n".join(lines) + "\n"
 
 def main():
     def load(p):

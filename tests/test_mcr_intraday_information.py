@@ -54,4 +54,41 @@ class TestMcrLiveObservations(unittest.TestCase):
         r=join(None,LIVE,NOW)
         self.assertEqual(r["candidate_count"],0)
         self.assertIn("MCR_FINANCING_CANDIDATES_UNAVAILABLE",r["data_blockers"])
+    def test_markdown_has_exact_13_columns_and_all_rows(self):
+        rows = [
+            {"stock_id":str(1000+i),"stock_name":"研究股","exchange":"TWSE",
+             "two_session_reduction_pct":10.0}
+            for i in range(35)
+        ]
+        report = join({"financing_source_date":"2026-11-06","rows":rows},LIVE,NOW)
+        text = markdown(report)
+        self.assertIn("|1034|",text)
+        self.assertIn("最高接受價",text)
+        self.assertIn("融資維持率低於130%",text)
+        self.assertEqual(text.count("|研究股|"),35)
+        self.assertIn("\n|1034|", text)
+        table = [line for line in text.splitlines() if line.startswith("|")]
+        self.assertEqual(len(table),37)
+        self.assertTrue(all(len(line.strip("|").split("|")) == 13 for line in table))
+        self.assertIn("|1000|研究股|待確認|X|不交易|—|—|", text)
+
+    def test_only_verified_executed_price_in_realtime_column(self):
+        report = join(MCR, LIVE, NOW)
+        self.assertIn("|1111|A|待確認|X|", markdown(report))
+        live={**LIVE,"all_symbols":[{**LIVE["all_symbols"][0],"data_status":"FRESH_EXECUTED_TRADE"}]}
+        fresh = join(MCR,live,NOW)
+        self.assertIn("|1111|A|25.10|X|", markdown(fresh))
+        accepted={"observations":[{"symbol":"1111","exchange":"TWSE",
+            "last":26.3,"trade_time":NOW,
+            "data_state":"ACCEPTED_EXECUTED_TRADE_BY_MARKET_GATE",
+            "source":"TWSE MIS"}]}
+        independently = join(MCR,LIVE,NOW,accepted)
+        self.assertIn("|1111|A|26.30|X|", markdown(independently))
+
+    def test_no_rows_does_not_claim_zero_qualifying_stocks(self):
+        report=join(None,None,NOW)
+        result=markdown(report)
+        self.assertIn("暫無可核對候選（資料待確認）", result)
+        self.assertIn("禁止新進場", result)
+
 if __name__=="__main__":unittest.main()
