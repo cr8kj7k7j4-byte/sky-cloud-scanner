@@ -1,7 +1,6 @@
 {
-  "command": "model_validation",
-  "requested_at": "2026-11-08",
-  "issue": 331,
-  "reason": "six_model_20260101_20261107_validation_preflight",
-  "scope": "read_only_no_trading_no_promotion"
+  "command": "all_market",
+  "requested_at": "2026-11-09T11:15:00+08:00",
+  "reason": "user_requested_realtime_full_market_swing5d_scan",
+  "scope": "TWSE_TPEx_full_market_swing5d_research_only_no_trading_no_promotion"
 }
