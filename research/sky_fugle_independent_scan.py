@@ -11,7 +11,7 @@ from datetime import datetime, time
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from src.fugle import get_tickers, snapshot_quotes
+from src.fugle import get_tickers, snapshot_quotes, _get as fugle_get
 from src.realtime_quote_evidence import timestamp_tpe
 
 TZ = ZoneInfo("Asia/Taipei")
@@ -20,6 +20,16 @@ SYMBOL = re.compile(r"^[1-9][0-9]{3}$")
 COLUMNS = ("股票代碼", "股票名稱", "即時價", "分類", "方向", "多方評分",
            "空方評分", "買進觸發", "最高接受價", "停損／失效",
            "現在動作", "加碼價格", "停利價格")
+
+
+def get_tickers_by_exchange(exchange):
+    """Alternative documented ticker filter; same authorized Fugle API."""
+    return fugle_get("/intraday/tickers", {"type": "EQUITY", "exchange": exchange})
+
+
+def ticker_count(payload):
+    rows = items(payload, source="ticker_query")
+    return sum(1 for row in rows if isinstance(row, dict) and SYMBOL.fullmatch(str(row.get("symbol") or "").strip()))
 
 
 def positive(value):
@@ -111,15 +121,40 @@ def classify(meta, quote, source_date, checked):
     return result
 
 
-def scan(*, now=None, ticker_fetch=get_tickers, snapshot_fetch=snapshot_quotes):
+def scan(*, now=None, ticker_fetch=get_tickers, snapshot_fetch=snapshot_quotes,\n         exchange_ticker_fetch=get_tickers_by_exchange):
     checked = now or datetime.now(TZ)
     if checked.tzinfo is None:
         raise ValueError("naive check time not allowed")
     checked = checked.astimezone(TZ)
-    ticker_payloads, snapshot_payloads, errors = {}, {}, {}
+    ticker_payloads, snapshot_payloads, errors, ticker_routes = {}, {}, {}, {}
     for market in MARKETS:
         try:
-            ticker_payloads[market] = ticker_fetch(market)
+            primary = ticker_fetch(market)
+            original_count = ticker_count(primary)
+            if original_count:
+                ticker_payloads[market] = primary
+                ticker_routes[market] = {"route": "market", "primary_count": original_count}
+            else:
+                # The paid API can return an empty market=OTC payload while
+                # exchange=TPEx is a distinct documented query. Retry once;
+                # never synthesize a ticker universe from snapshot rows.
+                exchange = "TPEx" if market == "OTC" else "TWSE"
+                alternate = exchange_ticker_fetch(exchange)
+                alternate_count = ticker_count(alternate)
+                declared_exchange = str(alternate.get("exchange") or "")
+                declared_market = str(alternate.get("market") or "")
+                if declared_exchange and declared_exchange.casefold() != exchange.casefold():
+                    raise ValueError("ticker exchange mismatch")
+                if declared_market and declared_market != market:
+                    raise ValueError("ticker market mismatch")
+                ticker_routes[market] = {
+                    "route": "exchange_fallback",
+                    "primary_count": 0,
+                    "fallback_count": alternate_count,
+                }
+                if not alternate_count:
+                    raise ValueError("empty ticker market and exchange responses")
+                ticker_payloads[market] = alternate
         except Exception as exc:
             errors[f"tickers_{market}"] = type(exc).__name__
         try:
