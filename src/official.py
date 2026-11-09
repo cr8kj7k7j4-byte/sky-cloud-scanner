@@ -237,14 +237,20 @@ def fetch_fugle_snapshot_quotes(universe, trading_date=None):
                 if not meta or q.get("isTrial") is True:
                     continue
                 volume=_i(q.get("tradeVolume"))
+                trade=q.get("lastTrade") if isinstance(q.get("lastTrade"),dict) else {}
+                # Some bulk rows omit lastPrice during session transitions. An
+                # explicit lastTrade.price may be retained as an observation,
+                # NEVER certified as fresh without independent trade.time.
                 last=_f(q.get("lastPrice"))
+                if last is None or last <= 0:
+                    last=_f(trade.get("price"))
                 # closePrice may be a reference/closing field, not evidence of
                 # a current executed trade. Never use it as lastPrice.
                 delta=_f(q.get("change"))
                 prev=_f(q.get("previousClose"))
                 if prev is None and last is not None and delta is not None:
                     prev=last-delta
-                if last is None or prev in (None,0) or volume<=0:
+                if last is None or last <= 0 or prev in (None,0) or volume<=0:
                     continue
                 rows.append({**meta,"name":q.get("name") or meta.get("name",""),
                     "last":last,"previous_close":prev,
