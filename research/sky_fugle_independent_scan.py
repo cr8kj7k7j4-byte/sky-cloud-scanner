@@ -12,6 +12,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from src.fugle import get_tickers, snapshot_quotes
+from src.official import load_official_universe
 from src.realtime_quote_evidence import timestamp_tpe
 
 TZ = ZoneInfo("Asia/Taipei")
@@ -111,7 +112,8 @@ def classify(meta, quote, source_date, checked):
     return result
 
 
-def scan(*, now=None, ticker_fetch=get_tickers, snapshot_fetch=snapshot_quotes):
+def scan(*, now=None, ticker_fetch=get_tickers, snapshot_fetch=snapshot_quotes,
+         official_fetch=load_official_universe):
     checked = now or datetime.now(TZ)
     if checked.tzinfo is None:
         raise ValueError("naive check time not allowed")
@@ -148,7 +150,51 @@ def scan(*, now=None, ticker_fetch=get_tickers, snapshot_fetch=snapshot_quotes):
         snapshot_diag[market] = {"date": str(payload.get("date") or "") if isinstance(payload, dict) else "",
                                  "returned": len(raw) if isinstance(raw, list) else None}
     print("FUGLE_SNAPSHOT_DIAGNOSTIC", json.dumps(snapshot_diag, ensure_ascii=False), flush=True)
-    universe, universe_basis = universe_from_tickers(ticker_payloads, snapshot_payloads)
+    fugle_universe, universe_basis = universe_from_tickers(ticker_payloads, snapshot_payloads)
+    official_raw, official_status = official_fetch()
+    if not isinstance(official_raw, list) or not isinstance(official_status, dict):
+        raise RuntimeError("OFFICIAL_UNIVERSE_INVALID")
+    official_by_exchange = {}
+    for meta in official_raw:
+        if not isinstance(meta, dict):
+            continue
+        symbol = str(meta.get("symbol") or "").strip()
+        exchange = meta.get("exchange")
+        if SYMBOL.fullmatch(symbol) and exchange in ("TWSE", "TPEx"):
+            key = (exchange, symbol)
+            if key in official_by_exchange:
+                raise RuntimeError("OFFICIAL_UNIVERSE_DUPLICATE")
+            official_by_exchange[key] = {
+                "symbol": symbol, "name": meta.get("name") or "",
+                "exchange": exchange, "market": "TSE" if exchange == "TWSE" else "OTC",
+                "universe_source": meta.get("universe_source") or "OFFICIAL"}
+    if not any(x["exchange"] == "TWSE" for x in official_by_exchange.values()) or not any(
+        x["exchange"] == "TPEx" for x in official_by_exchange.values()
+    ):
+        raise RuntimeError("OFFICIAL_BOTH_MARKETS_REQUIRED")
+    if official_status.get("warnings"):
+        raise RuntimeError("OFFICIAL_UNIVERSE_WARNINGS")
+    universe = {x["symbol"]: x for x in official_by_exchange.values()}
+    if len(universe) != len(official_by_exchange):
+        raise RuntimeError("OFFICIAL_SYMBOL_COLLISION")
+    fugle_keys = {(x["exchange"], x["symbol"]) for x in fugle_universe.values()}
+    official_keys = set(official_by_exchange)
+    universe_diff = {
+        "official_not_in_fugle": [
+            {"exchange": exchange, "symbol": symbol}
+            for exchange, symbol in sorted(official_keys - fugle_keys)],
+        "fugle_not_in_official": [
+            {"exchange": exchange, "symbol": symbol}
+            for exchange, symbol in sorted(fugle_keys - official_keys)],
+        "official_universe": len(official_keys),
+        "fugle_universe": len(fugle_keys),
+    }
+    print("UNIVERSE_DIFF", json.dumps({
+        "official_universe": len(official_keys),
+        "fugle_universe": len(fugle_keys),
+        "official_not_in_fugle": len(official_keys - fugle_keys),
+        "fugle_not_in_official": len(fugle_keys - official_keys)
+    }, ensure_ascii=False), flush=True)
     by_market = {}
     rows = []
     for market, exchange in MARKETS.items():
@@ -177,8 +223,11 @@ def scan(*, now=None, ticker_fetch=get_tickers, snapshot_fetch=snapshot_quotes):
         "universe_count": len(rows), "observed_price_count": sum(x["last_price"] is not None for x in rows),
         "fresh_executed_count": sum(x["data_status"] == "FRESH_EXECUTED_TRADE" for x in rows),
         "by_exchange": by_market, "universe_basis": universe_basis,
-        "full_market_universe_certified": all(x["ticker_universe_available"] for x in universe_basis.values()),
+        "universe_comparison": universe_diff,
+        "full_market_universe_certified": True,
+        "full_market_executed_certified": False,
         "errors": errors, "all_symbols": rows,
+        "official_universe_status": official_status,
         "production_eligible": False, "trade_decision": "禁止交易",
         "note": "Snapshot observation is not certified executed-live. No AI inference or trade permission.",
     }
@@ -203,7 +252,7 @@ def render(report):
         detail_rows.append({**dict(zip(COLUMNS, vals)), "資料來源": item["source"],
                             "資料時間": item["last_trade_time"], "資料狀態": item["data_status"],
                             "成交量": item["volume"], "正式交易資格": False})
-    lines.extend(["", "母池完整性認證：" + str(report["full_market_universe_certified"]),
+    lines.extend(["", "官方母池完整性認證：" + str(report["full_market_universe_certified"]),
                   "🔴 僅資訊觀察；不包含 AI 多空評分、買賣點或正式交易授權。"])
     return "\n".join(lines) + "\n", detail_rows
 
@@ -226,7 +275,9 @@ def main():
     print(json.dumps({"status": "INFORMATION_ONLY", "universe": report["universe_count"],
                       "observed": report["observed_price_count"],
                       "fresh": report["fresh_executed_count"],
-                      "errors": report["errors"]}, ensure_ascii=False))
+                      "errors": report["errors"],
+                      "universe_diff": {key: len(report["universe_comparison"][key])
+                                        for key in ("official_not_in_fugle", "fugle_not_in_official")}}, ensure_ascii=False))
     if report["errors"]:
         raise RuntimeError("PARTIAL_FUGLE_SOURCE_ERRORS")
 
