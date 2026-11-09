@@ -188,7 +188,6 @@ DISPLAY_COLUMNS_13 = (
 
 def display_row_13(row):
     """Information-only 13-column contract; never label an unverified snapshot live."""
-    fields = row.get("required_fields") or project_required_fields(row)
     fresh = row.get("data_status") == "FRESH_EXECUTED_TRADE"
     price = row.get("last_price")
     if price is None:
@@ -226,7 +225,7 @@ def render_13_table(rows):
             str(shown[key]).replace("|", "／").replace("\\n", " ")
             for key in DISPLAY_COLUMNS_13
         ) + " |")
-    return "\\n".join(lines)
+    return "\n".join(lines)
 
 
 def summary(report):
