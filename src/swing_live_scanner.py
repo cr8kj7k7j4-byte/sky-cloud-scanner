@@ -107,11 +107,48 @@ def run(mode="swing5d", top_n=20, deep_n=8):
         merged.update({r["symbol"]: r for r in rows})
         rows = list(merged.values())
         warnings.extend(fallback_warnings)
+    # The bulk snapshot may carry useful observed price fields without
+    # independent last-execution timestamps. Preserve it as an UNVERIFIED
+    # observation tier, never as executable quotes or whole-market signals.
+    raw_observations = list(rows)
     quote_audit = validate_whole_market_rows(
         universe, rows, now=datetime.now(TZ),
         min_coverage_pct=80.0, min_exchange_pct=70.0,
     )
     rows = quote_audit["accepted_rows"]
+    valid_symbols = {str(row.get("symbol")) for row in rows}
+    unverified_snapshot = []
+    for raw in raw_observations:
+        if raw.get("quote_source") != "Fugle bulk snapshot":
+            continue
+        sym = str(raw.get("symbol") or "")
+        price = _safe_float(raw.get("last"))
+        volume = _safe_float(raw.get("volume"))
+        if sym in valid_symbols or not sym or not 0 < price < 100 or volume <= 0:
+            continue
+        unverified_snapshot.append({
+            "symbol": sym,
+            "name": raw.get("name"),
+            "exchange": raw.get("exchange"),
+            "indicative_last_price": price,
+            "trade_volume": volume,
+            "trade_value": raw.get("trade_value"),
+            "snapshot_date": raw.get("quote_date"),
+            "snapshot_updated_at": raw.get("quote_time"),
+            "last_trade_timestamp": raw.get("last_trade_timestamp"),
+            "source": "Fugle bulk snapshot",
+            "data_status": "UNVERIFIED_EXECUTED_TRADE_TIME",
+            "candidate_scope": "BULK_SNAPSHOT_INDICATIVE_ONLY",
+            "candidate_action": "觀察",
+            "strategy_signal": False,
+            "production_eligible": False,
+            "buy_trigger": None,
+            "stop": None,
+            "target": None,
+            "research_score": None,
+        })
+    unverified_snapshot.sort(key=lambda x: _safe_float(x.get("trade_value")), reverse=True)
+    unverified_snapshot = unverified_snapshot[:20]
     if not quote_audit["valid_whole_market_operational"]:
         warnings.append(
             "BLOCKED_EXTERNAL_DATA: full-market fresh executed-trade coverage "
@@ -234,6 +271,12 @@ def run(mode="swing5d", top_n=20, deep_n=8):
         "trade_decision": "禁止新進場：研究策略未通過正式驗證",
         "observations_are_trade_signals": False,
         "observed_sample_count": len(rows),
+        "unverified_snapshot_observation_count": len(unverified_snapshot),
+        "unverified_snapshot_observations": unverified_snapshot,
+        "snapshot_observation_warning": (
+            "批量報價已取得，但缺乏可驗證的最近成交時間；"
+            "indicative_last_price僅為來源觀察值，非已認證即時成交價，不可作為交易觸發。"
+        ),
         "strict_official_full_market_certified": False,
         "live_whole_market_certified": operational_full_market_scan,
         "quote_scope": quote_audit["quote_scope"],
@@ -279,6 +322,8 @@ def run(mode="swing5d", top_n=20, deep_n=8):
         f"策略狀態：{MODE_META[mode]['strategy_status']}",
         "🔴 禁止新進場、未驗證通過；下列資料僅供自主研究判斷，不是可執行交易訊號。",
         f"觀察模式：{'部分已驗證樣本' if observed_sample_only else '全市場觀察'}｜可供排序樣本 {len(eligible)}",
+        f"未驗證成交時間的富果批量觀察：{len(unverified_snapshot)} 檔（最多顯示20檔，非全市場排名）",
+        "批量參考價不是認證即時成交價；不產生買進觸發、停損或停利。",
         "",
         render_mobile_table(deep),
         "",

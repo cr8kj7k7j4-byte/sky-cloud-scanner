@@ -81,7 +81,9 @@ jobs:
                      ("available", "data_timestamp", "operational_full_market_scan",
                       "quote_coverage_pct", "candidate_count", "research_only",
                       "observation_mode", "trade_decision", "observed_sample_count",
-                      "market_data_gate", "candidate_preview", "warnings")}
+                      "market_data_gate", "candidate_preview", "warnings",
+                      "unverified_snapshot_observation_count", "unverified_snapshot_preview",
+                      "snapshot_observation_warning")}
               for name, report in reports.items() if isinstance(report, dict)
           }
           safe = {
