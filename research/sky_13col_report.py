@@ -77,7 +77,7 @@ def render(report, *, limit=30):
             continue
         projected = projection(item)
         lines.append("| " + " | ".join(_cell(projected[col]) for col in COLUMNS) + " |")
-    if len(lines) == 6:
+    if not rows:
         fallback = {"股票代碼": "—", "股票名稱": "暫無合格候選", "分類": "X",
                     "方向": "不交易", "多方評分": "—", "空方評分": "—",
                     "現在動作": "等待"}
