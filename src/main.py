@@ -50,6 +50,7 @@ from .state_store import MonitorStateStore
 from .premarket_state import load_premarket_event_snapshot
 from .structured_log import emit as structured_log
 from .sky_mobile_table import render_mobile_table
+from .research_visibility import build_research_visibility
 from .paper_trading import (
     evaluate_paper_gate,
     build_paper_snapshot,
@@ -285,6 +286,24 @@ def run():
         st["live_whole_market_coverage_pct"] = quote_audit["quote_coverage_pct"]
         st["mis_unverified_quote_count"] = len(rows) - quote_audit["valid_quote_count"]
         rows = quote_audit["accepted_rows"]
+        # Read-only observability is independent of Production eligibility.
+        # These rows were already accepted by the same-session trade validator.
+        # Never feed this research report back into strategy/portfolio gates.
+        visibility = build_research_visibility(
+            universe, rows, quote_audit, now.isoformat()
+        )
+        research_dir = OUT / "research_visibility"
+        research_dir.mkdir(parents=True, exist_ok=True)
+        (research_dir / "latest.json").write_text(
+            json.dumps(visibility, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        st["research_visibility"] = {
+            key: value for key, value in visibility.items()
+            if key != "observations"
+        }
+        st["research_visibility"]["artifact"] = "output/research_visibility/latest.json"
+
         if not quote_audit["valid_whole_market_operational"]:
             st["warnings"].append(
                 "BLOCKED_EXTERNAL_DATA: whole-market current-session executed "

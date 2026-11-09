@@ -67,3 +67,12 @@ def test_natural_language_daytrade_routes_to_realtime():
     assert route.realtime_required is True
     assert route.data_mode == "SINGLE_STOCK_REALTIME"
     assert "Fugle" in route.execution_target
+
+
+def test_full_market_research_visibility_routes_are_explicit():
+    for cmd in ("Sky 全市場完整掃描", "Sky 六模型全市場即時掃描", "Sky 查詢六模型研究訊號"):
+        route = route_command(cmd)
+        assert route.command_family == "SKY_SIX_MODEL_RESEARCH_VISIBILITY"
+        assert route.realtime_required is True
+        assert route.whole_market_required is True
+        assert "research_visibility" in route.execution_target
