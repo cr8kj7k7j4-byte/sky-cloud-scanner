@@ -58,3 +58,29 @@ def test_zero_price_or_missing_market_is_not_fabricated():
     assert report["observed_price_count"] == 0
     assert len(report["all_symbols"]) == 3
     assert report["ranked_observations"] == []
+
+
+def test_all_mandatory_columns_exist_in_every_stock():
+    from research.sky_full_universe_information import REQUIRED_INFORMATION_COLUMNS
+    report = build(U, {}, NOW)
+    for row in report["all_symbols"]:
+        detail = row["required_fields"]
+        assert tuple(detail) == REQUIRED_INFORMATION_COLUMNS
+        assert detail["即時價"] is None
+        assert detail["最近觀察價（可能延遲）"] is None
+        assert detail["買進觸發"] is None
+        assert detail["多方評分"] is None
+        assert detail["現在動作"] == "禁止交易"
+    assert report["missing_field_label"] == "待確認（未有可驗證資料）"
+
+
+def test_stale_observation_not_promoted_to_live_trade():
+    old = NOW - timedelta(minutes=30)
+    report = build(U, {"TSE": {"date": NOW.date().isoformat(), "data": [
+        {"symbol": "1001", "lastPrice": 37.0, "lastTrade": {"time": old.isoformat()}}
+    ]}}, NOW)
+    row = report["all_symbols"][0]["required_fields"]
+    assert row["最近觀察價（可能延遲）"] == 37.0
+    assert row["即時價"] is None
+    assert row["目標一"] is None
+    assert row["最高接受價"] is None

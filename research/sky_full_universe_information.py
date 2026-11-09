@@ -83,6 +83,37 @@ def record(meta, payload, source_date, checked_at):
     return result
 
 
+# Information transparency is separate from trade permission. Required fields
+# are serialized even if no verified value exists.
+REQUIRED_INFORMATION_COLUMNS = (
+    "股票代碼", "股票名稱", "即時價", "最近觀察價（可能延遲）", "資料時間",
+    "資料來源", "當日成交量", "融資維持率", "方向", "多方評分",
+    "空方評分", "買進觸發", "買進區間", "最高接受價",
+    "停損／失效", "目標一", "目標二", "加碼條件",
+    "成本後RR", "分類", "現在動作", "模型／驗證狀態",
+)
+
+
+def project_required_fields(row):
+    """Never call an old snapshot fresh or infer strategy/score values."""
+    fields = {key: None for key in REQUIRED_INFORMATION_COLUMNS}
+    is_fresh = row.get("data_status") == "FRESH_EXECUTED_TRADE"
+    fields.update({
+        "股票代碼": row.get("symbol"),
+        "股票名稱": row.get("name"),
+        "即時價": row.get("last_price") if is_fresh else None,
+        "最近觀察價（可能延遲）": row.get("last_price"),
+        "資料時間": row.get("last_trade_time"),
+        "資料來源": row.get("source"),
+        "當日成交量": row.get("volume"),
+        "方向": "待確認",
+        "分類": "X",
+        "現在動作": "禁止交易",
+        "模型／驗證狀態": "僅資訊觀察／未驗證通過",
+    })
+    return fields
+
+
 def build(universe, snapshots, checked_at, errors=None):
     by_exchange = {"TWSE": {}, "TPEx": {}}
     statuses = {"TWSE": "MISSING", "TPEx": "MISSING"}
@@ -101,7 +132,9 @@ def build(universe, snapshots, checked_at, errors=None):
         if exchange not in MARKET:
             continue
         q, date = by_exchange[exchange].get(str(meta["symbol"]), (None, ""))
-        rows.append(record(meta, q, date, checked_at))
+        row = record(meta, q, date, checked_at)
+        row["required_fields"] = project_required_fields(row)
+        rows.append(row)
     eligible = [x for x in rows if x["last_price"] is not None and x["last_price"] <= 100]
     candidates = sorted(
         eligible, key=lambda x: (
@@ -131,6 +164,8 @@ def build(universe, snapshots, checked_at, errors=None):
         "priced_under_100_count": len(eligible),
         "ranked_observations": candidates[:100],
         "all_symbols": rows,
+        "required_information_columns": list(REQUIRED_INFORMATION_COLUMNS),
+        "missing_field_label": "待確認（未有可驗證資料）",
         "observation_mode": "RESEARCH_INFORMATION_ONLY",
         "trade_decision": "🔴 禁止新進場、未驗證通過",
         "no_order_or_production_promotion": True,
