@@ -78,7 +78,7 @@ jobs:
       - name: Validate report output contract
         if: always() && github.event_name != 'pull_request'
         run: |
-          python -m unittest tests.test_swing_postmarket_review
+          python -m unittest discover -s tests -p 'test_swing_postmarket_review.py'
 
       - name: Preserve calendar and scan evidence
         if: always() && github.event_name != 'pull_request'
