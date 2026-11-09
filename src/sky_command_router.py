@@ -46,7 +46,7 @@ _PATTERNS = [
         ),
     ),
     (
-        re.compile(r"^Sky\\s*(?:六模型狀態盤點|六模型盤點)$", re.I),
+        re.compile(r"^Sky\s*(?:六模型狀態盤點|六模型盤點)$", re.I),
         CommandRoute(
             "SKY_SIX_MODEL_STATUS_AUDIT", "GOVERNED_MODEL_INVENTORY",
             False, False, False,
