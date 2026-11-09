@@ -1,0 +1,46 @@
+{
+  "schema": "SKY_UNIFIED_EXECUTION_VERIFICATION_V1",
+  "published_at_utc": "2026-11-09T03:17:55.836386+00:00",
+  "run_id": "42555384979",
+  "run_url": "https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/42555384979",
+  "head_sha": "6021f5b45859eb5b6c622e6a891b279d0d94e8ad",
+  "command": "all_market",
+  "scan_step_outcome": "failure",
+  "report_exists": true,
+  "report_generated_at_utc": "2026-11-09T03:15:44.849147+00:00",
+  "decision": "DATA_COVERAGE_INSUFFICIENT_NO_TRADE",
+  "calendar_exit_code": 0,
+  "strategy_exit_codes": {
+    "intraday": 0,
+    "swing_research": 0,
+    "swing5d_research": 0
+  },
+  "reports": {
+    "intraday": {
+      "available": true,
+      "data_timestamp": "2026-11-09T11:15:47.010415+08:00",
+      "operational_full_market_scan": false,
+      "quote_coverage_pct": 5.04,
+      "candidate_count": null,
+      "research_only": false
+    },
+    "swing_research": {
+      "available": true,
+      "data_timestamp": "2026-11-09T11:17:35.828965+08:00",
+      "operational_full_market_scan": false,
+      "quote_coverage_pct": 0.0,
+      "candidate_count": 0,
+      "research_only": true
+    },
+    "swing5d_research": {
+      "available": true,
+      "data_timestamp": "2026-11-09T11:17:45.147282+08:00",
+      "operational_full_market_scan": false,
+      "quote_coverage_pct": 0.0,
+      "candidate_count": 0,
+      "research_only": true
+    }
+  },
+  "evidence": {},
+  "no_order_or_production_promotion": true
+}
