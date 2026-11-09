@@ -48,6 +48,37 @@ class IndependentScanTests(unittest.TestCase):
                 RuntimeError("denied")) if m == "OTC" else tickers(m),
                 snapshot_fetch=quotes)
 
+
+    def test_empty_otc_tickers_retries_documented_exchange(self):
+        def primary(market):
+            return {"data": []} if market == "OTC" else tickers(market)
+        def by_exchange(exchange):
+            self.assertEqual(exchange, "TPEx")
+            return {"exchange": "TPEx", "type": "EQUITY", "data": [
+                {"symbol": "8299", "name": "TEST", "type": "EQUITY"}]}
+        data = scan(now=NOW, ticker_fetch=primary, snapshot_fetch=quotes,
+                    exchange_ticker_fetch=by_exchange)
+        self.assertEqual(data["universe_count"], 2)
+        self.assertEqual(data["ticker_routes"]["OTC"]["route"], "exchange_fallback")
+        self.assertEqual(data["ticker_routes"]["OTC"]["primary_count"], 0)
+        self.assertEqual(data["ticker_routes"]["OTC"]["fallback_count"], 1)
+        self.assertFalse(data["production_eligible"])
+
+    def test_empty_otc_market_and_exchange_stays_blocked(self):
+        def primary(market):
+            return {"data": []} if market == "OTC" else tickers(market)
+        with self.assertRaises(RuntimeError):
+            scan(now=NOW, ticker_fetch=primary, snapshot_fetch=quotes,
+                 exchange_ticker_fetch=lambda exchange: {"data": []})
+
+    def test_exchange_mismatch_does_not_create_fake_otc_universe(self):
+        def primary(market):
+            return {"data": []} if market == "OTC" else tickers(market)
+        with self.assertRaises(RuntimeError):
+            scan(now=NOW, ticker_fetch=primary, snapshot_fetch=quotes,
+                 exchange_ticker_fetch=lambda exchange: {
+                     "exchange": "TWSE", "data": [{"symbol": "8299"}]})
+
     def test_snapshot_fail_is_reported_not_fabricated(self):
         def failing(market):
             if market == "OTC":
