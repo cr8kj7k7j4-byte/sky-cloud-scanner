@@ -39,3 +39,15 @@ def test_missing_individual_quote_is_blocked():
     d = fixture()
     d["fugle_quote_8089_otc"] = {"api_accessible": False}
     assert evaluate(d)["api_readiness"] == "BLOCKED"
+
+
+def test_preopen_workflow_rechecks_previous_real_scan_and_never_sets_trade_approval():
+    from pathlib import Path
+    workflow = Path(".github/workflows/sky-daytrade-preopen-readiness.yml").read_text(encoding="utf-8")
+    assert "15,30,45,55 0 * * 1-5" in workflow
+    assert "actions: read" in workflow
+    assert "gh run download" in workflow
+    assert "research.verify_13col_artifact" in workflow
+    assert "FUGLE_API_KEY:" in workflow
+    assert "ALLOW_MIS_OTC_FALLBACK: \"0\"" in workflow
+    assert "SKY_FUGLE_ONLY_MARKETDATA: \"1\"" in workflow

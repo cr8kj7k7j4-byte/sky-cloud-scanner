@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: sky-fugle-daytrade-preopen-${{ github.ref }}-${{ github.event.schedule || github.run_id }}
@@ -68,6 +69,24 @@ jobs:
           python -m research.sky_daytrade_preopen_readiness \
             --diagnostics source-diagnostics.json \
             --output preopen_readiness.json
+      - name: Verify last completed scanner Artifact contains every stock and 13 columns
+        if: steps.calendar.outputs.should_check == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          LAST_RUN="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/scan.yml/runs?per_page=20" \
+            --jq '.workflow_runs[] | select(.status == "completed") | .id' | head -n 1)"
+          test -n "$LAST_RUN"
+          mkdir -p previous-scan
+          gh run download "$LAST_RUN" --repo "$GITHUB_REPOSITORY" \
+            --name "sky-scan-$LAST_RUN" --dir previous-scan
+          python -m research.verify_13col_artifact \
+            --source previous-scan/output/sky_quickscan_information/full_universe.json \
+            --json previous-scan/output/sky_quickscan_information/latest_13col.json \
+            --markdown previous-scan/output/sky_quickscan_information/latest_13col.md
+          echo "最近已完成掃描 Run: https://github.com/${GITHUB_REPOSITORY}/actions/runs/$LAST_RUN" >> "$GITHUB_STEP_SUMMARY"
+          echo "歷史掃描完整性通過不代表明日即時成交已驗證。" >> "$GITHUB_STEP_SUMMARY"
       - name: Publish source and evidence summary
         if: always()
         run: |
