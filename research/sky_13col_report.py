@@ -109,7 +109,7 @@ def render(report, *, limit=0, scanner=None):
                     "現在動作": "等待"}
         lines.append("| " + " | ".join(_cell(fallback.get(col)) for col in COLUMNS) + " |")
     lines += ["", "研究多空分數只依同日富果價量證據計算，非勝率；標示（研究）的點位只來自同輪掃描既有的策略計畫。",
-              "非新鮮成交的最近觀察價仍保留於來源 JSON（last_price、data_status、last_trade_time），"
+              "非新鮮成交的最近觀察價仍保留於來源 JSON（last_price、data_status、snapshot_observed_at），"
               "不得冒充即時價。", "",
               "**🔴 禁止新進場、未驗證通過。資訊供自主判斷，並非正式交易訊號。**"]
     return "\n".join(lines) + "\n"
@@ -139,7 +139,10 @@ def main():
         for item in rows:
             row = projection(item, plans.get(str(item.get("symbol") or "")))
             row["資料來源"] = item.get("source")
-            row["資料時間"] = item.get("last_trade_time")
+            row["資料時間"] = item.get("last_trade_time") or item.get("snapshot_observed_at")
+            row["資料時間類型"] = ("成交時間" if item.get("last_trade_time")
+                                 else "快照擷取時間" if item.get("snapshot_observed_at")
+                                 else "待確認")
             row["資料狀態"] = item.get("data_status")
             row["研究分數狀態"] = observation_evidence(item).get("status")
             row["正式交易資格"] = False
