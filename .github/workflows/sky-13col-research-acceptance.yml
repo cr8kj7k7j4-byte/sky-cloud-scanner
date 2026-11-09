@@ -1,0 +1,64 @@
+name: Sky 13-column information formatter acceptance (research only)
+on:
+  pull_request:
+    paths:
+      - 'research/sky_13col_report.py'
+      - 'tests/test_sky_13col_report.py'
+      - '.github/workflows/sky-13col-research-acceptance.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run strict formatting and missing-data regression tests
+        run: python -m unittest -v tests.test_sky_13col_report
+      - name: Render offline test fixture and assert all 13 headers
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p output/sky_quickscan_information
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          fixture = {
+              "schema": "SKY_INFORMATION_FIRST_FULL_UNIVERSE_V1",
+              "checked_at_tpe": "2026-11-09T13:25:00+08:00",
+              "universe_count": 2,
+              "observed_price_count": 2,
+              "fresh_executed_count": 1,
+              "all_symbols": [
+                  {"symbol": "1101", "name": "台泥", "last_price": 31.2,
+                   "data_status": "UNVERIFIED_EXECUTION_TIME"},
+                  {"symbol": "1102", "name": "亞泥", "last_price": 35.0,
+                   "data_status": "FRESH_EXECUTED_TRADE"},
+              ],
+          }
+          Path("output/sky_quickscan_information/full_universe.json").write_text(
+              json.dumps(fixture, ensure_ascii=False), encoding="utf-8")
+          PY
+          python -m research.sky_13col_report
+          python - <<'PY'
+          from pathlib import Path
+          from research.sky_13col_report import COLUMNS
+          text = Path("output/sky_quickscan_information/latest_13col.md").read_text()
+          assert all(column in text for column in COLUMNS)
+          assert "1101" in text and "1102" in text
+          assert "31.20" not in text
+          assert "35.00" in text
+          assert "禁止新進場" in text
+          PY
+      - name: Attach offline example (not live market data)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-13col-offline-fixture-${{ github.run_id }}
+          path: output/sky_quickscan_information/latest_13col.md
+          if-no-files-found: warn
+          retention-days: 7
