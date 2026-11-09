@@ -1,11 +1,11 @@
 {
   "schema": "SKY_CHAT_SCAN_STATUS_V1",
-  "request_id": "chat-20261109-real-001",
-  "scan_id": "42647188622",
-  "run_url": "https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/42647188622",
-  "completed_at_utc": "2026-11-09T15:42:01.431014+00:00",
+  "request_id": "chat-20261109-coverage-002",
+  "scan_id": "42647873100",
+  "run_url": "https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/42647873100",
+  "completed_at_utc": "2026-11-09T15:45:47.607111+00:00",
   "status": "REPORT_READY_RESEARCH_ONLY",
-  "data_timestamp": "2026-11-09T23:41:55.437738+08:00",
+  "data_timestamp": "2026-11-09T23:45:44.172446+08:00",
   "source": "FUGLE_PAID_SNAPSHOT",
   "universe_count": 1986,
   "row_count": 1986,
@@ -171,6 +171,27 @@
       "正式交易資格": false
     }
   ],
+  "observed_price_count": 1943,
+  "fresh_executed_count": 0,
+  "by_exchange": {
+    "TWSE": {
+      "universe": 1091,
+      "snapshot_rows": 1060,
+      "fresh_executed": 0,
+      "observed_price": 1060,
+      "snapshot_reference_without_trade_time": 1060,
+      "fresh_executed_pct": 0.0
+    },
+    "TPEx": {
+      "universe": 895,
+      "snapshot_rows": 895,
+      "fresh_executed": 0,
+      "observed_price": 883,
+      "snapshot_reference_without_trade_time": 883,
+      "fresh_executed_pct": 0.0
+    }
+  },
+  "snapshot_errors": {},
   "production_eligible": false,
   "automatic_order": false,
   "block_reason": "UNVERIFIED_EXECUTED_TRADE_COVERAGE",
