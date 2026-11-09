@@ -1,0 +1,56 @@
+name: Sky Fugle Independent Full Market Scan (Research Only)
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sky-fugle-independent-market-scan
+  cancel-in-progress: false
+
+jobs:
+  independent-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+      SKY_FUGLE_ONLY_MARKETDATA: "1"
+      ALLOW_MIS_OTC_FALLBACK: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Validate independent source and research-only safety
+        run: python -m unittest tests.test_sky_fugle_independent_scan -v
+      - name: Scan Fugle TSE and OTC tickers and paid bulk snapshots
+        run: python -m research.sky_fugle_independent_scan
+      - name: Publish scan evidence summary
+        if: always()
+        run: |
+          if [ -s output/sky_fugle_independent/full_universe.json ]; then
+            python - <<'PY'
+          import json
+          from pathlib import Path
+          obj=json.loads(Path("output/sky_fugle_independent/full_universe.json").read_text())
+          lines=["# Fugle independent scan (research only)",
+                 f"Checked at Taiwan time: {obj['checked_at_tpe']}",
+                 f"Universe: {obj['universe_count']}",
+                 f"Observed price: {obj['observed_price_count']}",
+                 f"Verified fresh executed: {obj['fresh_executed_count']}",
+                 f"Source errors: {obj['errors']}",
+                 "Trade permission: NO_TRADE"]
+          import os
+          with open(os.environ["GITHUB_STEP_SUMMARY"],"a") as f: f.write("\n".join(lines)+"\n")
+          PY
+          fi
+      - name: Upload independent scan reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-fugle-independent-${{ github.run_id }}
+          path: output/sky_fugle_independent/
+          if-no-files-found: warn
+          retention-days: 30
