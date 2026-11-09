@@ -1,6 +1,11 @@
 name: Sky MCR Observation Visibility
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - 'research/mcr_observation_report.py'
+      - 'tests/test_mcr_observation_report.py'
+      - '.github/workflows/mcr-observation-visibility.yml'
   push:
     branches: [main]
     paths:
