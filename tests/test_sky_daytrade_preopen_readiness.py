@@ -51,3 +51,17 @@ def test_preopen_workflow_rechecks_previous_real_scan_and_never_sets_trade_appro
     assert "FUGLE_API_KEY:" in workflow
     assert "ALLOW_MIS_OTC_FALLBACK: \"0\"" in workflow
     assert "SKY_FUGLE_ONLY_MARKETDATA: \"1\"" in workflow
+
+
+def test_preopen_bounded_retry_and_evidence_preserved():
+    from pathlib import Path
+    yml = Path(".github/workflows/sky-daytrade-preopen-readiness.yml").read_text(encoding="utf-8")
+    assert "for attempt in 1 2 3" in yml
+    assert yml.count("for attempt in 1 2 3") == 3
+    assert "preopen_retry_attempts.log" in yml
+    assert "sleep 10" in yml
+    assert "test \"$ok\" -eq 1" in yml
+    assert "rm -rf previous-scan" in yml
+    assert "research.verify_13col_artifact" in yml
+    assert "15,30,45,55 0 * * 1-5" in yml
+    assert "SKY_FUGLE_ONLY_MARKETDATA: \"1\"" in yml
