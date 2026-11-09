@@ -46,7 +46,7 @@ _PATTERNS = [
         ),
     ),
     (
-        re.compile(r"^Sky\s*全市場掃描$", re.I),
+        re.compile(r"^Sky\s*(?:全市場掃描|全市場完整掃描|即時全市場完整掃描)$", re.I),
         CommandRoute(
             "SKY_UNIFIED_MARKET_SCAN", "MULTI_MODEL_MARKET", True, True, False,
             "sky-unified-commands.yml: all_market",
