@@ -1,0 +1,32 @@
+name: Sky MCR Observation Visibility
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'research/mcr_observation_report.py'
+      - 'tests/test_mcr_observation_report.py'
+      - '.github/workflows/mcr-observation-visibility.yml'
+permissions:
+  contents: read
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify research reporting isolation
+        run: python -m unittest tests.test_mcr_observation_report -v
+      - name: Produce complete latest available financing proxy observations
+        run: python -m research.mcr_observation_report
+      - name: Upload complete read-only research artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcr-observation-${{ github.run_id }}
+          path: output/mcr_observation_latest.json
+          if-no-files-found: error
+          retention-days: 30
