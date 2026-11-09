@@ -91,6 +91,7 @@ REQUIRED_INFORMATION_COLUMNS = (
     "空方評分", "買進觸發", "買進區間", "最高接受價",
     "停損／失效", "目標一", "目標二", "加碼條件",
     "成本後RR", "分類", "現在動作", "模型／驗證狀態",
+    "加碼價格", "停利價格",
 )
 
 
@@ -177,9 +178,41 @@ def build(universe, snapshots, checked_at, errors=None):
     return report
 
 
+ALERT_COLUMNS = (
+    "股票代碼", "股票名稱", "即時價", "分類", "方向", "多方評分",
+    "空方評分", "買進觸發", "最高接受價", "停損／失效",
+    "現在動作", "加碼價格", "停利價格",
+)
+
+
+def alert_row(row):
+    """13-column presentation, preserving observed but unverified price provenance."""
+    fields = row.get("required_fields") or project_required_fields(row)
+    fresh = row.get("data_status") == "FRESH_EXECUTED_TRADE"
+    price = row.get("last_price")
+    shown_price = f"{price:.2f}" if fresh and price is not None else "待確認"
+    if price is not None and not fresh:
+        shown_price += f"（觀察價 {price:.2f}，未驗證）"
+    return [
+        fields.get("股票代碼") or "—",
+        fields.get("股票名稱") or "待確認",
+        shown_price,
+        fields.get("分類") or "X",
+        fields.get("方向") or "待確認",
+        fields.get("多方評分") if fields.get("多方評分") is not None else "—",
+        fields.get("空方評分") if fields.get("空方評分") is not None else "—",
+        fields.get("買進觸發") or "待確認",
+        fields.get("最高接受價") or "待確認",
+        fields.get("停損／失效") or "待確認",
+        "等待",
+        fields.get("加碼價格") or "待確認",
+        fields.get("停利價格") or "待確認",
+    ]
+
+
 def summary(report):
     lines = [
-        "# Sky 快掃｜全市場資訊觀察（非正式交易訊號）", "",
+        "# Sky 警戒｜全市場資訊觀察（非正式交易訊號）", "",
         f"查詢時間：{report['checked_at_tpe']}",
         f"官方母池：{report['universe_count']} 檔；有價格觀察：{report['observed_price_count']} 檔",
         f"逐檔新鮮成交驗證：{report['fresh_executed_count']} 檔（{report['fresh_executed_pct']:.1f}%）",
@@ -191,18 +224,24 @@ def summary(report):
         x = report["by_exchange"][exchange]
         lines.append(f"| {label} | {x['universe']} | {x['snapshot_rows']} | "
                      f"{x['observed_price']} | {x['fresh_executed']} | {x['fresh_executed_pct']:.1f}% |")
-    lines += ["", "## 價格與漲幅觀察（未驗證者不得視為即時成交）",
-              "| 代碼 | 名稱 | 觀察價 | 漲跌幅 | 成交量 | 資料狀態 |",
-              "|---|---|---:|---:|---:|---|"]
-    for row in report["ranked_observations"][:30]:
-        pct = f"{row['change_pct']:+.1f}%" if row["change_pct"] is not None else "—"
-        vol = f"{row['volume']:,.0f}" if row["volume"] is not None else "—"
-        lines.append(f"| {row['symbol']} | {row['name']} | {row['last_price']:.2f} | "
-                     f"{pct} | {vol} | {row['data_status']} |")
-    lines += ["", "其餘全部代號、資料時間與缺失原因詳見 full_universe.json。",
-              "多空評分、預測機率、進出場價：未執行經驗證模型時保持空值。",
-              "", f"**{report['trade_decision']}**",
-              "資訊仍提供；最終交易選擇由使用者自行決定。"]
+    lines += [
+        "", "## 警戒資訊表（13 欄；觀察價格非驗證即時價）",
+        "| " + " | ".join(ALERT_COLUMNS) + " |",
+        "| " + " | ".join(["---"] * len(ALERT_COLUMNS)) + " |",
+    ]
+    rows = report.get("ranked_observations") or []
+    if not rows:
+        lines.append("| — | 暫無可用價格觀察 | 待確認 | X | 不交易 | — | — | 待確認 | 待確認 | 待確認 | 等待 | 待確認 | 待確認 |")
+    for row in rows:
+        vals = alert_row(row)
+        lines.append("| " + " | ".join(str(v).replace("|", "／").replace("\n", " ") for v in vals) + " |")
+    lines += [
+        "", "警戒排序僅依可取得的觀察價／漲幅／成交量，不等於多方評分、正式警戒訊號或經驗證全市場即時排名。",
+        "完整股票母池、資料時間、成交量、來源、缺值與狀態詳見 full_universe.json。",
+        "缺少模型推論或驗證證據時，方向、評分、觸發、加碼與停利不得推測。",
+        "", f"**{report['trade_decision']}**",
+        "研究資訊持續呈現；交易由使用者自行判斷，系統不自動下單。",
+    ]
     return "\n".join(lines) + "\n"
 
 

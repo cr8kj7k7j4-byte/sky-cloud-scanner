@@ -1,0 +1,26 @@
+name: Sky Alert 13-Column Presentation Tests
+
+on:
+  pull_request:
+    paths:
+      - 'research/sky_full_universe_information.py'
+      - 'tests/test_sky_alert_information_format.py'
+      - '.github/workflows/sky-alert-format-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install scanner dependencies
+        run: pip install -r requirements.txt
+      - name: Verify exact alert columns and data preservation
+        run: python -m unittest tests.test_sky_alert_information_format -v
