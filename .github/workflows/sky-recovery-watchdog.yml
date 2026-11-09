@@ -1,0 +1,101 @@
+name: Sky 5-Minute Recovery Watchdog (Read Only)
+on:
+  schedule:
+    # UTC all day; Asia/Taipei = UTC+8, including 08:45/08:50/08:55 premarket.
+    # Runs can be delayed or dropped by GitHub. Existing scan.yml owns live scans.
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'research/sky_recovery_watchdog.py'
+      - 'tests/test_sky_recovery_watchdog.py'
+      - '.github/workflows/sky-recovery-watchdog.yml'
+  pull_request:
+    paths:
+      - 'research/sky_recovery_watchdog.py'
+      - 'tests/test_sky_recovery_watchdog.py'
+      - '.github/workflows/sky-recovery-watchdog.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sky-recovery-watchdog-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  observe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install scanner runtime dependencies
+        run: pip install -r requirements.txt
+      - name: Test alert format, watchdog and fail-closed behavior
+        shell: bash
+        run: |
+          set -euo pipefail
+          for ATTEMPT in 1 2; do
+            if python -m unittest tests.test_sky_alert_information_format tests.test_sky_recovery_watchdog -v; then
+              exit 0
+            fi
+            echo "Contract test failed on attempt ${ATTEMPT}; retrying once after a short delay"
+            sleep 5
+          done
+          exit 1
+      - name: Write auditable health artifact
+        if: always()
+        run: python -m research.sky_recovery_watchdog
+      - name: Publish evidence to Actions summary
+        if: always()
+        shell: bash
+        run: |
+          if [ -f output/sky_recovery_watchdog/latest.md ]; then
+            cat output/sky_recovery_watchdog/latest.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload evidence, including failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-recovery-watchdog-${{ github.run_id }}
+          path: output/sky_recovery_watchdog/
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Premarket readiness notification (08:45-08:59 TPE weekdays)
+        if: always() && github.event_name == 'schedule'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          HOUR=$(TZ=Asia/Taipei date +%H)
+          MINUTE=$(TZ=Asia/Taipei date +%M)
+          DOW=$(TZ=Asia/Taipei date +%u)
+          if [ "$DOW" -gt 5 ] || [ "$HOUR" != "08" ] || [ "$MINUTE" -lt 45 ]; then exit 0; fi
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "Telegram not configured; evidence remains in Actions artifact."
+            exit 0
+          fi
+          python - <<'PY' > /tmp/sky-watchdog-notice.txt
+          import json
+          from pathlib import Path
+          p = Path("output/sky_recovery_watchdog/latest.json")
+          obj = json.loads(p.read_text()) if p.exists() else {}
+          print("Sky 開盤前驗收｜" + str(obj.get("checked_at_tpe", "待確認")))
+          print("程式契約：" + str(obj.get("code_contract", "UNKNOWN")))
+          print("市場資料：" + str(obj.get("market_status", "UNKNOWN")))
+          print("手機 E2E：" + str(obj.get("mobile_api_e2e", "NOT_VERIFIED")))
+          print("正式交易資格：禁止交易")
+          print("https://github.com/" + str(__import__("os").getenv("GITHUB_REPOSITORY")) + "/actions/runs/" + str(__import__("os").getenv("GITHUB_RUN_ID")))
+          PY
+          curl --silent --show-error --fail --retry 2 --max-time 12 \
+            --data-urlencode "chat_id=$TELEGRAM_CHAT_ID" \
+            --data-urlencode "text@/tmp/sky-watchdog-notice.txt" \
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" > /dev/null
