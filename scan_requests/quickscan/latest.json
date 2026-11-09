@@ -1,0 +1,10 @@
+{
+  "command": "Sky 快掃",
+  "requested_at_tpe": "2026-11-09T11:22:00+08:00",
+  "market": "TWSE+TPEx",
+  "max_price_twd": 100,
+  "source": "Fugle paid bulk + TWSE MIS, actual executed trade only",
+  "execution": "read_only_no_orders",
+  "approval": "user explicit request 2026-11-09",
+  "purpose": "Run first full-universe verification after Fugle bulk wiring; report real coverage and fail closed."
+}
