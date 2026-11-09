@@ -1,12 +1,30 @@
 import unittest
 from datetime import datetime, date
 from zoneinfo import ZoneInfo
-from src.sky_global_premarket import render, freshness, previous_weekday
+from src.sky_global_premarket import render, freshness, previous_weekday, STOCK_COLUMNS, render_stock_table
 
 
 class ReportTests(unittest.TestCase):
     def setUp(self):
         self.now = datetime(2026, 11, 2, 8, tzinfo=ZoneInfo('Asia/Taipei'))
+
+    def test_required_13_column_stock_schema(self):
+        self.assertEqual(13, len(STOCK_COLUMNS))
+        table = render_stock_table()
+        self.assertEqual(3, len(table.splitlines()))
+        self.assertTrue(all(line.count('|') == 14 for line in table.splitlines()))
+        self.assertIn('個股掃描未執行', table)
+        self.assertNotIn('暫無合格候選', table)
+
+    def test_table_visible_even_with_bad_calendar(self):
+        for calendar in (
+            {'source_status': 'WARN', 'market_open': True},
+            {'source_status': 'PASS', 'market_open': False},
+            {'source_status': 'PASS', 'market_open': True},
+        ):
+            report = render(calendar, {}, self.now)
+            self.assertIn('| 股票代碼 | 股票名稱 | 即時價 |', report)
+            self.assertIn('🔴 禁止新進場', report)
 
     def test_night_session_uses_previous_weekday_not_report_date(self):
         self.assertEqual(date(2026, 11, 6), previous_weekday(date(2026, 11, 9)))
