@@ -38,6 +38,12 @@ jobs:
           python -m research.sky_13col_report \
             --scanner-input output/sky_quickscan_information/scanner_latest.json \
             --json-output output/sky_quickscan_information/latest_13col.json
+      - name: Verify complete 13-column evidence and artifact contracts
+        run: |
+          python -m research.verify_13col_artifact \
+            --source output/sky_quickscan_information/full_universe.json \
+            --json output/sky_quickscan_information/latest_13col.json \
+            --markdown output/sky_quickscan_information/latest_13col.md
       - name: Add provenance and summary
         if: always()
         env:
@@ -61,7 +67,7 @@ jobs:
             echo "報告產生失敗；請檢查 source artifact／日誌。" >> "$GITHUB_STEP_SUMMARY"
           fi
       - name: Publish standalone report artifact
-        if: always()
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: sky-13col-report-${{ github.event.workflow_run.id }}-${{ github.run_id }}
