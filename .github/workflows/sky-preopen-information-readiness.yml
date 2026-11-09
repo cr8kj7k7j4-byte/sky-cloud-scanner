@@ -1,0 +1,131 @@
+name: Sky Preopen Information Readiness (read only)
+on:
+  workflow_dispatch:
+  schedule:
+    # GitHub cron uses UTC. Asia/Taipei UTC+8:
+    # Previous UTC 23:30 -> local 07:30 on the next calendar day.
+    - cron: "30 23 * * 0-4"
+    # Local weekdays 08:00, 08:30, 08:50 and 09:00.
+    - cron: "0,30,50 0 * * 1-5"
+    - cron: "0 1 * * 1-5"
+permissions:
+  contents: read
+  actions: read
+  issues: write
+concurrency:
+  group: sky-preopen-information-readiness
+  cancel-in-progress: false
+jobs:
+  preopen-audit:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Audit scanner and information report without loosening trading gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p output/preopen
+          python - <<'PY'
+          import base64, json, os, urllib.request, urllib.error
+          from datetime import datetime, timezone
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+          repo=os.environ["GITHUB_REPOSITORY"]
+          token=os.environ["GH_TOKEN"]
+          root="https://api.github.com/repos/"+repo
+          def get(path):
+              req=urllib.request.Request(root+path,headers={
+                  "Authorization":"Bearer "+token,
+                  "Accept":"application/vnd.github+json",
+                  "User-Agent":"sky-preopen-readiness"})
+              try:
+                  with urllib.request.urlopen(req,timeout=20) as res: return json.load(res)
+              except (urllib.error.HTTPError,urllib.error.URLError,TimeoutError) as e:
+                  return {"_error":type(e).__name__}
+          def file_exists(path):
+              return "content" in get("/contents/"+path)
+          now=datetime.now(timezone.utc)
+          tpe=now.astimezone(ZoneInfo("Asia/Taipei"))
+          records=get("/actions/workflows/scan.yml/runs?per_page=8").get("workflow_runs",[])
+          latest=next((r for r in records if r.get("status")=="completed"),{})
+          private=get("/actions/workflows/sky-full-market-private.yml/runs?per_page=8").get("workflow_runs",[])
+          latest_private=next((r for r in private if r.get("status")=="completed"),{})
+          health=get("/contents/docs/SKY_MCR_INTRADAY_HEALTH_LATEST.json")
+          try:
+              report=json.loads(base64.b64decode(health["content"]).decode("utf-8"))
+          except (KeyError, ValueError, TypeError):
+              report={}
+          report_writer=file_exists("research/sky_information_13col.py")
+          scan_workflow=get("/contents/.github/workflows/scan.yml")
+          try:
+              scan_text=base64.b64decode(scan_workflow["content"]).decode("utf-8")
+          except (KeyError,ValueError,TypeError): scan_text=""
+          report_hook="python -m research.sky_information_13col" in scan_text
+          # Code presence is not proof a real Artifact has been produced or read by mobile.
+          status={
+              "schema":"SKY_PREOPEN_INFORMATION_READINESS_V1",
+              "checked_at_utc":now.isoformat(),
+              "checked_at_tpe":tpe.isoformat(),
+              "read_only":True,"no_orders":True,"no_production_promotion":True,
+              "information_writer_on_main":report_writer,
+              "information_hook_on_main":report_hook,
+              "latest_scanner_run_id":latest.get("id"),
+              "latest_scanner_conclusion":latest.get("conclusion"),
+              "latest_scanner_url":latest.get("html_url"),
+              "latest_private_run_id":latest_private.get("id"),
+              "latest_private_conclusion":latest_private.get("conclusion"),
+              "latest_private_url":latest_private.get("html_url"),
+              "health_report_run_id":report.get("run_id"),
+              "health_report_published_at":report.get("published_at_utc"),
+              "universe_count":report.get("all_market_universe_count"),
+              "observed_price_count":report.get("all_market_observed_price_count"),
+              "verified_fresh_executed_count":report.get("all_market_fresh_executed_count"),
+              "trade_eligible":report.get("trade_eligible") is True,
+              "mobile_e2e_verified":False,
+              "thirteen_column_artifact_verified":False,
+          }
+          status["information_code_ready"]=bool(report_writer and report_hook)
+          status["readiness"]="NEEDS_LIVE_E2E" if status["information_code_ready"] else "BLOCKED_INFORMATION_WIRING"
+          status["trading_readiness"]="NOT_VERIFIED"
+          Path("output/preopen/readiness.json").write_text(json.dumps(status,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+          with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as f:
+              f.write("# Sky 盤前資訊驗收（研究資訊、不授權交易）\n\n")
+              for k,v in status.items(): f.write(f"- **{k}**: {v}\n")
+          print(json.dumps(status,ensure_ascii=False))
+          PY
+      - name: Upload timestamped evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-preopen-readiness-${{ github.run_id }}
+          path: output/preopen/readiness.json
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Post one 08:50 preopen readiness notice to W0 issue
+        if: ${{ always() && github.event_name == 'schedule' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          HOUR="$(TZ=Asia/Taipei date +%H:%M)"
+          if [[ "$HOUR" != "08:50" ]]; then exit 0; fi
+          DAY="$(TZ=Asia/Taipei date +%Y-%m-%d)"
+          MARKER="SKY_PREOPEN_AUDIT_${DAY}"
+          if gh api "repos/${GITHUB_REPOSITORY}/issues/447/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$MARKER"; then
+            echo "Today preopen notice already exists"; exit 0
+          fi
+          INFO="$(python - <<'PY'
+          import json
+          try:
+              d=json.load(open("output/preopen/readiness.json",encoding="utf-8"))
+              print("Information: "+str(d["readiness"])+"; scan: "+str(d["latest_scanner_conclusion"])+"; private: "+str(d["latest_private_conclusion"])+"; live trade: NOT_VERIFIED; mobile E2E: NOT_VERIFIED")
+          except (OSError,ValueError,KeyError): print("Readiness artifact missing; manual review required")
+          PY
+          )"
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/447/comments" -f body="$MARKER
+          Asia/Taipei 08:50 preopen automatic audit. $INFO
+          Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+          This is a read-only checkpoint, NOT an assertion of successful mobile access or trade eligibility."
