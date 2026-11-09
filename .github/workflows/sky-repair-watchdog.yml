@@ -35,6 +35,13 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         shell: bash
         run: |
+          # Avoid 15-minute alert floods overnight; send at 08:45 preopen
+          # and 09:15 after first market scans only (Asia/Taipei).
+          SLOT="$(TZ=Asia/Taipei date +%H:%M)"
+          if [ "$SLOT" != "08:45" ] && [ "$SLOT" != "09:15" ]; then
+            echo "Watchdog failed; scheduled Telegram notification suppressed outside alert windows."
+            exit 0
+          fi
           if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
             echo "Telegram not configured; see failed GitHub Actions run."
             exit 0
