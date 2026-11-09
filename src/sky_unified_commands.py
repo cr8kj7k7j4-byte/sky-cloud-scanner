@@ -105,12 +105,24 @@ def market_mode() -> dict:
                 "operational_full_market_scan": report.get("operational_full_market_scan"),
                 "quote_coverage_pct": report.get("quote_coverage_pct"),
                 "candidate_count": report.get("candidate_count"),
+                "candidate_count_scope": report.get("candidate_count_scope"),
+                "trade_eligibility": report.get("trade_eligibility"),
+                "universe_count": report.get("universe_count"),
+                "quote_count": report.get("quote_count"),
+                "twse_quote_count": report.get("twse_quote_count"),
+                "tpex_quote_count": report.get("tpex_quote_count"),
+                "market_data_gate": report.get("market_data_gate"),
+                "source_warnings": (report.get("warnings") or [])[:5],
                 "candidate_preview": [
-                    {"symbol": row.get("symbol"),
-                     "name": row.get("name"),
+                    {"symbol": row.get("symbol"), "name": row.get("name"),
                      "price": (row.get("fugle_close") if row.get("data_status") == "VERIFIED_EXECUTED_TRADE" else None),
+                     "source_last": row.get("last"),
+                     "source_quote_time": row.get("last_trade_time") or row.get("fugle_last_updated"),
+                     "data_status": row.get("data_status"),
+                     "candidate_scope": row.get("candidate_scope"),
+                     "research_score": row.get("swing_live_score"),
                      "action": row.get("candidate_action", "觀察")}
-                    for row in report.get("deep_candidates", [])[:8]
+                    for row in (report.get("deep_candidates") or report.get("candidates") or [])[:20]
                 ],
                 "research_only": label != "intraday",
             })
