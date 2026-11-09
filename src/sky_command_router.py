@@ -218,16 +218,25 @@ def route_command(command: str) -> CommandRoute:
     )
 
 
-UPDATE_PRESENTATION = "SKY_MOBILE_TABLE_V1_0"
+# UI contract applies to every Sky stock-related command, including
+# scans, alerts, swing, model research, single-stock updates and positions.
+# Operational-only commands may show the same headers with no stock rows.
+SKY_PRESENTATION_COLUMNS = (
+    "股票代碼", "股票名稱", "即時價", "分類", "方向", "多方評分",
+    "空方評分", "買進觸發", "最高接受價", "停損／失效",
+    "現在動作", "加碼價格", "停利價格",
+)
+UPDATE_PRESENTATION = "SKY_MOBILE_TABLE_V1_0"  # historical compatibility
+SKY_CANONICAL_PRESENTATION = "SKY_MOBILE_TABLE_13_V1"
 
 
 def presentation_for_command(command: str) -> str | None:
-    """Canonical presentation for Sky commands.
+    """Return the common 13-column UI schema for all Sky commands.
 
-    Every Sky command containing 更新 uses the same 10-column mobile decision
-    table. Position updates may append position/P&L details after the table.
+    This is a *presentation* rule, not permission to infer trading levels.
+    Non-stock diagnostics can append health diagnostics beneath the header.
     """
     normalized = " ".join((command or "").strip().split())
-    if normalized.lower().startswith("sky") and "更新" in normalized:
-        return UPDATE_PRESENTATION
+    if normalized.lower().startswith("sky"):
+        return SKY_CANONICAL_PRESENTATION
     return None
