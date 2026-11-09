@@ -152,14 +152,25 @@ def run(mode="swing5d", top_n=20, deep_n=8):
             continue
         eligible.append(row)
 
-    # Market-relative rankings require the actual live universe denominator.
-    # Incomplete feeds cannot generate broad-market candidate decisions.
-    if not operational_full_market_scan:
-        eligible = []
+    # Keep observed, individually verified rows visible even when the whole-market
+    # gate fails. They are PARTIAL_SAMPLE_OBSERVATIONS, never full-market signals.
+    # Do not infer market-relative strength from an incomplete sample.
+    observed_sample_only = not operational_full_market_scan
     changes = sorted(_safe_float(r.get("change_pct")) for r in rows if r.get("change_pct") is not None)
     market_median = median(changes) if changes else 0.0
 
     candidates = [_build_candidate(r, market_median, mode) for r in eligible]
+    for candidate in candidates:
+        if observed_sample_only:
+            candidate["candidate_scope"] = "PARTIAL_SAMPLE_OBSERVATION"
+            candidate["relative_to_market_pct"] = None
+            candidate["market_relative_verified"] = False
+            candidate["strategy_signal"] = False
+            candidate["production_eligible"] = False
+            candidate["candidate_action"] = "觀察"
+            candidate["candidate_reason"] = "全市場資料未通過驗證；僅為有效成交資料中的局部觀察，禁止新進場。"
+        else:
+            candidate["market_relative_verified"] = True
     candidates.sort(key=lambda x: (x["swing_live_score"], x.get("trade_value") or 0), reverse=True)
     candidates = candidates[: max(top_n, deep_n)]
 
@@ -219,6 +230,10 @@ def run(mode="swing5d", top_n=20, deep_n=8):
         "strategy_status": MODE_META[mode]["strategy_status"],
         "production_strategy": MODE_META[mode]["production_strategy"],
         "operational_full_market_scan": operational_full_market_scan,
+        "observation_mode": "PARTIAL_SAMPLE_ONLY" if observed_sample_only else "WHOLE_MARKET_OBSERVATION",
+        "trade_decision": "禁止新進場：研究策略未通過正式驗證",
+        "observations_are_trade_signals": False,
+        "observed_sample_count": len(rows),
         "strict_official_full_market_certified": False,
         "live_whole_market_certified": operational_full_market_scan,
         "quote_scope": quote_audit["quote_scope"],
@@ -262,6 +277,8 @@ def run(mode="swing5d", top_n=20, deep_n=8):
         f"全市場實務掃描：{'是' if operational_full_market_scan else '否'}｜覆蓋率 {coverage_pct}%｜母池 {len(universe)}｜報價 {len(rows)}",
         f"TWSE {len(twse_rows)}｜TPEx/OTC {len(tpex_rows)}｜初篩通過 {len(eligible)}",
         f"策略狀態：{MODE_META[mode]['strategy_status']}",
+        "🔴 禁止新進場、未驗證通過；下列資料僅供自主研究判斷，不是可執行交易訊號。",
+        f"觀察模式：{'部分已驗證樣本' if observed_sample_only else '全市場觀察'}｜可供排序樣本 {len(eligible)}",
         "",
         render_mobile_table(deep),
         "",
