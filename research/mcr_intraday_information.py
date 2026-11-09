@@ -135,7 +135,7 @@ def markdown(report):
         "詳細逐股來源與驗證欄位：output/mcr_intraday_information_latest.json。",
         "**🔴 禁止新進場、未驗證通過。資訊供自主判斷，不代表正式交易訊號。**",
     ])
-    return "\\n".join(lines) + "\\n"
+    return "\n".join(lines) + "\n"
 
 def main():
     def load(p):
