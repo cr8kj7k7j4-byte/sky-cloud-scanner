@@ -1,30 +1,30 @@
 {
   "schema": "SKY_MCR_INTRADAY_HEALTH_V1",
-  "published_at_utc": "2026-11-09T04:08:07.930131+00:00",
+  "published_at_utc": "2026-11-09T04:13:51.707151+00:00",
   "run_id": "42559943636",
   "run_url": "https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/42559943636",
   "financing_source_date": "2026-11-06",
-  "quote_observed_at": "2026-11-09T12:08:01.060782+08:00",
+  "quote_observed_at": "2026-11-09T12:13:44.937474+08:00",
   "mcr_observation_count": 520,
   "mcr_with_observed_price": 519,
   "mcr_fresh_executed_count": 0,
-  "mcr_independent_accepted_executed_count": 52,
+  "mcr_independent_accepted_executed_count": 43,
   "all_market_universe_count": 1983,
-  "all_market_observed_price_count": 1922,
+  "all_market_observed_price_count": 1926,
   "all_market_fresh_executed_count": 0,
   "by_exchange": {
     "TWSE": {
       "universe": 1091,
       "snapshot_rows": 1060,
       "fresh_executed": 0,
-      "observed_price": 1055,
+      "observed_price": 1057,
       "fresh_executed_pct": 0.0
     },
     "TPEx": {
       "universe": 892,
       "snapshot_rows": 892,
       "fresh_executed": 0,
-      "observed_price": 867,
+      "observed_price": 869,
       "fresh_executed_pct": 0.0
     }
   },
