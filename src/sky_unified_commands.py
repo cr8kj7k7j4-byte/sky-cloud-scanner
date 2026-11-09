@@ -118,6 +118,9 @@ def market_mode() -> dict:
                 "snapshot_observations_full_artifact": report.get("snapshot_observations_full_artifact"),
                 "unverified_snapshot_preview": (report.get("unverified_snapshot_observations") or [])[:8],
                 "snapshot_observation_warning": report.get("snapshot_observation_warning"),
+                "information_columns_13col": report.get("information_columns_13col"),
+                "information_count_13col": report.get("information_count_13col"),
+                "information_preview_13col": (report.get("information_preview_13col") or [])[:8],
                 "candidate_preview": [
                     {"symbol": row.get("symbol"),
                      "name": row.get("name"),
