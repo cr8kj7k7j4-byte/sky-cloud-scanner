@@ -76,3 +76,18 @@ def test_full_market_research_visibility_routes_are_explicit():
         assert route.realtime_required is True
         assert route.whole_market_required is True
         assert "research_visibility" in route.execution_target
+
+
+def test_every_sky_command_uses_thirteen_column_presentation():
+    from src.sky_command_router import (
+        presentation_for_command, SKY_CANONICAL_PRESENTATION,
+        SKY_PRESENTATION_COLUMNS,
+    )
+    assert len(SKY_PRESENTATION_COLUMNS) == 13
+    for cmd in ("Sky 快掃", "Sky 警戒", "Sky 當沖現在掃一次",
+                "Sky 波段現在掃一次", "Sky Swing 5D 快掃",
+                "Sky 六模型狀態盤點", "Sky 查詢六模型研究訊號",
+                "Sky 持倉監控", "Sky 當沖更新 2330",
+                "Sky 系統健康檢查", "Sky 未知的新指令"):
+        assert presentation_for_command(cmd) == SKY_CANONICAL_PRESENTATION
+    assert presentation_for_command("hello") is None
