@@ -14,6 +14,14 @@ class SixModelStatusRouteTests(unittest.TestCase):
                 self.assertFalse(route.whole_market_required)
                 self.assertIn("UNKNOWN", route.notes)
 
+    def test_unified_presentation(self):
+        from src.sky_command_router import presentation_for_command
+        for command in ("Sky 六模型狀態盤點", "Sky 當沖現在掃一次",
+                        "Sky 快掃", "Sky 警戒", "Sky 當沖更新 1569"):
+            with self.subTest(command=command):
+                self.assertEqual(presentation_for_command(command),
+                                 "SKY_MOBILE_TABLE_V2_13_COLUMN")
+
     def test_live_research_route_unmodified(self):
         route = route_command("Sky 查詢六模型研究訊號")
         self.assertEqual(route.command_family, "SKY_SIX_MODEL_RESEARCH_VISIBILITY")
