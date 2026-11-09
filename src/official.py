@@ -1,3 +1,4 @@
+import os
 """Official-source layer.
 
 TWSE universe: TWSE OpenAPI STOCK_DAY_ALL.
@@ -51,6 +52,8 @@ def fetch_mis_quotes(universe, batch_size=55, sleep_s=.18):
     Re-query only the omitted symbols in small batches, preserving source and
     never fabricating a trade for a symbol without a valid last price.
     """
+    if os.getenv("SKY_FUGLE_ONLY_MARKETDATA", "1").strip().lower() in ("1", "true", "yes", "on"):
+        raise PermissionError("FREE_MIS_MARKETDATA_DISABLED_BY_USER_POLICY")
     s=session()
     s.headers.update({"Referer":"https://mis.twse.com.tw/stock/index.jsp"})
     try: s.get("https://mis.twse.com.tw/stock/index.jsp",timeout=15)
