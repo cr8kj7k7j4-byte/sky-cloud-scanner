@@ -65,7 +65,7 @@ def record(meta, payload, source_date, checked_at):
     result["change_pct"] = round(change, 3) if change is not None else None
 
     # Never use snapshot refresh time as executed-trade time.
-    ts = timestamp_tpe(trade.get("time") or payload.get("closeTime"))
+    ts = timestamp_tpe(trade.get("time"))
     if ts is not None:
         result["last_trade_time"] = ts.isoformat()
         result["time_age_seconds"] = round((checked_at - ts).total_seconds(), 1)
