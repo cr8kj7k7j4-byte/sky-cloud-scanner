@@ -130,6 +130,7 @@ def validate_whole_market_rows(universe, rows, now=None, *, min_coverage_pct=80.
         "TPEx": sum(x.get("exchange") == "TPEx" for x in universe),
     }
     accepted = {}
+    snapshot_reference = {}
     rejection = {}
     for row in rows:
         symbol = str(row.get("symbol") or "")
@@ -140,6 +141,15 @@ def validate_whole_market_rows(universe, rows, now=None, *, min_coverage_pct=80.
         # A bulk snapshot is acceptable only when it explicitly carries a
         # verified last-executed timestamp, not the snapshot download time.
         if row.get("quote_source") == "Fugle bulk snapshot":
+            # Snapshot reference coverage does NOT require lastTrade.time.
+            # It is deliberately separate from verified executed-trade coverage.
+            try:
+                reference_price = float(row.get("last"))
+            except (ValueError, TypeError):
+                reference_price = 0.0
+            if (reference_price > 0 and str(row.get("quote_date") or "") == now.date().isoformat()
+                    and row.get("isTrial") is not True):
+                snapshot_reference[symbol] = row
             ts = timestamp_tpe(row.get("last_trade_timestamp"))
             try:
                 price = float(row.get("last"))
@@ -182,6 +192,9 @@ def validate_whole_market_rows(universe, rows, now=None, *, min_coverage_pct=80.
         "valid_whole_market_operational": passed,
         "universe_count": total,
         "valid_quote_count": len(accepted),
+        "snapshot_reference_count": len(snapshot_reference),
+        "snapshot_reference_coverage_pct": round(100 * len(snapshot_reference) / total, 2) if total else 0.0,
+        "snapshot_reference_requires_last_trade_time": False,
         "quote_coverage_pct": coverage,
         "by_exchange": {
             k: {"universe": target[k], "valid": counts[k], "coverage_pct": rates[k]}
