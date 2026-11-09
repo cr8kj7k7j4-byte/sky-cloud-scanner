@@ -152,14 +152,18 @@ def run(mode="swing5d", top_n=20, deep_n=8):
             continue
         eligible.append(row)
 
-    # Market-relative rankings require the actual live universe denominator.
-    # Incomplete feeds cannot generate broad-market candidate decisions.
-    if not operational_full_market_scan:
-        eligible = []
+    # Preserve observed subset rows as research-only evidence even if coverage
+    # fails. This is NOT a certified full-market candidate ranking.
     changes = sorted(_safe_float(r.get("change_pct")) for r in rows if r.get("change_pct") is not None)
     market_median = median(changes) if changes else 0.0
 
     candidates = [_build_candidate(r, market_median, mode) for r in eligible]
+    if not operational_full_market_scan:
+        for candidate in candidates:
+            candidate["candidate_scope"] = "PARTIAL_OBSERVED_SUBSET_ONLY"
+            candidate["relative_to_market_pct"] = None
+            candidate["strategy_signal"] = False
+            candidate["production_eligible"] = False
     candidates.sort(key=lambda x: (x["swing_live_score"], x.get("trade_value") or 0), reverse=True)
     candidates = candidates[: max(top_n, deep_n)]
 
@@ -247,6 +251,16 @@ def run(mode="swing5d", top_n=20, deep_n=8):
         },
         "warnings": warnings,
         "candidate_count": min(top_n, len(candidates)),
+        "candidate_count_scope": (
+            "WHOLE_MARKET_OPERATIONAL_SCREEN" if operational_full_market_scan
+            else "PARTIAL_OBSERVED_SUBSET_ONLY"
+        ),
+        "trade_eligibility": (
+            "NOT_CERTIFIED_RESEARCH_ONLY" if operational_full_market_scan
+            else "NO_NEW_ENTRY_UNVERIFIED_COVERAGE"
+        ),
+        "observed_subset_count": len(rows),
+        "observed_first_gate_count": len(eligible),
         "candidates": candidates[:top_n],
         "deep_candidates": deep,
         "governance_note": coverage_notice + " " + MODE_META[mode]["note"],
@@ -262,6 +276,9 @@ def run(mode="swing5d", top_n=20, deep_n=8):
         f"全市場實務掃描：{'是' if operational_full_market_scan else '否'}｜覆蓋率 {coverage_pct}%｜母池 {len(universe)}｜報價 {len(rows)}",
         f"TWSE {len(twse_rows)}｜TPEx/OTC {len(tpex_rows)}｜初篩通過 {len(eligible)}",
         f"策略狀態：{MODE_META[mode]['strategy_status']}",
+        ("🔴 禁止新進場／未驗證通過；以下僅顯示實際取得的部分樣本，"
+         "不得當成全市場排名。" if not operational_full_market_scan
+         else "全市場行情驗證通過；候選仍屬研究觀察，非正式買點。"),
         "",
         render_mobile_table(deep),
         "",
