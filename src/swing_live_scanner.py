@@ -321,7 +321,7 @@ def run(mode="swing5d", top_n=20, deep_n=8):
         "unverified_snapshot_observation_count": len(all_snapshot_observations),
         "snapshot_coverage_pct": snapshot_coverage_pct,
         "snapshot_exchange_counts": snapshot_exchange_counts,
-        "snapshot_observations_full_artifact": "output/swing_live/snapshot_observations_swing5d.json" if mode == "swing5d" else None,
+        "snapshot_observations_full_artifact": f"output/swing_live/snapshot_observations_{mode}.json",
         "snapshot_individual_confirmation": snapshot_deep_confirmation,
         "snapshot_individual_verified_count": sum(
             row.get("data_status") == "FRESH_EXECUTED_TRADE"
@@ -366,6 +366,22 @@ def run(mode="swing5d", top_n=20, deep_n=8):
     }
 
     suffix = "swing5d" if mode == "swing5d" else "swing"
+    if mode == "swing":
+        # Preserve ALL observations, not only a top-20 preview. Never certify live execution.
+        full_observations = {
+            "generated_at": now.isoformat(),
+            "source": "Fugle bulk snapshot",
+            "observation_scope": "BULK_SNAPSHOT_INDICATIVE_ONLY",
+            "snapshot_coverage_pct": snapshot_coverage_pct,
+            "snapshot_exchange_counts": snapshot_exchange_counts,
+            "observed_symbols": len(all_snapshot_observations),
+            "trade_eligibility": "禁止新進場：未驗證逐股成交時間及策略資格",
+            "sorting": "trade_value_desc_NOT_validated_swing_alpha",
+            "data": all_snapshot_observations,
+        }
+        (OUT / "snapshot_observations_swing.json").write_text(
+            json.dumps(full_observations, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
     if mode == "swing5d":
         information_rows_13col = build_swing5d_13col_rows(
             all_snapshot_observations, snapshot_deep_confirmation
@@ -386,7 +402,7 @@ def run(mode="swing5d", top_n=20, deep_n=8):
             "sorting": "trade_value_desc_NOT_validated_swing_5D_alpha",
             "data": all_snapshot_observations,
         }
-        (OUT / "snapshot_observations_swing5d.json").write_text(
+        (OUT / f"snapshot_observations_{mode}.json").write_text(
             json.dumps(full_observations, ensure_ascii=False, indent=2), encoding="utf-8"
         )
     (OUT / f"latest_{suffix}.json").write_text(
