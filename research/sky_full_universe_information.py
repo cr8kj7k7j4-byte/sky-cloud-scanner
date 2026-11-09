@@ -178,12 +178,23 @@ def build(universe, snapshots, checked_at, errors=None):
 
 
 def summary(report):
+    """Present verified observations in the requested 13-column report.
+
+    This is a research observation table, not a validated swing/daytrade signal.
+    Prices without verified execution time are labelled as observed, not live.
+    """
+    columns = (
+        "股票代碼", "股票名稱", "即時價", "分類", "方向", "多方評分",
+        "空方評分", "買進觸發", "最高接受價", "停損／失效",
+        "現在動作", "加碼價格", "停利價格",
+    )
     lines = [
-        "# Sky 快掃｜全市場資訊觀察（非正式交易訊號）", "",
+        "# Sky｜全市場資訊觀察（非正式交易訊號）", "",
         f"查詢時間：{report['checked_at_tpe']}",
         f"官方母池：{report['universe_count']} 檔；有價格觀察：{report['observed_price_count']} 檔",
         f"逐檔新鮮成交驗證：{report['fresh_executed_count']} 檔（{report['fresh_executed_pct']:.1f}%）",
-        f"價格 ≤100 元的觀察名單：{report['priced_under_100_count']} 檔", "",
+        f"100 元以下有價格觀察：{report['priced_under_100_count']} 檔",
+        "注意：即時價欄的『觀察價（未驗證即時）』不是已核實的即時成交；逐股資料時間與來源請查 full_universe.json。", "",
         "| 市場 | 母池 | 快照代號 | 有價格 | 新鮮成交 | 覆蓋率 |",
         "|---|---:|---:|---:|---:|---:|",
     ]
@@ -191,19 +202,29 @@ def summary(report):
         x = report["by_exchange"][exchange]
         lines.append(f"| {label} | {x['universe']} | {x['snapshot_rows']} | "
                      f"{x['observed_price']} | {x['fresh_executed']} | {x['fresh_executed_pct']:.1f}% |")
-    lines += ["", "## 價格與漲幅觀察（未驗證者不得視為即時成交）",
-              "| 代碼 | 名稱 | 觀察價 | 漲跌幅 | 成交量 | 資料狀態 |",
-              "|---|---|---:|---:|---:|---|"]
+    lines.extend(("", "## 13 欄候選資訊（未驗證交易資格）",
+                  "| " + " | ".join(columns) + " |",
+                  "| " + " | ".join("---" for _ in columns) + " |"))
+    if not report["ranked_observations"]:
+        lines.append("| — | 暫無可觀察候選 | 待確認 | X | 不交易 | — | — | 待確認 | 待確認 | 待確認 | 等待 | 待確認 | 待確認 |")
     for row in report["ranked_observations"][:30]:
-        pct = f"{row['change_pct']:+.1f}%" if row["change_pct"] is not None else "—"
-        vol = f"{row['volume']:,.0f}" if row["volume"] is not None else "—"
-        lines.append(f"| {row['symbol']} | {row['name']} | {row['last_price']:.2f} | "
-                     f"{pct} | {vol} | {row['data_status']} |")
-    lines += ["", "其餘全部代號、資料時間與缺失原因詳見 full_universe.json。",
-              "多空評分、預測機率、進出場價：未執行經驗證模型時保持空值。",
-              "", f"**{report['trade_decision']}**",
-              "資訊仍提供；最終交易選擇由使用者自行決定。"]
-    return "\n".join(lines) + "\n"
+        raw_price = row.get("last_price")
+        if row.get("data_status") == "FRESH_EXECUTED_TRADE":
+            price = f"{raw_price:.2f}"
+        else:
+            price = f"{raw_price:.2f}（觀察價，未驗證即時）" if raw_price is not None else "待確認"
+        values = (
+            row["symbol"], row["name"], price, "X", "不交易",
+            "—", "—", "待確認", "待確認", "待確認",
+            "禁止交易", "待確認", "待確認",
+        )
+        lines.append("| " + " | ".join(str(x).replace("|", "／").replace("\\n", " ") for x in values) + " |")
+    lines.extend(("", "表內 X 表示交易資格未通過，並非模型對個股的負向預測。",
+                  "全部代號、成交量、逐股時間、資料狀態及缺失原因詳見 full_universe.json。",
+                  "多空分數、觸發、加碼與停利尚未經波段模型驗證，不得推算或捏造。",
+                  "", f"**{report['trade_decision']}**",
+                  "已取得的資訊照常揭露；是否自行交易由使用者決定，系統不自動下單。"))
+    return "\\n".join(lines) + "\\n"
 
 
 def main():
