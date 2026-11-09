@@ -1,6 +1,7 @@
 {
   "command": "all_market",
-  "requested_at": "2026-11-09T11:15:00+08:00",
-  "reason": "user_requested_realtime_full_market_swing5d_scan",
-  "scope": "TWSE_TPEx_full_market_swing5d_research_only_no_trading_no_promotion"
+  "requested_at": "2026-11-09T11:24:27+08:00",
+  "reason": "verify_merged_PR398_realtime_swing5d_partial_observation",
+  "scope": "TWSE_TPEx_live_including_swing5d_research_only",
+  "test_contract": "retain_verified_partial_observations_and_no_trade_gate"
 }
