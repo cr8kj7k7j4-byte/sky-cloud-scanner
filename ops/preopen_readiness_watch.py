@@ -11,9 +11,10 @@ END = datetime(2026, 11, 10, 9, 50, tzinfo=TPE)
 URL = "https://api.github.com/repos/"
 
 
-def api(path, body=None):
+def api(path, body=None, method=None):
     data = json.dumps(body).encode() if body is not None else None
     req = Request(URL + os.environ["GITHUB_REPOSITORY"] + path, data=data,
+                  method=method,
                   headers={"Authorization": "Bearer " + os.environ["GITHUB_TOKEN"],
                            "Accept": "application/vnd.github+json",
                            "X-GitHub-Api-Version": "2022-11-28",
@@ -78,7 +79,7 @@ def main():
             pre["report_content_verified"] = False
             pre["readiness"] = "REPORT_ARTIFACT_PRESENT_CONTENT_UNVERIFIED" if has_report else "MISSING_REPORT_ARTIFACT"
         if status.get("status") == "EXPIRED":
-            api("/actions/workflows/sky-preopen-watch-20261110.yml/disable", {})
+            api("/actions/workflows/sky-preopen-watch-20261110.yml/disable", method="PUT")
             status["status"] = "DISABLED_AFTER_DEADLINE"
         if status.get("retry") == "ONE_RETRY_PERMITTED":
             api("/actions/workflows/sky-global-premarket.yml/dispatches", {"ref": "main"})
