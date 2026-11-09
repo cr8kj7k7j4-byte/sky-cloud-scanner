@@ -148,6 +148,21 @@ jobs:
           python -m unittest tests.test_mcr_intraday_information -v
           python -m research.mcr_intraday_information
           cat output/mcr_intraday_information_latest.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Build and verify full 13-column Fugle research artifact (even when trading gate blocks)
+        if: always() && steps.calendar.outputs.should_scan == 'true'
+        run: |
+          set -euo pipefail
+          test -s output/sky_quickscan_information/full_universe.json
+          python -m research.sky_13col_report \
+            --input output/sky_quickscan_information/full_universe.json \
+            --scanner-input output/latest.json \
+            --output output/sky_quickscan_information/latest_13col.md \
+            --json-output output/sky_quickscan_information/latest_13col.json
+          python -m research.verify_13col_artifact \
+            --source output/sky_quickscan_information/full_universe.json \
+            --json output/sky_quickscan_information/latest_13col.json \
+            --markdown output/sky_quickscan_information/latest_13col.md
+          echo '13欄完整研究報告已放入本次掃描 Artifact；資料／正式交易驗證分開判定。' >> "$GITHUB_STEP_SUMMARY"
       - name: Publish sanitized MCR scan receipt for mobile status and independent audit
         if: always() && github.ref == 'refs/heads/main'
         continue-on-error: true
