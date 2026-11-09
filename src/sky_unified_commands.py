@@ -113,6 +113,8 @@ def market_mode() -> dict:
                 "unverified_snapshot_observation_count": report.get("unverified_snapshot_observation_count"),
                 "snapshot_coverage_pct": report.get("snapshot_coverage_pct"),
                 "snapshot_exchange_counts": report.get("snapshot_exchange_counts"),
+                "snapshot_individual_verified_count": report.get("snapshot_individual_verified_count"),
+                "snapshot_individual_confirmation": (report.get("snapshot_individual_confirmation") or [])[:8],
                 "snapshot_observations_full_artifact": report.get("snapshot_observations_full_artifact"),
                 "unverified_snapshot_preview": (report.get("unverified_snapshot_observations") or [])[:8],
                 "snapshot_observation_warning": report.get("snapshot_observation_warning"),
