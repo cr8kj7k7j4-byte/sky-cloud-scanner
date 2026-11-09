@@ -171,6 +171,7 @@ jobs:
             'mcr_observation_count':mcr.get('candidate_count'),
             'mcr_with_observed_price':mcr.get('with_observed_price'),
             'mcr_fresh_executed_count':mcr.get('fresh_executed_count'),
+            'mcr_independent_accepted_executed_count':mcr.get('independent_accepted_executed_count'),
             'all_market_universe_count':observed.get('universe_count'),
             'all_market_observed_price_count':observed.get('observed_price_count'),
             'all_market_fresh_executed_count':observed.get('fresh_executed_count'),

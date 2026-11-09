@@ -32,6 +32,24 @@ class TestMcrLiveObservations(unittest.TestCase):
         r=join(MCR,live,NOW)
         self.assertEqual(r["fresh_executed_count"],1)
         self.assertFalse(r["trade_eligible"])
+    def test_preserve_independently_gate_accepted_executed_trade(self):
+        valid = {"observations":[{"symbol":"1111","exchange":"TWSE",
+            "last":26.3,"trade_time":"2026-11-09T11:46:11+08:00",
+            "data_state":"ACCEPTED_EXECUTED_TRADE_BY_MARKET_GATE",
+            "source":"TWSE MIS"}]}
+        report=join(MCR,LIVE,NOW,valid)
+        self.assertEqual(report["independent_accepted_executed_count"],1)
+        self.assertEqual(report["rows"][0]["accepted_executed_price"],26.3)
+        self.assertFalse(report["trade_eligible"])
+        self.assertEqual(report["rows"][0]["data_status"],"UNVERIFIED_EXECUTION_TIME")
+
+    def test_reject_unverified_and_invalid_accepted_feed(self):
+        bogus={"observations":[{"symbol":"1111","exchange":"TWSE","last":99,
+            "data_state":"UNVERIFIED_EXECUTION_TIME"}]}
+        report=join(MCR,LIVE,NOW,bogus)
+        self.assertEqual(report["independent_accepted_executed_count"],0)
+        self.assertIsNone(report["rows"][0]["accepted_executed_price"])
+
     def test_no_candidate_unavailable_not_valid_zero_result(self):
         r=join(None,LIVE,NOW)
         self.assertEqual(r["candidate_count"],0)
