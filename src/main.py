@@ -22,6 +22,7 @@ from .config import (
 )
 from .official import load_official_universe, fetch_mis_quotes
 from .realtime_quote_evidence import validate_whole_market_rows
+from .alert_observation import build_alert_observation
 from .fugle import get_ticker, get_quote, get_candles
 from .decision_engine import first_gate, evaluate_decision
 from .feature_engine import build_features, enrich_candidate_context
@@ -207,6 +208,7 @@ def run():
             "decisions": [],
             "transitions": [],
         },
+        "alert_observation": {"mode": "OBSERVATION_ONLY_NOT_PRODUCTION", "candidate_count": 0, "candidates": []},
         "top100": [],
         "deep": [],
         "deep_rejected": [],
@@ -275,6 +277,10 @@ def run():
         st["live_whole_market_coverage_pct"] = quote_audit["quote_coverage_pct"]
         st["mis_unverified_quote_count"] = len(rows) - quote_audit["valid_quote_count"]
         rows = quote_audit["accepted_rows"]
+        # Observation-only output must survive a blocked production market gate.
+        st["alert_observation"] = build_alert_observation(
+            rows, universe, observed_at=datetime.now(TZ), limit=100
+        )
         if not quote_audit["valid_whole_market_operational"]:
             st["warnings"].append(
                 "BLOCKED_EXTERNAL_DATA: whole-market current-session executed "
