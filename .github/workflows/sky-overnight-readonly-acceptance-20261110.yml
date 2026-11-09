@@ -1,0 +1,38 @@
+name: Sky Overnight Read-Only Acceptance 20261110
+on:
+  workflow_dispatch:
+  schedule:
+    # UTC 5-minute cadence. Active window: 2026-11-09 14:00 TPE through 2026-11-10 09:30 TPE.
+    # Actual execution can be delayed or skipped by GitHub.
+    - cron: "*/5 * * * *"
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: sky-overnight-readonly-acceptance-20261110
+  cancel-in-progress: false
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Evaluate bounded monitoring window and workflow health
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python ops/recovery/sky_overnight_readonly_acceptance.py
+      - name: Publish read-only evidence artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-overnight-acceptance-${{ github.run_id }}
+          path: output/overnight_acceptance/health_latest.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Show health summary
+        if: always()
+        shell: bash
+        run: |
+          if [ -f output/overnight_acceptance/health_latest.json ]; then
+            cat output/overnight_acceptance/health_latest.json >> "$GITHUB_STEP_SUMMARY"
+          fi
