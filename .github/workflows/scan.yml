@@ -148,6 +148,11 @@ jobs:
         with:
           path: output/monitor_state.json
           key: sky-monitor-state-${{ github.run_id }}
+      - name: Publish available information even when full-market trading gate blocks
+        if: always()
+        shell: bash
+        run: |
+          python -m src.sky_information_report --input output/latest.json --output output/information_first.json
       - name: Upload scan report
         if: always()
         uses: actions/upload-artifact@v4
