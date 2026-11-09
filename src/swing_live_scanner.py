@@ -148,7 +148,17 @@ def run(mode="swing5d", top_n=20, deep_n=8):
             "research_score": None,
         })
     unverified_snapshot.sort(key=lambda x: _safe_float(x.get("trade_value")), reverse=True)
+    all_snapshot_observations = list(unverified_snapshot)
     unverified_snapshot = unverified_snapshot[:20]
+    snapshot_exchange_counts = {
+        ex: sum(row.get("exchange") == ex for row in raw_observations
+                if row.get("quote_source") == "Fugle bulk snapshot")
+        for ex in ("TWSE", "TPEx")
+    }
+    snapshot_coverage_pct = round(
+        100.0 * len({str(row.get("symbol")) for row in raw_observations
+                     if row.get("quote_source") == "Fugle bulk snapshot"}) / len(universe), 2
+    ) if universe else 0.0
     if not quote_audit["valid_whole_market_operational"]:
         warnings.append(
             "BLOCKED_EXTERNAL_DATA: full-market fresh executed-trade coverage "
@@ -271,7 +281,10 @@ def run(mode="swing5d", top_n=20, deep_n=8):
         "trade_decision": "禁止新進場：研究策略未通過正式驗證",
         "observations_are_trade_signals": False,
         "observed_sample_count": len(rows),
-        "unverified_snapshot_observation_count": len(unverified_snapshot),
+        "unverified_snapshot_observation_count": len(all_snapshot_observations),
+        "snapshot_coverage_pct": snapshot_coverage_pct,
+        "snapshot_exchange_counts": snapshot_exchange_counts,
+        "snapshot_observations_full_artifact": "output/swing_live/snapshot_observations_swing5d.json" if mode == "swing5d" else None,
         "unverified_snapshot_observations": unverified_snapshot,
         "snapshot_observation_warning": (
             "批量報價已取得，但缺乏可驗證的最近成交時間；"
@@ -311,6 +324,21 @@ def run(mode="swing5d", top_n=20, deep_n=8):
     }
 
     suffix = "swing5d" if mode == "swing5d" else "swing"
+    if mode == "swing5d":
+        full_observations = {
+            "generated_at": now.isoformat(),
+            "source": "Fugle bulk snapshot",
+            "observation_scope": "BULK_SNAPSHOT_INDICATIVE_ONLY",
+            "snapshot_coverage_pct": snapshot_coverage_pct,
+            "snapshot_exchange_counts": snapshot_exchange_counts,
+            "observed_symbols": len(all_snapshot_observations),
+            "trade_eligibility": "禁止新進場：未驗證逐股成交時間及策略資格",
+            "sorting": "trade_value_desc_NOT_validated_swing_5D_alpha",
+            "data": all_snapshot_observations,
+        }
+        (OUT / "snapshot_observations_swing5d.json").write_text(
+            json.dumps(full_observations, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
     (OUT / f"latest_{suffix}.json").write_text(
         json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
     )

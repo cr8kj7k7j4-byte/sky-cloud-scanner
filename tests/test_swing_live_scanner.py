@@ -79,3 +79,9 @@ def test_unverified_bulk_snapshot_is_visible_but_never_tradable(monkeypatch, tmp
     assert shown["strategy_signal"] is False
     assert shown["production_eligible"] is False
     assert shown["buy_trigger"] is None
+    assert result["snapshot_coverage_pct"] == 100.0
+    assert result["snapshot_exchange_counts"]["TWSE"] == 1
+    import json
+    artifact = json.loads((tmp_path / "snapshot_observations_swing5d.json").read_text())
+    assert artifact["observed_symbols"] == 1
+    assert artifact["data"][0]["strategy_signal"] is False
