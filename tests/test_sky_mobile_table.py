@@ -98,3 +98,23 @@ def test_general_table_direction_is_bold():
     assert row["停損／失效"] == "**跌回 69.2 以下則反彈失效**"
     assert row["分類"] == "**A**"
     assert row["現在動作"] == "**等待**"
+
+
+def test_partial_market_observation_is_visible_but_never_an_entry_signal():
+    item = {
+        "symbol": "1234", "name": "局部樣本",
+        "last": 42, "open": 41, "change_pct": 2,
+        "candidate_scope": "PARTIAL_SAMPLE_OBSERVATION",
+        "data_status": "UNVERIFIED_EXECUTED_TRADE",
+        "candidate_action": "觀察", "max_entry": 43, "stop": 40,
+        "bull_score": 99,
+    }
+    row = normalize_mobile_row(item)
+    assert row["股票"] == "**1234 局部樣本**"
+    assert row["現價"] == "—"
+    assert row["分類"] == "**X**"
+    assert row["現在動作"] == "**觀察**"
+    assert row["多方評分"] == "—"
+    assert row["最高接受價"] == "—"
+    assert row["停損／失效"] == "—"
+    assert "禁止新進場" in row["買進觸發"]
