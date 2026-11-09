@@ -24,6 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
+      PYTHONPATH: .
       SKY_FUGLE_ONLY_MARKETDATA: "1"
       ALLOW_MIS_OTC_FALLBACK: "0"
       FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
