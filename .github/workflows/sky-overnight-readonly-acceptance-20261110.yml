@@ -7,7 +7,7 @@ on:
     - cron: "*/5 * * * *"
 permissions:
   contents: read
-  actions: read
+  actions: write # only self-disable at bounded end; never dispatch or retry
 concurrency:
   group: sky-overnight-readonly-acceptance-20261110
   cancel-in-progress: false
@@ -35,4 +35,18 @@ jobs:
         run: |
           if [ -f output/overnight_acceptance/health_latest.json ]; then
             cat output/overnight_acceptance/health_latest.json >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Disable only this temporary monitor after the deadline
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          python - <<'PY' > /tmp/sky_monitor_expired.txt
+          from datetime import datetime, timezone
+          print("yes" if datetime.now(timezone.utc) >= datetime.fromisoformat("2026-11-10T01:30:00+00:00") else "no")
+          PY
+          if [ "$(cat /tmp/sky_monitor_expired.txt)" = "yes" ]; then
+            gh workflow disable sky-overnight-readonly-acceptance-20261110.yml --repo "$GITHUB_REPOSITORY"
+            echo "Temporary monitor disabled after 09:30 Asia/Taipei" >> "$GITHUB_STEP_SUMMARY"
           fi
