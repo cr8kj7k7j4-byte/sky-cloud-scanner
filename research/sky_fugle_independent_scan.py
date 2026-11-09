@@ -39,25 +39,43 @@ def items(payload, *, source):
     return rows
 
 
-def universe_from_tickers(payloads):
+def universe_from_tickers(payloads, snapshots=None):
+    """Use paid tickers first, with explicitly uncertified paid snapshot fallback."""
     universe = {}
-    for market, payload in payloads.items():
-        for row in items(payload, source=f"tickers:{market}"):
+    basis = {}
+    snapshots = snapshots or {}
+    for market, exchange in MARKETS.items():
+        ticker_rows = items(payloads.get(market), source=f"tickers:{market}")
+        ticker_count = 0
+        for row in ticker_rows:
             if not isinstance(row, dict):
                 continue
             symbol = str(row.get("symbol") or "").strip()
-            kind = str(row.get("type") or "EQUITY").upper()
-            if not SYMBOL.fullmatch(symbol) or kind not in ("EQUITY", "COMMONSTOCK"):
-                continue
-            if symbol in universe:
-                raise ValueError(f"duplicate ticker across markets: {symbol}")
-            universe[symbol] = {"symbol": symbol, "name": row.get("name") or "",
-                                "exchange": MARKETS[market], "market": market}
-    if not universe or not any(v["market"] == "TSE" for v in universe.values()) or not any(
-        v["market"] == "OTC" for v in universe.values()
-    ):
-        raise ValueError("incomplete Fugle TSE/OTC ticker universe")
-    return universe
+            if SYMBOL.fullmatch(symbol) and str(row.get("type") or "EQUITY").upper() in ("EQUITY", "COMMONSTOCK"):
+                universe[symbol] = {"symbol": symbol, "name": row.get("name") or "",
+                                    "exchange": exchange, "market": market,
+                                    "universe_source": "FUGLE_PAID_TICKERS"}
+                ticker_count += 1
+        fallback_count = 0
+        if ticker_count == 0 and isinstance(snapshots.get(market), dict):
+            for row in items(snapshots[market], source=f"snapshot:{market}"):
+                if not isinstance(row, dict):
+                    continue
+                symbol = str(row.get("symbol") or "").strip()
+                if not SYMBOL.fullmatch(symbol):
+                    continue
+                if symbol in universe and universe[symbol]["market"] != market:
+                    raise ValueError("cross_market_symbol_collision")
+                universe[symbol] = {"symbol": symbol, "name": row.get("name") or "",
+                                    "exchange": exchange, "market": market,
+                                    "universe_source": "FUGLE_PAID_SNAPSHOT_FALLBACK"}
+                fallback_count += 1
+        basis[exchange] = {"ticker_symbols": ticker_count,
+                           "snapshot_fallback_symbols": fallback_count,
+                           "ticker_universe_available": ticker_count > 0}
+    if not universe or any(not any(x["market"] == m for x in universe.values()) for m in MARKETS):
+        raise ValueError(f"NO_BOTH_MARKETS_FUGLE_UNIVERSE: {basis}")
+    return universe, basis
 
 
 def classify(meta, quote, source_date, checked):
@@ -124,7 +142,13 @@ def scan(*, now=None, ticker_fetch=get_tickers, snapshot_fetch=snapshot_quotes):
             "first_row_type": str(raw[0].get("type")) if raw and isinstance(raw[0], dict) else None,
         }
     print("FUGLE_TICKER_DIAGNOSTIC", json.dumps(diagnostic, ensure_ascii=False), flush=True)
-    universe = universe_from_tickers(ticker_payloads)
+    snapshot_diag = {}
+    for market, payload in snapshot_payloads.items():
+        raw = payload.get("data") if isinstance(payload, dict) else None
+        snapshot_diag[market] = {"date": str(payload.get("date") or "") if isinstance(payload, dict) else "",
+                                 "returned": len(raw) if isinstance(raw, list) else None}
+    print("FUGLE_SNAPSHOT_DIAGNOSTIC", json.dumps(snapshot_diag, ensure_ascii=False), flush=True)
+    universe, universe_basis = universe_from_tickers(ticker_payloads, snapshot_payloads)
     by_market = {}
     rows = []
     for market, exchange in MARKETS.items():
@@ -152,7 +176,9 @@ def scan(*, now=None, ticker_fetch=get_tickers, snapshot_fetch=snapshot_quotes):
         "checked_at_tpe": checked.isoformat(), "source": "Fugle paid API tickers+snapshot",
         "universe_count": len(rows), "observed_price_count": sum(x["last_price"] is not None for x in rows),
         "fresh_executed_count": sum(x["data_status"] == "FRESH_EXECUTED_TRADE" for x in rows),
-        "by_exchange": by_market, "errors": errors, "all_symbols": rows,
+        "by_exchange": by_market, "universe_basis": universe_basis,
+        "full_market_universe_certified": all(x["ticker_universe_available"] for x in universe_basis.values()),
+        "errors": errors, "all_symbols": rows,
         "production_eligible": False, "trade_decision": "禁止交易",
         "note": "Snapshot observation is not certified executed-live. No AI inference or trade permission.",
     }
@@ -177,7 +203,8 @@ def render(report):
         detail_rows.append({**dict(zip(COLUMNS, vals)), "資料來源": item["source"],
                             "資料時間": item["last_trade_time"], "資料狀態": item["data_status"],
                             "成交量": item["volume"], "正式交易資格": False})
-    lines.extend(["", "🔴 僅資訊觀察；不包含 AI 多空評分、買賣點或正式交易授權。"])
+    lines.extend(["", "母池完整性認證：" + str(report["full_market_universe_certified"]),
+                  "🔴 僅資訊觀察；不包含 AI 多空評分、買賣點或正式交易授權。"])
     return "\n".join(lines) + "\n", detail_rows
 
 
