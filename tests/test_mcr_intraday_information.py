@@ -66,7 +66,7 @@ class TestMcrLiveObservations(unittest.TestCase):
         self.assertIn("|1034|",text)
         self.assertIn("最高接受價",text)
         self.assertIn("融資維持率低於130%",text)
-        self.assertIn("UNVERIFIED_EXECUTION_TIME",text)
+        self.assertIn("MISSING_LIVE_INFORMATION",text)
         self.assertEqual(text.count("|研究股|"),35)
         self.assertIn("\\n|1034|",text)
 
