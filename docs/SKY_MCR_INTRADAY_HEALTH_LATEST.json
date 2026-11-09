@@ -1,0 +1,39 @@
+{
+  "schema": "SKY_MCR_INTRADAY_HEALTH_V1",
+  "published_at_utc": "2026-11-09T03:46:15.559470+00:00",
+  "run_id": "42557983622",
+  "run_url": "https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/42557983622",
+  "financing_source_date": "2026-11-06",
+  "quote_observed_at": "2026-11-09T11:46:11.919596+08:00",
+  "mcr_observation_count": 520,
+  "mcr_with_observed_price": 518,
+  "mcr_fresh_executed_count": 0,
+  "all_market_universe_count": 1983,
+  "all_market_observed_price_count": 1915,
+  "all_market_fresh_executed_count": 0,
+  "by_exchange": {
+    "TWSE": {
+      "universe": 1091,
+      "snapshot_rows": 1060,
+      "fresh_executed": 0,
+      "observed_price": 1055,
+      "fresh_executed_pct": 0.0
+    },
+    "TPEx": {
+      "universe": 892,
+      "snapshot_rows": 892,
+      "fresh_executed": 0,
+      "observed_price": 860,
+      "fresh_executed_pct": 0.0
+    }
+  },
+  "mcr_quote_status_counts": {
+    "UNVERIFIED_EXECUTION_TIME": 518,
+    "MISSING_EXECUTED_PRICE": 1,
+    "MISSING_QUOTE": 1
+  },
+  "data_blockers": [],
+  "action": "禁止交易",
+  "trade_eligible": false,
+  "notice": "Research only. No new trading approval; never substitute financing balance for margin maintenance."
+}
