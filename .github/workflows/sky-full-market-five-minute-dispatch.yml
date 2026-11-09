@@ -27,6 +27,7 @@ jobs:
           python -m pip install requests
           python - <<'PY' >> "$GITHUB_OUTPUT"
           import datetime
+          import sys
           from zoneinfo import ZoneInfo
           from src.trading_calendar import check_trading_day
           now=datetime.datetime.now(ZoneInfo("Asia/Taipei"))
@@ -34,7 +35,7 @@ jobs:
           inside=(9*60 <= now.hour*60+now.minute <= 13*60+30)
           allowed=(s["source_status"]=="PASS" and s["should_scan"] is True and inside)
           print("allowed=" + ("true" if allowed else "false"))
-          print("Market readiness:",s["status"],now.isoformat())
+          print("Market readiness:",s["status"],now.isoformat(),file=sys.stderr)
           PY
       - name: Dispatch private GCS research snapshot only
         if: steps.market.outputs.allowed == 'true'
