@@ -54,3 +54,42 @@ def test_cli_writes_missing_report_without_inventing_quotes(tmp_path):
     assert result["source_status"] == "REPORT_MISSING"
     assert result["observed_candidate_records"] == []
     assert result["live_full_market_verified"] is False
+
+
+def test_required_mobile_columns_survive_data_block():
+    from src.sky_information_report import DISPLAY_FIELDS
+    report = project_information_first({
+        "market_data_gate": "BLOCKED_EXTERNAL_DATA",
+        "deep_candidates": [{
+            "symbol": "1101", "name": "台泥", "fugle_close": 33.2,
+            "data_status": "DATA_STALE", "bull_score": 99,
+            "candidate_action": "買進", "entry_price": 33.5,
+        }],
+    })
+    row = report["display_rows"][0]
+    assert set(row) == set(DISPLAY_FIELDS)
+    assert row["股票代碼"] == "1101"
+    assert row["即時價"] is None
+    assert row["多方評分"] is None
+    assert row["買進觸發"] is None
+    assert row["現在動作"] == "禁止交易"
+    assert row["分類"] == "X"
+
+
+def test_verified_single_quote_is_visible_without_full_market_buy():
+    report = project_information_first({
+        "market_data_gate": "BLOCKED_EXTERNAL_DATA",
+        "deep_candidates": [{
+            "symbol": "1101", "name": "台泥",
+            "data_status": "VERIFIED_EXECUTED_TRADE",
+            "fugle_close": 34.0, "trade_volume": 1000,
+            "last_trade_time": "2026-11-09T11:20:00+08:00",
+            "source": "Fugle",
+        }],
+    })
+    row = report["display_rows"][0]
+    assert row["即時價"] == 34.0
+    assert row["當日成交量"] == 1000
+    assert row["資料來源"] == "Fugle"
+    assert row["現在動作"] == "禁止交易"
+    assert row["融資維持率"] is None
