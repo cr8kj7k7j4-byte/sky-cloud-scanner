@@ -79,7 +79,9 @@ jobs:
           safe_reports = {
               name: {key: report.get(key) for key in
                      ("available", "data_timestamp", "operational_full_market_scan",
-                      "quote_coverage_pct", "candidate_count", "research_only")}
+                      "quote_coverage_pct", "candidate_count", "research_only",
+                      "observation_mode", "trade_decision", "observed_sample_count",
+                      "market_data_gate", "candidate_preview", "warnings")}
               for name, report in reports.items() if isinstance(report, dict)
           }
           safe = {
