@@ -34,6 +34,19 @@ class TestSky13Col(unittest.TestCase):
         self.assertIn("禁止新進場", md)
         self.assertTrue(all(x in md for x in COLUMNS))
 
+    def test_full_universe_is_default_even_with_ranked_preview(self):
+        items = [{"symbol": str(1000 + i), "exchange": "TWSE", "name": f"股{i}",
+                  "last_price": 25.0, "data_status": "UNVERIFIED_EXECUTION_TIME"}
+                 for i in range(45)]
+        report = self.source(items)
+        report["ranked_observations"] = items[:5]
+        md = render(report)
+        self.assertEqual(md.count("| X | 不交易 |"), 45)
+        self.assertIn("| 1044 |", md)
+        preview = render(report, limit=30)
+        self.assertEqual(preview.count("| X | 不交易 |"), 30)
+        self.assertNotIn("| 1044 |", preview)
+
     def test_nan_never_published(self):
         item = {"symbol": "1101", "last_price": float("nan"),
                 "data_status": "FRESH_EXECUTED_TRADE"}
