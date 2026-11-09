@@ -44,6 +44,8 @@ def evidence_scores(item: dict[str, Any]) -> tuple[int | None, int | None]:
     P0-C, P0-R, entry, stop, target, or promotion decisions.
     """
     item = item or {}
+    if item.get("candidate_scope") == "PARTIAL_SAMPLE_OBSERVATION":
+        return None, None
 
     explicit_bull = next(
         (_num(item.get(k)) for k in ("bull_score", "long_score", "bullish_score")
@@ -147,6 +149,8 @@ def buy_trigger_text(item: dict[str, Any]) -> str:
 
 
 def classification(item: dict[str, Any]) -> str:
+    if item.get("candidate_scope") == "PARTIAL_SAMPLE_OBSERVATION":
+        return "X"
     if item.get("execution_status") == "OPEN_ENTRY_PASSED_NO_CHASE":
         return "X"
     decision = item.get("decision") or {}
@@ -196,6 +200,8 @@ def normalize_mobile_row(item: dict[str, Any]) -> dict[str, str]:
     monitor = _monitor(item)
 
     last = item.get("fugle_close", item.get("current_price", item.get("last")))
+    if item.get("candidate_scope") == "PARTIAL_SAMPLE_OBSERVATION":
+        last = item.get("fugle_close") if item.get("data_status") == "VERIFIED_EXECUTED_TRADE" else None
     max_entry = (
         item.get("highest_acceptable_price")
         or item.get("max_entry")
@@ -223,10 +229,15 @@ def normalize_mobile_row(item: dict[str, Any]) -> dict[str, str]:
     bull_text = _bold(f"{bull} / 100") if bull is not None else "—"
     bear_text = _bold(f"{bear} / 100") if bear is not None else "—"
 
+    if item.get("candidate_scope") == "PARTIAL_SAMPLE_OBSERVATION":
+        max_entry = None
+        stop_text = "—"
     max_entry_text = _price(max_entry)
     cls = classification(item)
     action = action_text(item)
     trigger_text = buy_trigger_text(item)
+    if item.get("candidate_scope") == "PARTIAL_SAMPLE_OBSERVATION":
+        trigger_text = "未驗證／禁止新進場"
 
     return {
         "股票": stock,
