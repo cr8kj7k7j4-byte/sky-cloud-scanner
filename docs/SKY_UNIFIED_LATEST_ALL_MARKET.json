@@ -1,13 +1,13 @@
 {
   "schema": "SKY_UNIFIED_EXECUTION_VERIFICATION_V1",
-  "published_at_utc": "2026-11-09T03:28:23.128955+00:00",
-  "run_id": "42556325071",
-  "run_url": "https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/42556325071",
-  "head_sha": "d0a97157d78e09017bc7c85b64c91ce9e780ac46",
+  "published_at_utc": "2026-11-09T03:34:05.155524+00:00",
+  "run_id": "42556818949",
+  "run_url": "https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/42556818949",
+  "head_sha": "8101dfdd8c084c61b8dd93a9a2417fab02d00c4d",
   "command": "all_market",
   "scan_step_outcome": "failure",
   "report_exists": true,
-  "report_generated_at_utc": "2026-11-09T03:26:00.948320+00:00",
+  "report_generated_at_utc": "2026-11-09T03:31:08.531428+00:00",
   "decision": "DATA_COVERAGE_INSUFFICIENT_NO_TRADE",
   "calendar_exit_code": 0,
   "strategy_exit_codes": {
@@ -18,9 +18,9 @@
   "reports": {
     "intraday": {
       "available": true,
-      "data_timestamp": "2026-11-09T11:26:02.970095+08:00",
+      "data_timestamp": "2026-11-09T11:31:10.421571+08:00",
       "operational_full_market_scan": false,
-      "quote_coverage_pct": 5.19,
+      "quote_coverage_pct": 2.92,
       "candidate_count": null,
       "research_only": false,
       "observation_mode": null,
@@ -29,16 +29,16 @@
       "market_data_gate": "BLOCKED_EXTERNAL_DATA_NO_TRADE",
       "candidate_preview": [],
       "warnings": [
-        "MIS_EXCHANGE_COVERAGE: TWSE=107/1091 (9.81%), TPEx=71/892 (7.96%)",
-        "MIS_INVALID_PRICE_SAMPLES: [{'symbol': '1101', 'market': 'TWSE', 'z': '-', 'pz': '-', 'tv': '-', 'o': '27.0000', 'h': '27.6000', 'l': '26.7000', 'v': '22729', 't': '11:25:59', 'y': '26.7500'}, {'symbol': '1102', 'market': 'TWSE', 'z': '-', 'pz': '-', 'tv': '-', 'o': '36.3000', 'h': '37.2500', 'l': '36.3000', 'v': '3735', 't': '11:25:55', 'y': '36.5500'}, {'symbol': '1103', 'market': 'TWSE', 'z': '-', 'pz': '-', 'tv': '-', 'o': '13.2000', 'h': '13.5500', 'l': '13.2000', 'v': '486', 't': '11:26:01', 'y': '13.3500'}, {'symbol': '1104', 'market': 'TWSE', 'z': '-', 'pz': '-', 'tv': '-', 'o': '26.1000', 'h': '26.6500', 'l': '26.1000', 'v': '298', 't': '11:23:49', 'y': '26.1500'}, {'symbol': '1108', 'market': 'TWSE', 'z': '-', 'pz': '-', 'tv': '-', 'o': '10.7500', 'h': '10.8000', 'l': '10.4000', 'v': '483', 't': '11:25:08', 'y': '10.7000'}, {'symbol': '1110', 'market': 'TWSE', 'z': '-', 'pz': '-', 'tv': '-', 'o': '14.1500', 'h': '14.3500', 'l': '14.0500', 'v': '192', 't': '11:25:45', 'y': '14.2000'}, {'symbol': '1201', 'market': 'TWSE', 'z': '-', 'pz': '-', 'tv': '-', 'o': '12.4500', 'h': '12.6000', 'l': '12.2500', 'v': '1240', 't': '11:25:56', 'y': '12.5000'}, {'symbol': '1203', 'market': 'TWSE', 'z': '-', 'pz': '-', 'tv': '-', 'o': '42.6500', 'h': '43.2500', 'l': '42.1000', 'v': '27', 't': '11:22:44', 'y': '43.6500'}]",
-        "MIS_COVERAGE_DIAGNOSTICS: initial_requested=1983, initial_returned=1983, recovery_requested=79, recovery_returned=79, missing_after_recovery=1805, no_valid_trade=1884, failed_requests=0, recovery_skipped=1732, twse_requested=1091, twse_valid_trade=107, twse_coverage_pct=9.81, tpex_requested=892, tpex_valid_trade=71, tpex_coverage_pct=7.96, recovery_valid_quotes=6",
+        "MIS_EXCHANGE_COVERAGE: TWSE=92/1091 (8.43%), TPEx=63/892 (7.06%)",
+        "MIS_INVALID_PRICE_SAMPLES: [{'symbol': '1101', 'market': 'TWSE', 'z': '-', 'pz': '-', 'tv': '-', 'o': '27.0000', 'h': '27.6000', 'l': '26.7000', 'v': '23148', 't': '11:29:59', 'y': '26.7500'}, {'symbol': '1102', 'market': 'TWSE', 'z': '-', 'pz': '-', 'tv': '-', 'o': '36.3000', 'h': '37.2500', 'l': '36.3000', 'v': '3781', 't': '11:30:34', 'y': '36.5500'}, {'symbol': '1103', 'market': 'TWSE', 'z': '-', 'pz': '-', 'tv': '-', 'o': '13.2000', 'h': '13.5500', 'l': '13.2000', 'v': '486', 't': '11:28:01', 'y': '13.3500'}, {'symbol': '1104', 'market': 'TWSE', 'z': '-', 'pz': '-', 'tv': '-', 'o': '26.1000', 'h': '26.6500', 'l': '26.1000', 'v': '299', 't': '11:31:00', 'y': '26.1500'}, {'symbol': '1108', 'market': 'TWSE', 'z': '-', 'pz': '-', 'tv': '-', 'o': '10.7500', 'h': '10.8000', 'l': '10.4000', 'v': '483', 't': '11:29:55', 'y': '10.7000'}, {'symbol': '1109', 'market': 'TWSE', 'z': '-', 'pz': '-', 'tv': '-', 'o': '13.0000', 'h': '13.0000', 'l': '12.7000', 'v': '156', 't': '11:28:01', 'y': '12.8500'}, {'symbol': '1110', 'market': 'TWSE', 'z': '-', 'pz': '-', 'tv': '-', 'o': '14.1500', 'h': '14.3500', 'l': '14.0500', 'v': '192', 't': '11:28:01', 'y': '14.2000'}, {'symbol': '1201', 'market': 'TWSE', 'z': '-', 'pz': '-', 'tv': '-', 'o': '12.4500', 'h': '12.6000', 'l': '12.2500', 'v': '1341', 't': '11:30:14', 'y': '12.5000'}]",
+        "MIS_COVERAGE_DIAGNOSTICS: initial_requested=1983, initial_returned=1983, recovery_requested=80, recovery_returned=80, missing_after_recovery=1828, no_valid_trade=1908, failed_requests=0, recovery_skipped=1751, twse_requested=1091, twse_valid_trade=92, twse_coverage_pct=8.43, tpex_requested=892, tpex_valid_trade=63, tpex_coverage_pct=7.06, recovery_valid_quotes=3",
         "MIS_LOW_COVERAGE: data incomplete; must not certify full-market scan",
         "FUGLE_SNAPSHOT TSE: returned=1060, valid=1049, universe=1091"
       ]
     },
     "swing_research": {
       "available": true,
-      "data_timestamp": "2026-11-09T11:28:12.940815+08:00",
+      "data_timestamp": "2026-11-09T11:33:52.348062+08:00",
       "operational_full_market_scan": false,
       "quote_coverage_pct": 0.0,
       "candidate_count": 0,
@@ -50,13 +50,13 @@
       "candidate_preview": [],
       "warnings": [
         "FUGLE_SNAPSHOT TSE: returned=1060, valid=1049, universe=1091",
-        "FUGLE_SNAPSHOT OTC: returned=895, valid=849, universe=892",
+        "FUGLE_SNAPSHOT OTC: returned=895, valid=851, universe=892",
         "BLOCKED_EXTERNAL_DATA: full-market fresh executed-trade coverage failed; withhold all broad-market ranked candidate signals."
       ]
     },
     "swing5d_research": {
       "available": true,
-      "data_timestamp": "2026-11-09T11:28:18.997143+08:00",
+      "data_timestamp": "2026-11-09T11:33:56.906241+08:00",
       "operational_full_market_scan": false,
       "quote_coverage_pct": 0.0,
       "candidate_count": 0,
@@ -67,8 +67,8 @@
       "market_data_gate": "BLOCKED_EXTERNAL_DATA_NO_TRADE",
       "candidate_preview": [],
       "warnings": [
-        "FUGLE_SNAPSHOT TSE: returned=1060, valid=1050, universe=1091",
-        "FUGLE_SNAPSHOT OTC: returned=895, valid=850, universe=892",
+        "FUGLE_SNAPSHOT TSE: returned=1060, valid=1049, universe=1091",
+        "FUGLE_SNAPSHOT OTC: returned=895, valid=851, universe=892",
         "BLOCKED_EXTERNAL_DATA: full-market fresh executed-trade coverage failed; withhold all broad-market ranked candidate signals."
       ]
     }
