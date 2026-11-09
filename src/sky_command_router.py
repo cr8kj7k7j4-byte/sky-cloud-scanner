@@ -165,6 +165,17 @@ _PATTERNS = [
         ),
     ),
     (
+        re.compile(r"^Sky\s*盤後複盤\s*[｜|]?\s*波段$", re.I),
+        CommandRoute(
+            "SKY_SWING_POSTMARKET_REVIEW",
+            "POSTMARKET_DAILY_AND_SIGNAL_LEDGER", False, True, False,
+            "swing-postmarket-research.yml + historical signal/outcome ledger",
+            "Run only after verified official D-close. Existing workflow is research "
+            "observations, NOT a verified trade-level review. Missing signal, fills, "
+            "costs and outcomes must stay UNKNOWN. Preserve freshness and P0-R gates."
+        ),
+    ),
+    (
         re.compile(r"^Sky\s*(?:回測目前模型|回測.*|驗證.*)$", re.I),
         CommandRoute(
             "SKY_RESEARCH_VALIDATION", "HISTORICAL_PIT", False, False, False,
