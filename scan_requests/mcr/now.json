@@ -1,8 +1,8 @@
 {
   "command": "mcr_intraday_information",
-  "requested_at_tpe": "2026-11-09T11:50:00+08:00",
-  "reason": "user_authorized_preclose_retest_with_independent_executed_quote_overlay",
-  "scope": "full_market_TWSE_TPEx_520_MCR_financing_plus_Fugle_bulk_plus_validated_MIS",
+  "requested_at_tpe": "2026-11-09T13:27:28+08:00",
+  "reason": "user_authorized_last_intraday_evidence_capture_before_13_30_close",
+  "scope": "full_market_TWSE_TPEx_MCR_Fugle_bulk_independent_executed_evidence",
   "trade_eligible": false,
   "no_order": true
 }
