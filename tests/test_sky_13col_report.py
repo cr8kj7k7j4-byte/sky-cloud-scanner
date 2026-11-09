@@ -42,10 +42,10 @@ class TestSky13Col(unittest.TestCase):
         report["ranked_observations"] = items[:5]
         md = render(report)
         self.assertEqual(md.count("| X | 不交易 |"), 45)
-        self.assertIn("| 1044 |", md)
+        self.assertIn("| 1044 | 股44 |", md)
         preview = render(report, limit=30)
         self.assertEqual(preview.count("| X | 不交易 |"), 30)
-        self.assertNotIn("| 1044 |", preview)
+        self.assertNotIn("| 1044 | 股44 |", preview)
 
     def test_nan_never_published(self):
         item = {"symbol": "1101", "last_price": float("nan"),
