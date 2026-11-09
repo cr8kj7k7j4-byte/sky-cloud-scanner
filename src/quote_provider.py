@@ -31,7 +31,7 @@ def collect_market_quotes(universe, *, now, fugle_fetch=None, mis_fetch=None,
 
     # Explicit user preference: never call free MIS quote endpoints in Fugle-only mode.
     # Failed paid-data validation stays blocked; do not substitute stale quotes.
-    if os.getenv("SKY_FUGLE_ONLY_MARKETDATA", "0") == "1":
+    if os.getenv("SKY_FUGLE_ONLY_MARKETDATA", "1") == "1":
         return {
             "rows": primary["accepted_rows"],
             "warnings": list(warnings) + ["FUGLE_ONLY_NO_FREE_MARKETDATA_FALLBACK"],
