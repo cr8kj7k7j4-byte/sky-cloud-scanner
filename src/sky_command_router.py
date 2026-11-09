@@ -146,7 +146,18 @@ _PATTERNS = [
         ),
     ),
     (
-        re.compile(r"^Sky\s*(?:持倉|持倉監控|警戒)$", re.I),
+        re.compile(r"^Sky\s*(?:警戒|即時警戒|全市場警戒)(?:\s*現在掃一次)?$", re.I),
+        CommandRoute(
+            "SKY_ALERT_WHOLE_MARKET_OBSERVATION",
+            "WHOLE_MARKET_REALTIME_OBSERVATION", True, True, False,
+            "scan.yml: output/sky_quickscan_information/full_universe.json",
+            "Read-only information-first full TWSE+TPEx universe report, including "
+            "unverified or missing quote labels; trade eligibility remains blocked "
+            "until independent production gates pass. No automatic orders."
+        ),
+    ),
+    (
+        re.compile(r"^Sky\s*(?:持倉|持倉監控)$", re.I),
         CommandRoute(
             "SKY_MONITOR", "WATCHLIST_OR_POSITION_REALTIME", True, False, False,
             "P0-A/PMS realtime refresh",
