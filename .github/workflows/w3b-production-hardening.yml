@@ -63,7 +63,8 @@ jobs:
             tests/test_mops_workflow_source_smoke.py \
             tests/test_sky_13col_report.py \
             tests/test_sky_13col_artifact_integrity.py \
-            tests/test_fugle_individual_execution_probe.py
+            tests/test_fugle_individual_execution_probe.py \
+            tests/test_fugle_paid_otc_candidate_routing.py
       - name: Production E2E
         run: pytest -q tests/test_production_e2e_acceptance.py
 
