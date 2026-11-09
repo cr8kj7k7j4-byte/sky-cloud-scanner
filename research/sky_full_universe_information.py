@@ -114,6 +114,28 @@ def project_required_fields(row):
     return fields
 
 
+# Stable display contract for every Sky stock report. Keep extended
+# required_fields separately for source timestamps, volume and provenance.
+from src.sky_command_router import SKY_PRESENTATION_COLUMNS
+
+SKY_CANONICAL_DISPLAY_SCHEMA = "SKY_MOBILE_TABLE_13_V1"
+
+
+def project_display_fields(row):
+    detail = row["required_fields"]
+    display = {key: "待確認" for key in SKY_PRESENTATION_COLUMNS}
+    for key in SKY_PRESENTATION_COLUMNS:
+        value = detail.get(key)
+        if value is not None and value != "":
+            display[key] = value
+    # An unknown price is NOT a quoted price and cannot be shown as 0.
+    display["即時價"] = detail["即時價"] if detail["即時價"] is not None else "待確認"
+    # Research-only observation never earns a fabricated score or entry.
+    display["加碼價格"] = "待確認"
+    display["停利價格"] = "待確認"
+    return display
+
+
 def build(universe, snapshots, checked_at, errors=None):
     by_exchange = {"TWSE": {}, "TPEx": {}}
     statuses = {"TWSE": "MISSING", "TPEx": "MISSING"}
@@ -134,6 +156,7 @@ def build(universe, snapshots, checked_at, errors=None):
         q, date = by_exchange[exchange].get(str(meta["symbol"]), (None, ""))
         row = record(meta, q, date, checked_at)
         row["required_fields"] = project_required_fields(row)
+        row["display_fields"] = project_display_fields(row)
         rows.append(row)
     eligible = [x for x in rows if x["last_price"] is not None and x["last_price"] <= 100]
     candidates = sorted(
@@ -165,6 +188,8 @@ def build(universe, snapshots, checked_at, errors=None):
         "ranked_observations": candidates[:100],
         "all_symbols": rows,
         "required_information_columns": list(REQUIRED_INFORMATION_COLUMNS),
+        "display_columns": list(SKY_PRESENTATION_COLUMNS),
+        "display_schema": SKY_CANONICAL_DISPLAY_SCHEMA,
         "missing_field_label": "待確認（未有可驗證資料）",
         "observation_mode": "RESEARCH_INFORMATION_ONLY",
         "trade_decision": "🔴 禁止新進場、未驗證通過",
@@ -191,14 +216,16 @@ def summary(report):
         x = report["by_exchange"][exchange]
         lines.append(f"| {label} | {x['universe']} | {x['snapshot_rows']} | "
                      f"{x['observed_price']} | {x['fresh_executed']} | {x['fresh_executed_pct']:.1f}% |")
-    lines += ["", "## 價格與漲幅觀察（未驗證者不得視為即時成交）",
-              "| 代碼 | 名稱 | 觀察價 | 漲跌幅 | 成交量 | 資料狀態 |",
-              "|---|---|---:|---:|---:|---|"]
+    lines += ["", "## 股票資訊（統一 13 欄，未驗證仍顯示待確認）",
+              "| " + " | ".join(SKY_PRESENTATION_COLUMNS) + " |",
+              "|" + "|".join("---" for _ in SKY_PRESENTATION_COLUMNS) + "|"]
     for row in report["ranked_observations"][:30]:
-        pct = f"{row['change_pct']:+.1f}%" if row["change_pct"] is not None else "—"
-        vol = f"{row['volume']:,.0f}" if row["volume"] is not None else "—"
-        lines.append(f"| {row['symbol']} | {row['name']} | {row['last_price']:.2f} | "
-                     f"{pct} | {vol} | {row['data_status']} |")
+        fields = row["display_fields"]
+        lines.append("| " + " | ".join(str(fields[key]).replace("|", "／")
+                                     for key in SKY_PRESENTATION_COLUMNS) + " |")
+    if not report["ranked_observations"]:
+        lines.append("| " + " | ".join("待確認" if key != "現在動作" else "禁止交易"
+                                       for key in SKY_PRESENTATION_COLUMNS) + " |")
     lines += ["", "其餘全部代號、資料時間與缺失原因詳見 full_universe.json。",
               "多空評分、預測機率、進出場價：未執行經驗證模型時保持空值。",
               "", f"**{report['trade_decision']}**",
