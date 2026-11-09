@@ -71,6 +71,15 @@ jobs:
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as out:
               out.write(text)
           PY
+      - name: Publish all available swing observations as thirteen-column review
+        if: always() && github.event_name != 'pull_request'
+        run: |
+          python -m src.swing_postmarket_review
+      - name: Validate report output contract
+        if: always() && github.event_name != 'pull_request'
+        run: |
+          python -m unittest tests.test_swing_postmarket_review
+
       - name: Preserve calendar and scan evidence
         if: always() && github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
