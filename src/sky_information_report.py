@@ -23,7 +23,7 @@ def _safe_number(value: Any) -> float | None:
  
 # All requested columns are present, even when the source cannot verify them.
 DISPLAY_FIELDS = (
-    "股票代碼", "股票名稱", "即時價", "資料時間", "資料來源",
+    "股票代碼", "股票名稱", "即時價", "最近已知成交快照（可能延遲）", "資料時間", "資料來源",
     "當日成交量", "融資維持率", "方向", "多方評分", "空方評分",
     "買進觸發", "買進區間", "最高接受價", "停損／失效",
     "目標一", "目標二", "加碼條件", "成本後RR",
@@ -39,20 +39,43 @@ def _first(row: dict[str, Any], *names: str) -> Any:
     return None
 
 
+def _fresh_trade_time(value: Any) -> bool:
+    try:
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            epoch = float(value)
+            if epoch > 1e14:
+                epoch /= 1_000_000
+            elif epoch > 1e11:
+                epoch /= 1_000
+            observed = datetime.fromtimestamp(epoch, tz=timezone.utc)
+        elif isinstance(value, str):
+            observed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        else:
+            return False
+        if observed.tzinfo is None:
+            return False
+        age = (datetime.now(timezone.utc) - observed.astimezone(timezone.utc)).total_seconds()
+        return -30 <= age <= 120
+    except (ValueError, OverflowError, OSError, TypeError):
+        return False
+
+
 def _display_row(row: dict[str, Any], *, full_live: bool) -> dict[str, Any]:
     # Executed last-trade evidence must not be confused with an old closing,
     # opening, bid/ask or reference price.
     status = _first(row, "data_status", "quote_status")
     verified = status in ("VERIFIED_EXECUTED_TRADE", "REALTIME_QUOTE_VERIFIED")
-    price = (_first(row, "last_trade_price", "lastPrice", "fugle_close")
-             if verified else None)
+    raw_trade = _first(row, "last_trade_price", "lastPrice", "fugle_close")
+    trade_time = _first(row, "last_trade_time", "lastTradeTime", "quote_time")
+    price = raw_trade if verified and _fresh_trade_time(trade_time) else None
     symbol = _first(row, "symbol", "stock_id", "code")
     result = {name: None for name in DISPLAY_FIELDS}
     result.update({
         "股票代碼": symbol,
         "股票名稱": _first(row, "name", "stock_name"),
         "即時價": price,
-        "資料時間": _first(row, "last_trade_time", "lastTradeTime", "quote_time"),
+        "最近已知成交快照（可能延遲）": raw_trade if verified else None,
+        "資料時間": trade_time,
         "資料來源": _first(row, "source", "quote_source"),
         "當日成交量": _first(row, "trade_volume", "total_volume", "volume") if verified else None,
         "融資維持率": _first(row, "margin_maintenance_ratio") if row.get("margin_ratio_verified") is True else None,
