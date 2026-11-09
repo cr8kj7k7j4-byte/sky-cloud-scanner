@@ -70,3 +70,16 @@ def test_stale_fugle_and_failed_mis_fail_closed():
     )
     assert result["audit"]["valid_quote_count"] == 0
     assert not result["audit"]["valid_whole_market_operational"]
+
+
+def test_partial_fugle_preferred_for_research_without_trade_certification():
+    result = collect_market_quotes(
+        UNIVERSE, now=NOW,
+        fugle_fetch=lambda _, trading_date: ([fugle_row("1001")], []),
+        mis_fetch=lambda _: ([], []),
+    )
+    assert result["provider"] == "Fugle bulk snapshot (partial research)"
+    assert result["audit"]["valid_quote_count"] == 1
+    assert result["audit"]["valid_whole_market_operational"] is False
+    assert result["official_tpex_realtime_certified"] is False
+    assert not result["fallback_used"]
