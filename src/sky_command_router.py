@@ -94,7 +94,9 @@ _PATTERNS = [
         CommandRoute(
             "SKY_DAYTRADE_SCAN", "WHOLE_MARKET_REALTIME", True, True, False,
             "src.main",
-            "Canonical intraday whole-market scanner."
+            "Canonical scanner via scan.yml; output/sky_daytrade_chat/latest.json and latest.md "
+            "are 13-column informational observations, NOT a ChatGPT-triggerable live API. "
+            "Verify independent executed-price coverage and model inference before trade levels."
         ),
     ),
     (
