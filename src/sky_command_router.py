@@ -46,6 +46,19 @@ _PATTERNS = [
         ),
     ),
     (
+        re.compile(r"^Sky\\s*(?:六模型狀態盤點|六模型盤點)$", re.I),
+        CommandRoute(
+            "SKY_SIX_MODEL_STATUS_AUDIT", "GOVERNED_MODEL_INVENTORY",
+            False, False, False,
+            "Sky model registry + W2 evidence ledger + latest available Actions receipts",
+            "Report the six user-facing model slots separately from independently trained "
+            "inference implementations. Include model ID, version, entrypoint, weights "
+            "provenance, latest run time, research signal, data coverage and blockers "
+            "when verified; missing fields must be UNKNOWN. Do not trigger orders, "
+            "fabricate six trained models, or promote research to Production."
+        ),
+    ),
+    (
         re.compile(r"^Sky\s*(?:全市場完整掃描|六模型全市場即時掃描|查詢六模型研究訊號)$", re.I),
         CommandRoute(
             "SKY_SIX_MODEL_RESEARCH_VISIBILITY",
