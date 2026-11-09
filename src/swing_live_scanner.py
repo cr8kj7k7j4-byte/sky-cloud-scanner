@@ -13,6 +13,7 @@ from .official import fetch_fugle_snapshot_quotes, fetch_mis_quotes, load_offici
 from .ranking_engine import rank_screening_candidates
 from .sky_mobile_table import render_mobile_table
 from .realtime_quote_evidence import fugle_executed_trade, validate_whole_market_rows
+from .swing5d_information_table import COLUMNS, build_swing5d_13col_rows, render_swing5d_13col_table
 
 TZ = ZoneInfo("Asia/Taipei")
 OUT = Path("output/swing_live")
@@ -366,8 +367,16 @@ def run(mode="swing5d", top_n=20, deep_n=8):
 
     suffix = "swing5d" if mode == "swing5d" else "swing"
     if mode == "swing5d":
+        information_rows_13col = build_swing5d_13col_rows(
+            all_snapshot_observations, snapshot_deep_confirmation
+        )
+        payload["information_columns_13col"] = list(COLUMNS)
+        payload["information_preview_13col"] = information_rows_13col[:20]
+        payload["information_count_13col"] = len(information_rows_13col)
         full_observations = {
             "generated_at": now.isoformat(),
+            "information_columns_13col": list(COLUMNS),
+            "information_rows_13col": information_rows_13col,
             "source": "Fugle bulk snapshot",
             "observation_scope": "BULK_SNAPSHOT_INDICATIVE_ONLY",
             "snapshot_coverage_pct": snapshot_coverage_pct,
@@ -395,6 +404,10 @@ def run(mode="swing5d", top_n=20, deep_n=8):
         "批量參考價不是認證即時成交價；不產生買進觸發、停損或停利。",
         "",
         render_mobile_table(deep),
+        "",
+        "【13欄｜富果已取得資訊觀察，不代表5D交易訊號】",
+        render_swing5d_13col_table(payload.get("information_preview_13col", [])) if mode == "swing5d" else "",
+        "即時價只顯示逐股成交時間複核通過者；批量參考價與資料時間保留於JSON，不冒充即時成交。",
         "",
         "【治理】",
         coverage_notice,
