@@ -98,7 +98,7 @@ _PATTERNS = [
         CommandRoute(
             "SKY_SWING_V11_LIVE_ALIAS", "WHOLE_MARKET_REALTIME_PLUS_CANONICAL_DAILY", True, True, False,
             "src.swing_v11_live_scanner",
-            "Canonical alias to Swing V1.1 live scanner with intraday BUY/WAIT/REJECT execution overlay."
+            "Use Swing V1.1 live scanner; always publish timestamped split-scope research observations even when the frozen signal freshness fails. Research observations never imply Production eligibility, whole-market live coverage, or automatic orders."
         ),
     ),
     (
