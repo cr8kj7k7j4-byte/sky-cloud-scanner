@@ -14,6 +14,31 @@ FIELDS = (('sp500', '標普500'), ('nasdaq', '那斯達克'),
           ('ntdusd', '新台幣匯率'), ('wti', 'WTI原油'))
 
 
+
+STOCK_COLUMNS = (
+    '股票代碼', '股票名稱', '即時價', '分類', '方向', '多方評分',
+    '空方評分', '買進觸發', '最高接受價', '停損／失效',
+    '現在動作', '加碼價格', '停利價格',
+)
+
+
+def render_stock_table():
+    """Maintain requested 13 columns without fabricating unscanned candidates."""
+    header = '| ' + ' | '.join(STOCK_COLUMNS) + ' |'
+    separator = '| ' + ' | '.join([':---:'] * len(STOCK_COLUMNS)) + ' |'
+    row = ('—', '個股掃描未執行', '待確認', 'X', '不交易', '—', '—',
+           '待確認', '待確認', '待確認', '等待', '待確認', '待確認')
+    return '\n'.join((header, separator, '| ' + ' | '.join(row) + ' |'))
+
+
+def stock_table_section():
+    return ('股票觀察表｜固定13欄；此指令僅掃描全球市場背景，'
+            '沒有執行台股全市場個股評分。\n'
+            + render_stock_table()
+            + '\n🔴 禁止新進場／尚未完成個股資料驗證。'
+            '已取得的全球市場資訊照常顯示；不自動下單。')
+
+
 def previous_weekday(day):
     """Calendar weekday only, not an official market-session confirmation."""
     previous = day - timedelta(days=1)
@@ -44,10 +69,10 @@ def render(calendar, context, now):
              f"交易日曆：{calendar.get('status', 'UNKNOWN')}｜來源狀態：{calendar.get('source_status', 'UNKNOWN')}"]
     if calendar.get('source_status') != 'PASS':
         lines.append('交易日曆來源異常，無法確認開市；停止行情判讀。')
-        return '\n'.join(lines) + '\n'
+        return '\n'.join(lines + ['', stock_table_section()]) + '\n'
     if not calendar.get('market_open'):
         lines.append('台股休市，無盤前交易判讀。')
-        return '\n'.join(lines) + '\n'
+        return '\n'.join(lines + ['', stock_table_section()]) + '\n'
     for key, label in FIELDS:
         item = context.get(key) or {}
         value, date, source = item.get('value'), item.get('as_of'), item.get('source')
@@ -74,7 +99,7 @@ def render(calendar, context, now):
     lines.extend([
                   '判讀：資料不足時，市場方向與新進場條件均待確認；09:05 仍須由正式當沖流程獨立判斷。',
                   '不得將資料缺漏視為利多或低風險；不自動下單。'])
-    return '\n'.join(lines) + '\n'
+    return '\n'.join(lines + ['', stock_table_section()]) + '\n'
 
 
 def main():
