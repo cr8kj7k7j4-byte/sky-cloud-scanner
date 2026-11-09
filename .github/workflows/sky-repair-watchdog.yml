@@ -1,0 +1,48 @@
+name: Sky Repair Watchdog and Preopen Readiness
+on:
+  workflow_dispatch:
+  schedule:
+    # UTC -> Asia/Taipei +08. 15-min status checks, not repeated market-data scans.
+    - cron: "*/15 * * * *"
+permissions:
+  contents: read
+concurrency:
+  group: sky-repair-watchdog
+  cancel-in-progress: true
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Audit 13 columns and latest report; fail on missing evidence
+        run: python -m research.sky_recovery_watchdog
+      - name: Upload inspection receipt even when blocked
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-repair-watchdog-${{ github.run_id }}
+          path: output/sky_recovery_watchdog/latest.json
+          retention-days: 14
+          if-no-files-found: warn
+      - name: Send failure notification if Telegram configured
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        shell: bash
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "Telegram not configured; see failed GitHub Actions run."
+            exit 0
+          fi
+          python - <<'PY'
+          import os, urllib.parse, urllib.request
+          text = "Sky Watchdog blocked: " + os.getenv("GITHUB_SERVER_URL", "https://github.com") + "/" + os.environ["GITHUB_REPOSITORY"] + "/actions/runs/" + os.environ["GITHUB_RUN_ID"]
+          payload = urllib.parse.urlencode({"chat_id": os.environ["TELEGRAM_CHAT_ID"], "text": text}).encode()
+          url = "https://api.telegram.org/bot" + os.environ["TELEGRAM_BOT_TOKEN"] + "/sendMessage"
+          urllib.request.urlopen(urllib.request.Request(url, payload), timeout=12).read()
+          PY
