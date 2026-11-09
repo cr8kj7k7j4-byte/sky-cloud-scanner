@@ -110,6 +110,9 @@ def market_mode() -> dict:
                 "observed_sample_count": report.get("observed_sample_count"),
                 "market_data_gate": report.get("market_data_gate"),
                 "warnings": (report.get("warnings") or [])[:5],
+                "unverified_snapshot_observation_count": report.get("unverified_snapshot_observation_count"),
+                "unverified_snapshot_preview": (report.get("unverified_snapshot_observations") or [])[:8],
+                "snapshot_observation_warning": report.get("snapshot_observation_warning"),
                 "candidate_preview": [
                     {"symbol": row.get("symbol"),
                      "name": row.get("name"),
