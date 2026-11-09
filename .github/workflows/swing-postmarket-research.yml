@@ -71,6 +71,14 @@ jobs:
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as out:
               out.write(text)
           PY
+      - name: Publish evidence-first thirteen-column observation report
+        if: always() && github.event_name != 'pull_request'
+        run: python -m src.swing_postmarket_review
+      - name: Verify thirteen-column reporting contract
+        if: always()
+        run: |
+          python -m unittest discover -s tests -p 'test_swing_postmarket_review.py'
+          python -m unittest discover -s tests -p 'test_swing_postmarket_command_route.py'
       - name: Preserve calendar and scan evidence
         if: always() && github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
