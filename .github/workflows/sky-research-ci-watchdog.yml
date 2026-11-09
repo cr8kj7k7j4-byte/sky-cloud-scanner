@@ -39,7 +39,7 @@ jobs:
     timeout-minutes: 5
     env:
       GH_TOKEN: ${{ github.token }}
-      SKY_RECOVERY_END_UTC: "2026-11-09T22:31:00Z"
+      SKY_RECOVERY_END_UTC: "2026-11-10T04:00:00Z"
       # Only test-only PR CI may be retried. No Fugle, scanner, GCS, Cloud Run,
       # research ledger, Production, workflow dispatch or trading retries.
       SKY_RECOVERY_RETRY_ENABLED: "true"
@@ -51,12 +51,20 @@ jobs:
       - name: Bounded fail-closed research-CI check
         id: watchdog_check
         run: python ops/recovery/sky_research_watchdog.py
+      - name: Audit intraday readiness and latest artifact (read-only)
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python ops/recovery/sky_intraday_readiness.py
       - name: Upload independent audit report (even on failure)
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: sky-watchdog-${{ github.run_id }}-${{ github.run_attempt }}
-          path: recovery-reports/latest.json
+          path: |
+            recovery-reports/latest.json
+            recovery-reports/intraday_readiness.json
           if-no-files-found: warn
           retention-days: 7
       - name: Record first real schedule execution in W0 issue (once only)
