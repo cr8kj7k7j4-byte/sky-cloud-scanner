@@ -39,6 +39,17 @@ class TestDaytradeArtifactIntegrity(unittest.TestCase):
                 "universe_count": len(rows), "row_count": len(rows),
                 "rows": rows, "production_eligible": False}
 
+    def test_scan_workflow_publishes_verified_report_before_trading_gate(self):
+        from pathlib import Path
+        workflow = Path(".github/workflows/scan.yml").read_text(encoding="utf-8")
+        report_step = workflow.index("Build and verify full 13-column Fugle research artifact")
+        verified_gate = workflow.index("Verify operational market coverage")
+        artifact_step = workflow.index("- name: Upload scan report")
+        self.assertLess(report_step, verified_gate)
+        self.assertLess(verified_gate, artifact_step)
+        self.assertIn("python -m research.verify_13col_artifact", workflow)
+        self.assertIn("--json-output output/sky_quickscan_information/latest_13col.json", workflow)
+
     def test_all_rows_provenance_and_no_trade(self):
         src = self.source()
         result = validate(src, self.out(src), render(src))
