@@ -1,7 +1,6 @@
 {
   "command": "all_market",
-  "requested_at": "2026-11-09T11:30:36+08:00",
-  "reason": "post_merge_405_user_requested_realtime_swing_observability_acceptance",
-  "scope": "TWSE_TPEx_realtime_swing_and_swing5d_observed_data_no_trade_promotion",
-  "merge_sha": "48cfd898bee55137498f6e64f88c04ef2487cae1"
+  "requested_at": "2026-11-09T11:34:49+08:00",
+  "reason": "post_merge_410_verify_full_market_bulk_observation_layer",
+  "scope": "TWSE_TPEx_all_market_intraday_swing_swing5d_research_only_no_orders"
 }
