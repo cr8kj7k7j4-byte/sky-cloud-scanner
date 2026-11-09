@@ -38,11 +38,14 @@ def record(meta, payload, source_date, checked_at):
         "source": "Fugle paid bulk snapshot" if payload is not None else "NO_SNAPSHOT_ROW",
         "data_status": "MISSING_QUOTE", "last_price": None,
         "change_pct": None, "volume": None, "last_trade_time": None,
-        "time_age_seconds": None, "research_only": True,
+        "time_age_seconds": None, "snapshot_observed_at": None,
+        "research_only": True,
         "production_eligible": False, "trade_signal": False,
     }
     if not isinstance(payload, dict):
         return result
+    # Collection time is informational only, not an executed-trade timestamp.
+    result["snapshot_observed_at"] = checked_at.isoformat()
     trade = payload.get("lastTrade")
     trade = trade if isinstance(trade, dict) else {}
     price = numeric(trade.get("price"))
@@ -62,7 +65,7 @@ def record(meta, payload, source_date, checked_at):
     result["change_pct"] = round(change, 3) if change is not None else None
 
     # Never use snapshot refresh time as executed-trade time.
-    ts = timestamp_tpe(trade.get("time") or payload.get("closeTime"))
+    ts = timestamp_tpe(trade.get("time"))
     if ts is not None:
         result["last_trade_time"] = ts.isoformat()
         result["time_age_seconds"] = round((checked_at - ts).total_seconds(), 1)
@@ -104,7 +107,7 @@ def project_required_fields(row):
         "股票名稱": row.get("name"),
         "即時價": row.get("last_price") if is_fresh else None,
         "最近觀察價（可能延遲）": row.get("last_price"),
-        "資料時間": row.get("last_trade_time"),
+        "資料時間": row.get("last_trade_time") or row.get("snapshot_observed_at"),
         "資料來源": row.get("source"),
         "當日成交量": row.get("volume"),
         "方向": "待確認",
@@ -150,6 +153,9 @@ def build(universe, snapshots, checked_at, errors=None):
             "snapshot_rows": sum(x["source"] != "NO_SNAPSHOT_ROW" for x in subset),
             "fresh_executed": sum(x["data_status"] == "FRESH_EXECUTED_TRADE" for x in subset),
             "observed_price": sum(x["last_price"] is not None for x in subset),
+            "snapshot_reference_without_trade_time": sum(
+                x["last_price"] is not None and x["last_trade_time"] is None
+                for x in subset),
         }
         by_market[exchange]["fresh_executed_pct"] = round(
             100 * by_market[exchange]["fresh_executed"] / len(subset), 1) if subset else 0.0
@@ -160,6 +166,10 @@ def build(universe, snapshots, checked_at, errors=None):
         "universe_count": len(rows), "snapshot_status": statuses,
         "snapshot_errors": errors or {}, "by_exchange": by_market,
         "observed_price_count": sum(x["last_price"] is not None for x in rows),
+        "snapshot_reference_requires_last_trade_time": False,
+        "snapshot_reference_without_trade_time_count": sum(
+            x["last_price"] is not None and x["last_trade_time"] is None
+            for x in rows),
         "fresh_executed_count": verified,
         "fresh_executed_pct": round(100 * verified / len(rows), 1) if rows else 0.0,
         "priced_under_100_count": len(eligible),
@@ -215,6 +225,7 @@ def summary(report):
         "# Sky 警戒｜全市場資訊觀察（非正式交易訊號）", "",
         f"查詢時間：{report['checked_at_tpe']}",
         f"官方母池：{report['universe_count']} 檔；有價格觀察：{report['observed_price_count']} 檔",
+        f"其中無逐筆成交時間仍保留觀察價：{report['snapshot_reference_without_trade_time_count']} 檔",
         f"逐檔新鮮成交驗證：{report['fresh_executed_count']} 檔（{report['fresh_executed_pct']:.1f}%）",
         f"價格 ≤100 元的觀察名單：{report['priced_under_100_count']} 檔", "",
         "| 市場 | 母池 | 快照代號 | 有價格 | 新鮮成交 | 覆蓋率 |",

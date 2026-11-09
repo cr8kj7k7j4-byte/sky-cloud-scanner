@@ -84,3 +84,23 @@ def test_stale_observation_not_promoted_to_live_trade():
     assert row["即時價"] is None
     assert row["目標一"] is None
     assert row["最高接受價"] is None
+
+
+def test_snapshot_without_lasttrade_time_keeps_reference_and_collection_clock():
+    payload = {"TSE": {"date": NOW.date().isoformat(), "data": [
+        {"symbol": "1001", "lastPrice": 33.5, "tradeVolume": 250,
+         "lastUpdated": NOW.isoformat(), "closeTime": NOW.isoformat()}
+    ]}}
+    report = build(U, payload, NOW)
+    row = report["all_symbols"][0]
+    assert row["last_price"] == 33.5
+    assert row["data_status"] == "UNVERIFIED_EXECUTION_TIME"
+    assert row["last_trade_time"] is None
+    assert row["snapshot_observed_at"] == NOW.isoformat()
+    assert row["required_fields"]["資料時間"] == NOW.isoformat()
+    assert row["required_fields"]["最近觀察價（可能延遲）"] == 33.5
+    assert row["required_fields"]["即時價"] is None
+    assert report["snapshot_reference_requires_last_trade_time"] is False
+    assert report["snapshot_reference_without_trade_time_count"] == 1
+    assert report["fresh_executed_count"] == 0
+    assert report["no_order_or_production_promotion"] is True

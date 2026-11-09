@@ -207,10 +207,11 @@ def fetch_mis_quotes(universe, batch_size=55, sleep_s=.18):
 
 
 def fetch_fugle_snapshot_quotes(universe, trading_date=None):
-    """Bulk live quotes (TSE/OTC), with strict date and executed-trade checks.
+    """Bulk snapshot observations (TSE/OTC); lastTrade.time is optional.
 
-    This is an optional permission-dependent source. Never substitute reference,
-    bid, ask, or prior-close values for an absent last-traded price.
+    Keep dated reference prices without per-symbol execution timestamps.
+    Execution freshness and trading eligibility are validated separately.
+    Never substitute bid, ask, or prior-close for an absent last-traded price.
     """
     from datetime import datetime
     from zoneinfo import ZoneInfo
@@ -242,7 +243,7 @@ def fetch_fugle_snapshot_quotes(universe, trading_date=None):
                 volume=_i(q.get("tradeVolume"))
                 trade=q.get("lastTrade") if isinstance(q.get("lastTrade"),dict) else {}
                 # Retain explicit lastTrade.price as an observation only when
-                # lastPrice is missing; freshness still requires trade.time.
+                # lastPrice is missing; trade.time is NOT required for observations.
                 last=_f(q.get("lastPrice"))
                 if last is None or last <= 0:
                     last=_f(trade.get("price"))
