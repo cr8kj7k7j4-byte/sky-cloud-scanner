@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timezone, timedelta
 import subprocess
 import sys
 
@@ -83,7 +84,7 @@ def test_verified_single_quote_is_visible_without_full_market_buy():
             "symbol": "1101", "name": "台泥",
             "data_status": "VERIFIED_EXECUTED_TRADE",
             "fugle_close": 34.0, "trade_volume": 1000,
-            "last_trade_time": "2026-11-09T11:20:00+08:00",
+            "last_trade_time": datetime.now(timezone.utc).isoformat(),
             "source": "Fugle",
         }],
     })
@@ -122,3 +123,18 @@ def test_unified_report_keeps_strategy_and_all_columns():
     assert row["股票代碼"] == "1101"
     assert row["現在動作"] == "禁止交易"
     assert row["買進觸發"] is None
+
+
+def test_stale_trade_still_visible_but_not_as_realtime():
+    from src.sky_information_report import project_information_first
+    report = project_information_first({
+        "deep_candidates": [{
+            "symbol": "1101", "data_status": "VERIFIED_EXECUTED_TRADE",
+            "last_trade_price": 27.05,
+            "last_trade_time": (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat(),
+        }]
+    })
+    row = report["display_rows"][0]
+    assert row["即時價"] is None
+    assert row["最近已知成交快照（可能延遲）"] == 27.05
+    assert row["現在動作"] == "禁止交易"
