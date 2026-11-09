@@ -1,7 +1,7 @@
 # Sky External Latest Status
 
-- Generated (UTC): 2026-11-06T09:36:47.205843+00:00
-- Dashboard workflow run: 42195060506
+- Generated (UTC): 2026-11-09T09:41:58.215714+00:00
+- Dashboard workflow run: 42594935391
 - W4 status: **WAITING_FOR_FUTURE_SAMPLE**
 - Eligible scan runs: 8
 - Eligible records: 88
