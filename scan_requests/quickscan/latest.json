@@ -1,15 +1,15 @@
 {
-  "command": "Sky 快掃",
-  "requested_at_tpe": "2026-11-09T11:51:20+08:00",
+  "command": "Sky 警戒",
+  "requested_at_tpe": "2026-11-09T12:00:20+08:00",
   "market": "TWSE+TPEx",
   "max_price_twd": 100,
   "source": "Fugle paid bulk + TWSE MIS; executed-trade timestamps required",
   "execution": "read_only_no_orders",
   "approval": "User explicitly authorized immediate pre-close scan and repair",
-  "purpose": "Verify live full-universe quote evidence as prerequisite for Sky Swing scan; this is not itself a validated swing model run",
+  "purpose": "Post-merge verification of 13-column Sky alert information-first output; no orders",
   "research_info_visible_when_trade_blocked": true,
-  "requested_at_utc": "2026-11-09T03:51:20Z",
+  "requested_at_utc": "2026-11-09T04:00:20.662Z",
   "information_first": true,
   "user_trade_discretion": true,
-  "scan_trigger_reason": "preclose_swing_data_dependency_verification"
+  "scan_trigger_reason": "sky_alert_13_column_merge_acceptance"
 }
