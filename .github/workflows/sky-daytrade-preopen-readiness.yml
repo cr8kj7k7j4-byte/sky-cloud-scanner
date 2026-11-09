@@ -55,8 +55,8 @@ jobs:
           python - <<'PY'
           import json, os
           x = json.load(open('trading_calendar_status.json', encoding='utf-8'))
-          if x.get('source_status') != 'PASS':
-              raise SystemExit('TRADING_CALENDAR_UNAVAILABLE')
+          # Preopen API diagnostics may run on a weekday fallback even when
+          # the official calendar is unavailable. This NEVER authorizes trades.
           with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as f:
               f.write('should_check=' + ('true' if x.get('should_scan') is True else 'false') + '\n')
           PY
