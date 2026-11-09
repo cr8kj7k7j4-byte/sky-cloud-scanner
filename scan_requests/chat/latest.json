@@ -1,6 +1,6 @@
 {
   "command": "Sky 當沖現在掃一次",
-  "request_id": "chat-20261109-real-001",
+  "request_id": "chat-20261109-coverage-002",
   "read_only_no_orders": true,
-  "reason": "ChatGPT direct end-to-end on-demand paid Fugle snapshot validation; postmarket research only"
+  "reason": "Verify new per-exchange paid Fugle coverage status and 13-col after merge PR468"
 }
