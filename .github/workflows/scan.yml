@@ -141,6 +141,26 @@ jobs:
         run: |
           python -m research.sky_full_universe_information
           cat output/sky_quickscan_information/latest.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Verify bounded paid Fugle individual last-trades (research-only)
+        if: always() && steps.calendar.outputs.should_scan == 'true'
+        continue-on-error: true
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+          SKY_FUGLE_ONLY_MARKETDATA: "1"
+        run: |
+          set -euo pipefail
+          python -m research.sky_fugle_individual_execution_probe --limit 8
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("output/sky_quickscan_information/fugle_execution_samples.json")
+          x = json.loads(p.read_text(encoding="utf-8"))
+          print("Fugle individual last-trade sample:", x["requested_count"],
+                "fresh:", x["verified_fresh_executed_count"],
+                "production_eligible:", x["production_eligible"])
+          assert x["full_market_executed_certified"] is False
+          assert x["production_eligible"] is False
+          PY
       - name: Join MCR research observations to available all-market information
         if: always()
         continue-on-error: true
