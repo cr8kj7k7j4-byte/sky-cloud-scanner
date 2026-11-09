@@ -235,9 +235,5 @@ jobs:
             output/trading_calendar_status.json
           if-no-files-found: warn
           retention-days: 90
-      - name: Notify Telegram when intraday scan fails
-        if: failure()
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: PYTHONPATH=. python research/intraday_scan_failure_alert.py
+      # P0 daytrade-only mode: optional Telegram failure notifications paused by user request.
+      # Market coverage / P0-R decision gates and artifact evidence remain enforced.
