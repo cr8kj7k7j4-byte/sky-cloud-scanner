@@ -18,8 +18,8 @@
   "bias_diagnostics": {
     "post_financing_balance_under_500_units": 52,
     "reduction_at_least_20_pct": 15,
-    "volume_evidence_missing": 0,
-    "volume_under_100000_shares": 13
+    "volume_evidence_missing": 227,
+    "volume_under_100000_shares": 0
   },
   "episodes": [
     {
