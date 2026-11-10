@@ -5,6 +5,9 @@ on:
       - 'src/sky_chat_bridge.py'
       - 'src/sky_mcp_contract.py'
       - 'tests/test_sky_chat_bridge.py'
+      - 'research/sky_snapshot_candidates.py'
+      - 'research/sky_full_universe_information.py'
+      - 'tests/test_sky_snapshot_candidates.py'
       - 'tests/test_sky_mcp_contract.py'
       - '.github/workflows/sky-chat-bridge*.yml'
   workflow_dispatch:
@@ -20,6 +23,6 @@ jobs:
         with:
           python-version: '3.12'
       - name: Syntax-check bridge files
-        run: python -m py_compile src/sky_chat_bridge.py src/sky_mcp_contract.py
+        run: python -m py_compile src/sky_chat_bridge.py src/sky_mcp_contract.py research/sky_snapshot_candidates.py
       - name: Run isolated contracts without paid credentials
-        run: python -m unittest tests.test_sky_chat_bridge tests.test_sky_mcp_contract -v
+        run: python -m unittest tests.test_sky_chat_bridge tests.test_sky_mcp_contract tests.test_sky_snapshot_candidates -v
