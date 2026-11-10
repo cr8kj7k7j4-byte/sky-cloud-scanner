@@ -1,0 +1,6 @@
+{
+  "command": "Sky Swing 5D 快掃",
+  "requested_at_taipei": "2026-11-10T09:19:55+08:00",
+  "purpose": "read-only real scan + Artifact/status acceptance after PR477",
+  "no_orders": true
+}
