@@ -1,9 +1,10 @@
 name: Sky 5-Minute Recovery Watchdog (Read Only)
 on:
-  schedule:
-    # UTC all day; Asia/Taipei = UTC+8, including 08:45/08:50/08:55 premarket.
-    # Runs can be delayed or dropped by GitHub. Existing scan.yml owns live scans.
-    - cron: "*/5 * * * *"
+  # PAUSED on 2026-11-10 by user request: formerly scheduled trigger.
+  # schedule:
+  # # UTC all day; Asia/Taipei = UTC+8, including 08:45/08:50/08:55 premarket.
+  # # Runs can be delayed or dropped by GitHub. Existing scan.yml owns live scans.
+  # - cron: "*/5 * * * *"
   workflow_dispatch:
   push:
     branches: [main]
