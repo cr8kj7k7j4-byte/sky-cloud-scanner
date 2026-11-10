@@ -1,6 +1,6 @@
 {
   "command": "Sky 當沖現在掃一次",
-  "request_id": "chat-20261110-stage5-vwap-cost-real-audit",
+  "request_id": "chat-20261110-stage5-breakout-antichase-e2e",
   "read_only_no_orders": true,
-  "reason": "User authorized research Stage5 real E2E source consistency and cost provenance. Existing 12 candidate quotes and 2 ticker/5m, no change Production."
+  "reason": "User authorized Stage5 no-trade end-to-end checkout after merged PR495; bounded 12 quotes/2 5m source checks, no orders or Production promotion"
 }
