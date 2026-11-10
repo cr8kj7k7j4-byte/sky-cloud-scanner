@@ -155,7 +155,8 @@ def main() -> int:
                 and run_info.get("name") == "Sky Chat Bridge Unit Checks"
                 and run_info.get("event") == "pull_request"
                 and run_info.get("conclusion") == "failure"
-                and int(run_info.get("run_attempt") or 1) == 1
+                and type(run_info.get("run_attempt")) is int
+                and run_info["run_attempt"] == 1
                 and len(linked_prs) == 1
                 and linked_prs[0].get("number") == TARGET_PR
                 and bool(run_info.get("head_sha"))
