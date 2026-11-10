@@ -1,6 +1,12 @@
 """Offline contracts for governed, non-scheduled Sky research self-repair."""
 import base64
+import json
+import os
+import tempfile
 import unittest
+from pathlib import Path
+from unittest.mock import patch
+import scripts.sky_governed_auto_repair as governed
 from scripts.sky_governed_auto_repair import safe_patch, review, run, OLD, NEW, ARTIFACT_WARN, ARTIFACT_ERROR, TARGET_BRANCH
 
 
@@ -82,6 +88,55 @@ class SafePatchContracts(unittest.TestCase):
         report = run(api, allow_write=True, event_name="workflow_dispatch")
         self.assertEqual(report["state"], "HOLD")
         self.assertFalse(any(method != "GET" for _, method, _ in api.calls))
+
+    def test_stale_ci_sha_never_writes(self):
+        api = FakeGithub("on:\\n  workflow_dispatch:\\n" + OLD)
+        report = run(api, allow_write=True, event_name="workflow_run",
+                     expected_sha="different-latest-sha")
+        self.assertEqual(report["state"], "HOLD")
+        self.assertIn("TRIGGER_SHA_NOT_CURRENT_PR_HEAD", report["blockers"])
+        self.assertFalse(any(method != "GET" for _, method, _ in api.calls))
+
+    def test_unrelated_or_replayed_ci_event_is_diagnose_only(self):
+        base = {
+            "action": "completed",
+            "workflow_run": {
+                "name": "Sky Chat Bridge Unit Checks",
+                "event": "pull_request",
+                "conclusion": "failure",
+                "run_attempt": 1,
+                "head_sha": "abcd1234" * 5,
+                "pull_requests": [{"number": 511}],
+            },
+        }
+        bad_cases = [
+            {"pull_requests": [{"number": 512}]},
+            {"pull_requests": []},
+            {"event": "push"},
+            {"run_attempt": 2},
+            {"head_sha": ""},
+        ]
+        for diff in bad_cases:
+            with self.subTest(diff=diff):
+                payload = json.loads(json.dumps(base))
+                payload["workflow_run"].update(diff)
+                with tempfile.TemporaryDirectory() as folder:
+                    event_file = Path(folder, "event.json")
+                    event_file.write_text(json.dumps(payload))
+                    api = FakeGithub("on:\\n  workflow_dispatch:\\n" + OLD)
+                    with patch.dict(os.environ, {
+                        "GITHUB_EVENT_NAME": "workflow_run",
+                        "GITHUB_EVENT_PATH": str(event_file),
+                        "GITHUB_REPOSITORY": "test/repo",
+                        "GH_TOKEN": "offline-fixture",
+                        "SKY_APPROVED_SAFE_PATCH": "true",
+                    }), patch.object(governed, "OUTPUT", Path(folder, "latest.json")), \\
+                         patch.object(governed, "Github", return_value=api):
+                        code = governed.main()
+                    self.assertEqual(code, 0)
+                    result = json.loads(Path(folder, "latest.json").read_text())
+                    self.assertEqual(result["state"], "NOT_APPLICABLE")
+                    self.assertFalse(api.calls)
 
 
 if __name__ == "__main__":
