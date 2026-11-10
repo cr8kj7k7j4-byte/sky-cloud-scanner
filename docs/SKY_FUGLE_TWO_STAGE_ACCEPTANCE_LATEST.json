@@ -1,0 +1,40 @@
+{
+  "schema": "SKY_FUGLE_TWO_STAGE_ACCEPTANCE_RECEIPT_V1",
+  "run_id": "42736353791",
+  "run_url": "https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/42736353791",
+  "head_sha": "90e967c52128468ce8210a256f2c1405849af96a",
+  "recorded_at_utc": "2026-11-10T01:31:42.414478+00:00",
+  "research_only": true,
+  "production_eligible": false,
+  "trade_action": "禁止交易",
+  "status": "RECORDED",
+  "snapshot": {
+    "TSE": {
+      "endpoint": "/snapshot/quotes/TSE",
+      "request_status": "OK",
+      "provider_date": "2026-11-10",
+      "returned_rows": 1060,
+      "same_date": true,
+      "has_per_symbol_execution_time": 0
+    },
+    "OTC": {
+      "endpoint": "/snapshot/quotes/OTC",
+      "request_status": "OK",
+      "provider_date": "2026-11-10",
+      "returned_rows": 895,
+      "same_date": true,
+      "has_per_symbol_execution_time": 0
+    }
+  },
+  "individual": {
+    "requested_limit": 8,
+    "requests_made": 8,
+    "fresh_executed": 8,
+    "status_counts": {
+      "FRESH_EXECUTED_TRADE": 8
+    },
+    "any_429": false
+  },
+  "quota_verdict": "NO_429_IN_BOUNDED_SAMPLE_LIMIT_NOT_CERTIFIED",
+  "checked_at_tpe": "2026-11-10T09:31:28.731190+08:00"
+}
