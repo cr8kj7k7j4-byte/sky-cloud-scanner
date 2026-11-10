@@ -21,8 +21,8 @@ OUTPUT = Path("output/sky_governed_auto_repair/latest.json")
 # for auto repair. It is not a second auto-repair engine.
 SMOKE_BRANCH = "research/sky-governed-smoke-acceptance-20261111"
 SMOKE_FILE = "research/sky_governed_auto_repair_smoke_fixture.txt"
-SMOKE_BROKEN = "SKY_GOVERNED_SMOKE_BROKEN_V1\\n"
-SMOKE_FIXED = "SKY_GOVERNED_SMOKE_FIXED_V1\\n"
+SMOKE_BROKEN = "SKY_GOVERNED_SMOKE_BROKEN_V1\n"
+SMOKE_FIXED = "SKY_GOVERNED_SMOKE_FIXED_V1\n"
 
 # The exact two known-safe changes are allowed, nothing else.
 OLD = """SHA=$(gh api "$TARGET" --jq '.sha' 2>/dev/null || true)"""
