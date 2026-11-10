@@ -58,7 +58,10 @@ class ChatScanBridgeTests(unittest.TestCase):
                   "rows": [row], "row_count": 1, "universe_count": 1,
                   "production_eligible": False}
         result = make_status("chat-20261109-a", report,
-                             observation={"observed_price_count": 0})
+                             observation={"observed_price_count": 0,
+                                          "by_exchange": {
+                                              "TWSE": {"snapshot_rows": 1},
+                                              "TPEx": {"snapshot_rows": 1}}})
         self.assertEqual(result["status"], "DATA_BLOCKED_NO_OBSERVATIONS")
         self.assertIsNone(result["source"])
 
