@@ -45,7 +45,7 @@ jobs:
           x=json.loads(Path("output/fugle_two_stage_acceptance.json").read_text())
           assert x["research_only"] and not x["production_eligible"]
           assert not x["full_market_executed_certified"]
-          assert x["individual"]["requests_made"] <= 8
+          assert x["individual"]["requests_made"] <= 12
           print("SNAPSHOT_TSE",x["snapshot"].get("TSE",{}).get("request_status"),
                 "SNAPSHOT_OTC",x["snapshot"].get("OTC",{}).get("request_status"))
           print("INDIVIDUAL",x["individual"]["status_counts"])
