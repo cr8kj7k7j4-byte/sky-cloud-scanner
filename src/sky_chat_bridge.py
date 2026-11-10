@@ -18,7 +18,7 @@ COLUMNS = ("股票代碼", "股票名稱", "即時價", "分類", "方向", "多
 
 
 def validate_request(payload):
-    if not isinstance(payload, dict) or payload.get("command") != "Sky 當沖現在掃一次":
+    if not isinstance(payload, dict) or payload.get("command") not in ("Sky 當沖現在掃一次", "Sky 快掃"):
         raise ValueError("UNSUPPORTED_COMMAND")
     request_id = payload.get("request_id")
     if not isinstance(request_id, str) or not (8 <= len(request_id) <= 80):
