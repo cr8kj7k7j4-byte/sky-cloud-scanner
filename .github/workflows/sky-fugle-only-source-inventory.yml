@@ -1,0 +1,29 @@
+name: Sky Fugle-Only Repository Data Source Audit
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'research/**'
+      - '.github/workflows/**'
+      - 'docs/**'
+      - 'tests/**'
+      - 'scan_requests/**'
+permissions:
+  contents: read
+jobs:
+  read-only-source-inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Inventory every tracked market-data source reference
+        run: python research/audit_fugle_only_repository.py
+      - name: Upload evidence without implying runtime certification
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-fugle-source-inventory
+          path: output/fugle_source_audit/latest.json
