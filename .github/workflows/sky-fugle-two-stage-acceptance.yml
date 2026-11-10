@@ -9,7 +9,7 @@ on:
       - .github/workflows/sky-fugle-two-stage-acceptance.yml
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   bounded-audit:
     runs-on: ubuntu-latest
@@ -51,6 +51,47 @@ jobs:
           print("INDIVIDUAL",x["individual"]["status_counts"])
           print("QUOTA_VERDICT",x["quota_verdict"])
           PY
+      - name: Publish sanitized acceptance result to research branch for independent readback
+        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/research/fugle-two-stage-entitlement-audit-20261110'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from datetime import datetime, timezone
+          from pathlib import Path
+          source = Path("output/fugle_two_stage_acceptance.json")
+          result = {
+              "schema": "SKY_FUGLE_TWO_STAGE_ACCEPTANCE_RECEIPT_V1",
+              "run_id": os.getenv("GITHUB_RUN_ID"),
+              "run_url": "https://github.com/" + os.getenv("GITHUB_REPOSITORY","") + "/actions/runs/" + os.getenv("GITHUB_RUN_ID",""),
+              "head_sha": os.getenv("GITHUB_SHA"),
+              "recorded_at_utc": datetime.now(timezone.utc).isoformat(),
+              "research_only": True,
+              "production_eligible": False,
+              "trade_action": "禁止交易"
+          }
+          if source.exists():
+              data=json.loads(source.read_text())
+              result["status"]="RECORDED"
+              result["snapshot"]=data.get("snapshot",{})
+              result["individual"]={
+                  k: v for k,v in data.get("individual",{}).items() if k!="items"
+              }
+              result["quota_verdict"]=data.get("quota_verdict")
+              result["checked_at_tpe"]=data.get("checked_at_tpe")
+          else:
+              result["status"]="NO_AUDIT_OUTPUT"
+          Path("/tmp/sky_fugle_two_stage_receipt.json").write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n")
+          PY
+          TARGET="repos/${GITHUB_REPOSITORY}/contents/docs/SKY_FUGLE_TWO_STAGE_ACCEPTANCE_LATEST.json"
+          CONTENT=$(base64 -w0 /tmp/sky_fugle_two_stage_receipt.json)
+          SHA=$(gh api "$TARGET" --jq '.sha' 2>/dev/null || true)
+          if [ -n "$SHA" ]; then
+            gh api --method PUT "$TARGET" -f message="research: publish bounded Fugle acceptance result [skip ci]" -f content="$CONTENT" -f sha="$SHA" -f branch=research/fugle-two-stage-entitlement-audit-20261110 >/dev/null
+          else
+            gh api --method PUT "$TARGET" -f message="research: publish bounded Fugle acceptance result [skip ci]" -f content="$CONTENT" -f branch=research/fugle-two-stage-entitlement-audit-20261110 >/dev/null
+          fi
       - name: Upload bounded sanitized evidence
         if: always()
         uses: actions/upload-artifact@v4
