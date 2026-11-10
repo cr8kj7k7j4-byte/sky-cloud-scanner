@@ -194,5 +194,28 @@ class DeepFiveMinTests(unittest.TestCase):
                                 and z["feature_preview"] is None
                                 for z in x["samples"]))
 
+    def test_0905_scan_never_reads_0905_opening_bar(self):
+        """At 09:05, only 09:00-09:05 may have completed; 09:05 starts next bar."""
+        scan=datetime(2026,11,10,9,5,tzinfo=ZoneInfo("Asia/Taipei"))
+        def opening(symbol,timeframe="5"):
+            q=candles(symbol,timeframe)
+            q["data"]=[
+                {"date":"2026-11-10T09:00:00+08:00","close":30,"volume":100},
+                {"date":"2026-11-10T09:05:00+08:00","close":90,"volume":100},
+            ]
+            return q
+        x=run(stage2(),ticker_fn=ticker,candle_fn=opening,
+              sleep_fn=lambda _:None,now=scan)
+        self.assertTrue(all(
+            z["valid_today_five_min_bars"]==1
+            and z["excluded_unfinished_five_min_bars"]==1
+            and z["last_feature_bar_time_tpe"]=="2026-11-10T09:00:00+08:00"
+            and z["feature_preview"] is None
+            and z["status"]=="INCOMPLETE_TICKER_OR_5M_EVIDENCE"
+            and z["production_eligible"] is False
+            for z in x["samples"]
+        ))
+        self.assertFalse(x["official_v14_entry_eligible"])
+
 if __name__=="__main__":
     unittest.main()
