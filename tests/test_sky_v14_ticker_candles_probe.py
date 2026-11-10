@@ -29,6 +29,21 @@ def candles(symbol,timeframe="5"):
          "close":30+i*0.01,"volume":100} for i in range(6)]}
 
 class DeepFiveMinTests(unittest.TestCase):
+    def test_invalid_price_or_volume_blocks_features(self):
+        for field, value in (("close", -1), ("close", 0), ("close", float("nan")),
+                             ("close", float("inf")), ("close", True),
+                             ("volume", -1), ("volume", float("nan")),
+                             ("volume", float("inf")), ("volume", True)):
+            def invalid(symbol, timeframe="5"):
+                q = candles(symbol, timeframe)
+                q["data"][-1][field] = value
+                return q
+            x = run(stage2(), ticker_fn=ticker, candle_fn=invalid,
+                    sleep_fn=lambda _: None, now=NOW)
+            self.assertTrue(all(s["status"] == "INCOMPLETE_TICKER_OR_5M_EVIDENCE"
+                                and s["feature_preview"] is None
+                                and not s["production_eligible"] for s in x["samples"]),
+                            (field, value))
     def test_balanced_two_market_provenance_without_trade(self):
         x=run(stage2(),ticker_fn=ticker,candle_fn=candles,sleep_fn=lambda _:None,now=NOW)
         self.assertEqual(x["attempted_api_requests"],4)
