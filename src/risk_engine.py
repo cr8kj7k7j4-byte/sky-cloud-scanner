@@ -1,4 +1,4 @@
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, replace
 import math
 
 from .execution_engine import ExecutionCostPolicy, evaluate_execution_rr, execution_gate
@@ -231,6 +231,15 @@ def evaluate_candidate(candidate, portfolio_context, policy=None):
         missing.append("verified_positions")
     if missing:
         return {"status": "RISK_INPUT_REQUIRED", "portfolio_allowed": False, "recommended_shares": 0, "required_inputs": sorted(set(missing)), "reasons": ["持倉、損益或成交成本證據不足，禁止推算買進股數"]}
+    # Candidate decisions may not bypass the minimum cost-after-RR gate, even
+    # when a legacy diagnostic policy disabled enforcement.
+    execution_policy = portfolio_context["execution_policy"]
+    if not isinstance(execution_policy, ExecutionCostPolicy):
+        return {"status": "RISK_INPUT_REQUIRED", "portfolio_allowed": False,
+                "recommended_shares": 0, "required_inputs": ["execution_policy"],
+                "reasons": ["缺少有效成本政策，不得建立新進場訊號"]}
+    execution_policy = replace(execution_policy, enforce_gate=True,
+                               min_execution_rr=max(1.5, execution_policy.min_execution_rr))
     return evaluate_trade(
         entry=candidate.get("entry", candidate.get("last")),
         stop=candidate.get("stop"),
@@ -244,5 +253,5 @@ def evaluate_candidate(candidate, portfolio_context, policy=None):
         consecutive_losses=portfolio_context.get("consecutive_losses", 0),
         grade=candidate.get("grade"),
         policy=policy,
-        execution_policy=portfolio_context.get("execution_policy"),
+        execution_policy=execution_policy,
     )
