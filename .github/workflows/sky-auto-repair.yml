@@ -1,4 +1,4 @@
-name: Sky Auto-Repair Research Controller (5m)
+name: Sky Auto-Repair Research Controller (Event or Manual)
 on:
   push:
     branches: [main]
