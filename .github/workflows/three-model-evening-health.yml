@@ -10,8 +10,9 @@ on:
       - 'research/three_model_evening_health.py'
       - 'tests/test_three_model_evening_health.py'
   workflow_dispatch:
-  schedule:
-    - cron: '45 11 * * 1-5'
+  # PAUSED on 2026-11-10 by user request: formerly scheduled trigger.
+  # schedule:
+  # - cron: '45 11 * * 1-5'
 permissions:
   contents: read
   actions: read
