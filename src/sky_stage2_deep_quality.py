@@ -9,6 +9,7 @@ from __future__ import annotations
 import math
 
 from src.decision_engine import evaluate_decision
+from src.config import MIN_TRADE_VALUE
 
 
 def number(v):
@@ -36,6 +37,7 @@ def review(quote, *, verified_trade=False, change_pct=None, volume_unit_verified
     spread = round((ask - bid) / ((ask + bid) / 2) * 100, 4) if bid and ask and ask >= bid else None
     total = quote.get("total") if isinstance(quote.get("total"), dict) else {}
     raw_volume = number(total.get("tradeVolume"))
+    turnover_twd = number(total.get("tradeValue"))
     avg = number(quote.get("avgPrice"))
     lasttrade = quote.get("lastTrade") if isinstance(quote.get("lastTrade"), dict) else {}
     last = number(lasttrade.get("price"))
@@ -51,6 +53,10 @@ def review(quote, *, verified_trade=False, change_pct=None, volume_unit_verified
         flags.append("MISSING_L1_DEPTH")
     if raw_volume is None:
         flags.append("MISSING_PROVIDER_VOLUME")
+    if turnover_twd is None:
+        flags.append("MISSING_PROVIDER_TURNOVER_TWD")
+    elif turnover_twd < MIN_TRADE_VALUE:
+        flags.append("TURNOVER_BELOW_UNCHANGED_P0C_MIN")
     if not volume_unit_verified:
         flags.append("PROVIDER_VOLUME_UNIT_UNCERTIFIED")
     if avg_distance is None:
@@ -63,12 +69,16 @@ def review(quote, *, verified_trade=False, change_pct=None, volume_unit_verified
         "bid": bid, "ask": ask, "bid_size_raw": bid_size,
         "ask_size_raw": ask_size, "spread_pct": spread,
         "total_trade_volume_raw": raw_volume,
+        "total_trade_value_twd": turnover_twd,
+        "min_trade_value_twd": MIN_TRADE_VALUE,
+        "turnover_gate_pass": turnover_twd is not None and turnover_twd >= MIN_TRADE_VALUE,
         "volume_unit_verified": bool(volume_unit_verified),
         "average_price": avg,
         "average_price_distance_pct": avg_distance,
         "reported_change_pct": change_pct,
         "quality_reasons": flags,
-        "liquidity_certified": False if not volume_unit_verified else (raw_volume is not None and spread is not None),
+        "liquidity_certified": False,  # turnover alone cannot certify fill/capacity
+        "l1_spread_gate_pass": spread is not None and spread <= 0.8,
         "decision_ready": False,
         "production_eligible": False,
     }
