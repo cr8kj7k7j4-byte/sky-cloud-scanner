@@ -142,3 +142,64 @@ def test_missing_snapshot_market_does_not_look_like_success():
     assert report["snapshot_integrity"]["TPEx"]["api_response_valid"] is False
     assert report["snapshot_integrity"]["TPEx"]["official_symbols_missing_from_snapshot"] == 2
     assert report["snapshot_errors"]["OTC"] == "HTTP_ERROR"
+
+
+# Actual GitHub Actions unittest discovery (not only pytest-style plain functions).
+import unittest
+
+
+class InnovationBoardSnapshotContracts(unittest.TestCase):
+    def setUp(self):
+        self.universe = [
+            {"symbol": "1234", "name": "普通上市", "exchange": "TWSE"},
+            {"symbol": "2237", "name": "華德動能-創", "exchange": "TWSE"},
+            {"symbol": "2001", "name": "上櫃", "exchange": "TPEx"},
+        ]
+        self.tse = {"date": NOW.date().isoformat(), "data": [
+            {"symbol": "1234", "lastPrice": 42}]}
+        self.otc = {"date": NOW.date().isoformat(), "data": [
+            {"symbol": "2001", "lastPrice": 33}]}
+        self.tib = {"date": NOW.date().isoformat(), "data": [
+            {"symbol": "2237", "lastPrice": 55, "lastUpdated": NOW.isoformat()}]}
+
+    def test_tib_is_separate_and_restores_twse_reference_coverage_without_trade_promotion(self):
+        from research.sky_full_universe_information import expected_snapshot_market
+        report = build(self.universe,
+                       {"TSE": self.tse, "OTC": self.otc, "TIB": self.tib}, NOW)
+        self.assertEqual(expected_snapshot_market(self.universe[1]), "TIB")
+        twse = report["snapshot_integrity"]["TWSE"]
+        self.assertEqual(twse["official_symbols_missing_from_snapshot"], 0)
+        self.assertEqual(twse["innovation_board_official_count"], 1)
+        self.assertEqual(twse["innovation_board_missing_count"], 0)
+        self.assertTrue(twse["innovation_board_api_response_valid"])
+        self.assertEqual(report["snapshot_api_calls_expected_per_scan"], 3)
+        row = next(r for r in report["all_symbols"] if r["symbol"] == "2237")
+        self.assertEqual(row["market"], "TIB")
+        self.assertEqual(row["last_price"], 55)
+        self.assertEqual(row["data_status"], "UNVERIFIED_EXECUTION_TIME")
+        self.assertIsNone(row["required_fields"]["即時價"])
+        self.assertFalse(row["production_eligible"])
+        self.assertEqual(report["fresh_executed_count"], 0)
+
+    def test_missing_tib_is_partial_source_and_never_fabricated(self):
+        report = build(self.universe, {"TSE": self.tse, "OTC": self.otc}, NOW,
+                       errors={"TIB": "HTTP_403"})
+        self.assertEqual(report["snapshot_status"]["TWSE"], "PARTIAL_TIB_MISSING")
+        twse = report["snapshot_integrity"]["TWSE"]
+        self.assertFalse(twse["api_response_valid"])
+        self.assertFalse(twse["innovation_board_api_response_valid"])
+        self.assertEqual(twse["innovation_board_missing_count"], 1)
+        self.assertEqual(twse["official_symbols_missing_from_snapshot"], 1)
+        self.assertEqual(twse["missing_official_symbols"][0]["symbol"], "2237")
+        self.assertEqual(report["snapshot_errors"]["TIB"], "HTTP_403")
+        self.assertEqual(report["trade_decision"], "🔴 禁止新進場、未驗證通過")
+
+    def test_tib_unexpected_symbols_remain_diagnostic_not_entries(self):
+        tib = {"date": NOW.date().isoformat(), "data": [
+            {"symbol": "2237", "lastPrice": 55},
+            {"symbol": "9999", "lastPrice": 100},
+        ]}
+        report = build(self.universe, {"TSE": self.tse, "OTC": self.otc, "TIB": tib}, NOW)
+        self.assertEqual(report["snapshot_integrity"]["TWSE"]["unexpected_symbols"], 1)
+        self.assertEqual(len(report["all_symbols"]), len(self.universe))
+        self.assertFalse(any(r["symbol"] == "9999" for r in report["all_symbols"]))
