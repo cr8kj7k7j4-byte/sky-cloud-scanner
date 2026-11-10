@@ -13,12 +13,14 @@ from scripts.sky_governed_auto_repair import safe_patch, review, run, OLD, NEW, 
 class FakeGithub:
     def __init__(self, source):
         self.source = source
+        self.repo = "test/repo"
         self.calls = []
     def call(self, path, method="GET", body=None):
         self.calls.append((path, method, body))
         if path == "/pulls/511":
             return {"state": "open", "draft": True, "merged": False,
-                    "head": {"ref": TARGET_BRANCH, "sha": "abcd1234" * 5}}
+                    "head": {"ref": TARGET_BRANCH, "sha": "abcd1234" * 5,
+                             "repo": {"full_name": "test/repo"}}}
         if path.startswith("/contents/") and method == "GET":
             return {"sha": "blob", "content": base64.b64encode(self.source.encode()).decode()}
         if path == "/git/refs" and method == "POST":
@@ -110,13 +112,29 @@ class SafePatchContracts(unittest.TestCase):
                     current = ("abcd1234" * 5 if self.pr_reads == 1
                                else "new_sha_is_not_the_original")
                     return {"state": "open", "draft": True, "merged": False,
-                            "head": {"ref": TARGET_BRANCH, "sha": current}}
+                            "head": {"ref": TARGET_BRANCH, "sha": current,
+                                     "repo": {"full_name": "test/repo"}}}
                 return super().call(path, method, body)
         api = AdvancingGithub("on:\n  workflow_dispatch:\n" + OLD)
         result = run(api, allow_write=True, event_name="workflow_run",
                      expected_sha="abcd1234" * 5)
         self.assertEqual(result["state"], "HOLD")
         self.assertIn("TARGET_PR_HEAD_CHANGED_BEFORE_PATCH", result["blockers"])
+        self.assertFalse(any(method != "GET" for _, method, _ in api.calls))
+
+    def test_foreign_repository_pr_is_rejected_without_writes(self):
+        class ForeignPRGithub(FakeGithub):
+            def call(self, path, method="GET", body=None):
+                response = super().call(path, method, body)
+                if path == "/pulls/511" and method == "GET":
+                    response["head"]["repo"]["full_name"] = "untrusted/fork"
+                return response
+
+        api = ForeignPRGithub("on:\\n  workflow_dispatch:\\n" + OLD)
+        report = run(api, allow_write=True, event_name="workflow_run",
+                     expected_sha="abcd1234" * 5)
+        self.assertEqual(report["state"], "HOLD")
+        self.assertIn("TARGET_REPOSITORY_NOT_TRUSTED", report["blockers"])
         self.assertFalse(any(method != "GET" for _, method, _ in api.calls))
 
     def test_stale_ci_sha_never_writes(self):
