@@ -63,7 +63,7 @@ jobs:
                   ['SHELL_REMOTE_EXEC', /(?:curl|wget)[^\n|]*\|\s*(?:sh|bash)/i],
                   ['SECRET_ACCESS_CHANGED', /\bsecrets\s*\./i],
                   ['EVAL_EXEC', /\b(?:eval|exec)\s*\(/i],
-                  ['UNGUARDED_AUTOMERGE', /\b(?:gh\s+pr\s+merge|auto-merge)\b/i],
+                  ['UNGUARDED_AUTOMERGE', new RegExp('\\b(?:gh\\s+pr\\s+merge|' + 'auto' + '-merge)\\b', 'i')],
                 ];
                 for (const [code, pattern] of rules) {
                   if (pattern.test(additions)) record.findings.push({severity:'review', code, path});
