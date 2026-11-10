@@ -7,9 +7,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 PATTERNS = {
-    "MIS_QUOTE_ROUTE": re.compile(r"fetch_mis_quotes|MIS_URL|mis\\.twse\\.com\\.tw|TWSE MIS|MIS fallback", re.I),
-    "NON_FUGLE_PRICE_PROVIDER": re.compile(r"yfinance|yahooquery|query1\\.finance\\.yahoo|stooq|alpha.vantage|twelvedata", re.I),
-    "FREE_MARKET_QUOTE_SOURCE": re.compile(r"tpex_mainboard_quotes|STOCK_DAY_ALL|openapi\\.twse\\.com\\.tw", re.I),
+    "MIS_QUOTE_ROUTE": re.compile(r"fetch_mis_quotes|MIS_URL|mis\.twse\.com\.tw|TWSE MIS|MIS fallback", re.I),
+    "NON_FUGLE_PRICE_PROVIDER": re.compile(r"yfinance|yahooquery|query1\.finance\.yahoo|stooq|alpha.vantage|twelvedata", re.I),
+    "FREE_MARKET_QUOTE_SOURCE": re.compile(r"tpex_mainboard_quotes|STOCK_DAY_ALL|openapi\.twse\.com\.tw", re.I),
     "FUGLE_SOURCE": re.compile(r"FUGLE_API_KEY|Fugle|SKY_FUGLE_ONLY_MARKETDATA", re.I),
 }
 TRACKED_EXTENSIONS = {".py", ".yml", ".yaml", ".md", ".json", ".toml", ".txt", ".sh", ".js", ".ts"}
@@ -17,7 +17,7 @@ SCOPES = ("src/", "research/", ".github/workflows/", "docs/", "tests/", "scan_re
 
 def audit(root: Path = Path(".")) -> dict:
     proc = subprocess.run(["git", "ls-files", "-z"], cwd=root, capture_output=True, check=True)
-    tracked = [p.decode("utf-8") for p in proc.stdout.split(b"\\x00") if p]
+    tracked = [p.decode("utf-8") for p in proc.stdout.split(b"\x00") if p]
     findings = []
     totals = {name: 0 for name in PATTERNS}
     reviewed = 0
@@ -60,7 +60,7 @@ def main() -> None:
     result = audit()
     out = Path("output/fugle_source_audit")
     out.mkdir(parents=True, exist_ok=True)
-    (out / "latest.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+    (out / "latest.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({k: v for k, v in result.items() if k != "findings"}, ensure_ascii=False, indent=2))
 
 if __name__ == "__main__":
