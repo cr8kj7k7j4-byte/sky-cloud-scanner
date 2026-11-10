@@ -62,7 +62,11 @@ def decide(event: dict, pr: dict, jobs: list[dict]) -> dict:
         "eligible": eligible, "pr": number,
         "head_sha": head.get("sha"), "source_run_id": run.get("id"),
         "format_only_failure": safe_format,
-        "failed_jobs": [{"name": str(j.get("name")), "id": j.get("id")} for j in failed],
+        "failed_jobs": [{"name": str(j.get("name")), "id": j.get("id"),
+                         "url": j.get("html_url"),
+                         "failed_steps": [str(s.get("name")) for s in (j.get("steps") or [])
+                                          if s.get("conclusion") == "failure"]}
+                        for j in failed],
         "decision": "SAFE_FORMAT_REPAIR_CANDIDATE" if eligible else "DIAGNOSE_ONLY",
     }
 
@@ -115,7 +119,11 @@ def run(event: dict, api: GitHub) -> dict:
         return result
     number = linked[0]["number"]
     pr = api.request(f"pulls/{number}")
-    jobs = api.request(f"actions/runs/{int(record['id'])}/jobs?per_page=100").get("jobs", [])
+    jobs_response = api.request(f"actions/runs/{int(record['id'])}/jobs?per_page=100")
+    jobs = jobs_response.get("jobs", [])
+    if len(jobs) != jobs_response.get("total_count", len(jobs)):
+        result["status"] = "INCOMPLETE_CI_JOB_PAGE_NO_PATCH"
+        return result
     decision = decide(event, pr, jobs)
     result["diagnosis"] = decision
     if not decision["eligible"]:
@@ -168,8 +176,8 @@ def run(event: dict, api: GitHub) -> dict:
         "base": (pr.get("head") or {}).get("ref"),
         "draft": True,
         "body": (
-            f"Automated, AST-preserving whitespace fix on ONLY \`{path}\`. "
-            f"Source PR #{number}, SHA \`{sha}\`, failed CI run {record['id']}. "
+            f"Automated, AST-preserving whitespace fix on ONLY `{path}`. "
+            f"Source PR #{number}, SHA `{sha}`, failed CI run {record['id']}. "
             "No original PR branch or main modified. Python AST unchanged; "
             "full branch CI and independent W0/P0-G review are mandatory. "
             "No paid API, no Production, no orders, no auto-merge."
