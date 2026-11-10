@@ -194,7 +194,9 @@ def main():
     status = make_status(request_id, report, error, observation, stage1, stage2, stage3, stage4)
     (OUTPUT / "latest.json").write_text(json.dumps(status, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({k: v for k, v in status.items() if k != "preview"}, ensure_ascii=False))
-    if report is None:
+    # A generated report is not a successful scan when the source is blocked or empty.
+    # Always persist diagnostic status, then fail closed for the Actions run.
+    if status["status"] != "REPORT_READY_RESEARCH_ONLY":
         raise SystemExit(1)
 
 
