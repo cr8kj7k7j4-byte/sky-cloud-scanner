@@ -1,10 +1,10 @@
 # SKY｜富果付費行情唯一來源政策（2026-11-09）
 
 ## 使用者要求
-所有 Sky 指令與當沖、波段、隔日、融資研究、六模型、手機/ChatGPT 顯示的**市場報價／K 線／成交量／成交時間／量價特徵**優先使用已授權的 Fugle Developer 付費資料。不得在 Fugle 不足時自動改抓 TWSE MIS 或其他免費行情並冒充同一資料品質。
+所有 Sky 指令與當沖、波段、隔日、融資研究、六模型、手機/ChatGPT 顯示的**市場報價／K 線／成交量／成交時間／量價特徵**一律使用已授權的 Fugle Developer 付費資料。不得在 Fugle 不足時自動改抓 TWSE MIS 或其他免費行情並冒充同一資料品質。
 
 ## 目前執行層
-- `SKY_FUGLE_ONLY_MARKETDATA=1` 為 Python 行情路由預設；`scan.yml` 也明確設 1。
+- `SKY_FUGLE_ONLY_MARKETDATA=1` 為 Python 行情路由預設；`scan.yml` 也明確設 1。正式行情路由不得以設定值關閉此來源限制；若程式仍保留非富果價格備援分支，必須列為待修復。
 - `src.quote_provider.collect_market_quotes` 富果資料不達最新成交門檻時，保留來源與缺值、NO_TRADE，不請求免費 MIS 備援。
 - `src.diagnose_sources` 停止免費 MIS 診斷抽樣，只查 Fugle 個股／TSE/OTC bulk。
 - `src.official.fetch_mis_quotes` 有中央防線，富果專用模式阻止免費 MIS 請求。
