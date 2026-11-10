@@ -1,6 +1,6 @@
 {
   "schema": "MCR_EOD_MARKOUT_V1",
-  "asof_session": "2026-11-06",
+  "asof_session": "2026-11-09",
   "results": [
     {
       "episode_id": "02b87c3b83e851977417b6fd472b89028fa087378f36aa4acced678b579446e3",
@@ -3641,6 +3641,237 @@
       "horizons": {},
       "horizon_gaps": {},
       "net_trade_expectancy_pct": null
+    },
+    {
+      "episode_id": "8299bcf56a120b657e1a1c5eb998b90f88ae3000eeae9fe49a66ab3d38965701",
+      "status": "PENDING_FORWARD_SESSIONS",
+      "horizons": {},
+      "horizon_gaps": {},
+      "net_trade_expectancy_pct": null
+    },
+    {
+      "episode_id": "5c0d837773c8b73c9a86d8d77bf01cdf1dce64f62c066b11df794aeb07a4775f",
+      "status": "PENDING_FORWARD_SESSIONS",
+      "horizons": {},
+      "horizon_gaps": {},
+      "net_trade_expectancy_pct": null
+    },
+    {
+      "episode_id": "7335084164f32e2f54e15b430ddd85312a9e9c305fd0e3854515614bad669646",
+      "status": "PENDING_FORWARD_SESSIONS",
+      "horizons": {},
+      "horizon_gaps": {},
+      "net_trade_expectancy_pct": null
+    },
+    {
+      "episode_id": "4737b48db1cfb01d5e40a8d4de162b30d9352fb7187d913db0cc28df6b9fc92a",
+      "status": "PENDING_FORWARD_SESSIONS",
+      "horizons": {},
+      "horizon_gaps": {},
+      "net_trade_expectancy_pct": null
+    },
+    {
+      "episode_id": "1f4e74f106d5ddb4449cfe8546d82b310dfffd75e90511635687e47a667a4883",
+      "status": "PENDING_FORWARD_SESSIONS",
+      "horizons": {},
+      "horizon_gaps": {},
+      "net_trade_expectancy_pct": null
+    },
+    {
+      "episode_id": "9045c2277825a73a981970ce84c54ffa834f063a98094dcdd9cd045e7eb3c299",
+      "status": "PENDING_FORWARD_SESSIONS",
+      "horizons": {},
+      "horizon_gaps": {},
+      "net_trade_expectancy_pct": null
+    },
+    {
+      "episode_id": "3eb4b7b4ebe4c37bc1f561313cd7881aec04cb35d5236d83e2b03fcbc949fc97",
+      "status": "PENDING_FORWARD_SESSIONS",
+      "horizons": {},
+      "horizon_gaps": {},
+      "net_trade_expectancy_pct": null
+    },
+    {
+      "episode_id": "4f5001ecc17764257fa449d6342c86aab14e57b9b157137fbefc1d6f168e178e",
+      "status": "PENDING_FORWARD_SESSIONS",
+      "horizons": {},
+      "horizon_gaps": {},
+      "net_trade_expectancy_pct": null
+    },
+    {
+      "episode_id": "0f16282d9a7b2901cc075aec55f7ed73a20e4c1b42c64deb714cfff691b8abb5",
+      "status": "PENDING_FORWARD_SESSIONS",
+      "horizons": {},
+      "horizon_gaps": {},
+      "net_trade_expectancy_pct": null
+    },
+    {
+      "episode_id": "fd67002c3d265f809700cbfcb6abd3fa34c5c39e6eecbb9079ed3242f12d386f",
+      "status": "PENDING_FORWARD_SESSIONS",
+      "horizons": {},
+      "horizon_gaps": {},
+      "net_trade_expectancy_pct": null
+    },
+    {
+      "episode_id": "2de5875486b17524d3b4db2d38aac19e459f7f41250176eb96b7e88e0da9576b",
+      "status": "PENDING_FORWARD_SESSIONS",
+      "horizons": {},
+      "horizon_gaps": {},
+      "net_trade_expectancy_pct": null
+    },
+    {
+      "episode_id": "b8195069aca43d5aa36ef061c9fc04dc6e1da0ef356e6d9bbe13fbd467afe7e3",
+      "status": "PENDING_FORWARD_SESSIONS",
+      "horizons": {},
+      "horizon_gaps": {},
+      "net_trade_expectancy_pct": null
+    },
+    {
+      "episode_id": "f8ac2183afbbf0f6d8f75628ad4b4c6cd510ecaaa1af3c8bf72555c250c4dfe5",
+      "status": "PENDING_FORWARD_SESSIONS",
+      "horizons": {},
+      "horizon_gaps": {},
+      "net_trade_expectancy_pct": null
+    },
+    {
+      "episode_id": "06d75b1fe12ccd2fc753b47dddf5eeffbf125f33b6d2e3f0868cbebe93244750",
+      "status": "PENDING_FORWARD_SESSIONS",
+      "horizons": {},
+      "horizon_gaps": {},
+      "net_trade_expectancy_pct": null
+    },
+    {
+      "episode_id": "101186b594619f0af4ec03233cfc29aa7acdc6485e7a0ca1cc95cf22d90d324d",
+      "status": "PENDING_FORWARD_SESSIONS",
+      "horizons": {},
+      "horizon_gaps": {},
+      "net_trade_expectancy_pct": null
+    },
+    {
+      "episode_id": "27296830a936a6a757da5db041b619f484f8b1a2baffcab4407cc538d7a8b0f8",
+      "status": "PENDING_FORWARD_SESSIONS",
+      "horizons": {},
+      "horizon_gaps": {},
+      "net_trade_expectancy_pct": null
+    },
+    {
+      "episode_id": "1c55f74b246db8a637438da6fd3e4a6dea1e81139034ebb19a315f4a0d15f05b",
+      "status": "PENDING_FORWARD_SESSIONS",
+      "horizons": {},
+      "horizon_gaps": {},
+      "net_trade_expectancy_pct": null
+    },
+    {
+      "episode_id": "cab4608294dae42ac132a192a7f21c2879be6fc33ed45f359cce8566a1ae1a13",
+      "status": "PENDING_FORWARD_SESSIONS",
+      "horizons": {},
+      "horizon_gaps": {},
+      "net_trade_expectancy_pct": null
+    },
+    {
+      "episode_id": "0bbd90f057cea41a0281f316a84beffeef4bf3e6bd4ca00ae4e33c181da64d16",
+      "status": "PENDING_FORWARD_SESSIONS",
+      "horizons": {},
+      "horizon_gaps": {},
+      "net_trade_expectancy_pct": null
+    },
+    {
+      "episode_id": "ce4e52726e4ad2291087a5d6824671016127adb918e5985dc0e121bf4d272e65",
+      "status": "PENDING_FORWARD_SESSIONS",
+      "horizons": {},
+      "horizon_gaps": {},
+      "net_trade_expectancy_pct": null
+    },
+    {
+      "episode_id": "b8445ab8839849e70f8d103db9bdb44481f751bc6301c177f8ab7baa64ca2f2d",
+      "status": "PENDING_FORWARD_SESSIONS",
+      "horizons": {},
+      "horizon_gaps": {},
+      "net_trade_expectancy_pct": null
+    },
+    {
+      "episode_id": "55bf0bd14d8e4b906683ad6bb728ef922c12acc81dcbddac9b6e9393b71d5a6a",
+      "status": "PENDING_FORWARD_SESSIONS",
+      "horizons": {},
+      "horizon_gaps": {},
+      "net_trade_expectancy_pct": null
+    },
+    {
+      "episode_id": "b883ed5fb1742869d54637165cb488ef46399ddaa2d6dc93ce6406c26623b4eb",
+      "status": "PENDING_FORWARD_SESSIONS",
+      "horizons": {},
+      "horizon_gaps": {},
+      "net_trade_expectancy_pct": null
+    },
+    {
+      "episode_id": "0e96571d81e4bf1d9c48b6a34c6ee2ea6a424fe967cc510ae73a09e87e2308fe",
+      "status": "PENDING_FORWARD_SESSIONS",
+      "horizons": {},
+      "horizon_gaps": {},
+      "net_trade_expectancy_pct": null
+    },
+    {
+      "episode_id": "b798b59145424adeb55e768a12ac10f28df4d98682fa0482612d8d50f1f11626",
+      "status": "PENDING_FORWARD_SESSIONS",
+      "horizons": {},
+      "horizon_gaps": {},
+      "net_trade_expectancy_pct": null
+    },
+    {
+      "episode_id": "8b4c587a5463ce5b7b6209ac34071a393f39f6c177938641707ae704554fd95a",
+      "status": "PENDING_FORWARD_SESSIONS",
+      "horizons": {},
+      "horizon_gaps": {},
+      "net_trade_expectancy_pct": null
+    },
+    {
+      "episode_id": "3fd323ea212e096f25735979bd9f1b4c368fa91e8f736e4b878b520caa742d18",
+      "status": "PENDING_FORWARD_SESSIONS",
+      "horizons": {},
+      "horizon_gaps": {},
+      "net_trade_expectancy_pct": null
+    },
+    {
+      "episode_id": "91f0d79854a6cd86fa015f97fe31b4d9db5952570b37ca1a6fe6edd8ca72bd7e",
+      "status": "PENDING_FORWARD_SESSIONS",
+      "horizons": {},
+      "horizon_gaps": {},
+      "net_trade_expectancy_pct": null
+    },
+    {
+      "episode_id": "cbdd4e00f088ac01838bb1ac0c0c2c039a7e3b2697e0be091a2fd37e926e4c19",
+      "status": "PENDING_FORWARD_SESSIONS",
+      "horizons": {},
+      "horizon_gaps": {},
+      "net_trade_expectancy_pct": null
+    },
+    {
+      "episode_id": "3c5b9d67f639f35ea47bc0cc61dc54ef402e706e8f155f2c49dc6e729dc38a42",
+      "status": "PENDING_FORWARD_SESSIONS",
+      "horizons": {},
+      "horizon_gaps": {},
+      "net_trade_expectancy_pct": null
+    },
+    {
+      "episode_id": "6d02648852e5f3b9702b60a7280911dbbedb1b1c4a399a4372d67215b49820c1",
+      "status": "PENDING_FORWARD_SESSIONS",
+      "horizons": {},
+      "horizon_gaps": {},
+      "net_trade_expectancy_pct": null
+    },
+    {
+      "episode_id": "332cbe3fde12cc0042b17e4910fa09f9617f76f5b97e0779b6501936e0df34fe",
+      "status": "PENDING_FORWARD_SESSIONS",
+      "horizons": {},
+      "horizon_gaps": {},
+      "net_trade_expectancy_pct": null
+    },
+    {
+      "episode_id": "2ab4e563588cced254e98194226771bb0afb3e5c994eccc4668c7947880a5002",
+      "status": "PENDING_FORWARD_SESSIONS",
+      "horizons": {},
+      "horizon_gaps": {},
+      "net_trade_expectancy_pct": null
     }
   ],
   "source_price_rows": 1972,
@@ -3649,7 +3880,7 @@
   "unverified_session_gap_days": [],
   "reference_horizons_complete": 0,
   "outcome_status_counts": {
-    "PENDING_FORWARD_SESSIONS": 520,
+    "PENDING_FORWARD_SESSIONS": 553,
     "MISSING_REFERENCE_PRICE": 0,
     "MISSING_PRICE_ON_REQUIRED_SESSION": 0,
     "UNVERIFIED_SESSION_GAP": 0,

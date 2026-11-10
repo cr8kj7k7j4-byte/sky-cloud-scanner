@@ -1,11 +1,11 @@
 {
   "schema": "MCR_EVIDENCE_GAPS_V1",
   "research_status": "INSUFFICIENT_DATA",
-  "source_session": "2026-11-06",
-  "observed_trading_sessions": 1,
+  "source_session": "2026-11-09",
+  "observed_trading_sessions": 2,
   "official_eod_snapshot_days": 1,
-  "raw_research_observations": 520,
-  "deduplicated_episodes": 520,
+  "raw_research_observations": 566,
+  "deduplicated_episodes": 553,
   "independent_executable_trades": 0,
   "official_reference_price_rows": 1972,
   "forward_reference_completed_by_horizon": {
@@ -17,11 +17,17 @@
   "completed_5d_reference_count": 0,
   "five_day_reference_coverage_pct": 0.0,
   "outcome_state_counts": {
-    "PENDING_FORWARD_SESSIONS": 520
+    "PENDING_FORWARD_SESSIONS": 553
   },
   "outcome_gap_reasons": {},
   "unverified_calendar_gap_dates": [],
   "blockers": [
+    {
+      "key": "FINANCING_PRICE_SESSION_MISMATCH",
+      "state": "DATA_GAP",
+      "detail": "Latest captured official closing session differs from financing date.",
+      "latest_price_session": "2026-11-06"
+    },
     {
       "key": "FORWARD_TRADING_DAYS",
       "state": "INSUFFICIENT_DATA",
@@ -60,7 +66,7 @@
     "regimes": 2,
     "outcome_completeness_pct": 95
   },
-  "engineering_data_status": "PUBLISHED_EVIDENCE_VALIDATED",
+  "engineering_data_status": "DATA_GAP",
   "counterfactual_abcd_status": "NOT_EVALUABLE",
   "cost_adjusted_expectancy_pct": null,
   "production_promotion_eligible": false,
