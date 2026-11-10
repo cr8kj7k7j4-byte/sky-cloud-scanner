@@ -1,6 +1,6 @@
 {
-  "command": "Sky 當沖現在掃一次",
-  "request_id": "chat-20261110-0858-daytrade-002",
+  "command": "Sky 快掃",
+  "request_id": "chat-20261110-quickscan-after-fix-0858",
   "read_only_no_orders": true,
-  "reason": "User-triggered Sky daytrade scan at 08:58 TPE; paid Fugle observations only; distinct scan id, no orders"
+  "reason": "Retry original user Sky 快掃 after PR471 route fix. Paid Fugle full-market and 13col research only, verify actual output"
 }
