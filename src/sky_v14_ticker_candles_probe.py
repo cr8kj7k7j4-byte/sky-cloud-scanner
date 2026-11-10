@@ -88,6 +88,7 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                     "security_status":ticker.get("securityStatus"),
                     "is_disposition":ticker.get("isDisposition"),
                     "is_attention":ticker.get("isAttention"),
+                    "is_specific_abnormal":ticker.get("isSpecificAbnormally"),
                     "limit_up":limit,"is_limit_up":is_limit,
                     "candles_timeframe":actual_tf,
                     "valid_today_five_min_bars":len(valid),
@@ -98,6 +99,8 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                 ready=(tdate==day and cdate==day and actual_tf=="5" and len(valid)>=6
                        and eligible and not is_limit and ticker.get("securityStatus")=="NORMAL"
                        and ticker.get("isDisposition") is not True
+                       and ticker.get("isAttention") is not True
+                       and ticker.get("isSpecificAbnormally") is not True
                        and boardlot is not None and float(boardlot)>0)
                 result["status"]="CANDLE_TICKER_RESEARCH_READY_NOT_TRADE" if ready else "INCOMPLETE_TICKER_OR_5M_EVIDENCE"
         except requests.HTTPError as exc:
