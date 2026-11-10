@@ -35,11 +35,22 @@ def inspect_text(path, content):
     for line_no, line in enumerate(content.splitlines(), 1):
         if not BROKER.search(line):
             continue
+        # Do not misclassify explicit exclusions, policy/diagnostic code or
+        # synthetic negative tests as requirements. Keep references in audit.
+        explicit_no_broker_requirement = re.search(
+            r"不(?:需|必須|應)|無須|not required|not a prerequisite|"
+            r"does not require|not mandatory|不得要求|不再.*必要|"
+            r"不得以|不得把|不得將|必須另標示|"
+            r"broker_account_required_for_research.{0,8}False", line, re.I)
+        test_fixture_or_audit = (
+            str(path).startswith("tests/") or
+            str(path) == "research/sky_brokerless_contract_audit.py"
+        )
         cls = ("POSSIBLE_RESEARCH_PREREQUISITE"
                if RESEARCH.search(line) and REQUIRED.search(line)
                and not LIVE_ONLY.search(line)
-               and not re.search(r"不(?:需|必須|應)|無須|not required|not a prerequisite|"
-                                 r"does not require|not mandatory|不得要求|不再.*必要", line, re.I)
+               and not explicit_no_broker_requirement
+               and not test_fixture_or_audit
                else "LIVE_ONLY_OR_INFORMATIONAL")
         matches.append({"line": line_no, "class": cls, "text": line.strip()[:350]})
     return matches
