@@ -197,7 +197,8 @@ def main():
     status = make_status(request_id, report, error, observation, stage1, stage2, stage3, stage4)
     (OUTPUT / "latest.json").write_text(json.dumps(status, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({k: v for k, v in status.items() if k != "preview"}, ensure_ascii=False))
-    if report is None:
+    # Keep the research status artifact, but never treat blocked source data as success.
+    if status["status"] != "REPORT_READY_RESEARCH_ONLY":
         raise SystemExit(1)
 
 
