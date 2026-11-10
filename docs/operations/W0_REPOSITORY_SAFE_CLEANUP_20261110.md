@@ -63,3 +63,11 @@
 - 僅憑歷史檔案/Workflow 數量無法證明效能改善。**評估標準**是停止過期 cron、保留正式掃描/告警、降低重複事件與 API 查詢，並逐步測量 Actions 使用量。實際省下多少 Actions 分鐘與付費額度待觀察。
 
 **本次兩批不修改 `scan.yml` 與 `sky-full-market-five-minute-dispatch.yml`，因為它們都在執行與尚待正式驗收的資料來源工作；直接關閉任一條可能使資料更不完整。**
+
+## 第三批（2026-11-10）：過期一次性雙重掃描與 AI 24h 排程
+
+- 已核實 `.github/workflows/sky-research-once-20261109.yml` 是特定日期的手動研究驗收入口；執行時**同時發起** `scan.yml` 與 `sky-full-market-private.yml`，不是獨立不可替代的正式資料產出者。兩個下游仍由既有 Workflow 可用；移除舊入口避免人員重複觸發付費行情。Git 歷史可查。
+- `.github/workflows/ai-direction-watchdog-5m.yml` 的研究 24h 偵測窗明定截止 2026-11-09T02:38:00Z；已移除 `*/5 * * * *`，保留 `workflow_dispatch` 的研究診斷，其他模型及證據不動。
+- 兩條正式市場的五分鐘掃描 Cron、GCS、PAPER_ONLY、W0/ P0-G 規則不變。**沒有再次觸發付費行情或建立新排程**。
+- 研究策略家族 `ARCHIVED_NO_RETUNE` 的程式和歷史驗證文件不可因本批清理而刪除。
+- PR 去重僅對經 patch 比對確實已被主線覆蓋的項目執行關閉並留言保留歷史；未審過的候選仍保留。

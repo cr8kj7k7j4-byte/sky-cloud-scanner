@@ -1,7 +1,6 @@
 name: AI Direction 5m Evidence Watchdog (Research Only)
 on:
-  schedule:
-    - cron: "*/5 * * * *"
+  # 2026-11-09 24-hour monitor window expired; keep manual diagnostics.
   workflow_dispatch:
 permissions:
   actions: write
