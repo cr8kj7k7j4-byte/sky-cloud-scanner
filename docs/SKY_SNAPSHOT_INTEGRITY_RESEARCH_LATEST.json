@@ -1,219 +1,36 @@
 {
   "schema": "SKY_SNAPSHOT_INTEGRITY_RESEARCH_RECEIPT_V1",
-  "run_id": "42830948832",
-  "head_sha": "397d6e4e68c8bacdb288e2334a447e20490f783c",
-  "run_url": "https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/42830948832",
-  "generated_at_utc": "2026-11-10T14:07:48.490917+00:00",
+  "run_id": "42863180723",
+  "head_sha": "444dbf1abf7488b185c31b76b4c0c5f0e3833b4d",
+  "run_url": "https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/42863180723",
+  "generated_at_utc": "2026-11-10T17:16:21.177425+00:00",
   "research_only": true,
   "production_eligible": false,
   "automatic_order": false,
-  "snapshot_calls_budget": 2,
+  "snapshot_calls_budget": 3,
   "individual_quote_calls_budget": 0,
   "status": "OBSERVATION_READY",
-  "checked_at_tpe": "2026-11-10T22:07:44.497882+08:00",
+  "checked_at_tpe": "2026-11-11T01:16:16.802999+08:00",
   "universe_count": 1986,
-  "observed_price_count": 1926,
+  "observed_price_count": 1957,
   "fresh_executed_count": 0,
   "snapshot_integrity": {
     "TWSE": {
       "api_response_valid": true,
-      "raw_rows": 1060,
-      "unique_returned_symbols": 1060,
+      "raw_rows": 1091,
+      "unique_returned_symbols": 1091,
       "duplicate_symbol_rows": 0,
       "blank_symbol_rows": 0,
       "unexpected_symbols": 0,
-      "official_symbols_missing_from_snapshot": 31,
-      "official_symbol_coverage_pct": 97.16,
+      "official_symbols_missing_from_snapshot": 0,
+      "official_symbol_coverage_pct": 100.0,
       "snapshot_date": "2026-11-10",
       "snapshot_time_is_execution_time": false,
-      "missing_official_symbols": [
-        {
-          "symbol": "2237",
-          "name": "華德動能-創",
-          "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-          "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-        },
-        {
-          "symbol": "2254",
-          "name": "巨鎧精密-創",
-          "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-          "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-        },
-        {
-          "symbol": "2258",
-          "name": "鴻華先進-創",
-          "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-          "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-        },
-        {
-          "symbol": "2432",
-          "name": "倚天酷碁-創",
-          "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-          "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-        },
-        {
-          "symbol": "3150",
-          "name": "鈺寶-創",
-          "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-          "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-        },
-        {
-          "symbol": "4195",
-          "name": "基米-創",
-          "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-          "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-        },
-        {
-          "symbol": "4582",
-          "name": "聚恆-創",
-          "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-          "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-        },
-        {
-          "symbol": "4590",
-          "name": "富田-創",
-          "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-          "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-        },
-        {
-          "symbol": "6534",
-          "name": "正瀚-創",
-          "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-          "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-        },
-        {
-          "symbol": "6645",
-          "name": "金萬林-創",
-          "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-          "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-        },
-        {
-          "symbol": "6771",
-          "name": "平和環保-創",
-          "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-          "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-        },
-        {
-          "symbol": "6854",
-          "name": "錼創科技-KY創",
-          "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-          "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-        },
-        {
-          "symbol": "6908",
-          "name": "宏碁遊戲-創",
-          "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-          "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-        },
-        {
-          "symbol": "6921",
-          "name": "嘉雨思-創",
-          "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-          "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-        },
-        {
-          "symbol": "6924",
-          "name": "榮惠-KY創",
-          "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-          "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-        },
-        {
-          "symbol": "6949",
-          "name": "沛爾生醫*-創",
-          "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-          "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-        },
-        {
-          "symbol": "6951",
-          "name": "青新-創",
-          "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-          "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-        },
-        {
-          "symbol": "6955",
-          "name": "邦睿生技-創",
-          "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-          "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-        },
-        {
-          "symbol": "6969",
-          "name": "成信實業*-創",
-          "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-          "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-        },
-        {
-          "symbol": "6988",
-          "name": "威力暘-創",
-          "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-          "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-        },
-        {
-          "symbol": "7610",
-          "name": "聯友金屬-創",
-          "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-          "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-        },
-        {
-          "symbol": "7631",
-          "name": "聚賢研發-創",
-          "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-          "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-        },
-        {
-          "symbol": "7730",
-          "name": "暉盛-創",
-          "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-          "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-        },
-        {
-          "symbol": "7740",
-          "name": "熙特爾-創",
-          "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-          "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-        },
-        {
-          "symbol": "7803",
-          "name": "雲象科技-創",
-          "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-          "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-        },
-        {
-          "symbol": "7812",
-          "name": "稜研科技*-創",
-          "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-          "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-        },
-        {
-          "symbol": "7823",
-          "name": "奧義賽博-KY創",
-          "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-          "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-        },
-        {
-          "symbol": "7827",
-          "name": "漢康-KY創",
-          "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-          "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-        },
-        {
-          "symbol": "7835",
-          "name": "永悅健康-創",
-          "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-          "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-        },
-        {
-          "symbol": "8162",
-          "name": "微矽電子-創",
-          "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-          "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-        },
-        {
-          "symbol": "8487",
-          "name": "愛爾達-創",
-          "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-          "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-        }
-      ]
+      "innovation_board_market": "TIB",
+      "innovation_board_official_count": 37,
+      "innovation_board_api_response_valid": true,
+      "innovation_board_missing_count": 6,
+      "missing_official_symbols": []
     },
     "TPEx": {
       "api_response_valid": true,
@@ -223,12 +40,18 @@
       "blank_symbol_rows": 0,
       "unexpected_symbols": 0,
       "official_symbols_missing_from_snapshot": 0,
-      "official_symbol_coverage_pct": 100,
+      "official_symbol_coverage_pct": 100.0,
       "snapshot_date": "2026-11-10",
       "snapshot_time_is_execution_time": false,
+      "innovation_board_market": null,
+      "innovation_board_official_count": 0,
+      "innovation_board_api_response_valid": null,
+      "innovation_board_missing_count": 0,
       "missing_official_symbols": []
     }
   },
+  "twse_missing_official_symbols": [],
+  "missing_symbol_classification_verified": false,
   "snapshot_status": {
     "TWSE": "RETURNED",
     "TPEx": "RETURNED"
@@ -237,11 +60,11 @@
   "by_exchange": {
     "TWSE": {
       "universe": 1091,
-      "snapshot_rows": 1060,
+      "snapshot_rows": 1091,
       "fresh_executed": 0,
-      "observed_price": 1058,
-      "snapshot_reference_without_trade_time": 1058,
-      "fresh_executed_pct": 0
+      "observed_price": 1089,
+      "snapshot_reference_without_trade_time": 1089,
+      "fresh_executed_pct": 0.0
     },
     "TPEx": {
       "universe": 895,
@@ -249,201 +72,8 @@
       "fresh_executed": 0,
       "observed_price": 868,
       "snapshot_reference_without_trade_time": 868,
-      "fresh_executed_pct": 0
+      "fresh_executed_pct": 0.0
     }
   },
-  "official_universe_warning_count": 0,
-  "twse_missing_official_symbols": [
-    {
-      "symbol": "2237",
-      "name": "華德動能-創",
-      "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-      "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-    },
-    {
-      "symbol": "2254",
-      "name": "巨鎧精密-創",
-      "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-      "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-    },
-    {
-      "symbol": "2258",
-      "name": "鴻華先進-創",
-      "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-      "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-    },
-    {
-      "symbol": "2432",
-      "name": "倚天酷碁-創",
-      "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-      "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-    },
-    {
-      "symbol": "3150",
-      "name": "鈺寶-創",
-      "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-      "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-    },
-    {
-      "symbol": "4195",
-      "name": "基米-創",
-      "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-      "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-    },
-    {
-      "symbol": "4582",
-      "name": "聚恆-創",
-      "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-      "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-    },
-    {
-      "symbol": "4590",
-      "name": "富田-創",
-      "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-      "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-    },
-    {
-      "symbol": "6534",
-      "name": "正瀚-創",
-      "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-      "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-    },
-    {
-      "symbol": "6645",
-      "name": "金萬林-創",
-      "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-      "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-    },
-    {
-      "symbol": "6771",
-      "name": "平和環保-創",
-      "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-      "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-    },
-    {
-      "symbol": "6854",
-      "name": "錼創科技-KY創",
-      "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-      "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-    },
-    {
-      "symbol": "6908",
-      "name": "宏碁遊戲-創",
-      "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-      "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-    },
-    {
-      "symbol": "6921",
-      "name": "嘉雨思-創",
-      "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-      "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-    },
-    {
-      "symbol": "6924",
-      "name": "榮惠-KY創",
-      "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-      "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-    },
-    {
-      "symbol": "6949",
-      "name": "沛爾生醫*-創",
-      "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-      "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-    },
-    {
-      "symbol": "6951",
-      "name": "青新-創",
-      "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-      "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-    },
-    {
-      "symbol": "6955",
-      "name": "邦睿生技-創",
-      "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-      "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-    },
-    {
-      "symbol": "6969",
-      "name": "成信實業*-創",
-      "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-      "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-    },
-    {
-      "symbol": "6988",
-      "name": "威力暘-創",
-      "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-      "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-    },
-    {
-      "symbol": "7610",
-      "name": "聯友金屬-創",
-      "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-      "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-    },
-    {
-      "symbol": "7631",
-      "name": "聚賢研發-創",
-      "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-      "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-    },
-    {
-      "symbol": "7730",
-      "name": "暉盛-創",
-      "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-      "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-    },
-    {
-      "symbol": "7740",
-      "name": "熙特爾-創",
-      "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-      "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-    },
-    {
-      "symbol": "7803",
-      "name": "雲象科技-創",
-      "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-      "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-    },
-    {
-      "symbol": "7812",
-      "name": "稜研科技*-創",
-      "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-      "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-    },
-    {
-      "symbol": "7823",
-      "name": "奧義賽博-KY創",
-      "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-      "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-    },
-    {
-      "symbol": "7827",
-      "name": "漢康-KY創",
-      "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-      "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-    },
-    {
-      "symbol": "7835",
-      "name": "永悅健康-創",
-      "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-      "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-    },
-    {
-      "symbol": "8162",
-      "name": "微矽電子-創",
-      "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-      "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-    },
-    {
-      "symbol": "8487",
-      "name": "愛爾達-創",
-      "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
-      "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"
-    }
-  ],
-  "missing_symbol_classification_verified": false,
-  "artifact_run_id": "42830948832",
-  "artifact_id": "13770833589",
-  "artifact_readback_verified": true,
-  "receipt_publication_method": "GitHub connector manual recovery after Actions HTTP 409; research only"
+  "official_universe_warning_count": 0
 }
