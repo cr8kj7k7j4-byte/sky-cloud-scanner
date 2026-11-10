@@ -1,6 +1,6 @@
 {
-  "command": "Sky 快掃",
-  "request_id": "chat-20261110-quickscan-user-0855",
+  "command": "Sky 當沖現在掃一次",
+  "request_id": "chat-20261110-0858-daytrade-002",
   "read_only_no_orders": true,
-  "reason": "User explicitly requested Sky 快掃: fresh paid Fugle all-market observations, time provenance, 13-column research output; no auto order"
+  "reason": "User-triggered Sky daytrade scan at 08:58 TPE; paid Fugle observations only; distinct scan id, no orders"
 }
