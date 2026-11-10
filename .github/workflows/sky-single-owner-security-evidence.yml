@@ -33,7 +33,7 @@ jobs:
               pr_number: prNumber,
               findings: [],
               reviewer_type: 'DETERMINISTIC_PREFLIGHT_NOT_AI',
-              ai_review: 'AI_REVIEW_UNAVAILABLE',
+              ai_review: 'AI_REVIEW_NOT_ENABLED_FREE_MODE',
               governance_decision: 'HOLD',
               production_eligible: false,
               auto_merge: false,
@@ -76,7 +76,7 @@ jobs:
             await core.summary
               .addHeading('Sky Single Owner Security Evidence')
               .addRaw('PR SHA: ' + sha + '\n\n')
-              .addRaw('Deterministic preflight only. AI review: AI_REVIEW_UNAVAILABLE. Governance: HOLD.\n\n')
+              .addRaw('Deterministic preflight only. AI review: NOT ENABLED (free static checks only). Governance: HOLD.\n\n')
               .addRaw('Changed files: ' + String(record.changed_files || 0) + '\n\n')
               .addRaw('Findings: ' + String(record.findings.length) + '\n\n')
               .write();
