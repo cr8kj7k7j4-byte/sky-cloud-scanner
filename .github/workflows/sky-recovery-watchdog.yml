@@ -10,11 +10,15 @@ on:
     paths:
       - 'research/sky_recovery_watchdog.py'
       - 'tests/test_sky_recovery_watchdog.py'
+      - 'research/sky_repair_progress_monitor.py'
+      - 'tests/test_sky_repair_progress_monitor.py'
       - '.github/workflows/sky-recovery-watchdog.yml'
   pull_request:
     paths:
       - 'research/sky_recovery_watchdog.py'
       - 'tests/test_sky_recovery_watchdog.py'
+      - 'research/sky_repair_progress_monitor.py'
+      - 'tests/test_sky_repair_progress_monitor.py'
       - '.github/workflows/sky-recovery-watchdog.yml'
 
 permissions:
@@ -52,6 +56,16 @@ jobs:
       - name: Write auditable health artifact
         if: always()
         run: python -m research.sky_recovery_watchdog
+      - name: W0 latest-head PR progress contracts (no paid API)
+        if: always()
+        shell: bash
+        run: |
+          python -m unittest tests.test_sky_repair_progress_monitor -v
+      - name: Collect GitHub PR/CI blockers read-only
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_repair_progress_monitor
       - name: Publish evidence to Actions summary
         if: always()
         shell: bash
@@ -59,12 +73,17 @@ jobs:
           if [ -f output/sky_recovery_watchdog/latest.md ]; then
             cat output/sky_recovery_watchdog/latest.md >> "$GITHUB_STEP_SUMMARY"
           fi
+          if [ -f output/sky_repair_progress/latest.md ]; then
+            cat output/sky_repair_progress/latest.md >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Upload evidence, including failures
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: sky-recovery-watchdog-${{ github.run_id }}
-          path: output/sky_recovery_watchdog/
+          path: |
+            output/sky_recovery_watchdog/
+            output/sky_repair_progress/
           if-no-files-found: warn
           retention-days: 30
       - name: Premarket readiness notification (08:45-08:59 TPE weekdays)
