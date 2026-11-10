@@ -1,6 +1,6 @@
 {
   "command": "Sky 當沖現在掃一次",
-  "request_id": "chat-20261110-0921-stage1-e2e",
+  "request_id": "chat-20261110-0924-stage1-final",
   "read_only_no_orders": true,
-  "reason": "User authorized real Fugle Stage1 TWSE and TPEx snapshot candidates acceptance test at 09:21 Asia/Taipei; no orders"
+  "reason": "Verify merged Stage1 current TWSE TPEx real paid Fugle snapshot candidate list, ungraded classification, audit, artifact"
 }
