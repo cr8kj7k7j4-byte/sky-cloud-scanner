@@ -155,7 +155,7 @@ def build(universe, snapshots, checked_at, errors=None):
                     if isinstance(q, dict):
                         code = str(q.get("symbol") or "")
                         if code and (source_market != INNOVATION_BOARD or code in expected_tib):
-                            by_exchange[exchange][code] = (q, str(source.get("date") or ""))
+                            by_exchange[exchange][code] = (q, str(source.get("date") or ""), source_market)
     if expected_tib and not tib_valid:
         statuses["TWSE"] = "PARTIAL_TIB_MISSING" if statuses["TWSE"] == "RETURNED" else "MISSING_TSE_AND_TIB"
     # Snapshot diagnostics are informational; never certify executed-trade coverage.
@@ -174,6 +174,11 @@ def build(universe, snapshots, checked_at, errors=None):
             raw.extend(tib_payload["data"])
         symbols = [str(q.get("symbol") or "") for q in raw if isinstance(q, dict)]
         present = set(symbols) & official_sets[exchange]
+        tib_symbols = {str(q.get("symbol") or "") for q in (tib_payload.get("data") or []) if isinstance(q, dict)} if tib_valid else set()
+        tse_data = snapshots.get("TSE") if exchange == "TWSE" else None
+        tse_symbols = {str(q.get("symbol") or "") for q in (tse_data.get("data") or []) if isinstance(q, dict)} if isinstance(tse_data, dict) else set()
+        missing_tib_endpoint = expected_tib - tib_symbols
+        found_in_tse_not_tib = missing_tib_endpoint & tse_symbols
         snapshot_integrity[exchange] = {
             "api_response_valid": statuses[exchange] == "RETURNED",
             "raw_rows": len(raw),
@@ -191,10 +196,9 @@ def build(universe, snapshots, checked_at, errors=None):
             "innovation_board_market": INNOVATION_BOARD if exchange == "TWSE" else None,
             "innovation_board_official_count": len(expected_tib) if exchange == "TWSE" else 0,
             "innovation_board_api_response_valid": tib_valid if exchange == "TWSE" and expected_tib else None,
-            "innovation_board_missing_count": len(expected_tib - {
-                str(q.get("symbol") or "") for q in (tib_payload.get("data") or [])
-                if isinstance(q, dict)
-            }) if exchange == "TWSE" and tib_valid else (len(expected_tib) if exchange == "TWSE" else 0),
+            "innovation_board_missing_count": len(expected_tib - (tib_symbols | tse_symbols)) if exchange == "TWSE" else 0,
+            "innovation_board_missing_from_tib_endpoint_count": len(missing_tib_endpoint) if exchange == "TWSE" else 0,
+            "innovation_board_found_in_tse_not_tib": sorted(found_in_tse_not_tib) if exchange == "TWSE" else [],
             "missing_official_symbols": [
                 {"symbol": str(meta["symbol"]), "name": str(meta.get("name") or ""),
                  "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
@@ -209,8 +213,11 @@ def build(universe, snapshots, checked_at, errors=None):
         exchange = meta.get("exchange")
         if exchange not in MARKET:
             continue
-        q, date = by_exchange[exchange].get(str(meta["symbol"]), (None, ""))
+        q, date, source_market = by_exchange[exchange].get(str(meta["symbol"]), (None, "", None))
         row = record(meta, q, date, checked_at)
+        row["snapshot_market_source"] = source_market
+        if source_market:
+            row["market"] = source_market
         row["required_fields"] = project_required_fields(row)
         rows.append(row)
     eligible = [x for x in rows if x["last_price"] is not None and x["last_price"] <= 100]
