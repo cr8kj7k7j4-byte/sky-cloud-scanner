@@ -24,6 +24,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Install tested runtime HTTP dependency
+        run: pip install requests
       - name: Syntax-check bridge files
         run: python -m py_compile src/sky_chat_bridge.py src/sky_mcp_contract.py research/sky_snapshot_candidates.py src/sky_stage2_candidate_quotes.py
       - name: Run isolated contracts without paid credentials
