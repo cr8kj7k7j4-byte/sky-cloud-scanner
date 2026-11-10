@@ -3,6 +3,7 @@ import base64
 import json
 import os
 import tempfile
+import urllib.error
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -311,22 +312,57 @@ class SmokeAcceptanceContracts(unittest.TestCase):
                 return {}
             if path == "/pulls" and method == "POST":
                 return {"number": 9002, "html_url": "https://github.com/test/repo/pull/9002"}
+            if path == "/actions/workflows/sky-chat-bridge-tests.yml/dispatches" and method == "POST":
+                return {}
             raise AssertionError((path, method))
 
     def test_smoke_writes_only_one_fixture_to_draft_research_pr(self):
         api = self.FakeSmokeGithub()
         result = governed.run_smoke(api, expected_sha="a" * 40,
                                     allow_write=True, linked_prs=[])
-        self.assertEqual(result["state"], "DRAFT_SMOKE_REPAIR_PR_CREATED_AWAITING_DOWNSTREAM_CI")
+        self.assertEqual(result["state"], "DRAFT_SMOKE_REPAIR_CREATED_CI_DISPATCHED_AWAITING_PROOF")
         self.assertEqual(result["repair_pr_number"], 9002)
         writes = [(p, b) for p, m, b in api.calls if m != "GET"]
-        self.assertEqual(len(writes), 3)
-        self.assertEqual(writes[-1][1]["base"], governed.SMOKE_BRANCH)
-        self.assertTrue(writes[-1][1]["draft"])
+        self.assertEqual(len(writes), 4)
+        self.assertEqual(writes[2][1]["base"], governed.SMOKE_BRANCH)
+        self.assertTrue(writes[2][1]["draft"])
+        self.assertEqual(writes[3][0], "/actions/workflows/sky-chat-bridge-tests.yml/dispatches")
+        self.assertEqual(writes[3][1]["ref"], result["repair_branch"])
+        self.assertEqual(result["downstream_ci_dispatch"], "REQUESTED")
         self.assertEqual(writes[1][0], "/contents/" + governed.SMOKE_FILE)
         self.assertEqual(base64.b64decode(writes[1][1]["content"]).decode(), governed.SMOKE_FIXED)
         self.assertFalse(result["production_eligible"])
         self.assertFalse(result["automatic_merge"])
+
+    def test_smoke_pr_permission_403_preserves_repair_branch(self):
+        class ForbiddenPR(self.FakeSmokeGithub):
+            def call(self, path, method="GET", body=None):
+                if path == "/pulls" and method == "POST":
+                    self.calls.append((path, method, body))
+                    raise urllib.error.HTTPError("https://api.github.com", 403,
+                                                 "Forbidden", None, None)
+                return super().call(path, method, body)
+        api = ForbiddenPR()
+        result = governed.run_smoke(api, expected_sha="a" * 40,
+                                    allow_write=True, linked_prs=[])
+        self.assertEqual(result["state"], "HOLD_DRAFT_PR_PERMISSION")
+        self.assertIn("GITHUB_TOKEN_DRAFT_PR_PERMISSION_403", result["blockers"])
+        self.assertTrue(result["repair_branch"].startswith("research/sky-governed-smoke-fixed-"))
+        self.assertFalse(any(path.endswith("/dispatches") for path, _, _ in api.calls))
+
+    def test_smoke_downstream_dispatch_403_is_explicit_hold(self):
+        class ForbiddenDispatch(self.FakeSmokeGithub):
+            def call(self, path, method="GET", body=None):
+                if path.endswith("/dispatches") and method == "POST":
+                    self.calls.append((path, method, body))
+                    raise urllib.error.HTTPError("https://api.github.com", 403,
+                                                 "Forbidden", None, None)
+                return super().call(path, method, body)
+        result = governed.run_smoke(ForbiddenDispatch(), expected_sha="a" * 40,
+                                    allow_write=True, linked_prs=[])
+        self.assertEqual(result["state"], "DRAFT_SMOKE_REPAIR_CREATED_CI_DISPATCH_BLOCKED")
+        self.assertIn("DOWNSTREAM_DISPATCH_HTTP_403", result["blockers"])
+        self.assertEqual(result["repair_pr_number"], 9002)
 
     def test_smoke_stale_sha_does_not_write(self):
         api = self.FakeSmokeGithub()
