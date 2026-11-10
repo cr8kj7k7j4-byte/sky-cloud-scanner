@@ -51,6 +51,26 @@ class ChatScanBridgeTests(unittest.TestCase):
         self.assertEqual(result["status"], "REPORT_READY_RESEARCH_ONLY")
         self.assertEqual(result["observed_price_coverage_pct"], 100)
 
+    def test_snapshot_integrity_readback_does_not_certify_trades(self):
+        row = {key: "待確認" for key in COLUMNS}
+        row.update({"股票代碼": "1101", "現在動作": "等待",
+                    "正式交易資格": False})
+        report = {"schema": "SKY_DAYTRADE_13COL_RESEARCH_V2",
+                  "rows": [row], "row_count": 1, "universe_count": 1,
+                  "production_eligible": False}
+        detail = {"TWSE": {"duplicate_symbol_rows": 1,
+                            "official_symbol_coverage_pct": 100.0}}
+        observation = {"observed_price_count": 1, "fresh_executed_count": 0,
+                       "snapshot_integrity": detail,
+                       "by_exchange": {"TWSE": {"snapshot_rows": 1},
+                                       "TPEx": {"snapshot_rows": 1}}}
+        result = make_status("chat-20261110-diagnostic", report,
+                             observation=observation)
+        self.assertEqual(result["snapshot_integrity"], detail)
+        self.assertFalse(result["snapshot_reference_coverage_is_trade_coverage"])
+        self.assertFalse(result["stage2_quote_sample_is_whole_market_certification"])
+        self.assertFalse(result["production_eligible"])
+
     def test_zero_observed_never_claims_paid_success(self):
         row = {key: "待確認" for key in COLUMNS}
         row.update({"股票代碼": "1101", "現在動作": "等待", "正式交易資格": False})
