@@ -93,6 +93,21 @@ class DeepFiveMinTests(unittest.TestCase):
                             and z["last_feature_bar_time_tpe"]=="2026-11-10T10:25:00+08:00"
                             for z in x["samples"]))
 
+    def test_off_grid_five_minute_timestamp_fails_closed(self):
+        for timestamp in ("2026-11-10T10:26:00+08:00",
+                          "2026-11-10T10:25:01+08:00",
+                          "2026-11-10T10:25:00.001+08:00"):
+            def off_grid(symbol,timeframe="5"):
+                q=candles(symbol,timeframe)
+                q["data"][-1]["date"]=timestamp
+                return q
+            x=run(stage2(),ticker_fn=ticker,candle_fn=off_grid,
+                  sleep_fn=lambda _:None,now=NOW)
+            self.assertTrue(all(z["status"]=="INCOMPLETE_TICKER_OR_5M_EVIDENCE"
+                                and z["bar_sequence_valid"] is False
+                                and z["feature_preview"] is None
+                                for z in x["samples"]), timestamp)
+
     def test_duplicate_and_out_of_order_bars_rejected(self):
         for anomaly in ("duplicate", "out_of_order"):
             def invalid(symbol,timeframe="5"):
