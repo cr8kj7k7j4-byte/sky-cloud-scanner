@@ -94,7 +94,7 @@ def run(api: Github, *, allow_write: bool, event_name: str, expected_sha: str | 
     if head["ref"] != TARGET_BRANCH:
         report["blockers"].append("TARGET_BRANCH_CHANGED")
         return report
-    path = "/contents/" + TARGET_FILE + "?ref=" + TARGET_BRANCH
+    path = "/contents/" + TARGET_FILE + "?ref=" + sha
     doc = api.call(path)
     before = base64.b64decode(doc["content"]).decode("utf-8")
     after, fixes = safe_patch(before)
@@ -110,7 +110,13 @@ def run(api: Github, *, allow_write: bool, event_name: str, expected_sha: str | 
     if not allow_write:
         report["state"] = "PATCH_READY_FOR_DRAFT_PR"
         return report
-    # Never update production or the target branch.  Draft PR targets research head.
+    # Fail closed if the owning PR advanced after the initial read.  All patch
+    # source bytes above came from immutable SHA, not a mutable branch name.
+    latest = api.call(f"/pulls/{TARGET_PR}")
+    if (latest.get("head") or {}).get("sha") != sha:
+        report["blockers"].append("TARGET_PR_HEAD_CHANGED_BEFORE_PATCH")
+        return report
+    # Never update production or the target branch. Draft PR targets research head.
     branch = "research/sky-auto-repair-pr511-" + sha[:12]
     try:
         api.call("/git/refs", "POST", {"ref": "refs/heads/" + branch, "sha": sha})
