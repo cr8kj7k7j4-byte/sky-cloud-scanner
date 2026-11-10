@@ -6,7 +6,7 @@ class DeepQualityTests(unittest.TestCase):
         return {"lastTrade": {"price": 28.5}, "avgPrice": 28.0,
                 "bids":[{"price":28.5, "size":100}],
                 "asks":[{"price":28.55, "size":150}],
-                "total":{"tradeVolume":6000}}
+                "total":{"tradeVolume":6000, "tradeValue":20000000}}
 
     def test_good_l1_still_requires_volume_unit_certification(self):
         x=review(self.quote(),verified_trade=True,change_pct=2.0)
@@ -14,6 +14,12 @@ class DeepQualityTests(unittest.TestCase):
         self.assertIn("PROVIDER_VOLUME_UNIT_UNCERTIFIED",x["quality_reasons"])
         self.assertFalse(x["liquidity_certified"])
         self.assertFalse(x["decision_ready"])
+        self.assertTrue(x["turnover_gate_pass"])
+
+    def test_low_trade_value_fails_canonical_minimum(self):
+        q=self.quote()
+        q["total"]["tradeValue"]=100000
+        self.assertIn("TURNOVER_BELOW_UNCHANGED_P0C_MIN",review(q,verified_trade=True,change_pct=1)["quality_reasons"])
 
     def test_wide_spread_and_chase_deny(self):
         q=self.quote()
