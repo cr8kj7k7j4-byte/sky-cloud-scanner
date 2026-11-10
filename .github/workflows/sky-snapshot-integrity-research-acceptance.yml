@@ -5,6 +5,8 @@ on:
       - research/fugle-snapshot-diagnostics-20261110
     paths:
       - '.github/workflows/sky-snapshot-integrity-research-acceptance.yml'
+      - 'research/sky_full_universe_information.py'
+      - 'tests/test_sky_full_universe_information.py'
   workflow_dispatch:
 permissions:
   contents: write
