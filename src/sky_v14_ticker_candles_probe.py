@@ -60,6 +60,7 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                 # START until provider semantics are formally certified. Never use
                 # any bar that could still be forming at the scan observation time.
                 valid=[]
+                last_accepted_stamp=None
                 rejected_future_bars=0
                 excluded_incomplete_bars=0
                 invalid_bar_sequence=False
@@ -102,6 +103,7 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                                 invalid_bar_sequence=True
                                 continue
                             valid.append(b)
+                            last_accepted_stamp=stamp
                         except (KeyError, ValueError, TypeError, OverflowError):
                             invalid_bar_sequence=True
                             continue
@@ -135,7 +137,7 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                     "rejected_future_five_min_bars":rejected_future_bars,
                     "excluded_unfinished_five_min_bars":excluded_incomplete_bars,
                     "bar_sequence_valid":not invalid_bar_sequence,
-                    "last_feature_bar_time_tpe":valid[-1]["date"] if valid else None,
+                    "last_feature_bar_time_tpe":last_accepted_stamp.isoformat() if last_accepted_stamp else None,
                     "bar_timestamp_semantics_certified":False,
                     "feature_preview":features,
                     "avg_price_is_certified_vwap":False,
