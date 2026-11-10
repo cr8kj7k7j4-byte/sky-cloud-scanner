@@ -6,6 +6,8 @@ on:
       - "research/schedule_health.py"
       - "tests/test_schedule_health.py"
       - "tests/test_full_market_cadence_audit.py"
+      - "research/sky_w0_shared_blocker_audit.py"
+      - "tests/test_sky_w0_shared_blocker_audit.py"
       - ".github/workflows/schedule-health-audit.yml"
   workflow_dispatch:
   schedule:
@@ -36,11 +38,17 @@ jobs:
         run: python -m unittest discover -s tests -p test_full_market_cadence_audit.py -v
       - name: Read workflow status and scheduled runs
         run: python research/schedule_health.py
+      - name: W0 shared market Paper and duplicate cadence acceptance (read-only)
+        run: |
+          python -m unittest discover -s tests -p test_sky_w0_shared_blocker_audit.py -v
+          PYTHONPATH=. python -m research.sky_w0_shared_blocker_audit
       - name: Upload schedule health report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: schedule-health-${{ github.run_id }}
-          path: output/schedule_health/
+          path: |
+            output/schedule_health/
+            output/w0_shared_blocker_audit/
           if-no-files-found: error
           retention-days: 90
