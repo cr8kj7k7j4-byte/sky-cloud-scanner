@@ -1,7 +1,8 @@
 name: Six Model Evidence Triage (research only)
 on:
-  schedule:
-    - cron: '20 0 * * 1-5'
+  # PAUSED on 2026-11-10 by user request: formerly scheduled trigger.
+  # schedule:
+  # - cron: '20 0 * * 1-5'
   workflow_dispatch:
   pull_request:
     branches: [main]
