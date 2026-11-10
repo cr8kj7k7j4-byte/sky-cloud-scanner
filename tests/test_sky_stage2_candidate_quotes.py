@@ -17,21 +17,24 @@ class Stage2BridgeTests(unittest.TestCase):
         return {"schema":"SKY_STAGE1_FUGLE_SNAPSHOT_CANDIDATES_V1",
                 "candidate_count":100, "candidates":[
                   {"symbol":str(1101+i), "exchange":"TWSE",
-                   "observed_price":55.0, "production_eligible":False} for i in range(10)
+                   "observed_price":55.0, "reported_volume_raw":1000,
+                   "change_pct_observed":2.0, "production_eligible":False} for i in range(10)
                 ]+[{"symbol":str(8001+i), "exchange":"TPEx",
-                     "observed_price":55.0, "production_eligible":False} for i in range(10)]}
+                     "observed_price":55.0, "reported_volume_raw":1000,
+                     "change_pct_observed":2.0, "production_eligible":False} for i in range(10)]}
 
     def test_balanced_and_bounded(self):
         picked = select(self.stage1())
-        self.assertEqual(len(picked),6)
-        self.assertEqual([r["exchange"] for r in picked],["TWSE"]*3+["TPEx"]*3)
+        self.assertEqual(len(picked),12)
+        self.assertEqual([r["exchange"] for r in picked],["TWSE"]*6+["TPEx"]*6)
 
     def test_fresh_trade_still_research_only(self):
         r=verify(self.stage1(),quote_fn=lambda _:payload(),sleep_fn=lambda _:None,now_fn=lambda:NOW)
-        self.assertEqual(r["verified_executed_count"],6)
+        self.assertEqual(r["verified_executed_count"],12)
         self.assertFalse(r["production_eligible"])
         self.assertFalse(r["rate_limit_plan_verified"])
         self.assertTrue(all(x["action"]=="等待" for x in r["results"]))
+        self.assertTrue(all(x["canonical_v14_p0c_audit"]["live_execution_allowed"] is False for x in r["results"]))
 
     def test_missing_trade_time_cannot_verify(self):
         q={"date":"2026-11-10","lastTrade":{"price":50.0}}
@@ -48,7 +51,13 @@ class Stage2BridgeTests(unittest.TestCase):
         self.assertEqual(r["attempted_count"],1)
         self.assertEqual(r["rate_limited_count"],1)
 
-    def test_cannot_expand_beyond_three_per_market(self):
+    def test_rapid_rise_removed_before_api_query(self):
+        data = self.stage1()
+        data["candidates"][0]["change_pct_observed"] = 8.0
+        picked = select(data)
+        self.assertNotIn(data["candidates"][0]["symbol"], [x["symbol"] for x in picked])
+
+    def test_cannot_expand_beyond_six_per_market(self):
         with self.assertRaisesRegex(ValueError,"INVALID_SAMPLE_SIZE"):
             select(self.stage1(),per_market=999)
 
