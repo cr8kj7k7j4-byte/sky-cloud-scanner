@@ -50,7 +50,9 @@ def audit():
                "grade": "A+", "policy": policy, "execution_policy": cost}
     two_losses = evaluate_trade(**fixture, consecutive_losses=2)
     daily_limit = evaluate_trade(**fixture, daily_pnl=-EXPECTED["daily_loss_stop_twd"])
-    without_execution = evaluate_trade(**fixture)
+    # Force enforcement for this diagnostic: missing inputs may never be treated as zero.
+    from dataclasses import replace
+    without_execution = evaluate_trade(**{**fixture, "execution_policy": replace(cost, enforce_gate=True)})
     checks = [
         {"name": "capital_500k", "passed": equity == EXPECTED["account_equity_twd"],
          "observed": equity},
@@ -80,6 +82,9 @@ def audit():
              "execution": without_execution.get("execution_status"),
              "enforce_execution_gate": config.EXEC_ENFORCE_GATE,
          }},
+        {"name": "runtime_cost_gate_enabled",
+         "passed": config.EXEC_ENFORCE_GATE is True,
+         "observed": config.EXEC_ENFORCE_GATE},
         {"name": "cost_after_rr_threshold",
          "passed": cost.min_execution_rr >= EXPECTED["min_cost_after_rr"],
          "observed": cost.min_execution_rr},
