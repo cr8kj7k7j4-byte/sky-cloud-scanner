@@ -83,7 +83,7 @@ def screen(report: dict, *, max_price: float = MAX_PRICE_TWD) -> dict:
             "last_trade_time": row.get("last_trade_time"),
             "executed_trade_verified": row.get("data_status") == "FRESH_EXECUTED_TRADE",
             "candidate_scope": "STAGE1_OBSERVATION_ONLY",
-            "classification": "A",
+            "classification": "未分級",
             "action": "等待",
             "production_eligible": False,
         })
