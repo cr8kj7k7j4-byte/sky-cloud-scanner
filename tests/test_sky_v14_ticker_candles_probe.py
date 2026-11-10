@@ -110,6 +110,21 @@ class DeepFiveMinTests(unittest.TestCase):
                                 and z["feature_preview"] is None
                                 for z in x["samples"]), timestamp)
 
+    def test_missing_five_minute_bar_blocks_features(self):
+        def missing_bar(symbol,timeframe="5"):
+            q=candles(symbol,timeframe)
+            # Simulate an otherwise ordered sequence with a missing 10:15 bar.
+            q["data"].pop(3)
+            return q
+        x=run(stage2(),ticker_fn=ticker,candle_fn=missing_bar,
+              sleep_fn=lambda _:None,now=NOW)
+        self.assertTrue(all(z["valid_today_five_min_bars"]==5
+                            and z["bar_sequence_valid"] is False
+                            and z["status"]=="INCOMPLETE_TICKER_OR_5M_EVIDENCE"
+                            and z["feature_preview"] is None
+                            and z["production_eligible"] is False
+                            for z in x["samples"]))
+
     def test_duplicate_and_out_of_order_bars_rejected(self):
         for anomaly in ("duplicate", "out_of_order"):
             def invalid(symbol,timeframe="5"):
