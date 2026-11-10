@@ -51,7 +51,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-      actions: read
+      actions: write # only to dispatch free Sky Chat Bridge Unit Checks for isolated smoke repair
     runs-on: ubuntu-latest
     timeout-minutes: 6
     env:
