@@ -7,6 +7,8 @@ on:
       - "tests/test_schedule_health.py"
       - "tests/test_full_market_cadence_audit.py"
       - "research/sky_w0_shared_blocker_audit.py"
+      - "research/sky_w0_dedup_inventory.py"
+      - "tests/test_sky_w0_dedup_inventory.py"
       - "tests/test_sky_w0_shared_blocker_audit.py"
       - ".github/workflows/schedule-health-audit.yml"
   workflow_dispatch:
@@ -42,6 +44,10 @@ jobs:
         run: |
           python -m unittest discover -s tests -p test_sky_w0_shared_blocker_audit.py -v
           PYTHONPATH=. python -m research.sky_w0_shared_blocker_audit
+      - name: W0 inventory every workflow and open PR without triggering paid scans
+        run: |
+          PYTHONPATH=. python -m unittest discover -s tests -p test_sky_w0_dedup_inventory.py -v
+          PYTHONPATH=. python -m research.sky_w0_dedup_inventory
       - name: Upload schedule health report
         if: always()
         uses: actions/upload-artifact@v4
@@ -50,5 +56,6 @@ jobs:
           path: |
             output/schedule_health/
             output/w0_shared_blocker_audit/
+            output/w0_repo_dedup/
           if-no-files-found: error
           retention-days: 90
