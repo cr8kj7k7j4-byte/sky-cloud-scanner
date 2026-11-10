@@ -10,6 +10,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+from research.sky_snapshot_candidates import screen as screen_stage1
+
 REQUEST = Path("scan_requests/chat/latest.json")
 OUTPUT = Path("output/chat_bridge")
 COLUMNS = ("股票代碼", "股票名稱", "即時價", "分類", "方向", "多方評分",
@@ -55,10 +57,11 @@ def validate_report(report):
     return rows
 
 
-def make_status(request_id, report=None, error=None, observation=None):
+def make_status(request_id, report=None, error=None, observation=None, stage1=None):
     observation = observation or {}
     observed_count = observation.get("observed_price_count", 0)
     exchange_detail = observation.get("by_exchange") or {}
+    stage1 = stage1 or {}
     run_id = os.getenv("GITHUB_RUN_ID") or "LOCAL"
     repo = os.getenv("GITHUB_REPOSITORY") or ""
     rows = validate_report(report) if report is not None else []
@@ -97,6 +100,12 @@ def make_status(request_id, report=None, error=None, observation=None):
         "observed_price_count": observed_count,
         "fresh_executed_count": observation.get("fresh_executed_count", 0),
         "by_exchange": exchange_detail,
+        "stage1_candidate_count": stage1.get("candidate_count", 0),
+        "stage1_by_exchange": stage1.get("by_exchange") or {},
+        "stage1_exclusion_reasons": stage1.get("excluded_reasons") or {},
+        "stage1_price_limit_exclusive_twd": stage1.get("max_price_exclusive_twd", 100),
+        "stage1_candidate_preview": (stage1.get("candidates") or [])[:20],
+        "stage1_candidate_artifact": "output/sky_quickscan_information/stage1_candidates.json" if stage1 else None,
         "snapshot_errors": snapshot_errors,
         "observed_price_coverage_pct": round(100 * observed_count / len(rows), 2) if rows else 0.0,
         "fresh_executed_coverage_pct": round(
@@ -114,6 +123,7 @@ def main():
     report = None
     error = None
     observation = None
+    stage1 = None
     try:
         request_id = validate_request(json.loads(REQUEST.read_text(encoding="utf-8")))
         for argv in (
@@ -136,10 +146,13 @@ def main():
         actual = {str(item["股票代碼"]) for item in report["rows"]}
         if expected != actual:
             raise ValueError("UNIVERSE_SYMBOL_SET_MISMATCH")
+        stage1 = screen_stage1(observation)
+        Path("output/sky_quickscan_information/stage1_candidates.json").write_text(
+            json.dumps(stage1, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired, json.JSONDecodeError) as exc:
         error = str(exc)[:160]
         report = None
-    status = make_status(request_id, report, error, observation)
+    status = make_status(request_id, report, error, observation, stage1)
     (OUTPUT / "latest.json").write_text(json.dumps(status, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({k: v for k, v in status.items() if k != "preview"}, ensure_ascii=False))
     if report is None:
