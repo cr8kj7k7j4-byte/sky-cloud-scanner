@@ -126,3 +126,46 @@ def test_dashboard_requires_two_known_regimes_for_regime_coverage():
     assert d["sufficiency_pass"] is True
     assert d["regime_gate"] == "INCOMPLETE"
     assert d["decision"] == "HOLD_REGIME_COVERAGE_INCOMPLETE"
+
+
+def test_blocked_provider_writes_diagnostic_without_state(tmp_path, monkeypatch):
+    import json
+    import sys
+    import pytest
+    import research.trend_persistence_prospective as module
+
+    def blocked(*args, **kwargs):
+        raise PermissionError("FREE_MIS_MARKETDATA_DISABLED_BY_USER_POLICY")
+
+    monkeypatch.setattr(module, "run", blocked)
+    monkeypatch.setattr(sys, "argv", ["trend", "--history-dir", "unused",
+                                     "--out", str(tmp_path)])
+    with pytest.raises(PermissionError):
+        module.main()
+    result = json.loads((tmp_path / "failure.json").read_text())
+    assert result["reason"] == "FUGLE_ONLY_LEGACY_MIS_BLOCKED"
+    assert result["status"] == "DATA_BLOCKED"
+    assert result["state_updated"] is False
+    assert result["trade_eligible"] is False
+    assert not (tmp_path / "state.json").exists()
+    assert "DATA_BLOCKED" in (tmp_path / "latest.md").read_text()
+
+
+def test_unexpected_failure_remains_failed_and_scrubs_error(tmp_path, monkeypatch):
+    import json
+    import sys
+    import pytest
+    import research.trend_persistence_prospective as module
+
+    def broken(*args, **kwargs):
+        raise RuntimeError("sensitive-provider-detail")
+
+    monkeypatch.setattr(module, "run", broken)
+    monkeypatch.setattr(sys, "argv", ["trend", "--history-dir", "unused",
+                                     "--out", str(tmp_path)])
+    with pytest.raises(RuntimeError):
+        module.main()
+    raw = (tmp_path / "failure.json").read_text()
+    assert json.loads(raw)["reason"] == "PROSPECTIVE_UPDATE_FAILED"
+    assert "sensitive-provider-detail" not in raw
+    assert not (tmp_path / "state.json").exists()
