@@ -1,6 +1,6 @@
 {
-  "command": "Sky 快掃",
-  "request_id": "chat-20261110-user-quickscan-repeat-003",
+  "command": "Sky 當沖現在掃一次",
+  "request_id": "chat-20261110-0908-visible-info-003",
   "read_only_no_orders": true,
-  "reason": "User requested Sky 快掃 again. Run paid Fugle full market read-only and validate 13-column outputs and fresh trade-time coverage; no trading orders."
+  "reason": "User requests actual observed prices and researched 13-column candidates, current in-session Fugle all-market read-only scan"
 }
