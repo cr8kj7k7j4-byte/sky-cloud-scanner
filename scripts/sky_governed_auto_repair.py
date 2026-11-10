@@ -57,6 +57,7 @@ class Github:
     def __init__(self, repo: str, token: str):
         if not token or not repo or "/" not in repo:
             raise ValueError("GITHUB_AUTH_OR_REPO_MISSING")
+        self.repo = repo
         self.base = "https://api.github.com/repos/" + repo
         self.headers = {"Authorization": "Bearer " + token,
                         "Accept": "application/vnd.github+json",
@@ -90,6 +91,9 @@ def run(api: Github, *, allow_write: bool, event_name: str, expected_sha: str | 
     report["target_sha"] = sha
     if expected_sha is not None and (not expected_sha or sha != expected_sha):
         report["blockers"].append("TRIGGER_SHA_NOT_CURRENT_PR_HEAD")
+        return report
+    if (head.get("repo") or {}).get("full_name") != api.repo:
+        report["blockers"].append("TARGET_REPOSITORY_NOT_TRUSTED")
         return report
     if head["ref"] != TARGET_BRANCH:
         report["blockers"].append("TARGET_BRANCH_CHANGED")
