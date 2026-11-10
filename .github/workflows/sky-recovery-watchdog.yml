@@ -65,6 +65,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           SKY_P0R_RETRY_FAILED_TEST_ONCE: 'true'
         run: python -m research.sky_p0r_repair_status
+      - name: Test structural paid API overlap audit without Fugle calls
+        if: always()
+        run: python -m unittest tests.test_sky_w0_dedup_inventory -v
+      - name: Collect W0 cross-Workflow paid entrypoint audit (no provider calls)
+        if: always()
+        run: python -m research.sky_w0_dedup_inventory
       - name: W0 latest-head PR progress contracts (read-only)
         if: always()
         run: python -m unittest tests.test_sky_repair_progress_monitor -v
@@ -95,6 +101,7 @@ jobs:
             output/sky_recovery_watchdog/
             output/sky_p0r_repair_monitor/
             output/sky_repair_progress/
+            output/w0_repo_dedup/
           if-no-files-found: warn
           retention-days: 30
       - name: Premarket readiness notification (08:45-08:59 TPE weekdays)
