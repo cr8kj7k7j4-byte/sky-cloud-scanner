@@ -50,3 +50,16 @@
 5. 最後評估執行時間、重複行情請求數、GitHub Actions 使用情況；未取得基準與後測，不聲稱已加速。
 
 **結論：精簡入口可降低過期排程負擔，但 167 個 Workflow 的數量不是唯一瓶頸。真正的主要阻礙仍是正式行情 Gate、P0-R 治理與資料鏈重複查詢；保持 NO_LIVE_TRADING。**
+
+## 第二批（2026-11-10，另行 CI 驗收）
+
+在第一批合併後，繼續依程式內明確截止時間處理：
+
+- 移除 `.github/workflows/sky-preopen-evidence-monitor.yml`：臨時盤前 Read-only 監控截止 2026-11-10 10:30 台灣時間，內含自動停用邏輯；保留 Git 歷史及故障證據。
+- 從 `.github/workflows/sky-research-ci-watchdog.yml` 移除 `*/5 * * * *` 排程：原 24 小時研究 CI 監控截止 2026-11-10 04:00 UTC（12:00 台灣），保留 PR 單元測試與手動診斷入口。
+- 從 `.github/workflows/w2-research-24h-watchdog.yml` 移除 `*/5 * * * *` 排程：原監控截止 2026-11-09 02:38 UTC，保留 W2 的 PR 回歸測試與手動診斷入口。
+- **不要誤認「每五分鐘 cron 從 YAML 消失」等於 GitHub 已證實未來不再觸發**：合併後須讀回 main，後續在交易日核對 schedule 事件記錄。
+- 第一批去重 PR：關閉 #253、#265（保留歷史），由 W6 #365 負責兩筆停損硬阻擋的正式整合；#365 仍是 Draft、不得提升 Production。
+- 僅憑歷史檔案/Workflow 數量無法證明效能改善。**評估標準**是停止過期 cron、保留正式掃描/告警、降低重複事件與 API 查詢，並逐步測量 Actions 使用量。實際省下多少 Actions 分鐘與付費額度待觀察。
+
+**本次兩批不修改 `scan.yml` 與 `sky-full-market-five-minute-dispatch.yml`，因為它們都在執行與尚待正式驗收的資料來源工作；直接關閉任一條可能使資料更不完整。**
