@@ -42,6 +42,8 @@ def evaluate_paper_journal(entries):
         "trade_count": 0,
         "paper_net_pnl_estimate_twd": None,
         "after_cost_paper_performance_verified": False,
+        "market_scan_source_verified": False,
+        "paper_cost_arithmetic_reconciled": False,
         "real_execution_quality_verified": False,
         "paper_journal_status": "INSUFFICIENT_DATA",
         "rows": [],
@@ -115,5 +117,7 @@ def evaluate_paper_journal(entries):
         return report
     report["paper_net_pnl_estimate_twd"] = round(net, 4)
     report["paper_journal_status"] = "PAPER_ESTIMATE_RECONCILED_NOT_REAL_EXECUTION"
-    report["after_cost_paper_performance_verified"] = True
+    report["paper_cost_arithmetic_reconciled"] = True
+    # IDs are caller supplied: no independent source/observed fill proof yet.
+    report["after_cost_paper_performance_verified"] = False
     return report
