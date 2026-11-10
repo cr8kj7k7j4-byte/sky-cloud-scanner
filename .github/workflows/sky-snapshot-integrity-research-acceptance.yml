@@ -1,11 +1,7 @@
 name: Sky Snapshot Integrity Research Acceptance
 # MANUAL_ACCEPTANCE_ONESHOT_20261110_PAUSE_CRON: one limited research run; no scheduled trigger.
 on:
-  # One bounded TSE+OTC+TIB research evidence run on this workflow update only.
-  # No schedule. Push is removed immediately after single run receipt inspection.
-  push:
-    branches: [research/fugle-snapshot-diagnostics-20261110]
-    paths: ['.github/workflows/sky-snapshot-integrity-research-acceptance.yml']
+  # Manual-only, bounded Snapshot acceptance; previous live TIB research run verified.
   workflow_dispatch:
 permissions:
   contents: write
