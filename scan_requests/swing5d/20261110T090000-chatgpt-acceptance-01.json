@@ -1,0 +1,13 @@
+{
+  "command": "Sky Swing 5D 快掃",
+  "requested_at_taipei": "2026-11-10T09:00:00+08:00",
+  "purpose": "read-only whole-market research candidate scan and acceptance verification",
+  "verify": [
+    "workflow_run",
+    "artifact",
+    "market_data_gate",
+    "coverage",
+    "candidate_output"
+  ],
+  "no_orders": true
+}
