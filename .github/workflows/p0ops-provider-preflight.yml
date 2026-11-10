@@ -8,10 +8,11 @@ on:
       - ".github/workflows/p0ops-provider-preflight.yml"
       - "research/p0ops_provider_capability.py"
       - "tests/test_p0ops_provider_capability.py"
-  schedule:
-    # 08:55 Asia/Taipei weekdays; permission probe only, NOT a live coverage certification.
-    - cron: "55 0 * * 1-5"
-
+  # PAUSED on 2026-11-10 by user request: formerly scheduled trigger.
+  # schedule:
+  # # 08:55 Asia/Taipei weekdays; permission probe only, NOT a live coverage certification.
+  # - cron: "55 0 * * 1-5"
+  # 
 permissions:
   contents: read
 
