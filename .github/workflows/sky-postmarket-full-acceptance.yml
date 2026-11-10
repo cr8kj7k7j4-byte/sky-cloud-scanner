@@ -1,6 +1,10 @@
 name: Sky Postmarket Full-System Acceptance (Read Only)
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/sky-postmarket-full-acceptance.yml'
   pull_request:
     paths:
       - 'research/sky_postmarket_acceptance.py'
@@ -23,7 +27,7 @@ jobs:
       - name: Run offline fail-closed contract tests
         run: python -m unittest -v tests.test_sky_postmarket_acceptance
       - name: Audit actual GitHub runs and latest sanitized report
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name != 'pull_request'
         run: python -m research.sky_postmarket_acceptance
       - name: Preserve acceptance evidence (including failures)
         if: always()
