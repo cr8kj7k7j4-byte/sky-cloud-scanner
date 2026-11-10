@@ -1,6 +1,6 @@
 import unittest
 from datetime import datetime, timezone
-from research.sky_p0r_repair_status import evaluate, safe_retry_candidate
+from research.sky_p0r_repair_status import evaluate, safe_retry_candidate, schedule_cadence
 
 
 class P0RRepairMonitorTests(unittest.TestCase):
@@ -47,6 +47,28 @@ class P0RRepairMonitorTests(unittest.TestCase):
         runs["workflow_runs"][0]["run_attempt"] = 1
         runs["workflow_runs"][0]["name"] = "Sky Single-Stock Fugle Realtime"
         self.assertIsNone(safe_retry_candidate(runs, "abc"))
+
+    def test_real_schedule_gap_is_not_claimed_five_minute_healthy(self):
+        now = datetime(2026, 11, 10, 13, 30, tzinfo=timezone.utc)
+        records = {"workflow_runs": [
+            {"event": "schedule", "created_at": "2026-11-10T12:27:26Z"},
+            {"event": "schedule", "created_at": "2026-11-10T11:33:31Z"},
+        ]}
+        report = schedule_cadence(records, now=now)
+        self.assertEqual(report["status"], "DELAYED_OVER_15_MINUTES")
+        self.assertGreater(report["last_interval_minutes"], 50)
+
+    def test_no_schedule_proof_is_unknown_not_success(self):
+        self.assertEqual(schedule_cadence({"workflow_runs": []})["status"],
+                         "UNKNOWN_NO_SCHEDULE_EVIDENCE")
+
+    def test_recent_five_minute_schedule_proof(self):
+        now = datetime(2026, 11, 10, 13, 30, tzinfo=timezone.utc)
+        runs = {"workflow_runs": [
+            {"event": "schedule", "created_at": "2026-11-10T13:26:00Z"},
+            {"event": "schedule", "created_at": "2026-11-10T13:21:00Z"},
+        ]}
+        self.assertEqual(schedule_cadence(runs, now=now)["status"], "RECENT_SCHEDULE_OBSERVED")
 
     def test_no_retry_of_mismatched_commit(self):
         runs = {"workflow_runs": [{"name": "P0-R Risk Engine Tests", "head_sha": "wrong",
