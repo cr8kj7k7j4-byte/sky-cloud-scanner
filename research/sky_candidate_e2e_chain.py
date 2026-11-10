@@ -11,6 +11,7 @@ from pathlib import Path
 
 from src.cost_profiles import USER_CASH_DAYTRADE_20261022
 from src.risk_engine import evaluate_trade
+from research.sky_stage5_vwap_cost_evidence import review_quote_vwap_evidence, review_cost_evidence
 
 SCHEMA = "SKY_CANDIDATE_E2E_EVIDENCE_CHAIN_V1"
 
@@ -94,6 +95,8 @@ def build(stage1, stage2, stage3):
         )
         # avgPrice can be shown as a provider average-price observation, NEVER as certified VWAP.
         avg_price = micro.get("average_price") if verified_quote else None
+        vwap_source_audit = review_quote_vwap_evidence(micro if verified_quote else {})
+        cost_source_audit = review_cost_evidence()
         vwap_certified = bool(causal_verified and candle.get("avg_price_is_certified_vwap") is True)
         # Formal P0-R cannot be checked from synthetic zero holdings. Call only
         # with absent price levels, forcing the canonical risk engine to block.
@@ -143,6 +146,8 @@ def build(stage1, stage2, stage3):
             "provider_avg_price_observation": avg_price,
             "vwap_certified": vwap_certified,
             "vwap_source": "NOT_CERTIFIED" if not vwap_certified else "CANDIDATE_CLAIM_REQUIRES_W0_REVIEW",
+            "vwap_source_consistency_audit": vwap_source_audit,
+            "execution_cost_provenance_audit": cost_source_audit,
             "cost_profile": USER_CASH_DAYTRADE_20261022.profile_id,
             "base_round_trip_cost_pct": round(
                 100 * (USER_CASH_DAYTRADE_20261022.buy_commission_rate
