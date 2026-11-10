@@ -126,7 +126,7 @@ def run():
             report["blockers"].append("SAFE_PATCH_DEFERRED_UNTIL_CI_STABLE")
         else:
             changed = api(f"/contents/{EXPECTED_REPAIR_FILE}", method="PUT", payload={
-                "message": "autorepair(research): restore optional Snapshot trade-time contract [skip ci]",
+                "message": "autorepair(research): restore optional Snapshot trade-time contract",
                 "content": base64.b64encode(patch.encode()).decode(),
                 "sha": blob_sha, "branch": BRANCH})
             report["actions"].append("PATCH_RESEARCH_ONLY_OPTIONAL_SNAPSHOT_TIME")
