@@ -5,6 +5,19 @@ class ChatScanBridgeTests(unittest.TestCase):
     def test_request_good(self):
         self.assertEqual(validate_request({"command":"Sky 當沖現在掃一次","request_id":"chat-20261109-a","read_only_no_orders":True}),"chat-20261109-a")
 
+    def test_quickscan_alias_same_read_only_research_bridge(self):
+        self.assertEqual(validate_request({
+            "command": "Sky 快掃",
+            "request_id": "chat-20261110-quickscan-001",
+            "read_only_no_orders": True,
+        }), "chat-20261110-quickscan-001")
+        with self.assertRaisesRegex(ValueError, "ORDER_POLICY_REQUIRED"):
+            validate_request({
+                "command": "Sky 快掃",
+                "request_id": "chat-20261110-quickscan-002",
+                "read_only_no_orders": False,
+            })
+
     def test_request_denies_order(self):
         with self.assertRaisesRegex(ValueError,"ORDER_POLICY_REQUIRED"):
             validate_request({"command":"Sky 當沖現在掃一次","request_id":"chat-20261109-a","read_only_no_orders":False})
