@@ -104,3 +104,39 @@ def test_snapshot_without_lasttrade_time_keeps_reference_and_collection_clock():
     assert report["snapshot_reference_without_trade_time_count"] == 1
     assert report["fresh_executed_count"] == 0
     assert report["no_order_or_production_promotion"] is True
+
+
+def test_snapshot_integrity_distinguishes_missing_duplicates_and_no_trades():
+    payload = {
+        "TSE": {"date": NOW.date().isoformat(), "time": NOW.isoformat(), "data": [
+            {"symbol": "1001", "lastPrice": 40, "tradeVolume": 0},
+            {"symbol": "1001", "lastPrice": 40, "tradeVolume": 0},
+            {"symbol": "9999", "lastPrice": 8},
+        ]},
+        "OTC": {"date": NOW.date().isoformat(), "data": [
+            {"symbol": "2001", "tradeVolume": 0},
+        ]},
+    }
+    report = build(U, payload, NOW)
+    twse = report["snapshot_integrity"]["TWSE"]
+    tpex = report["snapshot_integrity"]["TPEx"]
+    assert twse["api_response_valid"] is True
+    assert twse["duplicate_symbol_rows"] == 1
+    assert twse["unexpected_symbols"] == 1
+    assert twse["official_symbol_coverage_pct"] == 100.0
+    assert twse["snapshot_time_is_execution_time"] is False
+    assert tpex["official_symbols_missing_from_snapshot"] == 1
+    assert report["all_symbols"][1]["data_status"] == "MISSING_EXECUTED_PRICE"
+    assert report["all_symbols"][1]["source"] == "Fugle paid bulk snapshot"
+    assert report["snapshot_api_calls_expected_per_scan"] == 2
+    assert report["fresh_executed_count"] == 0
+
+
+def test_missing_snapshot_market_does_not_look_like_success():
+    report = build(U, {"TSE": {"date": NOW.date().isoformat(), "data": []}}, NOW,
+                   errors={"OTC": "HTTP_ERROR"})
+    assert report["snapshot_integrity"]["TWSE"]["api_response_valid"] is True
+    assert report["snapshot_integrity"]["TWSE"]["official_symbols_missing_from_snapshot"] == 1
+    assert report["snapshot_integrity"]["TPEx"]["api_response_valid"] is False
+    assert report["snapshot_integrity"]["TPEx"]["official_symbols_missing_from_snapshot"] == 2
+    assert report["snapshot_errors"]["OTC"] == "HTTP_ERROR"
