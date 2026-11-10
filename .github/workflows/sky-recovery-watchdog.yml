@@ -9,9 +9,13 @@ on:
     branches: [main]
     paths:
       - 'research/sky_recovery_watchdog.py'
+      - 'research/sky_p0r_repair_status.py'
+      - 'tests/test_sky_p0r_repair_status.py'
       - 'tests/test_sky_recovery_watchdog.py'
       - 'research/sky_repair_progress_monitor.py'
       - 'tests/test_sky_repair_progress_monitor.py'
+      - 'research/sky_w3b_repair_monitor.py'
+      - 'tests/test_sky_w3b_repair_monitor.py'
       - '.github/workflows/sky-recovery-watchdog.yml'
   pull_request:
     paths:
@@ -23,7 +27,7 @@ on:
 
 permissions:
   contents: read
-  actions: read
+  actions: write # existing bounded P0-R retry; W0 monitor uses GET only
   pull-requests: read
 
 concurrency:
@@ -48,7 +52,7 @@ jobs:
         run: |
           set -euo pipefail
           for ATTEMPT in 1 2; do
-            if python -m unittest tests.test_sky_alert_information_format tests.test_sky_recovery_watchdog -v; then
+            if python -m unittest tests.test_sky_alert_information_format tests.test_sky_recovery_watchdog tests.test_sky_p0r_repair_status -v; then
               exit 0
             fi
             echo "Contract test failed on attempt ${ATTEMPT}; retrying once after a short delay"
@@ -58,12 +62,16 @@ jobs:
       - name: Write auditable health artifact
         if: always()
         run: python -m research.sky_recovery_watchdog
-      - name: W0 latest-head PR progress contracts (no paid API)
+      - name: Check PR #508 repair progress and retry one failed unit test only
         if: always()
-        shell: bash
-        run: |
-          python -m unittest tests.test_sky_repair_progress_monitor -v
-      - name: Collect GitHub PR/CI blockers read-only
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SKY_P0R_RETRY_FAILED_TEST_ONCE: 'true'
+        run: python -m research.sky_p0r_repair_status
+      - name: W0 latest-head PR progress contracts (read-only)
+        if: always()
+        run: python -m unittest tests.test_sky_repair_progress_monitor -v
+      - name: Collect W0 GitHub PR/CI blocker evidence
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
@@ -75,6 +83,9 @@ jobs:
           if [ -f output/sky_recovery_watchdog/latest.md ]; then
             cat output/sky_recovery_watchdog/latest.md >> "$GITHUB_STEP_SUMMARY"
           fi
+          if [ -f output/sky_p0r_repair_monitor/latest.md ]; then
+            cat output/sky_p0r_repair_monitor/latest.md >> "$GITHUB_STEP_SUMMARY"
+          fi
           if [ -f output/sky_repair_progress/latest.md ]; then
             cat output/sky_repair_progress/latest.md >> "$GITHUB_STEP_SUMMARY"
           fi
@@ -85,6 +96,7 @@ jobs:
           name: sky-recovery-watchdog-${{ github.run_id }}
           path: |
             output/sky_recovery_watchdog/
+            output/sky_p0r_repair_monitor/
             output/sky_repair_progress/
           if-no-files-found: warn
           retention-days: 30
@@ -120,3 +132,63 @@ jobs:
             --data-urlencode "chat_id=$TELEGRAM_CHAT_ID" \
             --data-urlencode "text@/tmp/sky-watchdog-notice.txt" \
             "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" > /dev/null
+
+  w3b-repair-contract-tests:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate monitor safely without elevated permissions
+        run: python -m unittest tests.test_sky_w3b_repair_monitor -v
+
+  w3b-repair-monitor:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
+    # Existing */5 UTC schedule owns cadence. No new cron or paid market calls.
+    # PR event runs isolated unit tests only with read permissions.
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    permissions:
+      contents: read
+      actions: write # narrowly scoped to rerun-failed-jobs for #512 unit CI
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SKY_W3B_SAFE_CI_RETRY: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify bounded repair monitor contracts
+        run: python -m unittest tests.test_sky_w3b_repair_monitor -v
+      - name: Check PR #512 and safely retry only first failed unit CI
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: python -m research.sky_w3b_repair_monitor
+      - name: Write repair state to Actions summary
+        if: always()
+        shell: bash
+        run: |
+          if [ -f output/sky_recovery_watchdog/w3b_repair_monitor.json ]; then
+            python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+          x=json.loads(Path("output/sky_recovery_watchdog/w3b_repair_monitor.json").read_text())
+          print("## W3B five-minute research repair monitor")
+          for k in ("checked_at_utc", "pr_state", "head_sha", "run_id", "run_status", "run_conclusion", "action", "reason"):
+              print(f"- {k}: {x.get(k, 'unknown')}")
+          print("- Production: NOT ELIGIBLE; W0/P0-G review required")
+          PY
+          fi
+      - name: Upload repair monitor evidence including blocks
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-w3b-repair-monitor-${{ github.run_id }}
+          path: output/sky_recovery_watchdog/w3b_repair_monitor.json
+          if-no-files-found: warn
+          retention-days: 30
