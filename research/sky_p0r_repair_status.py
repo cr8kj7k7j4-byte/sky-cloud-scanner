@@ -136,6 +136,32 @@ def safe_retry_candidate(runs, sha):
     return None
 
 
+def schedule_cadence(schedule_runs, now=None):
+    """Check actual schedule events, not just existence of a cron expression."""
+    now = now or datetime.now(timezone.utc)
+    records = schedule_runs.get("workflow_runs") or []
+    scheduled = [r for r in records if r.get("event") == "schedule"]
+    instants = []
+    for row in scheduled:
+        try:
+            instant = datetime.fromisoformat(row["created_at"].replace("Z", "+00:00"))
+            if instant.tzinfo is not None and instant <= now:
+                instants.append(instant)
+        except (KeyError, TypeError, ValueError, AttributeError):
+            continue
+    instants.sort(reverse=True)
+    if not instants:
+        return {"status": "UNKNOWN_NO_SCHEDULE_EVIDENCE", "minutes_since_last_schedule": None,
+                "last_schedule_utc": None, "last_interval_minutes": None}
+    age = round((now - instants[0]).total_seconds() / 60, 2)
+    gap = round((instants[0] - instants[1]).total_seconds() / 60, 2) if len(instants) >= 2 else None
+    # GitHub schedule is best effort; this reports evidence, not a guarantee.
+    status = "DELAYED_OVER_15_MINUTES" if age > 15 or (gap is not None and gap > 15) else (
+        "INSUFFICIENT_INTERVAL_EVIDENCE" if gap is None else "RECENT_SCHEDULE_OBSERVED")
+    return {"status": status, "minutes_since_last_schedule": age,
+            "last_schedule_utc": instants[0].isoformat(), "last_interval_minutes": gap}
+
+
 def collect(api=request_json):
     problems = []
     try:
@@ -146,6 +172,14 @@ def collect(api=request_json):
         matched = next((r for r in paper_runs.get("workflow_runs", []) if r.get("head_sha") == sha), None)
         artifacts = api("/actions/runs/" + str(matched["id"]) + "/artifacts") if matched else {}
         report = evaluate(pr, checks, paper_runs, artifacts)
+        try:
+            schedules = api("/actions/workflows/sky-recovery-watchdog.yml/runs?event=schedule&per_page=3")
+            report["schedule_cadence"] = schedule_cadence(schedules)
+        except RuntimeError as exc:
+            report["schedule_cadence"] = schedule_cadence({})
+            report["schedule_cadence"]["error"] = str(exc)
+        if report["schedule_cadence"]["status"] != "RECENT_SCHEDULE_OBSERVED":
+            report["blockers"].append("FIVE_MINUTE_SCHEDULE_CADENCE_NOT_VERIFIED")
         # A retry is permitted for one exact PR unit-test workflow; never auto-fix code.
         report["bounded_retry"] = "NONE"
         if os.getenv("SKY_P0R_RETRY_FAILED_TEST_ONCE") == "true" and report["checks_failed"] > 0:
@@ -181,7 +215,8 @@ def main():
              "PR: https://github.com/" + REPO + "/pull/" + str(PR_NUMBER),
              "Checks success / fail / pending: " + str(report.get("checks_success", "?")) + " / " +
              str(report.get("checks_failed", "?")) + " / " + str(report.get("checks_pending", "?")),
-             "Bounded retry: " + report.get("bounded_retry", "NONE"), "",
+             "Bounded retry: " + report.get("bounded_retry", "NONE"),
+             "Actual scheduler cadence: " + str((report.get("schedule_cadence") or {}).get("status", "UNKNOWN")), "",
              "## Still requires verified evidence"]
     lines.extend("- " + x for x in report.get("blockers", report.get("monitor_errors", ["UNKNOWN"])))
     lines += ["", "No broker account needed for research; no real trades, no Production changes."]
