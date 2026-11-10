@@ -73,7 +73,7 @@ jobs:
           if not valid:
               # Preserve an explicit diagnostic even when the bridge crashed
               # before writing one; do not attach old successful scan files.
-              if data.get("status") == "REPORT_READY_RESEARCH_ONLY":
+              if isinstance(data, dict) and data.get("status") == "REPORT_READY_RESEARCH_ONLY":
                   data = failure
               data["production_eligible"] = False
               data["automatic_order"] = False
