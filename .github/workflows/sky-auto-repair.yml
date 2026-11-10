@@ -7,8 +7,7 @@ on:
       - 'scripts/sky_auto_repair.py'
       - 'tests/test_sky_auto_repair.py'
   workflow_dispatch:
-  schedule:
-    - cron: '*/5 * * * *'
+  # GitHub periodic schedule paused by user. Push/manual event triggers only.
 permissions:
   contents: write
   actions: write
