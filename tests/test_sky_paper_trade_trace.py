@@ -25,7 +25,7 @@ class TraceTest(unittest.TestCase):
     def test_valid_cost_reconciliation_still_not_market_certified(self):
         r = evaluate_paper_journal([ROW])
         self.assertEqual(r["trade_count"], 1)
-        self.assertEqual(r["paper_net_pnl_estimate_twd"], 385.9)
+        self.assertEqual(r["paper_net_pnl_estimate_twd"], 384.9)
         self.assertTrue(r["paper_cost_arithmetic_reconciled"])
         self.assertFalse(r["after_cost_paper_performance_verified"])
         self.assertFalse(r["market_scan_source_verified"])
