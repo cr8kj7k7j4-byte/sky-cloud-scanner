@@ -150,6 +150,10 @@ def main():
     checked = datetime.now(TZ)
     snapshot, raw = snapshot_audit(checked=checked)
     individual = audit_individual(raw, checked=datetime.now(TZ))
+    snapshot_rate_limited = any(
+        x.get("request_status") == "RATE_LIMIT_429" for x in snapshot.values()
+    )
+    any_rate_limited = snapshot_rate_limited or individual["any_429"]
     output = {
         "schema": "SKY_FUGLE_TWO_STAGE_ACCEPTANCE_V1",
         "checked_at_tpe": checked.isoformat(),
@@ -159,7 +163,8 @@ def main():
         "research_only": True,
         "production_eligible": False,
         "full_market_executed_certified": False,
-        "quota_verdict": ("RATE_LIMIT_OBSERVED" if individual["any_429"] else
+        "quota_verdict": ("RATE_LIMIT_OBSERVED" if any_rate_limited else
+                          "NOT_TESTED_NO_QUOTE_CALLS" if individual["requests_made"] == 0 else
                           "NO_429_IN_BOUNDED_SAMPLE_LIMIT_NOT_CERTIFIED"),
         "quota_note": "8 spaced calls cannot establish contractual per-minute/day quota.",
         "trade_action": "禁止交易",
