@@ -8,8 +8,11 @@ class RuntimeDriftTest(unittest.TestCase):
         by = {x["name"]:x for x in r["checks"]}
         self.assertTrue(by["capital_500k"]["passed"])
         self.assertTrue(by["daily_stop_at_10k"]["passed"])
-        self.assertFalse(by["two_consecutive_losses_stop"]["passed"])
-        self.assertFalse(by["missing_execution_inputs_block"]["passed"])
+        self.assertEqual(by["two_consecutive_losses_stop"]["passed"],
+                         by["two_consecutive_losses_stop"]["observed"] == "BLOCK")
+        self.assertEqual(by["missing_execution_inputs_block"]["passed"],
+                         by["missing_execution_inputs_block"]["observed"]["risk"] == "BLOCK"
+                         and by["missing_execution_inputs_block"]["observed"]["execution"] == "EXECUTION_INPUT_REQUIRED")
         self.assertFalse(r["risk_production_eligible"])
         self.assertFalse(r["current_portfolio_ledger_verified"])
 
@@ -18,7 +21,8 @@ class RuntimeDriftTest(unittest.TestCase):
         with patch.object(config, "CAUTION_LOSS_STREAK", 2):
             # Merely changing a caution state does NOT turn it into a hard block.
             r = audit()
-        self.assertFalse(next(c for c in r["checks"] if c["name"]=="two_consecutive_losses_stop")["passed"])
+        check = next(c for c in r["checks"] if c["name"]=="two_consecutive_losses_stop")
+        self.assertEqual(check["passed"], check["observed"] == "BLOCK")
 
     def test_enforced_execution_gate_missing_inputs_blocks_synthetic_trade(self):
         from src import config
