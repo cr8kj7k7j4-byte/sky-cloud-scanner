@@ -66,6 +66,8 @@ jobs:
                   "observed_price_count": data.get("observed_price_count"),
                   "fresh_executed_count": data.get("fresh_executed_count"),
                   "snapshot_integrity": data.get("snapshot_integrity", {}),
+                  "twse_missing_official_symbols": (data.get("snapshot_integrity", {}).get("TWSE", {}).get("missing_official_symbols") or []),
+                  "missing_symbol_classification_verified": False,
                   "snapshot_status": data.get("snapshot_status", {}),
                   "snapshot_error_categories": {k: str(v)[:60] for k,v in (data.get("snapshot_errors") or {}).items()},
                   "by_exchange": data.get("by_exchange", {}),
