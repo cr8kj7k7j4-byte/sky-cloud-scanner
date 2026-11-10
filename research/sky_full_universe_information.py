@@ -250,6 +250,15 @@ def build(universe, snapshots, checked_at, errors=None):
         "snapshot_api_calls_expected_per_scan": 3 if expected_tib else 2,
         "individual_quote_calls_are_bounded_separately": True,
         "observed_price_count": sum(x["last_price"] is not None for x in rows),
+        # A valid Snapshot observation is NOT an individual Quote execution certification.
+        "snapshot_reference_coverage_pct": round(
+            100 * sum(x["last_price"] is not None for x in rows) / len(rows), 2
+        ) if rows else 0.0,
+        "snapshot_reference_coverage_denominator": len(rows),
+        "quote_execution_sample_size": 0,
+        "quote_execution_certified_count": 0,
+        "quote_execution_certification_pct": None,
+        "quote_execution_certification_status": "NOT_SAMPLED_IN_SNAPSHOT_STAGE",
         "snapshot_reference_requires_last_trade_time": False,
         "snapshot_reference_without_trade_time_count": sum(
             x["last_price"] is not None and x["last_trade_time"] is None
