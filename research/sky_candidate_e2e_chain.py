@@ -105,6 +105,16 @@ def build(stage1, stage2, stage3):
             raise ValueError("RISK_FAIL_CLOSED_CONTRACT_BROKEN")
 
         missing = []
+        # Stage1 snapshot price is NOT an entry price. Reject a quote that crosses
+        # the original user price ceiling after the Stage1 observation.
+        verified_price = row.get("verified_trade_price") if verified_quote else None
+        latest_price_within_limit = (
+            verified_quote and isinstance(verified_price, (float, int))
+            and not isinstance(verified_price, bool)
+            and 0 < verified_price < 100
+        )
+        if verified_quote and not latest_price_within_limit:
+            missing.append("VERIFIED_TRADE_PRICE_NOT_BELOW_100")
         if not verified_quote:
             missing.append("FRESH_EXECUTED_TRADE")
         if not five_min_observed:
@@ -121,6 +131,7 @@ def build(stage1, stage2, stage3):
             "snapshot_observed_price": stage1_row.get("observed_price"),
             "snapshot_is_execution_verified": False,
             "quote_verified": verified_quote,
+            "verified_trade_price_below_100": latest_price_within_limit,
             "verified_trade_price": row.get("verified_trade_price") if verified_quote else None,
             "last_trade_time": row.get("last_trade_time") if verified_quote else None,
             "quote_status": row.get("status"),
