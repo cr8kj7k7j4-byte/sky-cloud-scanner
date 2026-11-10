@@ -41,3 +41,31 @@ jobs:
         run: python -m py_compile src/sky_chat_bridge.py src/sky_mcp_contract.py research/sky_snapshot_candidates.py src/sky_stage2_candidate_quotes.py src/sky_stage2_deep_quality.py src/sky_v14_ticker_candles_probe.py research/sky_candidate_e2e_chain.py research/sky_stage5_vwap_cost_evidence.py research/sky_stage5_breakout_antichase_evidence.py
       - name: Run isolated contracts without paid credentials
         run: python -m unittest tests.test_sky_chat_workflow_guard tests.test_sky_chat_bridge tests.test_sky_mcp_contract tests.test_sky_snapshot_candidates tests.test_sky_stage2_candidate_quotes tests.test_sky_stage2_deep_quality tests.test_sky_v14_ticker_candles_probe tests.test_sky_candidate_e2e_chain tests.test_sky_stage5_vwap_cost_evidence tests.test_sky_stage5_breakout_antichase_evidence -v
+
+      - name: Write synthetic fail-closed diagnostic for Artifact transport check
+        if: always()
+        run: |
+          mkdir -p output/chat_bridge_acceptance
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          diagnostic = {
+              "schema": "SKY_CHAT_ARTIFACT_TRANSPORT_TEST_V1",
+              "status": "TEST_ONLY_NO_MARKET_DATA",
+              "run_id": os.environ.get("GITHUB_RUN_ID"),
+              "production_eligible": False,
+              "automatic_order": False,
+          }
+          Path("output/chat_bridge_acceptance/diagnostic.json").write_text(
+              json.dumps(diagnostic, indent=2) + "\n", encoding="utf-8"
+          )
+          PY
+      - name: Upload synthetic diagnostic (not market scan evidence)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-chat-guard-transport-${{ github.run_id }}
+          path: output/chat_bridge_acceptance/diagnostic.json
+          if-no-files-found: error
+          retention-days: 7
