@@ -109,6 +109,15 @@ def make_status(request_id, report=None, error=None, observation=None, stage1=No
         "stage1_candidate_count": stage1.get("candidate_count", 0),
         "stage2_attempted_count": stage2.get("attempted_count", 0),
         "stage2_verified_executed_count": stage2.get("verified_executed_count", 0),
+        "snapshot_reference_coverage_pct": observation.get("snapshot_reference_coverage_pct"),
+        "snapshot_reference_coverage_denominator": observation.get("snapshot_reference_coverage_denominator", len(rows)),
+        "quote_execution_sample_size": stage2.get("attempted_count", 0),
+        "quote_execution_certified_count": stage2.get("verified_executed_count", 0),
+        "quote_execution_certification_pct": (
+            round(100 * stage2.get("verified_executed_count", 0) / stage2["attempted_count"], 2)
+            if isinstance(stage2.get("attempted_count"), int) and stage2["attempted_count"] > 0 else None
+        ),
+        "quote_certification_is_full_market": False,
         "stage2_rate_limited_count": stage2.get("rate_limited_count", 0),
         "stage2_bounded_operational_probe_pass": stage2.get("operational_bounded_probe_pass", False),
         "stage2_elapsed_seconds": stage2.get("elapsed_seconds"),
