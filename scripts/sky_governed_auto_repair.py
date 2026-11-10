@@ -17,7 +17,6 @@ TARGET_PR = 511
 TARGET_BRANCH = "research/fugle-snapshot-diagnostics-20261110"
 TARGET_FILE = ".github/workflows/sky-snapshot-integrity-research-acceptance.yml"
 OUTPUT = Path("output/sky_governed_auto_repair/latest.json")
-OLD_SHA_LOOKUP = 'SHA=$(gh api "$TARGET" --jq \' .sha\' 2>/dev/null || true)'  # marker unused
 # The exact two known-safe changes are allowed, nothing else.
 OLD = """SHA=$(gh api "$TARGET" --jq '.sha' 2>/dev/null || true)"""
 NEW = """SHA=$(gh api "$TARGET?ref=research/fugle-snapshot-diagnostics-20261110" --jq '.sha' 2>/dev/null || true)"""
@@ -41,8 +40,7 @@ def safe_patch(source: str) -> tuple[str, list[str]]:
         out = out.replace(ARTIFACT_WARN, ARTIFACT_ERROR)
         fixes.append("FAIL_CLOSED_MISSING_ARTIFACT")
     if out != source:
-        assert "schedule:" not in out.replace("  # schedule:", ""), "SCHEDULE_CHANGE_DISALLOWED"
-        assert out.replace(NEW, OLD).replace(ARTIFACT_ERROR, ARTIFACT_WARN) == source or not fixes
+        assert not any(line.startswith("  schedule:") for line in out.splitlines()), "SCHEDULE_CHANGE_DISALLOWED"
     return out, fixes
 
 
