@@ -102,7 +102,12 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                 snapshot={
                     "last":quote_price,"avg_price":row.get("microstructure",{}).get("average_price")
                 }
-                features=build_features(snapshot,valid).to_dict() if len(valid)>=2 else None
+                # Do not expose potentially contaminated model features from
+                # invalid bar order, future bars, or mismatched source dates.
+                preview_safe = (len(valid)>=2 and not invalid_bar_sequence
+                                and rejected_future_bars==0 and actual_tf=="5"
+                                and tdate==day and cdate==day)
+                features=build_features(snapshot,valid).to_dict() if preview_safe else None
                 result.update({
                     "ticker_date":tdate,"candles_date":cdate,
                     "board_lot_shares":boardlot,
