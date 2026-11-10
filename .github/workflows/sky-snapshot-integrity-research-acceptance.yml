@@ -4,7 +4,7 @@ on:
   # Manual-only, bounded Snapshot acceptance; previous live TIB research run verified.
   workflow_dispatch:
 permissions:
-  contents: write
+  contents: read
 concurrency:
   group: sky-snapshot-integrity-research
   cancel-in-progress: false
@@ -29,10 +29,8 @@ jobs:
         run: |
           test -n "$FUGLE_API_KEY" || { echo "Missing existing FUGLE_API_KEY secret"; exit 1; }
           python -m research.sky_full_universe_information
-      - name: Publish bounded sanitized research receipt
+      - name: Generate SHA-pinned research receipt (artifact only; no PR-head mutation)
         if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           python - <<'PY'
           import json, os
@@ -79,14 +77,6 @@ jobs:
           (output/"receipt.json").write_text(json.dumps(status, ensure_ascii=False, indent=2)+"\n", encoding="utf-8")
           print(json.dumps({k:status.get(k) for k in ("status","universe_count","observed_price_count","fresh_executed_count","snapshot_integrity")}, ensure_ascii=False))
           PY
-          TARGET="repos/${GITHUB_REPOSITORY}/contents/docs/SKY_SNAPSHOT_INTEGRITY_RESEARCH_LATEST.json"
-          CONTENT=$(base64 -w0 output/snapshot_integrity_research/receipt.json)
-          SHA=$(gh api "$TARGET?ref=research/fugle-snapshot-diagnostics-20261110" --jq '.sha' 2>/dev/null || true)
-          if [ -n "$SHA" ]; then
-            gh api --method PUT "$TARGET" -f message="research: snapshot integrity receipt [skip ci]" -f content="$CONTENT" -f sha="$SHA" -f branch=research/fugle-snapshot-diagnostics-20261110 >/dev/null
-          else
-            gh api --method PUT "$TARGET" -f message="research: snapshot integrity receipt [skip ci]" -f content="$CONTENT" -f branch=research/fugle-snapshot-diagnostics-20261110 >/dev/null
-          fi
       - name: Upload sanitized receipt
         if: always()
         uses: actions/upload-artifact@v4
