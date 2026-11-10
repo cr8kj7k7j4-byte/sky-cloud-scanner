@@ -1,0 +1,39 @@
+name: Sky Postmarket Full-System Acceptance (Read Only)
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/sky-postmarket-full-acceptance.yml'
+  pull_request:
+    paths:
+      - 'research/sky_postmarket_acceptance.py'
+      - 'tests/test_sky_postmarket_acceptance.py'
+      - '.github/workflows/sky-postmarket-full-acceptance.yml'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  postmarket-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run offline fail-closed contract tests
+        run: python -m unittest -v tests.test_sky_postmarket_acceptance
+      - name: Audit actual GitHub runs and latest sanitized report
+        if: github.event_name != 'pull_request'
+        run: python -m research.sky_postmarket_acceptance
+      - name: Preserve acceptance evidence (including failures)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-postmarket-acceptance-${{ github.run_id }}
+          path: output/postmarket_acceptance/
+          if-no-files-found: warn
+          retention-days: 30
