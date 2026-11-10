@@ -75,6 +75,12 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                                 invalid_bar_sequence=True
                                 continue
                             stamp=stamp.astimezone(TPE)
+                            # A 5-minute candle must start on a local 5-minute
+                            # grid. Reject malformed minute/second offsets
+                            # rather than treating them as certified 5m bars.
+                            if stamp.minute % 5 or stamp.second or stamp.microsecond:
+                                invalid_bar_sequence=True
+                                continue
                             if prior_stamp is not None and stamp<=prior_stamp:
                                 invalid_bar_sequence=True  # duplicate or out of order
                             prior_stamp=stamp
