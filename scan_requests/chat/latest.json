@@ -1,6 +1,6 @@
 {
   "command": "Sky 當沖現在掃一次",
-  "request_id": "chat-20261110-1126-final3-e2e",
+  "request_id": "chat-20261110-candidate-e2e-stage4-live",
   "read_only_no_orders": true,
-  "reason": "User authorized final three-workstream acceptance: 12 quotes, volume consistency, 2 ticker/5m, attention/execution gates; no orders or production promotion"
+  "reason": "User authorized on-demand Snapshot -> candidate Quote -> verified trade time -> 5m/VWAP provenance -> formal P0-R blocked evidence. Research only, no orders, no Production promotion."
 }
