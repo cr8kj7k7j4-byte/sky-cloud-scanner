@@ -20,7 +20,8 @@ class Stage2BridgeTests(unittest.TestCase):
                    "observed_price":55.0, "reported_volume_raw":1000,
                    "change_pct_observed":2.0, "production_eligible":False} for i in range(10)
                 ]+[{"symbol":str(8001+i), "exchange":"TPEx",
-                     "observed_price":55.0, "production_eligible":False} for i in range(10)]}
+                     "observed_price":55.0, "reported_volume_raw":1000,
+                     "change_pct_observed":2.0, "production_eligible":False} for i in range(10)]}
 
     def test_balanced_and_bounded(self):
         picked = select(self.stage1())
