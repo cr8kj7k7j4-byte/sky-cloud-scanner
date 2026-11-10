@@ -229,7 +229,7 @@ class SafePatchContracts(unittest.TestCase):
                 "GITHUB_REPOSITORY": "test/repo",
                 "GH_TOKEN": "offline-fixture",
                 "SKY_APPROVED_SAFE_PATCH": "true",
-            }), patch.object(governed, "OUTPUT", Path(folder, "latest.json")), \\
+            }), patch.object(governed, "OUTPUT", Path(folder, "latest.json")), \
                  patch.object(governed, "Github", return_value=api):
                 self.assertEqual(governed.main(), 0)
             result = json.loads(Path(folder, "latest.json").read_text())
