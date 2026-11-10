@@ -16,6 +16,16 @@ class DeepQualityTests(unittest.TestCase):
         self.assertFalse(x["decision_ready"])
         self.assertTrue(x["turnover_gate_pass"])
 
+    def test_one_thousand_scale_is_empirical_not_provider_certification(self):
+        q=self.quote()
+        q["total"]["tradeVolume"]=1000
+        q["total"]["tradeValue"]=28000000
+        x=review(q, verified_trade=True, change_pct=2.0)
+        self.assertEqual(x["accounting_implied_volume_scale"],1000.0)
+        self.assertTrue(x["volume_scale_consistent_with_1000_shares_per_lot"])
+        self.assertFalse(x["provider_unit_contract_verified"])
+        self.assertFalse(x["liquidity_certified"])
+
     def test_low_trade_value_fails_canonical_minimum(self):
         q=self.quote()
         q["total"]["tradeValue"]=100000

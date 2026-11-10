@@ -39,6 +39,9 @@ def review(quote, *, verified_trade=False, change_pct=None, volume_unit_verified
     raw_volume = number(total.get("tradeVolume"))
     turnover_twd = number(total.get("tradeValue"))
     avg = number(quote.get("avgPrice"))
+    # Research-only consistency check; not an official unit certification.
+    implied_scale = turnover_twd / (raw_volume * avg) if turnover_twd and raw_volume and avg else None
+    volume_scale_consistent_1000 = implied_scale is not None and 980 <= implied_scale <= 1020
     lasttrade = quote.get("lastTrade") if isinstance(quote.get("lastTrade"), dict) else {}
     last = number(lasttrade.get("price"))
     avg_distance = round((last / avg - 1) * 100, 3) if last and avg else None
@@ -73,6 +76,9 @@ def review(quote, *, verified_trade=False, change_pct=None, volume_unit_verified
         "min_trade_value_twd": MIN_TRADE_VALUE,
         "turnover_gate_pass": turnover_twd is not None and turnover_twd >= MIN_TRADE_VALUE,
         "volume_unit_verified": bool(volume_unit_verified),
+        "accounting_implied_volume_scale": round(implied_scale, 4) if implied_scale else None,
+        "volume_scale_consistent_with_1000_shares_per_lot": volume_scale_consistent_1000,
+        "provider_unit_contract_verified": False,
         "average_price": avg,
         "average_price_distance_pct": avg_distance,
         "reported_change_pct": change_pct,
