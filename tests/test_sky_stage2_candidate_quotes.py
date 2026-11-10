@@ -23,7 +23,7 @@ class Stage2BridgeTests(unittest.TestCase):
 
     def test_balanced_and_bounded(self):
         picked = select(self.stage1())
-        self.assertEqual(len(picked),6)
+        self.assertEqual(len(picked),12)
         self.assertEqual([r["exchange"] for r in picked],["TWSE"]*6+["TPEx"]*6)
 
     def test_fresh_trade_still_research_only(self):
