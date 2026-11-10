@@ -107,8 +107,23 @@ def main():
             "findings (array of objects with severity, file, issue, recommendation), "
             "summary (string). If uncertain, FLAG. This is advisory, not owner approval."
         )
+        schema = {
+            "type": "object", "additionalProperties": False,
+            "properties": {
+                "status": {"type": "string", "enum": ["PASS", "FLAG"]},
+                "summary": {"type": "string"},
+                "findings": {"type": "array", "items": {
+                    "type": "object", "additionalProperties": False,
+                    "properties": {
+                        "severity": {"type": "string"}, "file": {"type": "string"},
+                        "issue": {"type": "string"}, "recommendation": {"type": "string"}},
+                    "required": ["severity", "file", "issue", "recommendation"]}},
+            }, "required": ["status", "summary", "findings"],
+        }
         body = {"model": MODEL, "store": False, "max_output_tokens": 1500,
-                "instructions": instructions, "input": payload}
+                "instructions": instructions, "input": payload,
+                "text": {"format": {"type": "json_schema", "name": "sky_security_review",
+                                    "strict": True, "schema": schema}}}
         req = urllib.request.Request(
             "https://api.openai.com/v1/responses",
             data=json.dumps(body).encode(),
