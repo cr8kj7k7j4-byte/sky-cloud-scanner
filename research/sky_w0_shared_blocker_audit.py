@@ -25,18 +25,23 @@ AUDIT_SCHEMA = "SKY_W0_SHARED_BLOCKER_CONVERGENCE_V1"
 
 
 def cron_patterns(text):
-    """Extract scheduled cron strings with indentation-aware YAML text parsing."""
+    """Read YAML scheduled cron entries without interpreting strings in other jobs."""
     lines = text.splitlines()
     at = next((i for i, line in enumerate(lines)
-               if re.match(r"^  schedule:\\s*$", line)), None)
+               if line.startswith("  schedule:")), None)
     if at is None:
         return []
-    block = []
+    values = []
     for line in lines[at + 1:]:
         if line.strip() and len(line) - len(line.lstrip()) <= 2:
             break
-        block.append(line)
-    return re.findall(r"cron:\\s*['\\\"]([^'\\\"]+)['\\\"]", "\\n".join(block))
+        if "cron:" in line:
+            value = line.split("cron:", 1)[1].strip()
+            if value and value[0] in ("'", '"'):
+                value = value[1:-1]
+            if value:
+                values.append(value)
+    return values
 
 
 def _safe_int(value):
