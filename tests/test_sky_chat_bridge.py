@@ -28,6 +28,7 @@ class ChatScanBridgeTests(unittest.TestCase):
 
     def test_report(self):
         row={key:"待確認" for key in COLUMNS}
+        row.update({"股票代碼": "1101", "現在動作": "等待", "正式交易資格": False})
         report={"schema":"SKY_DAYTRADE_13COL_RESEARCH_V2","rows":[row],"row_count":1,"universe_count":1,"production_eligible":False,"checked_at_tpe":"2026-11-09T13:30:00+08:00"}
         self.assertEqual(len(validate_report(report)),1)
         status=make_status("chat-20261109-a", report)
@@ -36,19 +37,23 @@ class ChatScanBridgeTests(unittest.TestCase):
 
     def test_market_coverage_status(self):
         row = {key: "待確認" for key in COLUMNS}
+        row.update({"股票代碼": "1101", "現在動作": "等待", "正式交易資格": False})
         report = {"schema": "SKY_DAYTRADE_13COL_RESEARCH_V2",
                   "rows": [row], "row_count": 1, "universe_count": 1,
                   "production_eligible": False}
         observation = {"observed_price_count": 1, "fresh_executed_count": 0,
-                       "by_exchange": {"TWSE": {"universe": 1, "observed_price": 1}},
+                       "by_exchange": {"TWSE": {"universe": 1, "observed_price": 1, "snapshot_rows": 1},
+                                       "TPEx": {"universe": 0, "snapshot_rows": 1}},
                        "snapshot_errors": {}}
         result = make_status("chat-20261109-a", report, observation=observation)
         self.assertEqual(result["observed_price_count"], 1)
         self.assertEqual(result["fresh_executed_count"], 0)
         self.assertEqual(result["status"], "REPORT_READY_RESEARCH_ONLY")
+        self.assertEqual(result["observed_price_coverage_pct"], 100)
 
     def test_zero_observed_never_claims_paid_success(self):
         row = {key: "待確認" for key in COLUMNS}
+        row.update({"股票代碼": "1101", "現在動作": "等待", "正式交易資格": False})
         report = {"schema": "SKY_DAYTRADE_13COL_RESEARCH_V2",
                   "rows": [row], "row_count": 1, "universe_count": 1,
                   "production_eligible": False}
@@ -56,6 +61,58 @@ class ChatScanBridgeTests(unittest.TestCase):
                              observation={"observed_price_count": 0})
         self.assertEqual(result["status"], "DATA_BLOCKED_NO_OBSERVATIONS")
         self.assertIsNone(result["source"])
+
+
+    def test_duplicate_symbol_blocked(self):
+        row = {key: "待確認" for key in COLUMNS}
+        row.update({"股票代碼": "1101", "現在動作": "等待", "正式交易資格": False})
+        report = {"schema": "SKY_DAYTRADE_13COL_RESEARCH_V2",
+                  "rows": [row, dict(row)], "row_count": 2,
+                  "universe_count": 2, "production_eligible": False}
+        with self.assertRaisesRegex(ValueError, "DUPLICATE_OR_MISSING_SYMBOL"):
+            validate_report(report)
+
+    def test_research_entry_blocked(self):
+        row = {key: "待確認" for key in COLUMNS}
+        row.update({"股票代碼": "1101", "現在動作": "買進", "正式交易資格": False})
+        report = {"schema": "SKY_DAYTRADE_13COL_RESEARCH_V2",
+                  "rows": [row], "row_count": 1,
+                  "universe_count": 1, "production_eligible": False}
+        with self.assertRaisesRegex(ValueError, "RESEARCH_ENTRY_NOT_ALLOWED"):
+            validate_report(report)
+
+    def test_preview_prefers_ranked_observation(self):
+        rows = []
+        for symbol in ("1101", "1102", "1103"):
+            row = {key: "待確認" for key in COLUMNS}
+            row.update({"股票代碼": symbol, "現在動作": "等待",
+                        "正式交易資格": False})
+            rows.append(row)
+        report = {"schema": "SKY_DAYTRADE_13COL_RESEARCH_V2",
+                  "rows": rows, "row_count": 3, "universe_count": 3,
+                  "production_eligible": False}
+        observation = {"observed_price_count": 3, "fresh_executed_count": 0,
+                       "ranked_observations": [{"symbol": "1103"},
+                                               {"symbol": "1101"}],
+                       "by_exchange": {"TWSE": {"snapshot_rows": 3},
+                                       "TPEx": {"snapshot_rows": 1}}}
+        status = make_status("chat-20261110-a", report, observation=observation)
+        self.assertEqual([x["股票代碼"] for x in status["preview"]],
+                         ["1103", "1101"])
+        self.assertFalse(status["production_eligible"])
+
+    def test_partial_source_failure_is_not_ready(self):
+        row = {key: "待確認" for key in COLUMNS}
+        row.update({"股票代碼": "1101", "現在動作": "等待", "正式交易資格": False})
+        report = {"schema": "SKY_DAYTRADE_13COL_RESEARCH_V2",
+                  "rows": [row], "row_count": 1,
+                  "universe_count": 1, "production_eligible": False}
+        observation = {"observed_price_count": 1, "snapshot_errors": {"OTC": "TimeoutError"},
+                       "by_exchange": {"TWSE": {"snapshot_rows": 1},
+                                       "TPEx": {"snapshot_rows": 0}}}
+        status = make_status("chat-20261110-a", report, observation=observation)
+        self.assertEqual(status["status"], "DATA_BLOCKED_SOURCE_FAILURE")
+        self.assertEqual(status["block_reason"], "SOURCE_DATA_INCOMPLETE")
 
     def test_report_missing_column(self):
         report={"schema":"SKY_DAYTRADE_13COL_RESEARCH_V2","rows":[{"股票代碼":"2330"}],"row_count":1,"production_eligible":False}
