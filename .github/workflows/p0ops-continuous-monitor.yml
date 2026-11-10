@@ -8,11 +8,12 @@ on:
       - ".github/workflows/p0ops-continuous-monitor.yml"
       - "research/p0ops_actions_monitor.py"
       - "tests/test_p0ops_actions_monitor.py"
-  schedule:
-    # Asia/Taipei UTC+8: 10:40 and 16:50 Monday-Friday.
-    - cron: "40 2 * * 1-5"
-    - cron: "50 8 * * 1-5"
-
+  # PAUSED on 2026-11-10 by user request: formerly scheduled trigger.
+  # schedule:
+  # # Asia/Taipei UTC+8: 10:40 and 16:50 Monday-Friday.
+  # - cron: "40 2 * * 1-5"
+  # - cron: "50 8 * * 1-5"
+  # 
 permissions:
   contents: read
   actions: read
