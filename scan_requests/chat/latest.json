@@ -1,6 +1,6 @@
 {
   "command": "Sky 當沖現在掃一次",
-  "request_id": "chat-20261110-1122-v14-multi-e2e",
+  "request_id": "chat-20261110-1126-final3-e2e",
   "read_only_no_orders": true,
-  "reason": "Final user-approved read-only evidence acceptance: snapshot, 12 quotes, 2 ticker+5m candles samples, no orders, block incomplete v1.4"
+  "reason": "User authorized final three-workstream acceptance: 12 quotes, volume consistency, 2 ticker/5m, attention/execution gates; no orders or production promotion"
 }
