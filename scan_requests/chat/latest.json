@@ -1,6 +1,6 @@
 {
   "command": "Sky 當沖現在掃一次",
-  "request_id": "chat-20261110-1113-qos-v14-e2e",
+  "request_id": "chat-20261110-1122-v14-multi-e2e",
   "read_only_no_orders": true,
-  "reason": "User-authorized integrated proof: all market Snapshot, bounded 12 intraday quotes 1/sec, turnover/spread/chase evidence and canonical P0-C blocked state only"
+  "reason": "Final user-approved read-only evidence acceptance: snapshot, 12 quotes, 2 ticker+5m candles samples, no orders, block incomplete v1.4"
 }
