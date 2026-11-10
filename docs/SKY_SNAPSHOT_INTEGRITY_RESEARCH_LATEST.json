@@ -1,0 +1,67 @@
+{
+  "schema": "SKY_SNAPSHOT_INTEGRITY_RESEARCH_RECEIPT_V1",
+  "run_id": "42819062952",
+  "head_sha": "5f822a45e498ef245e832d614acbe1a9a46d097b",
+  "run_url": "https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/42819062952",
+  "generated_at_utc": "2026-11-10T12:49:55.168271+00:00",
+  "research_only": true,
+  "production_eligible": false,
+  "automatic_order": false,
+  "snapshot_calls_budget": 2,
+  "individual_quote_calls_budget": 0,
+  "status": "OBSERVATION_READY",
+  "checked_at_tpe": "2026-11-10T20:49:49.246743+08:00",
+  "universe_count": 1986,
+  "observed_price_count": 1926,
+  "fresh_executed_count": 0,
+  "snapshot_integrity": {
+    "TWSE": {
+      "api_response_valid": true,
+      "raw_rows": 1060,
+      "unique_returned_symbols": 1060,
+      "duplicate_symbol_rows": 0,
+      "blank_symbol_rows": 0,
+      "unexpected_symbols": 0,
+      "official_symbols_missing_from_snapshot": 31,
+      "official_symbol_coverage_pct": 97.16,
+      "snapshot_date": "2026-11-10",
+      "snapshot_time_is_execution_time": false
+    },
+    "TPEx": {
+      "api_response_valid": true,
+      "raw_rows": 895,
+      "unique_returned_symbols": 895,
+      "duplicate_symbol_rows": 0,
+      "blank_symbol_rows": 0,
+      "unexpected_symbols": 0,
+      "official_symbols_missing_from_snapshot": 0,
+      "official_symbol_coverage_pct": 100.0,
+      "snapshot_date": "2026-11-10",
+      "snapshot_time_is_execution_time": false
+    }
+  },
+  "snapshot_status": {
+    "TWSE": "RETURNED",
+    "TPEx": "RETURNED"
+  },
+  "snapshot_error_categories": {},
+  "by_exchange": {
+    "TWSE": {
+      "universe": 1091,
+      "snapshot_rows": 1060,
+      "fresh_executed": 0,
+      "observed_price": 1058,
+      "snapshot_reference_without_trade_time": 1058,
+      "fresh_executed_pct": 0.0
+    },
+    "TPEx": {
+      "universe": 895,
+      "snapshot_rows": 895,
+      "fresh_executed": 0,
+      "observed_price": 868,
+      "snapshot_reference_without_trade_time": 868,
+      "fresh_executed_pct": 0.0
+    }
+  },
+  "official_universe_warning_count": 0
+}
