@@ -67,3 +67,19 @@ def test_no_legacy_expired_monitor_can_auto_dispatch_paid_scan():
         assert "  schedule:" not in content
     assert (WF / "scan.yml").is_file()
     assert (WF / "sky-full-market-five-minute-dispatch.yml").is_file()
+
+
+def test_expired_one_shot_dual_scan_dispatch_removed():
+    assert not (WF / "sky-research-once-20261109.yml").exists()
+    assert (WF / "scan.yml").is_file()
+    assert (WF / "sky-full-market-five-minute-dispatch.yml").is_file()
+    assert (WF / "sky-full-market-private.yml").is_file()
+
+
+def test_expired_ai_direction_watchdog_keeps_manual_diagnostics_only():
+    content = (WF / "ai-direction-watchdog-5m.yml").read_text(encoding="utf-8")
+    assert "  schedule:" not in content
+    assert "*/5 * * * *" not in content
+    assert "  workflow_dispatch:" in content
+    assert "2026-11-09T02:38:00Z" in content
+    assert "Sky Cloud Scanner" not in content
