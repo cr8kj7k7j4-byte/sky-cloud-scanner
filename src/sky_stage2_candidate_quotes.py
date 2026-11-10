@@ -17,6 +17,8 @@ from src.sky_stage2_deep_quality import review as review_quality, canonical_read
 TPE = ZoneInfo("Asia/Taipei")
 MAX_QUERIES = 12
 SLEEP_SECONDS = 1.0
+# Conservative observation-call budget only; NOT a Production strategy threshold.
+DIAGNOSTIC_RAPID_RISE_HOLD_PCT = 6.0
 
 
 def select(stage1, *, per_market=6):
@@ -28,7 +30,11 @@ def select(stage1, *, per_market=6):
     output = []
     for exchange in ("TWSE", "TPEx"):
         items = [r for r in stage1.get("candidates", [])
-                 if r.get("exchange") == exchange and r.get("production_eligible") is False]
+                 if r.get("exchange") == exchange and r.get("production_eligible") is False
+                 and r.get("observed_price") is not None
+                 and r.get("reported_volume_raw") is not None
+                 and r.get("change_pct_observed") is not None
+                 and float(r["change_pct_observed"]) < DIAGNOSTIC_RAPID_RISE_HOLD_PCT]
         output.extend(items[:per_market])
     return output
 
@@ -81,6 +87,8 @@ def verify(stage1, *, quote_fn=get_quote, sleep_fn=time.sleep, now_fn=None):
         "checked_at_tpe": now_fn().isoformat(),
         "stage1_candidate_count": stage1.get("candidate_count"),
         "selected_count": len(picked), "attempted_count": total_requests,
+        "diagnostic_preselect": "TWSE_TPEx_BALANCED_SKIP_MISSING_VOLUME_PRICE_CHANGE_AND_RAPID_RISE",
+        "diagnostic_rapid_rise_hold_pct": DIAGNOSTIC_RAPID_RISE_HOLD_PCT,
         "verified_executed_count": sum(r["executed_trade_verified"] for r in results),
         "rate_limited_count": rate_limited,
         "elapsed_seconds": round(time.monotonic() - start_monotonic, 3),
