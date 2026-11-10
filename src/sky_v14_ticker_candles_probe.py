@@ -5,6 +5,7 @@ a v1.4 signal or infer 5m breakout profitability. Never sends orders.
 """
 from __future__ import annotations
 import time
+import math
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import requests
@@ -108,7 +109,12 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                             if stamp+timedelta(minutes=5)>now:
                                 excluded_incomplete_bars+=1
                                 continue
-                            if b.get("close") is None or b.get("volume") is None:
+                            close, volume = b.get("close"), b.get("volume")
+                            if (isinstance(close, bool) or isinstance(volume, bool)
+                                    or not isinstance(close, (int, float))
+                                    or not isinstance(volume, (int, float))
+                                    or not math.isfinite(close) or not math.isfinite(volume)
+                                    or close <= 0 or volume < 0):
                                 invalid_bar_sequence=True
                                 continue
                             valid.append(b)
