@@ -5,6 +5,11 @@ on:
       - "research/sky_paper_only_acceptance.py"
       - "tests/test_sky_paper_only_acceptance.py"
       - "research/sky_paper_trade_trace.py"
+      - "research/sky_brokerless_contract_audit.py"
+      - "tests/test_sky_brokerless_contract_audit.py"
+      - "research/sky_candidate_e2e_chain.py"
+      - "src/sky_chat_bridge.py"
+      - "docs/SKY_NO_BROKER_ACCOUNT_RESEARCH_POLICY_V1.md"
       - "tests/test_sky_paper_trade_trace.py"
       - ".github/workflows/sky-paper-only-acceptance.yml"
   workflow_dispatch:
@@ -19,10 +24,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Install import dependencies for read-only scanner contract tests
+        run: python -m pip install requests
       - name: Paper-only risk and provenance regression tests
         run: python -m unittest discover -s tests -p test_sky_paper_only_acceptance.py -v
       - name: Trace hypothetical paper entries and fail missing cost evidence
         run: python -m unittest discover -s tests -p test_sky_paper_trade_trace.py -v
+      - name: Enforce broker-free research contracts across commands and stages
+        run: python -m unittest discover -s tests -p test_sky_brokerless_contract_audit.py -v
+      - name: Inventory all tracked models commands rules and workflows
+        run: python -m research.sky_brokerless_contract_audit
       - name: Read actual latest scan metadata and publish honest HOLD verdict
         run: python -m research.sky_paper_only_acceptance
       - name: Upload paper research acceptance audit
@@ -30,6 +41,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: sky-paper-only-acceptance-${{ github.run_id }}
-          path: output/sky_paper_only_acceptance/
+          path: |
+            output/sky_paper_only_acceptance/
+            output/sky_brokerless_contract/
           if-no-files-found: error
           retention-days: 30

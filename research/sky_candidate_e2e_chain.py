@@ -131,9 +131,11 @@ def build(stage1, stage2, stage3):
             missing.append("FIVE_MINUTE_BAR_CAUSAL_CERTIFICATION")
         if not vwap_certified:
             missing.append("OFFICIAL_VWAP_PROVENANCE")
+        # No brokerage account is needed for research, scans, or PAPER_ONLY.
+        # The live portfolio ledger remains a separate future-live-only gate.
         missing += ["BREAKOUT_ANTI_CHASE_FULL_RULE", "EXECUTION_SLIPPAGE_FILL_COST_RR",
-                    "P0_R_CURRENT_PORTFOLIO_LEDGER", "P0_K_EVIDENCE_LEDGER",
-                    "W0_P0_G_FORMAL_PROMOTION"]
+                    "P0_K_EVIDENCE_LEDGER", "W0_P0_G_FORMAL_PROMOTION"]
+        live_only_missing = ["P0_R_CURRENT_PORTFOLIO_LEDGER"]
         chain.append({
             "symbol": key[1], "exchange": key[0],
             "snapshot_observed_price": stage1_row.get("observed_price"),
@@ -161,6 +163,10 @@ def build(stage1, stage2, stage3):
                        + USER_CASH_DAYTRADE_20261022.sell_tax_rate), 4),
             "complete_execution_cost_rr": False,
             "p0_r_status": risk["status"],
+            "p0_r_status_scope": "FUTURE_LIVE_TRADING_ONLY",
+            "broker_account_required_for_research": False,
+            "paper_research_status": "OBSERVATION_ALLOWED_NO_BROKER_ACCOUNT",
+            "live_only_evidence_missing": live_only_missing,
             "risk_required_inputs": risk["required_inputs"],
             "risk_recommended_shares": 0,
             "evidence_missing": missing,
@@ -182,6 +188,8 @@ def build(stage1, stage2, stage3):
         "vwap_certified_count": sum(r["vwap_certified"] for r in chain),
         "formal_market_coverage_certified": False,
         "risk_ledger_verified": False,
+        "broker_account_required_for_research": False,
+        "paper_research_mode": "PAPER_ONLY_NO_BROKER_ACCOUNT",
         "full_strategy_validated": False,
         "production_eligible": False, "automatic_order": False,
         "trade_decision": "🔴 禁止新進場、未驗證通過",
@@ -199,6 +207,7 @@ def markdown(report):
         "Stage2 成交時間核實：" + str(report["stage2_quote_verified_count"]) + "/" + str(report["stage2_attempted_count"]),
         "Stage3 已觀察 5 分鐘棒：" + str(report["stage3_five_minute_observed_count"]),
         "正式 VWAP 認證：" + str(report["vwap_certified_count"]),
+        "研究模式：PAPER_ONLY，無須券商開戶或真實持倉帳本；P0-R 欄位僅代表未來實盤資格。",
         "",
         "| 股票 | Snapshot 價 | 成交價／時間 | 5m | VWAP | P0-R | 動作 |",
         "| --- | --- | --- | --- | --- | --- | --- |",
