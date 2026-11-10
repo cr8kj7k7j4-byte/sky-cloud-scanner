@@ -39,6 +39,7 @@ def record(meta, payload, source_date, checked_at):
         "data_status": "MISSING_QUOTE", "last_price": None,
         "change_pct": None, "volume": None, "last_trade_time": None,
         "time_age_seconds": None, "snapshot_observed_at": None,
+        "snapshot_source_date": source_date or None, "snapshot_is_trial": False,
         "research_only": True,
         "production_eligible": False, "trade_signal": False,
     }
@@ -46,6 +47,7 @@ def record(meta, payload, source_date, checked_at):
         return result
     # Collection time is informational only, not an executed-trade timestamp.
     result["snapshot_observed_at"] = checked_at.isoformat()
+    result["snapshot_is_trial"] = payload.get("isTrial") is True
     trade = payload.get("lastTrade")
     trade = trade if isinstance(trade, dict) else {}
     price = numeric(trade.get("price"))
