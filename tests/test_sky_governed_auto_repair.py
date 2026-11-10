@@ -282,5 +282,80 @@ class SafePatchContracts(unittest.TestCase):
             self.assertFalse(any(path == "/merges" for path, _, _ in api.calls))
 
 
+class SmokeAcceptanceContracts(unittest.TestCase):
+    """Non-production, fixed-fixture smoke contracts; no GitHub network calls."""
+
+    class FakeSmokeGithub:
+        repo = "test/repo"
+        def __init__(self, source=governed.SMOKE_BROKEN, head_sha="a" * 40):
+            self.source = source
+            self.head_sha = head_sha
+            self.calls = []
+        def _pr(self):
+            return {"number": 9001, "state": "open", "draft": True,
+                    "head": {"ref": governed.SMOKE_BRANCH, "sha": self.head_sha,
+                             "repo": {"full_name": "test/repo"}},
+                    "base": {"ref": "main"}}
+        def call(self, path, method="GET", body=None):
+            self.calls.append((path, method, body))
+            if path.startswith("/pulls?"):
+                return [self._pr()]
+            if path == "/pulls/9001":
+                return self._pr()
+            if path.startswith("/contents/") and method == "GET":
+                return {"sha": "fixture-blob",
+                        "content": base64.b64encode(self.source.encode()).decode()}
+            if path == "/git/refs" and method == "POST":
+                return {}
+            if path.startswith("/contents/") and method == "PUT":
+                return {}
+            if path == "/pulls" and method == "POST":
+                return {"number": 9002, "html_url": "https://github.com/test/repo/pull/9002"}
+            raise AssertionError((path, method))
+
+    def test_smoke_writes_only_one_fixture_to_draft_research_pr(self):
+        api = self.FakeSmokeGithub()
+        result = governed.run_smoke(api, expected_sha="a" * 40,
+                                    allow_write=True, linked_prs=[])
+        self.assertEqual(result["state"], "DRAFT_SMOKE_REPAIR_PR_CREATED_AWAITING_DOWNSTREAM_CI")
+        self.assertEqual(result["repair_pr_number"], 9002)
+        writes = [(p, b) for p, m, b in api.calls if m != "GET"]
+        self.assertEqual(len(writes), 3)
+        self.assertEqual(writes[-1][1]["base"], governed.SMOKE_BRANCH)
+        self.assertTrue(writes[-1][1]["draft"])
+        self.assertEqual(writes[1][0], "/contents/" + governed.SMOKE_FILE)
+        self.assertEqual(base64.b64decode(writes[1][1]["content"]).decode(), governed.SMOKE_FIXED)
+        self.assertFalse(result["production_eligible"])
+        self.assertFalse(result["automatic_merge"])
+
+    def test_smoke_stale_sha_does_not_write(self):
+        api = self.FakeSmokeGithub()
+        result = governed.run_smoke(api, expected_sha="b" * 40,
+                                    allow_write=True, linked_prs=[])
+        self.assertIn("SMOKE_PR_IDENTITY_OR_SHA_INVALID", result["blockers"])
+        self.assertFalse(any(method != "GET" for _, method, _ in api.calls))
+
+    def test_smoke_non_whitelisted_file_does_not_write(self):
+        api = self.FakeSmokeGithub(source="unapproved content\\n")
+        result = governed.run_smoke(api, expected_sha="a" * 40,
+                                    allow_write=True, linked_prs=[])
+        self.assertIn("UNAPPROVED_SMOKE_CONTENT", result["blockers"])
+        self.assertFalse(any(method != "GET" for _, method, _ in api.calls))
+
+    def test_smoke_unrelated_linked_pr_does_not_write(self):
+        api = self.FakeSmokeGithub()
+        result = governed.run_smoke(api, expected_sha="a" * 40,
+                                    allow_write=True, linked_prs=[{"number": 9003}])
+        self.assertIn("SMOKE_PR_IDENTITY_OR_SHA_INVALID", result["blockers"])
+        self.assertFalse(any(method != "GET" for _, method, _ in api.calls))
+
+    def test_smoke_manual_diagnosis_never_writes(self):
+        api = self.FakeSmokeGithub()
+        result = governed.run_smoke(api, expected_sha="a" * 40,
+                                    allow_write=False, linked_prs=[])
+        self.assertEqual(result["state"], "SMOKE_PATCH_READY_NO_WRITE")
+        self.assertFalse(any(method != "GET" for _, method, _ in api.calls))
+
+
 if __name__ == "__main__":
     unittest.main()
