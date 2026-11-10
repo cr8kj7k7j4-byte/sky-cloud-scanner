@@ -1,0 +1,50 @@
+name: Sky AI Model Security Review
+on:
+  workflow_run:
+    workflows: ["Sky Single Owner Security Evidence"]
+    types: [completed]
+
+permissions:
+  contents: read
+  pull-requests: read
+  actions: read
+
+jobs:
+  model-review:
+    if: >-
+      ${{ github.event.workflow_run.event == 'pull_request' &&
+          github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.head_repository.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      # Important: workflow_run is privileged. Never check out the untrusted PR branch.
+      # This checkout resolves trusted default-branch code only.
+      - name: Checkout trusted main code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Verify trusted reviewer script is deployed
+        run: test -f scripts/sky_ai_pr_review.py
+      - name: Run actual AI model review (fail closed)
+        id: ai
+        continue-on-error: true
+        env:
+          GH_READ_TOKEN: ${{ github.token }}
+          OPENAI_API_KEY: ${{ secrets.SKY_OPENAI_REVIEW_API_KEY }}
+          SKY_AI_REVIEW_MODEL: gpt-6-luna
+        run: python3 scripts/sky_ai_pr_review.py
+      - name: Upload AI review evidence, including HOLD
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-ai-model-security-${{ github.run_id }}
+          path: sky-ai-review-evidence.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Fail check on model missing or unsafe review
+        if: steps.ai.outcome != 'success'
+        run: |
+          echo 'AI model review is HOLD/FLAG; no merge approval.'
+          exit 1
