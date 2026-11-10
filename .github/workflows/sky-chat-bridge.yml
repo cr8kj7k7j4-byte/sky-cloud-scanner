@@ -38,6 +38,7 @@ jobs:
             output/sky_quickscan_information/full_universe.json
             output/sky_quickscan_information/stage1_candidates.json
             output/sky_quickscan_information/stage2_quote_evidence.json
+            output/sky_quickscan_information/v14_ticker_5m_evidence.json
           if-no-files-found: warn
           retention-days: 14
       - name: Publish sanitized summary for ChatGPT GitHub connector
