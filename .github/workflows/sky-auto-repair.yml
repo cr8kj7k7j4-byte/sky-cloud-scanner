@@ -1,0 +1,48 @@
+name: Sky Auto-Repair Research Controller (5m)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/sky-auto-repair.yml'
+      - 'scripts/sky_auto_repair.py'
+      - 'tests/test_sky_auto_repair.py'
+  workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'
+permissions:
+  contents: write
+  actions: write
+  pull-requests: read
+concurrency:
+  group: sky-auto-repair-research
+  cancel-in-progress: false
+jobs:
+  auto-repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SKY_FUGLE_ONLY_MARKETDATA: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Preflight deterministic patch contracts (no network)
+        run: |
+          python -m py_compile scripts/sky_auto_repair.py
+          python -m unittest tests.test_sky_auto_repair -v
+      - name: Diagnose, bounded safe repair, independent self-review
+        id: controller
+        run: python scripts/sky_auto_repair.py
+      - name: Recheck deterministic patch contracts
+        if: always()
+        run: python -m unittest tests.test_sky_auto_repair -q
+      - name: Upload research repair evidence including failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-auto-repair-${{ github.run_id }}
+          path: output/sky_auto_repair/latest.json
+          if-no-files-found: warn
+          retention-days: 14
