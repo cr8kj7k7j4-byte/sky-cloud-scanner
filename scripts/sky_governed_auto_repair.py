@@ -163,6 +163,8 @@ def main() -> int:
             trusted_failure = (
                 payload.get("action") == "completed"
                 and run_info.get("name") == "Sky Chat Bridge Unit Checks"
+                and (run_info.get("repository") or {}).get("full_name") == api.repo
+                and (run_info.get("head_repository") or {}).get("full_name") == api.repo
                 and run_info.get("event") == "pull_request"
                 and run_info.get("conclusion") == "failure"
                 and type(run_info.get("run_attempt")) is int
