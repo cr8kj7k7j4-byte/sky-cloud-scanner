@@ -88,6 +88,37 @@ def _pr_snapshot():
         return [], "PR_METADATA_EXCEPTION"
 
 
+def paid_workflow_overlap(workflows: list[dict]) -> dict:
+    """Find structural paid API overlap; not proof of actual duplicate billing.
+
+    GitHub concurrency groups only serialize their own group. Different event
+    entrypoints may independently call Fugle in the same session, even after cron
+    is paused. No provider calls are made by this audit.
+    """
+    paid = [w for w in workflows if w.get("paid_fugle_secret_referenced")]
+    manual = sorted(w["name"] for w in paid if w.get("manual_dispatch"))
+    push = sorted(w["name"] for w in paid if w.get("push_trigger"))
+    schedules = sorted(w["name"] for w in paid if w.get("schedule_cron"))
+    groups = {}
+    for item in paid:
+        group = item.get("concurrency_group")
+        groups.setdefault(group or "NO_WORKFLOW_CONCURRENCY", []).append(item["name"])
+    return {
+        "paid_workflow_count": len(paid),
+        "paid_workflow_names": sorted(w["name"] for w in paid),
+        "manual_paid_entrypoints": manual,
+        "push_paid_entrypoints": push,
+        "scheduled_paid_entrypoints": schedules,
+        "concurrency_groups": {k: sorted(v) for k, v in sorted(groups.items())},
+        "cross_workflow_paid_api_dedup_certified": False,
+        "runtime_paid_api_lease_verified": False,
+        "provider_request_id_reconciliation_verified": False,
+        "status": "HOLD_RUNTIME_LEDGER_AND_CROSS_WORKFLOW_LEASE_NOT_VERIFIED"
+        if len(paid) > 1 else "INSUFFICIENT_RUNTIME_EVIDENCE",
+        "note": "Possible simultaneous invocation, not actual duplicate calls or billing proof.",
+    }
+
+
 def audit(root: Path = ROOT, include_api: bool = False) -> dict:
     wf = root / ".github/workflows"
     paths = sorted(wf.glob("*.yml")) + sorted(wf.glob("*.yaml"))
@@ -103,6 +134,12 @@ def audit(root: Path = ROOT, include_api: bool = False) -> dict:
             "cron_count": len(cron),
             "paid_fugle_secret_referenced": "secrets.FUGLE_API_KEY" in src,
             "manual_dispatch": "  workflow_dispatch:" in src,
+            "push_trigger": any(line.startswith("  push:") for line in src.splitlines()),
+            "concurrency_group": next((
+                line.strip().split("group:", 1)[1].strip()
+                for line in src.splitlines()
+                if line.startswith("  group:")
+            ), None),
             "source_sha": "GIT_TRACKED_MAIN_OR_PR_HEAD",
         }
         entries.append(item)
@@ -125,6 +162,7 @@ def audit(root: Path = ROOT, include_api: bool = False) -> dict:
         "workflow_list": entries,
         "workflow_with_schedule": sum(bool(x["schedule_cron"]) for x in entries),
         "potential_overlapping_cron_groups": duplicates,
+        "paid_api_overlap": paid_workflow_overlap(entries),
         "overlapping_cron_not_equal_paid_api_duplication": True,
         "broker_account_required_for_research": False,
         "live_trading_enabled": False,
@@ -152,6 +190,8 @@ def main():
              f"- 有定時設定的 Workflow：{d['workflow_with_schedule']}",
              f"- 存在相同 cron 的群組：{len(d['potential_overlapping_cron_groups'])}",
              f"- PR 資料：{d['open_pr_api_status']}，開放 PR：{d['open_pr_count']}",
+             f"- 付費 API 工作入口數：{d['paid_api_overlap']['paid_workflow_count']}",
+             f"- 跨 Workflow 運行期去重：{d['paid_api_overlap']['status']}",
              f"- 已確認退場的舊入口回流：{d['removed_workflows_resurrected']}",
              f"- 到期 cron 回流：{d['expired_watchdog_crons_reintroduced']}",
              "", "## 疑似相同 cron（用途仍須對帳）"]
