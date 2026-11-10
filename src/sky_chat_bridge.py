@@ -44,10 +44,11 @@ def validate_report(report):
     return rows
 
 
-def make_status(request_id, report=None, error=None, observation=None):
+def make_status(request_id, report=None, error=None, observation=None, execution_probe=None):
     observation = observation or {}
     observed_count = observation.get("observed_price_count", 0)
     exchange_detail = observation.get("by_exchange") or {}
+    execution_probe = execution_probe or {}
     run_id = os.getenv("GITHUB_RUN_ID") or "LOCAL"
     repo = os.getenv("GITHUB_REPOSITORY") or ""
     rows = validate_report(report) if report is not None else []
@@ -66,6 +67,13 @@ def make_status(request_id, report=None, error=None, observation=None):
         "fresh_executed_count": observation.get("fresh_executed_count", 0),
         "by_exchange": exchange_detail,
         "snapshot_errors": observation.get("snapshot_errors") or {},
+        "individual_execution_probe": {
+            "status": execution_probe.get("status", "NOT_RUN"),
+            "requested_count": execution_probe.get("requested_count", 0),
+            "verified_fresh_executed_count": execution_probe.get("verified_fresh_executed_count", 0),
+            "by_status": execution_probe.get("by_status", {}),
+            "research_only": True, "full_market_executed_certified": False,
+        },
         "production_eligible": False, "automatic_order": False,
         "block_reason": error or "UNVERIFIED_EXECUTED_TRADE_COVERAGE",
         "artifact_file": "output/sky_quickscan_information/latest_13col.json" if report else None,
@@ -78,6 +86,7 @@ def main():
     report = None
     error = None
     observation = None
+    execution_probe = None
     try:
         request_id = validate_request(json.loads(REQUEST.read_text(encoding="utf-8")))
         for argv in (
@@ -95,10 +104,34 @@ def main():
         observation = json.loads(Path("output/sky_quickscan_information/full_universe.json").read_text(encoding="utf-8"))
         if observation.get("universe_count") != report.get("row_count"):
             raise ValueError("UNIVERSE_COUNT_MISMATCH")
+        # Probe individual actual lastTrade data, separately from bulk snapshots.
+        # A sample must NEVER be treated as whole-market executed coverage.
+        try:
+            proc = subprocess.run(
+                [sys.executable, "-m", "research.sky_fugle_individual_execution_probe", "--limit", "8"],
+                capture_output=True, text=True, timeout=120, check=False)
+            if proc.returncode != 0:
+                execution_probe = {"status": "PROBE_FAILED", "by_status": {"EXIT_NONZERO": 1}}
+            else:
+                probe = json.loads(Path(
+                    "output/sky_quickscan_information/fugle_execution_samples.json"
+                ).read_text(encoding="utf-8"))
+                counts = {}
+                for item in probe.get("rows", []):
+                    code = item.get("status", "UNKNOWN")
+                    counts[code] = counts.get(code, 0) + 1
+                execution_probe = {
+                    "status": "PROBE_COMPLETE",
+                    "requested_count": probe.get("requested_count", 0),
+                    "verified_fresh_executed_count": probe.get("verified_fresh_executed_count", 0),
+                    "by_status": counts,
+                }
+        except (OSError, ValueError, subprocess.TimeoutExpired):
+            execution_probe = {"status": "PROBE_FAILED", "by_status": {"PROBE_EXCEPTION": 1}}
     except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired, json.JSONDecodeError) as exc:
         error = str(exc)[:160]
         report = None
-    status = make_status(request_id, report, error, observation)
+    status = make_status(request_id, report, error, observation, execution_probe)
     (OUTPUT / "latest.json").write_text(json.dumps(status, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({k: v for k, v in status.items() if k != "preview"}, ensure_ascii=False))
     if report is None:
