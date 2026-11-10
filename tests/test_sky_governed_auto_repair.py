@@ -114,6 +114,11 @@ class SafePatchContracts(unittest.TestCase):
             {"pull_requests": []},
             {"event": "push"},
             {"run_attempt": 2},
+            {"run_attempt": None},
+            {"run_attempt": 0},
+            {"run_attempt": False},
+            {"run_attempt": "1"},
+            {"run_attempt": "invalid"},
             {"head_sha": ""},
         ]
         for diff in bad_cases:
