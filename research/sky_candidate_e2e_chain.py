@@ -12,6 +12,7 @@ from pathlib import Path
 from src.cost_profiles import USER_CASH_DAYTRADE_20261022
 from src.risk_engine import evaluate_trade
 from research.sky_stage5_vwap_cost_evidence import review_quote_vwap_evidence, review_cost_evidence
+from research.sky_stage5_breakout_antichase_evidence import audit as audit_breakout
 
 SCHEMA = "SKY_CANDIDATE_E2E_EVIDENCE_CHAIN_V1"
 
@@ -97,6 +98,7 @@ def build(stage1, stage2, stage3):
         avg_price = micro.get("average_price") if verified_quote else None
         vwap_source_audit = review_quote_vwap_evidence(micro if verified_quote else {})
         cost_source_audit = review_cost_evidence()
+        breakout_audit = audit_breakout(stage1_row, row, candle)
         # Never accept a source flag as formal VWAP certification. The independent
         # numerator / denominator, time-causal execution, and official unit
         # contract must be validated separately and reviewed by W0/P0-G.
@@ -151,6 +153,7 @@ def build(stage1, stage2, stage3):
             "vwap_source": "NOT_CERTIFIED" if not vwap_certified else "CANDIDATE_CLAIM_REQUIRES_W0_REVIEW",
             "vwap_source_consistency_audit": vwap_source_audit,
             "execution_cost_provenance_audit": cost_source_audit,
+            "breakout_anti_chase_evidence_audit": breakout_audit,
             "cost_profile": USER_CASH_DAYTRADE_20261022.profile_id,
             "base_round_trip_cost_pct": round(
                 100 * (USER_CASH_DAYTRADE_20261022.buy_commission_rate
