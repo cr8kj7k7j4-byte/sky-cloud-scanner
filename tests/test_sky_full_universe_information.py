@@ -103,6 +103,12 @@ def test_snapshot_without_lasttrade_time_keeps_reference_and_collection_clock():
     assert report["snapshot_reference_requires_last_trade_time"] is False
     assert report["snapshot_reference_without_trade_time_count"] == 1
     assert report["fresh_executed_count"] == 0
+    assert report["snapshot_reference_coverage_denominator"] == 3
+    assert report["snapshot_reference_coverage_pct"] == 33.33
+    assert report["quote_execution_sample_size"] == 0
+    assert report["quote_execution_certified_count"] == 0
+    assert report["quote_execution_certification_pct"] is None
+    assert report["quote_execution_certification_status"] == "NOT_SAMPLED_IN_SNAPSHOT_STAGE"
     assert report["no_order_or_production_promotion"] is True
 
 
