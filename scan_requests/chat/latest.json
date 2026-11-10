@@ -1,6 +1,6 @@
 {
-  "command": "Sky 快掃",
-  "request_id": "chat-20261110-quickscan-after-fix-0858",
+  "command": "Sky 當沖現在掃一次",
+  "request_id": "chat-20261110-daytrade-0901-user",
   "read_only_no_orders": true,
-  "reason": "Retry original user Sky 快掃 after PR471 route fix. Paid Fugle full-market and 13col research only, verify actual output"
+  "reason": "User requested live daytrade scan at 2026-11-10 09:01 Asia/Taipei. Capture paid Fugle market observations and all 13 columns, do not authorize trade without executed-time market gate."
 }
