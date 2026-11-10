@@ -1,5 +1,12 @@
 name: Sky Chat Bridge Unit Checks
 on:
+  # Research-only free contract CI, no cron and no paid Fugle calls.
+  push:
+    branches: [research/fugle-snapshot-diagnostics-20261110]
+    paths:
+      - 'research/sky_full_universe_information.py'
+      - 'tests/test_sky_full_universe_information.py'
+      - '.github/workflows/sky-chat-bridge-tests.yml'
   pull_request:
     paths:
       - 'src/sky_chat_bridge.py'
