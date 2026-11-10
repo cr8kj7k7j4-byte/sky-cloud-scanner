@@ -102,7 +102,22 @@ jobs:
             --data-urlencode "text@/tmp/sky-watchdog-notice.txt" \
             "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" > /dev/null
 
+  w3b-repair-contract-tests:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate monitor safely without elevated permissions
+        run: python -m unittest tests.test_sky_w3b_repair_monitor -v
+
   w3b-repair-monitor:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
     # Existing */5 UTC schedule owns cadence. No new cron or paid market calls.
     # PR event runs isolated unit tests only with read permissions.
     runs-on: ubuntu-latest
