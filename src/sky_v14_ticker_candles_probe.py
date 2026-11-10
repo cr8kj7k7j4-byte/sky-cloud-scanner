@@ -81,8 +81,13 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                             if stamp.minute % 5 or stamp.second or stamp.microsecond:
                                 invalid_bar_sequence=True
                                 continue
-                            if prior_stamp is not None and stamp<=prior_stamp:
-                                invalid_bar_sequence=True  # duplicate or out of order
+                            if prior_stamp is not None:
+                                if stamp<=prior_stamp:
+                                    invalid_bar_sequence=True  # duplicate or out of order
+                                elif stamp-prior_stamp != timedelta(minutes=5):
+                                    # Missing 5m bars make multi-bar features
+                                    # non-contiguous; do not infer valid coverage.
+                                    invalid_bar_sequence=True
                             prior_stamp=stamp
                             if stamp.date()!=now.date():
                                 invalid_bar_sequence=True
