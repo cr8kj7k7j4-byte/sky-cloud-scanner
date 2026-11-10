@@ -225,12 +225,34 @@ def evaluate_candidate(candidate, portfolio_context, policy=None):
     policy = policy or RiskPolicy()
     candidate = candidate or {}
     portfolio_context = portfolio_context or {}
-    required_portfolio = ("account_equity", "daily_pnl", "open_risk", "concurrent_positions", "consecutive_losses", "positions_verified", "execution_policy")
+    # Brokerage account is NOT needed to evaluate research / PAPER_ONLY risk.
+    # Ledger evidence must instead come from the paper simulator, never a fabricated
+    # "no holdings" assumption. LIVE authorization is out of scope.
+    required_portfolio = ("account_equity", "daily_pnl", "open_risk", "concurrent_positions", "consecutive_losses", "execution_policy")
     missing = [key for key in required_portfolio if portfolio_context.get(key) is None]
-    if portfolio_context.get("positions_verified") is not True:
-        missing.append("verified_positions")
+    if portfolio_context.get("mode") == "PAPER_ONLY":
+        ledger = portfolio_context.get("paper_ledger")
+        if not isinstance(ledger, dict) or ledger.get("mode") != "PAPER_ONLY":
+            missing.append("paper_ledger")
+        else:
+            for key in ("daily_realized_net_pnl_twd", "consecutive_stops", "open_positions", "open_stop_risk_twd"):
+                if ledger.get(key) is None:
+                    missing.append("paper_ledger." + key)
+            if not missing:
+                # Reject mismatched / stale caller counters rather than silently
+                # treating fabricated zero positions as verified.
+                mapping = (("daily_pnl", "daily_realized_net_pnl_twd"),
+                           ("consecutive_losses", "consecutive_stops"),
+                           ("concurrent_positions", "open_positions"),
+                           ("open_risk", "open_stop_risk_twd"))
+                for caller, source in mapping:
+                    if portfolio_context[caller] != ledger[source]:
+                        missing.append("paper_ledger_mismatch." + caller)
+    elif portfolio_context.get("positions_verified") is not True:
+        # Legacy synthetic fixture compatibility, not a broker requirement.
+        missing.append("portfolio_state_evidence")
     if missing:
-        return {"status": "RISK_INPUT_REQUIRED", "portfolio_allowed": False, "recommended_shares": 0, "required_inputs": sorted(set(missing)), "reasons": ["持倉、損益或成交成本證據不足，禁止推算買進股數"]}
+        return {"status": "RISK_INPUT_REQUIRED", "portfolio_allowed": False, "recommended_shares": 0, "required_inputs": sorted(set(missing)), "reasons": ["模擬帳本、損益或成交成本證據不足，禁止推算紙上交易股數"]}
     # Candidate decisions may not bypass the minimum cost-after-RR gate, even
     # when a legacy diagnostic policy disabled enforcement.
     execution_policy = portfolio_context["execution_policy"]
