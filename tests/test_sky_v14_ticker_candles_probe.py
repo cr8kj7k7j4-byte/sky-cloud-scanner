@@ -194,6 +194,34 @@ class DeepFiveMinTests(unittest.TestCase):
                                 and z["feature_preview"] is None
                                 for z in x["samples"]))
 
+    def test_1321_scan_excludes_1320_forming_bar(self):
+        """A 13:21 observation cannot use the 13:20-13:25 candle.
+
+        The earlier 2026-11-10 13:21 research receipt returned 53 bars, but
+        its raw timestamps were not certified; this is a regression fixture,
+        not a claim that the provider did or did not include an unfinished bar.
+        """
+        from datetime import timedelta
+        now = datetime(2026, 11, 10, 13, 21, tzinfo=ZoneInfo("Asia/Taipei"))
+        first = datetime(2026, 11, 10, 9, 0, tzinfo=ZoneInfo("Asia/Taipei"))
+        def intraday(symbol, timeframe="5"):
+            q = candles(symbol, timeframe)
+            q["data"] = [
+                {"date": (first + timedelta(minutes=5*i)).isoformat(),
+                 "close": 30.0, "volume": 100}
+                for i in range(53)
+            ]
+            return q
+        out = run(stage2(), ticker_fn=ticker, candle_fn=intraday,
+                  sleep_fn=lambda _: None, now=now)
+        for row in out["samples"]:
+            self.assertEqual(row["valid_today_five_min_bars"], 52)
+            self.assertEqual(row["excluded_unfinished_five_min_bars"], 1)
+            self.assertEqual(row["rejected_future_five_min_bars"], 0)
+            self.assertEqual(row["last_feature_bar_time_tpe"],
+                             "2026-11-10T13:15:00+08:00")
+            self.assertFalse(row["production_eligible"])
+
     def test_0905_scan_never_reads_0905_opening_bar(self):
         """At 09:05, only 09:00-09:05 may have completed; 09:05 starts next bar."""
         scan=datetime(2026,11,10,9,5,tzinfo=ZoneInfo("Asia/Taipei"))
