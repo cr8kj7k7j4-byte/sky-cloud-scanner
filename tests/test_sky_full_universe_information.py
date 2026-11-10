@@ -124,8 +124,10 @@ def test_snapshot_integrity_distinguishes_missing_duplicates_and_no_trades():
     assert twse["duplicate_symbol_rows"] == 1
     assert twse["unexpected_symbols"] == 1
     assert twse["official_symbol_coverage_pct"] == 100.0
+    assert twse["missing_official_symbols"] == []
     assert twse["snapshot_time_is_execution_time"] is False
     assert tpex["official_symbols_missing_from_snapshot"] == 1
+    assert tpex["missing_official_symbols"] == [{"symbol": "2002", "name": "C", "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT", "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"}]
     assert report["all_symbols"][1]["data_status"] == "MISSING_EXECUTED_PRICE"
     assert report["all_symbols"][1]["source"] == "Fugle paid bulk snapshot"
     assert report["snapshot_api_calls_expected_per_scan"] == 2
