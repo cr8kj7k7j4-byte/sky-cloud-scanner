@@ -83,11 +83,13 @@ class DeepFiveMinTests(unittest.TestCase):
     def test_current_unfinished_bar_excluded_from_features(self):
         def unfinished(symbol,timeframe="5"):
             q=candles(symbol,timeframe)
-            q["data"].append({"date":"2026-11-10T11:14:00+08:00",
+            q["data"].append({"date":"2026-11-10T11:10:00+08:00",
                               "close":90,"volume":100})
             return q
+        # 11:10 bar is on-grid but remains unfinished at 11:13.
+        early=datetime(2026,11,10,11,13,tzinfo=ZoneInfo("Asia/Taipei"))
         x=run(stage2(),ticker_fn=ticker,candle_fn=unfinished,
-              sleep_fn=lambda _:None,now=NOW)
+              sleep_fn=lambda _:None,now=early)
         self.assertTrue(all(z["valid_today_five_min_bars"]==6
                             and z["excluded_unfinished_five_min_bars"]==1
                             and z["last_feature_bar_time_tpe"]=="2026-11-10T10:25:00+08:00"
