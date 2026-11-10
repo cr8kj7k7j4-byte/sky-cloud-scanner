@@ -36,9 +36,20 @@ def validate_report(report):
     rows = report.get("rows")
     if not isinstance(rows, list) or len(rows) != report.get("row_count"):
         raise ValueError("INCOMPLETE_ROWS")
+    seen = set()
     for row in rows:
         if not isinstance(row, dict) or any(k not in row for k in COLUMNS):
             raise ValueError("MISSING_13_COLUMNS")
+        symbol = str(row.get("股票代碼") or "")
+        if not symbol or symbol in seen:
+            raise ValueError("DUPLICATE_OR_MISSING_SYMBOL")
+        seen.add(symbol)
+        if row.get("現在動作") in ("買進", "加碼"):
+            raise ValueError("RESEARCH_ENTRY_NOT_ALLOWED")
+        if row.get("正式交易資格") is not False:
+            raise ValueError("ROW_PRODUCTION_ELIGIBILITY_NOT_FALSE")
+    if report.get("universe_count") != len(rows):
+        raise ValueError("UNIVERSE_REPORT_COUNT_MISMATCH")
     if report.get("production_eligible") is not False:
         raise ValueError("RESEARCH_CANNOT_AUTOPROMOTE")
     return rows
@@ -51,23 +62,48 @@ def make_status(request_id, report=None, error=None, observation=None):
     run_id = os.getenv("GITHUB_RUN_ID") or "LOCAL"
     repo = os.getenv("GITHUB_REPOSITORY") or ""
     rows = validate_report(report) if report is not None else []
+    # Present ranked observations rather than the first eight listing symbols.
+    # This is an information-only preview, never an A+ candidate list.
+    by_symbol = {str(r["股票代碼"]): r for r in rows}
+    ranked = observation.get("ranked_observations") or []
+    preview = []
+    for item in ranked:
+        symbol = str(item.get("symbol") or "") if isinstance(item, dict) else ""
+        if symbol in by_symbol and by_symbol[symbol] not in preview:
+            preview.append(by_symbol[symbol])
+        if len(preview) >= 8:
+            break
+    if not preview:
+        preview = rows[:8]
+    by_market = observation.get("by_exchange") or {}
+    snapshot_errors = observation.get("snapshot_errors") or {}
+    source_missing = bool(snapshot_errors) or any(
+        (by_market.get(market) or {}).get("snapshot_rows", 0) == 0
+        for market in ("TWSE", "TPEx")
+    )
+    report_status = ("DATA_BLOCKED_SOURCE_FAILURE" if source_missing else
+                     "REPORT_READY_RESEARCH_ONLY" if observed_count > 0 else
+                     "DATA_BLOCKED_NO_OBSERVATIONS")
     return {
         "schema": "SKY_CHAT_SCAN_STATUS_V1",
         "request_id": request_id, "scan_id": run_id,
         "run_url": f"https://github.com/{repo}/actions/runs/{run_id}" if repo else None,
         "completed_at_utc": datetime.now(timezone.utc).isoformat(),
-        "status": ("REPORT_READY_RESEARCH_ONLY" if observed_count > 0 else
-                   "DATA_BLOCKED_NO_OBSERVATIONS") if report is not None else "FAILED",
+        "status": report_status if report is not None else "FAILED",
         "data_timestamp": report.get("checked_at_tpe") if report else None,
         "source": "FUGLE_PAID_SNAPSHOT" if observed_count > 0 else None,
         "universe_count": report.get("universe_count") if report else None,
-        "row_count": len(rows), "preview": rows[:8],
+        "row_count": len(rows), "preview": preview,
         "observed_price_count": observed_count,
         "fresh_executed_count": observation.get("fresh_executed_count", 0),
         "by_exchange": exchange_detail,
-        "snapshot_errors": observation.get("snapshot_errors") or {},
+        "snapshot_errors": snapshot_errors,
+        "observed_price_coverage_pct": round(100 * observed_count / len(rows), 2) if rows else 0.0,
+        "fresh_executed_coverage_pct": round(
+            100 * observation.get("fresh_executed_count", 0) / len(rows), 2) if rows else 0.0,
         "production_eligible": False, "automatic_order": False,
-        "block_reason": error or "UNVERIFIED_EXECUTED_TRADE_COVERAGE",
+        "block_reason": error or ("SOURCE_DATA_INCOMPLETE" if source_missing else
+                                  "UNVERIFIED_EXECUTED_TRADE_COVERAGE"),
         "artifact_file": "output/sky_quickscan_information/latest_13col.json" if report else None,
     }
 
@@ -95,6 +131,11 @@ def main():
         observation = json.loads(Path("output/sky_quickscan_information/full_universe.json").read_text(encoding="utf-8"))
         if observation.get("universe_count") != report.get("row_count"):
             raise ValueError("UNIVERSE_COUNT_MISMATCH")
+        expected = {str(item.get("symbol")) for item in observation.get("all_symbols", [])
+                    if isinstance(item, dict)}
+        actual = {str(item["股票代碼"]) for item in report["rows"]}
+        if expected != actual:
+            raise ValueError("UNIVERSE_SYMBOL_SET_MISMATCH")
     except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired, json.JSONDecodeError) as exc:
         error = str(exc)[:160]
         report = None
