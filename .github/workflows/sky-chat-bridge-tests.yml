@@ -5,6 +5,8 @@ on:
       - 'src/sky_chat_bridge.py'
       - 'src/sky_stage2_candidate_quotes.py'
       - 'src/sky_stage2_deep_quality.py'
+      - 'src/sky_v14_ticker_candles_probe.py'
+      - 'tests/test_sky_v14_ticker_candles_probe.py'
       - 'tests/test_sky_stage2_deep_quality.py'
       - 'tests/test_sky_stage2_candidate_quotes.py'
       - 'src/sky_mcp_contract.py'
@@ -29,6 +31,6 @@ jobs:
       - name: Install tested runtime HTTP dependency
         run: pip install requests
       - name: Syntax-check bridge files
-        run: python -m py_compile src/sky_chat_bridge.py src/sky_mcp_contract.py research/sky_snapshot_candidates.py src/sky_stage2_candidate_quotes.py src/sky_stage2_deep_quality.py
+        run: python -m py_compile src/sky_chat_bridge.py src/sky_mcp_contract.py research/sky_snapshot_candidates.py src/sky_stage2_candidate_quotes.py src/sky_stage2_deep_quality.py src/sky_v14_ticker_candles_probe.py
       - name: Run isolated contracts without paid credentials
-        run: python -m unittest tests.test_sky_chat_bridge tests.test_sky_mcp_contract tests.test_sky_snapshot_candidates tests.test_sky_stage2_candidate_quotes tests.test_sky_stage2_deep_quality -v
+        run: python -m unittest tests.test_sky_chat_bridge tests.test_sky_mcp_contract tests.test_sky_snapshot_candidates tests.test_sky_stage2_candidate_quotes tests.test_sky_stage2_deep_quality tests.test_sky_v14_ticker_candles_probe -v

@@ -12,6 +12,7 @@ from pathlib import Path
 
 from research.sky_snapshot_candidates import screen as screen_stage1
 from src.sky_stage2_candidate_quotes import verify as verify_stage2
+from src.sky_v14_ticker_candles_probe import run as probe_v14_candles
 
 REQUEST = Path("scan_requests/chat/latest.json")
 OUTPUT = Path("output/chat_bridge")
@@ -58,12 +59,13 @@ def validate_report(report):
     return rows
 
 
-def make_status(request_id, report=None, error=None, observation=None, stage1=None, stage2=None):
+def make_status(request_id, report=None, error=None, observation=None, stage1=None, stage2=None, stage3=None):
     observation = observation or {}
     observed_count = observation.get("observed_price_count", 0)
     exchange_detail = observation.get("by_exchange") or {}
     stage1 = stage1 or {}
     stage2 = stage2 or {}
+    stage3 = stage3 or {}
     run_id = os.getenv("GITHUB_RUN_ID") or "LOCAL"
     repo = os.getenv("GITHUB_REPOSITORY") or ""
     rows = validate_report(report) if report is not None else []
@@ -109,6 +111,10 @@ def make_status(request_id, report=None, error=None, observation=None, stage1=No
         "stage2_bounded_operational_probe_pass": stage2.get("operational_bounded_probe_pass", False),
         "stage2_elapsed_seconds": stage2.get("elapsed_seconds"),
         "stage2_max_plan_quota_inferred": False,
+        "v14_ticker_5m_attempted_api_requests": stage3.get("attempted_api_requests", 0),
+        "v14_ticker_5m_samples": (stage3.get("samples") or [])[:2],
+        "v14_ticker_5m_artifact": "output/sky_quickscan_information/v14_ticker_5m_evidence.json" if stage3 else None,
+        "v14_full_rule_validation_complete": False,
         "stage2_v14_canonical_audit_invoked": sum(bool(x.get("canonical_v14_p0c_audit")) for x in (stage2.get("results") or [])),
         "stage2_quote_preview": (stage2.get("results") or [])[:6],
         "stage2_artifact": "output/sky_quickscan_information/stage2_quote_evidence.json" if stage2 else None,
@@ -137,6 +143,7 @@ def main():
     observation = None
     stage1 = None
     stage2 = None
+    stage3 = None
     try:
         request_id = validate_request(json.loads(REQUEST.read_text(encoding="utf-8")))
         for argv in (
@@ -165,10 +172,13 @@ def main():
         stage2 = verify_stage2(stage1)
         Path("output/sky_quickscan_information/stage2_quote_evidence.json").write_text(
             json.dumps(stage2, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        stage3 = probe_v14_candles(stage2)
+        Path("output/sky_quickscan_information/v14_ticker_5m_evidence.json").write_text(
+            json.dumps(stage3, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired, json.JSONDecodeError) as exc:
         error = str(exc)[:160]
         report = None
-    status = make_status(request_id, report, error, observation, stage1, stage2)
+    status = make_status(request_id, report, error, observation, stage1, stage2, stage3)
     (OUTPUT / "latest.json").write_text(json.dumps(status, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({k: v for k, v in status.items() if k != "preview"}, ensure_ascii=False))
     if report is None:
