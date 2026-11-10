@@ -1,0 +1,66 @@
+name: Sky Fugle Stage2 Limited Quote Entitlement Probe
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scan_requests/fugle_stage2/latest.json'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: sky-fugle-stage2-probe
+  cancel-in-progress: false
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install requests
+      - name: Run isolated safety tests
+        run: python -m unittest tests.test_sky_fugle_stage2_probe -v
+      - name: Probe 2 market snapshots and 2 individual quotes
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+        run: python -m src.sky_fugle_stage2_probe
+      - name: Upload sanitized non-order evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-fugle-stage2-${{ github.run_id }}
+          path: output/fugle_stage2_probe/latest.json
+          if-no-files-found: warn
+      - name: Publish read-only probe status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p = Path('output/fugle_stage2_probe/latest.json')
+          if p.exists():
+              data = json.loads(p.read_text(encoding='utf-8'))
+          else:
+              data = {'schema':'SKY_FUGLE_STAGE2_ENTITLEMENT_PROBE_V1','status':'FAILED_NO_OUTPUT',
+                      'results':[],'production_eligible':False,'automatic_order':False}
+          data['run_id'] = os.getenv('GITHUB_RUN_ID')
+          data['run_url'] = f"https://github.com/{os.getenv('GITHUB_REPOSITORY')}/actions/runs/{os.getenv('GITHUB_RUN_ID')}"
+          Path('/tmp/sky-fugle-stage2-probe.json').write_text(
+              json.dumps(data,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          PY
+          TARGET="repos/${GITHUB_REPOSITORY}/contents/docs/SKY_FUGLE_STAGE2_PROBE_LATEST.json"
+          CONTENT=$(base64 -w0 /tmp/sky-fugle-stage2-probe.json)
+          for ATTEMPT in 1 2 3; do
+            SHA=$(gh api "$TARGET" --jq '.sha' 2>/dev/null || true)
+            if [ -n "$SHA" ]; then
+              gh api --method PUT "$TARGET" -f message="ops: publish Fugle stage2 probe [skip ci]" -f content="$CONTENT" -f sha="$SHA" -f branch=main >/dev/null && break
+            else
+              gh api --method PUT "$TARGET" -f message="ops: publish Fugle stage2 probe [skip ci]" -f content="$CONTENT" -f branch=main >/dev/null && break
+            fi
+            if [ "$ATTEMPT" = 3 ]; then exit 1; fi
+            sleep 2
+          done
