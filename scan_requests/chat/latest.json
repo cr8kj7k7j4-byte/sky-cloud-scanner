@@ -1,6 +1,6 @@
 {
   "command": "Sky 當沖現在掃一次",
-  "request_id": "chat-20261110-candidate-e2e-stage4-live",
+  "request_id": "chat-20261110-1210-stage4-post493-verify",
   "read_only_no_orders": true,
-  "reason": "User authorized on-demand Snapshot -> candidate Quote -> verified trade time -> 5m/VWAP provenance -> formal P0-R blocked evidence. Research only, no orders, no Production promotion."
+  "reason": "Unique post-merge PR493 live read-only regression: verified-trade price under 100, strict Stage4 chain, max 12 quotes, no orders/production"
 }
