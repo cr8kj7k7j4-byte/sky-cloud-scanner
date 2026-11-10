@@ -4,6 +4,8 @@ on:
     paths:
       - "research/sky_paper_only_acceptance.py"
       - "tests/test_sky_paper_only_acceptance.py"
+      - "research/sky_paper_trade_trace.py"
+      - "tests/test_sky_paper_trade_trace.py"
       - ".github/workflows/sky-paper-only-acceptance.yml"
   workflow_dispatch:
 permissions:
@@ -19,6 +21,8 @@ jobs:
           python-version: "3.12"
       - name: Paper-only risk and provenance regression tests
         run: python -m unittest discover -s tests -p test_sky_paper_only_acceptance.py -v
+      - name: Trace hypothetical paper entries and fail missing cost evidence
+        run: python -m unittest discover -s tests -p test_sky_paper_trade_trace.py -v
       - name: Read actual latest scan metadata and publish honest HOLD verdict
         run: python -m research.sky_paper_only_acceptance
       - name: Upload paper research acceptance audit
