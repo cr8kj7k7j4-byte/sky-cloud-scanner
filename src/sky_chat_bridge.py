@@ -135,6 +135,9 @@ def make_status(request_id, report=None, error=None, observation=None, stage1=No
         "stage1_candidate_preview": (stage1.get("candidates") or [])[:20],
         "stage1_candidate_artifact": "output/sky_quickscan_information/stage1_candidates.json" if stage1 else None,
         "snapshot_errors": snapshot_errors,
+        "snapshot_integrity": observation.get("snapshot_integrity") or {},
+        "snapshot_reference_coverage_is_trade_coverage": False,
+        "stage2_quote_sample_is_whole_market_certification": False,
         "observed_price_coverage_pct": round(100 * observed_count / len(rows), 2) if rows else 0.0,
         "fresh_executed_coverage_pct": round(
             100 * observation.get("fresh_executed_count", 0) / len(rows), 2) if rows else 0.0,
