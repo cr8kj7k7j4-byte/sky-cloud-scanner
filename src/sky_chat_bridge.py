@@ -107,7 +107,7 @@ def main():
             raise ValueError("UNIVERSE_COUNT_MISMATCH")
         stage1 = screen_stage1(observation)
         Path("output/sky_quickscan_information/stage1_candidates.json").write_text(
-            json.dumps(stage1, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+            json.dumps(stage1, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired, json.JSONDecodeError) as exc:
         error = str(exc)[:160]
         report = None
