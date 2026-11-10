@@ -1,13 +1,7 @@
 name: Sky Snapshot Integrity Research Acceptance
 # MANUAL_ACCEPTANCE_ONESHOT_20261110_PAUSE_CRON: one limited research run; no scheduled trigger.
 on:
-  push:
-    branches:
-      - research/fugle-snapshot-diagnostics-20261110
-    paths:
-      - '.github/workflows/sky-snapshot-integrity-research-acceptance.yml'
-      - 'research/sky_full_universe_information.py'
-      - 'tests/test_sky_full_universe_information.py'
+  # One-shot manual only after user's global GitHub schedule pause.
   workflow_dispatch:
 permissions:
   contents: write
@@ -81,7 +75,7 @@ jobs:
           PY
           TARGET="repos/${GITHUB_REPOSITORY}/contents/docs/SKY_SNAPSHOT_INTEGRITY_RESEARCH_LATEST.json"
           CONTENT=$(base64 -w0 output/snapshot_integrity_research/receipt.json)
-          SHA=$(gh api "$TARGET" --jq '.sha' 2>/dev/null || true)
+          SHA=$(gh api "$TARGET?ref=research/fugle-snapshot-diagnostics-20261110" --jq '.sha' 2>/dev/null || true)
           if [ -n "$SHA" ]; then
             gh api --method PUT "$TARGET" -f message="research: snapshot integrity receipt [skip ci]" -f content="$CONTENT" -f sha="$SHA" -f branch=research/fugle-snapshot-diagnostics-20261110 >/dev/null
           else
