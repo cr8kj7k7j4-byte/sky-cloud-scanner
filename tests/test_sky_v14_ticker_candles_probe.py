@@ -45,7 +45,8 @@ class DeepFiveMinTests(unittest.TestCase):
         def old(_,timeframe="5"):
             q=candles(_,timeframe);q["date"]="2026-11-09";return q
         x=run(stage2(),ticker_fn=ticker,candle_fn=old,sleep_fn=lambda _:None,now=NOW)
-        self.assertTrue(all(z["status"]=="INCOMPLETE_TICKER_OR_5M_EVIDENCE" for z in x["samples"]))
+        self.assertTrue(all(z["status"]=="INCOMPLETE_TICKER_OR_5M_EVIDENCE"
+                            and z["feature_preview"] is None for z in x["samples"]))
     def test_no_trade_even_if_all_inputs_present(self):
         x=run(stage2(),ticker_fn=ticker,candle_fn=candles,sleep_fn=lambda _:None,now=NOW)
         self.assertTrue(all(z["production_eligible"] is False for z in x["samples"]))
@@ -76,6 +77,7 @@ class DeepFiveMinTests(unittest.TestCase):
               sleep_fn=lambda _:None,now=NOW)
         self.assertTrue(all(z["status"]=="INCOMPLETE_TICKER_OR_5M_EVIDENCE"
                             and z["rejected_future_five_min_bars"]==1
+                            and z["feature_preview"] is None
                             for z in x["samples"]))
 
     def test_current_unfinished_bar_excluded_from_features(self):
@@ -104,6 +106,7 @@ class DeepFiveMinTests(unittest.TestCase):
                   sleep_fn=lambda _:None,now=NOW)
             self.assertTrue(all(z["status"]=="INCOMPLETE_TICKER_OR_5M_EVIDENCE"
                                 and z["bar_sequence_valid"] is False
+                                and z["feature_preview"] is None
                                 for z in x["samples"]))
 
 if __name__=="__main__":
