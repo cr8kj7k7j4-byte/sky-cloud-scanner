@@ -55,6 +55,15 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                 tdate=ticker.get("date")
                 cdate=candles.get("date")
                 actual_tf=str(candles.get("timeframe") or "")
+                # Both official Fugle endpoints return symbol and exchange.
+                # A cross-stock or cross-exchange response must never be
+                # used for this candidate's model feature preview.
+                source_identity_matches=(
+                    ticker.get("symbol")==row["symbol"]
+                    and candles.get("symbol")==row["symbol"]
+                    and ticker.get("exchange")==row["exchange"]
+                    and candles.get("exchange")==row["exchange"]
+                )
                 bars=candles.get("data")
                 # Research PIT guard: conservatively treat the timestamp as a bar
                 # START until provider semantics are formally certified. Never use
@@ -117,12 +126,13 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                 }
                 # Do not expose potentially contaminated model features from
                 # invalid bar order, future bars, or mismatched source dates.
-                preview_safe = (len(valid)>=2 and not invalid_bar_sequence
+                preview_safe = (source_identity_matches and len(valid)>=2 and not invalid_bar_sequence
                                 and rejected_future_bars==0 and actual_tf=="5"
                                 and tdate==day and cdate==day)
                 features=build_features(snapshot,valid).to_dict() if preview_safe else None
                 result.update({
                     "ticker_date":tdate,"candles_date":cdate,
+                    "source_identity_matches":source_identity_matches,
                     "board_lot_shares":boardlot,
                     "trading_currency":ticker.get("tradingCurrency"),
                     "can_day_trade":ticker.get("canDayTrade"),
@@ -143,7 +153,8 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                     "avg_price_is_certified_vwap":False,
                     "official_bar_volume_unit":"整股張數（Fugle 官方 Intraday Candles 文件）",
                 })
-                ready=(tdate==day and cdate==day and actual_tf=="5" and len(valid)>=6
+                ready=(source_identity_matches and tdate==day and cdate==day
+                       and actual_tf=="5" and len(valid)>=6
                        and not invalid_bar_sequence and rejected_future_bars==0
                        and eligible and not is_limit and ticker.get("securityStatus")=="NORMAL"
                        and ticker.get("isDisposition") is False
