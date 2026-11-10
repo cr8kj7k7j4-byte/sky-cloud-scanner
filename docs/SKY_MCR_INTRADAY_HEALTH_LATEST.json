@@ -1,16 +1,16 @@
 {
   "schema": "SKY_MCR_INTRADAY_HEALTH_V1",
-  "published_at_utc": "2026-11-10T02:35:53.475872+00:00",
-  "run_id": "42743793598",
-  "run_url": "https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/42743793598",
+  "published_at_utc": "2026-11-10T02:44:58.571369+00:00",
+  "run_id": "42744795878",
+  "run_url": "https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/42744795878",
   "financing_source_date": "2026-11-06",
-  "quote_observed_at": "2026-11-10T10:35:42.884160+08:00",
+  "quote_observed_at": "2026-11-10T10:44:51.417572+08:00",
   "mcr_observation_count": 520,
-  "mcr_with_observed_price": 516,
+  "mcr_with_observed_price": 517,
   "mcr_fresh_executed_count": 0,
   "mcr_independent_accepted_executed_count": 0,
   "all_market_universe_count": 1986,
-  "all_market_observed_price_count": 1881,
+  "all_market_observed_price_count": 1888,
   "all_market_fresh_executed_count": 0,
   "by_exchange": {
     "TWSE": {
@@ -25,15 +25,15 @@
       "universe": 895,
       "snapshot_rows": 895,
       "fresh_executed": 0,
-      "observed_price": 825,
-      "snapshot_reference_without_trade_time": 825,
+      "observed_price": 832,
+      "snapshot_reference_without_trade_time": 832,
       "fresh_executed_pct": 0.0
     }
   },
   "mcr_quote_status_counts": {
-    "UNVERIFIED_EXECUTION_TIME": 516,
+    "UNVERIFIED_EXECUTION_TIME": 517,
     "MISSING_QUOTE": 1,
-    "MISSING_EXECUTED_PRICE": 3
+    "MISSING_EXECUTED_PRICE": 2
   },
   "data_blockers": [],
   "action": "禁止交易",
