@@ -1,5 +1,11 @@
 name: Sky v1.4 Formal Readiness Evidence Audit (Research Only)
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'research/sky_v14_readiness_audit.py'
+      - 'tests/test_sky_v14_readiness_audit.py'
+      - '.github/workflows/sky-v14-readiness-evidence-audit.yml'
   pull_request:
     paths:
       - 'research/sky_v14_readiness_audit.py'
