@@ -17,7 +17,7 @@ from src.realtime_quote_evidence import fugle_executed_trade
 
 TZ = ZoneInfo("Asia/Taipei")
 OUT = Path("output/fugle_two_stage_acceptance.json")
-MAX_QUOTE_CALLS = 8
+MAX_QUOTE_CALLS = 12
 MIN_INTERVAL_SECONDS = 1.2
 
 
@@ -166,7 +166,7 @@ def main():
         "quota_verdict": ("RATE_LIMIT_OBSERVED" if any_rate_limited else
                           "NOT_TESTED_NO_QUOTE_CALLS" if individual["requests_made"] == 0 else
                           "NO_429_IN_BOUNDED_SAMPLE_LIMIT_NOT_CERTIFIED"),
-        "quota_note": "8 spaced calls cannot establish contractual per-minute/day quota.",
+        "quota_note": "12 spaced calls cannot establish contractual per-minute/day quota.",
         "trade_action": "禁止交易",
     }
     OUT.parent.mkdir(exist_ok=True, parents=True)
