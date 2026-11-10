@@ -6,8 +6,8 @@ from .execution_engine import ExecutionCostPolicy, evaluate_execution_rr, execut
 
 @dataclass(frozen=True)
 class RiskPolicy:
-    risk_per_trade_pct: float = 0.005
-    daily_loss_limit_pct: float = 0.015
+    risk_per_trade_pct: float = 0.01
+    daily_loss_limit_pct: float = 0.02
     max_portfolio_heat_pct: float = 0.03
     max_position_pct: float = 0.20
     correlation_limit_pct: float = 0.02
@@ -134,6 +134,10 @@ def evaluate_trade(
     if reward <= 0:
         reasons.append("Long 模式 Target 必須高於 Entry")
 
+    if int(consecutive_losses or 0) >= 2:
+        reasons.append("連續兩筆停損，禁止新進場")
+    if stop >= entry:
+        reasons.append("做多停損必須低於進場價")
     if state == "LOCKDOWN":
         reasons.append("回撤達 LOCKDOWN 門檻，禁止新開倉")
     if state == "DEFENSIVE" and grade not in (None, "A+"):
@@ -221,6 +225,12 @@ def evaluate_candidate(candidate, portfolio_context, policy=None):
     policy = policy or RiskPolicy()
     candidate = candidate or {}
     portfolio_context = portfolio_context or {}
+    required_portfolio = ("account_equity", "daily_pnl", "open_risk", "concurrent_positions", "consecutive_losses", "positions_verified", "execution_policy")
+    missing = [key for key in required_portfolio if portfolio_context.get(key) is None]
+    if portfolio_context.get("positions_verified") is not True:
+        missing.append("verified_positions")
+    if missing:
+        return {"status": "RISK_INPUT_REQUIRED", "portfolio_allowed": False, "recommended_shares": 0, "required_inputs": sorted(set(missing)), "reasons": ["持倉、損益或成交成本證據不足，禁止推算買進股數"]}
     return evaluate_trade(
         entry=candidate.get("entry", candidate.get("last")),
         stop=candidate.get("stop"),
