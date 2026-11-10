@@ -1,0 +1,31 @@
+name: Sky v1.4 Formal Readiness Evidence Audit (Research Only)
+on:
+  pull_request:
+    paths:
+      - 'research/sky_v14_readiness_audit.py'
+      - 'tests/test_sky_v14_readiness_audit.py'
+      - '.github/workflows/sky-v14-readiness-evidence-audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  evidence-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate independent safety contracts (no paid requests)
+        run: python -m unittest tests.test_sky_v14_readiness_audit -v
+      - name: Audit sanitized main snapshot and fail closed
+        run: python -m research.sky_v14_readiness_audit
+      - name: Publish reviewable JSON and markdown evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-v14-readiness-audit-${{ github.run_id }}
+          path: output/sky_v14_readiness/
+          if-no-files-found: error
+          retention-days: 30
