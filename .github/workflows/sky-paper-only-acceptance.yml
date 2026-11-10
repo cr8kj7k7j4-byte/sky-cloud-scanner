@@ -1,0 +1,31 @@
+name: Sky PAPER_ONLY Research Acceptance (NO_LIVE_TRADING)
+on:
+  pull_request:
+    paths:
+      - "research/sky_paper_only_acceptance.py"
+      - "tests/test_sky_paper_only_acceptance.py"
+      - ".github/workflows/sky-paper-only-acceptance.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  paper-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Paper-only risk and provenance regression tests
+        run: python -m unittest discover -s tests -p test_sky_paper_only_acceptance.py -v
+      - name: Read actual latest scan metadata and publish honest HOLD verdict
+        run: python -m research.sky_paper_only_acceptance
+      - name: Upload paper research acceptance audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-paper-only-acceptance-${{ github.run_id }}
+          path: output/sky_paper_only_acceptance/
+          if-no-files-found: error
+          retention-days: 30
