@@ -13,6 +13,7 @@ EXPIRED = (
     "sky-overnight-13col-acceptance.yml",
     "sky-overnight-readonly-acceptance-20261110.yml",
     "sky-preopen-watch-20261110.yml",
+    "sky-preopen-evidence-monitor.yml",
 )
 PRESERVED = (
     "scan.yml",
@@ -49,3 +50,20 @@ def test_research_and_no_broker_live_safety_preserved():
     assert "Sky Swing V1.0" in registry
     assert "NO_LIVE_TRADING" in policy
     assert (ROOT / "research" / "RESEARCH_FREEZE_REGISTRY.md").is_file()
+
+
+def test_expired_24h_watchdog_crons_removed_but_manual_pr_tests_work():
+    for name in ("sky-research-ci-watchdog.yml", "w2-research-24h-watchdog.yml"):
+        content = (WF / name).read_text(encoding="utf-8")
+        assert "  schedule:" not in content
+        assert "*/5 * * * *" not in content
+        assert "  workflow_dispatch:" in content
+        assert "  pull_request:" in content
+
+
+def test_no_legacy_expired_monitor_can_auto_dispatch_paid_scan():
+    for name in ("sky-research-ci-watchdog.yml", "w2-research-24h-watchdog.yml"):
+        content = (WF / name).read_text(encoding="utf-8")
+        assert "  schedule:" not in content
+    assert (WF / "scan.yml").is_file()
+    assert (WF / "sky-full-market-five-minute-dispatch.yml").is_file()

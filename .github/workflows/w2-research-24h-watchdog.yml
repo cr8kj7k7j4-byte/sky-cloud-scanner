@@ -8,8 +8,7 @@ on:
       - 'research/w2_research_24h_watchdog.py'
       - 'tests/test_w2_research_24h_watchdog.py'
   workflow_dispatch:
-  schedule:
-    - cron: '*/5 * * * *'
+  # The 24-hour schedule expired. Keep PR tests and manual dispatch.
 concurrency:
   group: w2-research-24h-watchdog-${{ github.event_name }}
   cancel-in-progress: false
