@@ -198,5 +198,48 @@ class SafePatchContracts(unittest.TestCase):
                     self.assertFalse(api.calls)
 
 
+    def test_valid_same_sha_failure_event_creates_draft_in_offline_contract(self):
+        """Simulated GitHub event only: must not be mistaken for real Actions E2E."""
+        payload = {
+            "action": "completed",
+            "workflow_run": {
+                "name": "Sky Chat Bridge Unit Checks",
+                "repository": {"full_name": "test/repo"},
+                "head_repository": {"full_name": "test/repo"},
+                "event": "pull_request",
+                "conclusion": "failure",
+                "run_attempt": 1,
+                "head_sha": "abcd1234" * 5,
+                "pull_requests": [{"number": 511}],
+            },
+        }
+        with tempfile.TemporaryDirectory() as folder:
+            event_file = Path(folder, "event.json")
+            event_file.write_text(json.dumps(payload), encoding="utf-8")
+            api = FakeGithub("on:\\n  workflow_dispatch:\\n" + OLD)
+            with patch.dict(os.environ, {
+                "GITHUB_EVENT_NAME": "workflow_run",
+                "GITHUB_EVENT_PATH": str(event_file),
+                "GITHUB_REPOSITORY": "test/repo",
+                "GH_TOKEN": "offline-fixture",
+                "SKY_APPROVED_SAFE_PATCH": "true",
+            }), patch.object(governed, "OUTPUT", Path(folder, "latest.json")), \\
+                 patch.object(governed, "Github", return_value=api):
+                code = governed.main()
+            self.assertEqual(code, 0)
+            result = json.loads(Path(folder, "latest.json").read_text(encoding="utf-8"))
+            self.assertEqual(result["state"], "DRAFT_REPAIR_PR_CREATED_AWAITING_CI_AND_W0_P0G")
+            self.assertEqual(result["repair_pr"], "https://github.com/example/repo/pull/123")
+            self.assertEqual(result["self_review"]["status"], "PASS")
+            self.assertFalse(result["production_eligible"])
+            self.assertFalse(result["automatic_merge"])
+            self.assertEqual(len([call for call in api.calls if call[1] != "GET"]), 3)
+            created = next(body for path, method, body in api.calls
+                           if path == "/pulls" and method == "POST")
+            self.assertEqual(created["base"], TARGET_BRANCH)
+            self.assertTrue(created["draft"])
+            self.assertFalse(any(path == "/merges" for path, _, _ in api.calls))
+
+
 if __name__ == "__main__":
     unittest.main()
