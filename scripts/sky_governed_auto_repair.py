@@ -228,18 +228,40 @@ def run_smoke(api: Github, *, expected_sha: str, allow_write: bool,
         "content": base64.b64encode(SMOKE_FIXED.encode("utf-8")).decode("ascii"),
         "sha": doc["sha"], "branch": repair_branch,
     })
-    created = api.call("/pulls", "POST", {
+    result["repair_branch"] = repair_branch
+    try:
+        created = api.call("/pulls", "POST", {
         "title": "DRAFT: governed research-only smoke fixture repair",
         "head": repair_branch, "base": SMOKE_BRANCH, "draft": True,
         "body": ("Non-market, deterministic one-file smoke acceptance only; "
                  "source SHA " + expected_sha + ". Run downstream CI and read "
                  "GitHub artifact before considering E2E verified. No auto-merge."),
-    })
-    result["repair_branch"] = repair_branch
+        })
+    except urllib.error.HTTPError as exc:
+        if exc.code == 403:
+            result["blockers"].append("GITHUB_TOKEN_DRAFT_PR_PERMISSION_403")
+            result["state"] = "HOLD_DRAFT_PR_PERMISSION"
+            result["applied_fixes"] = ["FIX_ISOLATED_SMOKE_FIXTURE_ONLY"]
+            return result
+        raise
     result["repair_pr"] = created.get("html_url")
     result["repair_pr_number"] = created.get("number")
     result["applied_fixes"] = ["FIX_ISOLATED_SMOKE_FIXTURE_ONLY"]
-    result["state"] = "DRAFT_SMOKE_REPAIR_PR_CREATED_AWAITING_DOWNSTREAM_CI"
+    # GITHUB_TOKEN-created PRs do not cause automatic pull_request CI.
+    # workflow_dispatch is the GitHub-supported explicit exception; dispatch
+    # only this free offline contract workflow on the exact repaired branch.
+    try:
+        api.call("/actions/workflows/sky-chat-bridge-tests.yml/dispatches",
+                 "POST", {"ref": repair_branch})
+        result["downstream_ci_dispatch"] = "REQUESTED"
+    except urllib.error.HTTPError as exc:
+        if exc.code in (403, 404, 422):
+            result["blockers"].append("DOWNSTREAM_DISPATCH_HTTP_" + str(exc.code))
+            result["downstream_ci_dispatch"] = "BLOCKED"
+            result["state"] = "DRAFT_SMOKE_REPAIR_CREATED_CI_DISPATCH_BLOCKED"
+            return result
+        raise
+    result["state"] = "DRAFT_SMOKE_REPAIR_CREATED_CI_DISPATCHED_AWAITING_PROOF"
     return result
 
 
