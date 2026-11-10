@@ -20,6 +20,8 @@ on:
       - 'tests/test_sky_recovery_watchdog.py'
       - 'research/sky_repair_progress_monitor.py'
       - 'tests/test_sky_repair_progress_monitor.py'
+      - 'research/sky_w0_dedup_inventory.py'
+      - 'tests/test_sky_w0_dedup_inventory.py'
       - '.github/workflows/sky-recovery-watchdog.yml'
 
 permissions:
