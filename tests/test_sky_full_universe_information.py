@@ -229,3 +229,20 @@ class InnovationBoardSnapshotContracts(unittest.TestCase):
         self.assertEqual(report["snapshot_integrity"]["TWSE"]["unexpected_symbols"], 1)
         self.assertEqual(len(report["all_symbols"]), len(self.universe))
         self.assertFalse(any(r["symbol"] == "9999" for r in report["all_symbols"]))
+
+
+class SnapshotAcceptanceWorkflowSafetyContracts(unittest.TestCase):
+    def test_receipt_artifact_does_not_advance_acceptance_branch_head(self):
+        from pathlib import Path
+        workflow = (Path(__file__).resolve().parents[1] /
+                    ".github/workflows/sky-snapshot-integrity-research-acceptance.yml")
+        source = workflow.read_text(encoding="utf-8")
+        self.assertIn("workflow_dispatch:", source)
+        self.assertIn("contents: read", source)
+        self.assertIn("if-no-files-found: error", source)
+        self.assertIn("output/snapshot_integrity_research/receipt.json", source)
+        self.assertIn('os.environ.get("GITHUB_SHA")', source)
+        self.assertNotIn("contents: write", source)
+        self.assertNotIn("gh api --method PUT", source)
+        self.assertNotIn("GH_TOKEN:", source)
+
