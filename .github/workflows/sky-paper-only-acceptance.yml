@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - "research/sky_paper_only_acceptance.py"
+      - "research/sky_w0_shared_blocker_audit.py"
+      - "tests/test_sky_w0_shared_blocker_audit.py"
       - "tests/test_sky_paper_only_acceptance.py"
       - "research/sky_paper_trade_trace.py"
       - "research/sky_brokerless_contract_audit.py"
@@ -34,6 +36,12 @@ jobs:
         run: python -m unittest discover -s tests -p test_sky_brokerless_contract_audit.py -v
       - name: Inventory all tracked models commands rules and workflows
         run: python -m research.sky_brokerless_contract_audit
+      - name: Test unified W0 market Paper and overlapping schedule audit
+        run: python -m unittest discover -s tests -p test_sky_w0_shared_blocker_audit.py -v
+      - name: Read current GitHub scheduled evidence without paid provider requests
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_w0_shared_blocker_audit
       - name: Read actual latest scan metadata and publish honest HOLD verdict
         run: python -m research.sky_paper_only_acceptance
       - name: Upload paper research acceptance audit
@@ -44,5 +52,6 @@ jobs:
           path: |
             output/sky_paper_only_acceptance/
             output/sky_brokerless_contract/
+            output/w0_shared_blocker_audit/
           if-no-files-found: error
           retention-days: 30
