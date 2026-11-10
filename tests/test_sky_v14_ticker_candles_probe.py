@@ -110,6 +110,19 @@ class DeepFiveMinTests(unittest.TestCase):
                                 and z["feature_preview"] is None
                                 for z in x["samples"]), timestamp)
 
+    def test_last_feature_bar_time_is_normalized_to_taipei(self):
+        def utc_last_bar(symbol,timeframe="5"):
+            q=candles(symbol,timeframe)
+            # The source may use UTC even when other bars use Taipei offsets.
+            q["data"][-1]["date"]="2026-11-10T02:25:00Z"
+            return q
+        x=run(stage2(),ticker_fn=ticker,candle_fn=utc_last_bar,
+              sleep_fn=lambda _:None,now=NOW)
+        self.assertTrue(all(z["bar_sequence_valid"] is True
+                            and z["last_feature_bar_time_tpe"]=="2026-11-10T10:25:00+08:00"
+                            and z["status"]=="CANDLE_TICKER_RESEARCH_READY_NOT_TRADE"
+                            for z in x["samples"]))
+
     def test_missing_five_minute_bar_blocks_features(self):
         def missing_bar(symbol,timeframe="5"):
             q=candles(symbol,timeframe)
