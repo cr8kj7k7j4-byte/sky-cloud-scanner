@@ -111,7 +111,7 @@ def evaluate_position(candidate: Dict[str, Any], near_pct: float = 0.006) -> Pos
         last is not None and (add_price is None or last >= add_price)
     )
     add_allowed = bool(
-        state not in {"STOP", "EXIT", "DATA_REQUIRED"}
+        state not in {"STOP", "EXIT", "DATA_REQUIRED", "TAKE_PROFIT"}
         and add_signal_confirmed
         and profitable_or_flat
         and add_price_reached
