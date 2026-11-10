@@ -146,6 +146,118 @@ def intraday_scan_slot_evidence(runs, now):
     }
 
 
+
+def full_market_cadence_evidence(dispatch_runs, private_runs, now):
+    """Conservative dispatcher-to-private-run *time* audit, not cron SLA proof.
+
+    GitHub REST run timestamps do not expose original cron fire time or
+    dispatch linkage. Approximate time matching must never certify either.
+    No provider requests or trade decision logic is executed here.
+    """
+    taipei = ZoneInfo('Asia/Taipei')
+    local_now = now.astimezone(taipei)
+    day = local_now.date()
+
+    def same_day(items, expected_event):
+        valid = []
+        for item in items:
+            if item.get('event') != expected_event:
+                continue
+            try:
+                stamped = datetime.fromisoformat(
+                    item['created_at'].replace('Z', '+00:00')).astimezone(taipei)
+            except (KeyError, AttributeError, TypeError, ValueError):
+                continue
+            if stamped.date() == day:
+                valid.append((stamped, item))
+        return sorted(valid, key=lambda entry: entry[0])
+
+    dispatches = same_day(dispatch_runs, 'schedule')
+    downstream = same_day(private_runs, 'workflow_dispatch')
+    starts = [datetime(day.year, day.month, day.day, h, m, tzinfo=taipei)
+              for h in range(9, 14) for m in range(0, 60, 5)
+              if (h < 13 or m <= 30)]
+    observed = {}
+    unassigned = []
+    for stamped, run in dispatches:
+        possible = [idx for idx, start in enumerate(starts)
+                    if start <= stamped <= start + timedelta(minutes=15)]
+        if not possible:
+            unassigned.append(run.get('id'))
+            continue
+        # Provisional: a delayed previous cron could be misattributed.
+        idx = possible[-1]
+        observed.setdefault(idx, []).append((stamped, run))
+
+    private_taken = set()
+    slots = []
+    for idx, scheduled in enumerate(starts):
+        recorded = observed.get(idx, [])
+        pending = local_now < scheduled + timedelta(minutes=15)
+        if recorded:
+            stamped, dispatch = recorded[0]
+            state = ('SCHEDULE_RUN_SUCCEEDED_TIME_ONLY'
+                     if dispatch.get('status') == 'completed'
+                     and dispatch.get('conclusion') == 'success'
+                     else 'SCHEDULE_RUN_UNSUCCESSFUL_OR_PENDING')
+            private_match = next((
+                (stamp, record) for stamp, record in downstream
+                if record.get('id') not in private_taken
+                and stamped <= stamp <= stamped + timedelta(minutes=10)
+            ), None)
+            if private_match:
+                private_taken.add(private_match[1].get('id'))
+            downstream_state = (
+                'POSSIBLE_PRIVATE_RUN_TIME_MATCH_NOT_CAUSAL'
+                if private_match and private_match[1].get('status') == 'completed'
+                and private_match[1].get('conclusion') == 'success'
+                else 'POSSIBLE_PRIVATE_RUN_FAILED_OR_PENDING'
+                if private_match else 'NO_PRIVATE_RUN_MATCH_WITHIN_10M')
+            slots.append({
+                'scheduled_at_tpe': scheduled.isoformat(),
+                'state': state,
+                'dispatch_run_id': dispatch.get('id'),
+                'dispatch_created_at_tpe': stamped.isoformat(),
+                'delay_seconds_provisional': int((stamped-scheduled).total_seconds()),
+                'other_runs_same_provisional_slot': [p.get('id') for _, p in recorded[1:]],
+                'downstream_state': downstream_state,
+                'private_run_id': private_match[1].get('id') if private_match else None,
+            })
+        else:
+            slots.append({
+                'scheduled_at_tpe': scheduled.isoformat(),
+                'state': 'AWAITING_15M_WINDOW' if pending else 'NO_SCHEDULE_RUN_SEEN_WITHIN_15M',
+                'dispatch_run_id': None, 'private_run_id': None,
+                'downstream_state': 'NOT_CHECKED_NO_DISPATCH'
+            })
+
+    eligible = [s for s in slots if s['state'] != 'AWAITING_15M_WINDOW']
+    missing = sum(s['state'] == 'NO_SCHEDULE_RUN_SEEN_WITHIN_15M' for s in eligible)
+    possible_missing_downstream = sum(
+        s['state'] == 'SCHEDULE_RUN_SUCCEEDED_TIME_ONLY'
+        and s['downstream_state'] == 'NO_PRIVATE_RUN_MATCH_WITHIN_10M'
+        for s in eligible)
+    return {
+        'date_tpe': day.isoformat(),
+        'scope': 'Sky paid full-market research dispatcher and private snapshot only',
+        'expected_daily_slots': len(starts),
+        'elapsed_slot_count': len(eligible),
+        'observed_schedule_run_count': len(dispatches),
+        'provisionally_matched_slot_count': len(observed),
+        'missing_slot_count_after_15m': missing,
+        'possible_missing_private_runs': possible_missing_downstream,
+        'unassigned_dispatch_run_ids': unassigned,
+        'slots': slots,
+        'status': 'EVIDENCE_INCOMPLETE' if missing or possible_missing_downstream
+                  else 'RUN_TIMES_ONLY_NOT_CRON_CERTIFIED',
+        'note': ('GitHub created_at is not original cron fire time; slots are '
+                 'provisional, not proof of exact cron identity or SLA. '
+                 'Private-run association is by time only, not a causal link. '
+                 'A successful workflow cannot certify GCS contents, '
+                 'quote freshness, delivery, or trading eligibility.')
+    }
+
+
 def main():
     inv = schedules('.github/workflows')
     workflows = []
@@ -172,6 +284,28 @@ def main():
                 'status': 'UNVERIFIED',
                 'reason': 'scheduled scan run listing failed: ' + type(exc).__name__
             }
+    dispatcher = next((wf for wf in workflows if wf.get('path') ==
+        '.github/workflows/sky-full-market-five-minute-dispatch.yml'), None)
+    private_snapshot = next((wf for wf in workflows if wf.get('path') ==
+        '.github/workflows/sky-full-market-private.yml'), None)
+    if dispatcher is not None and private_snapshot is not None:
+        try:
+            dispatcher_runs = get_json('/actions/workflows/' +
+                str(dispatcher['id']) +
+                '/runs?event=schedule&per_page=100').get('workflow_runs', [])
+            private_runs = get_json('/actions/workflows/' +
+                str(private_snapshot['id']) +
+                '/runs?event=workflow_dispatch&per_page=100').get('workflow_runs', [])
+            report['full_market_cadence'] = full_market_cadence_evidence(
+                dispatcher_runs, private_runs, datetime.now(timezone.utc))
+        except Exception as exc:
+            report['full_market_cadence'] = {
+                'status': 'UNVERIFIED', 'reason': 'run read failed: ' + type(exc).__name__
+            }
+    else:
+        report['full_market_cadence'] = {
+            'status': 'UNVERIFIED', 'reason': 'dispatcher or private workflow absent'
+        }
     out = Path('output/schedule_health'); out.mkdir(parents=True, exist_ok=True)
     (out / 'latest.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
     lines = ['# Sky GitHub 排程健檢', '', '檢查時間（UTC）：' + report['generated_at_utc'], '',
@@ -191,6 +325,23 @@ def main():
                          '；Run=' + str(slot['candidate_run_id']) +
                          '；延遲秒數=' + str(slot['start_lag_seconds']))
         lines += ['**此表不是 cron 觸發證明**；必須核對各 Run 的 schedule_trigger.json artifact。']
+    cadence = report.get('full_market_cadence', {})
+    lines += ['', '## 全市場研究五分鐘派送驗收（時間匹配，非 cron 準時保證）',
+              '狀態：' + cadence.get('status', 'UNVERIFIED'),
+              '本交易日預設時段：' + str(cadence.get('expected_daily_slots', '待確認')),
+              '已過驗收視窗時段：' + str(cadence.get('elapsed_slot_count', '待確認')),
+              '暫未觀察到定時執行（15分鐘窗）：' +
+              str(cadence.get('missing_slot_count_after_15m', '待確認')),
+              '下游私有掃描未匹配（10分鐘窗）：' +
+              str(cadence.get('possible_missing_private_runs', '待確認'))]
+    for row in cadence.get('slots', []):
+        if row['state'] != 'SCHEDULE_RUN_SUCCEEDED_TIME_ONLY' or row.get(
+                'downstream_state') != 'POSSIBLE_PRIVATE_RUN_TIME_MATCH_NOT_CAUSAL':
+            lines.append('- ' + row['scheduled_at_tpe'] + ' ' + row['state'] +
+                         '；dispatcher=' + str(row.get('dispatch_run_id')) +
+                         '；private=' + str(row.get('private_run_id')))
+    lines += ['**派送與下游僅依時間暫時匹配，非同次呼叫因果驗證**；'
+              '必須另行核對執行時點、GCS 真實產物和資料時間。']
     lines += ['', '無產出檔不一定異常：部分工作流程將結果寫入儲存庫或 GitHub 工作摘要。',
               'NOT_REGISTERED／UNVERIFIED 應檢查是否剛新增、停用、休市、月排程尚未到期或 GitHub API 權限不足。']
     text='\n'.join(lines)+'\n'
