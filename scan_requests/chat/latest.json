@@ -1,6 +1,6 @@
 {
   "command": "Sky 當沖現在掃一次",
-  "request_id": "chat-20261110-0924-stage1-final",
+  "request_id": "chat-20261110-0945-stage2-e2e",
   "read_only_no_orders": true,
-  "reason": "Verify merged Stage1 current TWSE TPEx real paid Fugle snapshot candidate list, ungraded classification, audit, artifact"
+  "reason": "User authorized live Stage1+Stage2 bounded Intraday Quote test; max 3 TSE and 3 OTC, no orders/no promotion"
 }
