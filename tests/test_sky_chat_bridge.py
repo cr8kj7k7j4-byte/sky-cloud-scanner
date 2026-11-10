@@ -47,6 +47,32 @@ class ChatScanBridgeTests(unittest.TestCase):
         self.assertEqual(result["fresh_executed_count"], 0)
         self.assertEqual(result["status"], "REPORT_READY_RESEARCH_ONLY")
 
+    def test_probe_is_never_promoted_to_whole_market(self):
+        row = {key: "待確認" for key in COLUMNS}
+        report = {"schema": "SKY_DAYTRADE_13COL_RESEARCH_V2",
+                  "rows": [row], "row_count": 1, "universe_count": 1,
+                  "production_eligible": False}
+        status = make_status("chat-20261110-probe-test", report,
+            observation={"observed_price_count": 1, "fresh_executed_count": 0},
+            execution_probe={"status": "PROBE_COMPLETE", "requested_count": 8,
+                "verified_fresh_executed_count": 8,
+                "by_status": {"FRESH_EXECUTED_TRADE": 8}})
+        self.assertEqual(status["individual_execution_probe"]["verified_fresh_executed_count"], 8)
+        self.assertFalse(status["individual_execution_probe"]["full_market_executed_certified"])
+        self.assertEqual(status["fresh_executed_count"], 0)
+        self.assertFalse(status["production_eligible"])
+
+    def test_probe_failure_preserves_report_and_trade_block(self):
+        row = {key: "待確認" for key in COLUMNS}
+        report = {"schema": "SKY_DAYTRADE_13COL_RESEARCH_V2",
+                  "rows": [row], "row_count": 1, "universe_count": 1,
+                  "production_eligible": False}
+        status = make_status("chat-20261110-probe-fail", report,
+            observation={"observed_price_count": 1},
+            execution_probe={"status": "PROBE_FAILED"})
+        self.assertEqual(status["individual_execution_probe"]["status"], "PROBE_FAILED")
+        self.assertFalse(status["production_eligible"])
+
     def test_zero_observed_never_claims_paid_success(self):
         row = {key: "待確認" for key in COLUMNS}
         report = {"schema": "SKY_DAYTRADE_13COL_RESEARCH_V2",
