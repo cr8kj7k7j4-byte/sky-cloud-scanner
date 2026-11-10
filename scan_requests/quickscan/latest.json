@@ -1,16 +1,15 @@
 {
-  "command": "Sky 快掃",
+  "command": "Sky 新版全市場掃描｜立即執行驗收",
   "market": "TWSE+TPEx",
   "max_price_twd": 100,
   "source": "Fugle paid bulk + TWSE MIS supplemental; timestamps validated independently",
   "execution": "read_only_no_orders",
-  "approval": "User explicitly requested all-market closing-data scan now",
-  "purpose": "After PR459 merged, verify Fugle paid TSE/OTC candidate routing, bounded executed sample, full 13-column artifact",
+  "approval": "User explicitly requested immediate full-market scan acceptance on 2026-11-10",
+  "purpose": "Trading-session acceptance: confirm paid Fugle all-market reference counts, live executed timestamps, source and coverage audit, scan gate, complete 13-column artifact",
   "research_info_visible_when_trade_blocked": true,
   "information_first": true,
   "user_trade_discretion": true,
-  "scan_trigger_reason": "p0_validate_pr459_paid_tse_otc_20261109",
-  "postclose_test_requested_on_tpe": "2026-11-09",
-  "validation_target": "paid_Fugle_quotes_and_full_13col_report_in_same_artifact",
+  "scan_trigger_reason": "user_new_full_market_scan_acceptance_20261110_0900_tpe",
+  "validation_target": "same_run_all_market_fugle_coverage_execution_verification_and_13col",
   "read_only_no_trades": true
 }
