@@ -1,6 +1,6 @@
 {
   "command": "Sky 當沖現在掃一次",
-  "request_id": "chat-20261110-0945-stage2-e2e",
+  "request_id": "chat-20261110-1113-qos-v14-e2e",
   "read_only_no_orders": true,
-  "reason": "User authorized live Stage1+Stage2 bounded Intraday Quote test; max 3 TSE and 3 OTC, no orders/no promotion"
+  "reason": "User-authorized integrated proof: all market Snapshot, bounded 12 intraday quotes 1/sec, turnover/spread/chase evidence and canonical P0-C blocked state only"
 }
