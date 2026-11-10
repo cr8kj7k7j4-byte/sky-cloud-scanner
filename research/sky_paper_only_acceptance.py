@@ -97,7 +97,7 @@ def audit_status(status):
         "market_data_source": status.get("source"),
         "verified_quote_count": status.get("stage2_verified_executed_count"),
         "vwap_certified_count": status.get("candidate_chain_vwap_certified"),
-        "live_ledger_verified": False,
+        "live_ledger_verified": False,  # Not a PAPER_ONLY admission requirement
         "paper_ledger_provided": False,
         "paper_fills_provided": False,
         "paper_after_cost_performance_verified": False,
