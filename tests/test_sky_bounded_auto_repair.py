@@ -1,5 +1,7 @@
 """Contracts for Sky bounded autonomous repair, no network or paid data."""
 import json
+import base64
+import urllib.error
 import os
 import tempfile
 import unittest
@@ -78,6 +80,57 @@ class TestSafeRepair(unittest.TestCase):
         self.assertEqual(result["status"], "MANUAL_DIAGNOSTIC_ONLY")
         self.assertFalse(result["production_eligible"])
         self.assertFalse(result["auto_merge"])
+
+    def test_isolated_draft_repair_happy_path(self):
+        event, pr, jobs = sample()
+        requests = []
+
+        class FakeAPI:
+            def request(self, path, method="GET", body=None):
+                requests.append((path, method, body))
+                if path == "pulls/511" and method == "GET":
+                    return pr
+                if path.startswith("actions/runs/"):
+                    return {"jobs": jobs, "total_count": 1}
+                if path.startswith("git/ref/"):
+                    raise urllib.error.HTTPError("https://api.github.com/", 404, "missing", {}, None)
+                if path.startswith("contents/") and method == "GET":
+                    return {"encoding": "base64", "sha": "blob123",
+                            "content": base64.b64encode(b"x = 1  \\n").decode()}
+                if path == "git/refs" and method == "POST":
+                    return {"ref": body["ref"]}
+                if path.startswith("contents/") and method == "PUT":
+                    self_written = base64.b64decode(body["content"]).decode()
+                    assert self_written == "x = 1\\n"
+                    assert body["branch"].startswith("auto-repair/")
+                    return {"content": {"sha": "nextblob"}}
+                if path == "pulls" and method == "POST":
+                    assert body["draft"] is True
+                    assert body["base"] == "research/fugle-snapshot-diagnostics-20261110"
+                    return {"html_url": "https://github.com/example/repair/pull/1"}
+                raise AssertionError((path, method))
+
+        with patch.dict(os.environ, {"GITHUB_REPOSITORY": REPO}):
+            result = run(event, FakeAPI())
+        self.assertEqual(result["status"], "DRAFT_PATCH_PR_CREATED")
+        self.assertEqual(result["self_review"], "AST_EQUAL_PATH_ALLOWLIST_DRAFT_PR_CI_PENDING")
+        self.assertEqual(sum(p == "git/refs" and method == "POST" for p, method, _ in requests), 1)
+        self.assertFalse(any(p.startswith("actions/") and method != "GET" for p, method, _ in requests))
+
+    def test_incomplete_job_page_never_patches(self):
+        event, pr, jobs = sample()
+
+        class FakeAPI:
+            def request(self, path, method="GET", body=None):
+                if path == "pulls/511":
+                    return pr
+                if path.startswith("actions/runs/"):
+                    return {"jobs": jobs, "total_count": 101}
+                raise AssertionError("Write or read beyond incomplete CI should not occur")
+
+        with patch.dict(os.environ, {"GITHUB_REPOSITORY": REPO}):
+            result = run(event, FakeAPI())
+        self.assertEqual(result["status"], "INCOMPLETE_CI_JOB_PAGE_NO_PATCH")
 
     def test_creates_artifact_with_production_block(self):
         with tempfile.TemporaryDirectory() as td:
