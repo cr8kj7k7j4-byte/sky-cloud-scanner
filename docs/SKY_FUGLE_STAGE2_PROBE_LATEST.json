@@ -1,0 +1,52 @@
+{
+  "schema": "SKY_FUGLE_STAGE2_ENTITLEMENT_PROBE_V1",
+  "tested_at_tpe": "2026-11-10T09:40:30.739171+08:00",
+  "request_count": 4,
+  "elapsed_seconds": 3.4,
+  "results": [
+    {
+      "endpoint": "snapshot_TSE",
+      "http_status": 200,
+      "api_accessible": true,
+      "outcome": "AVAILABLE",
+      "row_count": 1060,
+      "provider_date": "2026-11-10"
+    },
+    {
+      "endpoint": "snapshot_OTC",
+      "http_status": 200,
+      "api_accessible": true,
+      "outcome": "AVAILABLE",
+      "row_count": 895,
+      "provider_date": "2026-11-10"
+    },
+    {
+      "endpoint": "quote_2330_TSE",
+      "http_status": 200,
+      "api_accessible": true,
+      "outcome": "FRESH_EXECUTED_TRADE",
+      "last_trade_time": "2026-11-10T09:40:32.590842+08:00",
+      "verified_trade_price": 2275.0,
+      "last_trade_time_field_present": true,
+      "quote_date": "2026-11-10"
+    },
+    {
+      "endpoint": "quote_8089_OTC",
+      "http_status": 200,
+      "api_accessible": true,
+      "outcome": "FRESH_EXECUTED_TRADE",
+      "last_trade_time": "2026-11-10T09:40:24.282172+08:00",
+      "verified_trade_price": 29.95,
+      "last_trade_time_field_present": true,
+      "quote_date": "2026-11-10"
+    }
+  ],
+  "intraday_quote_access_both_markets": true,
+  "intraday_last_trade_time_present_both": true,
+  "rate_limit_status": "INSUFFICIENT_SAMPLE_FOR_PLAN_LIMIT",
+  "stage2_integrated": false,
+  "production_eligible": false,
+  "automatic_order": false,
+  "run_id": "42737437148",
+  "run_url": "https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/42737437148"
+}
