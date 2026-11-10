@@ -160,6 +160,14 @@ def main() -> int:
             payload = json.loads(Path(event_file).read_text()) if event_file else {}
             run_info = payload.get("workflow_run", {})
             linked_prs = run_info.get("pull_requests") or []
+            # GitHub may return pull_requests=[] for genuine pull_request runs.
+            # In that case accept *only* the exact current trusted PR head SHA;
+            # run() checks SHA, repository, draft state and branch before writes.
+            # Never accept ambiguous or non-target linked PRs.
+            linked_pr_identity_ok = (
+                not linked_prs
+                or (len(linked_prs) == 1 and linked_prs[0].get("number") == TARGET_PR)
+            )
             trusted_failure = (
                 payload.get("action") == "completed"
                 and run_info.get("name") == "Sky Chat Bridge Unit Checks"
@@ -169,8 +177,9 @@ def main() -> int:
                 and run_info.get("conclusion") == "failure"
                 and type(run_info.get("run_attempt")) is int
                 and run_info["run_attempt"] == 1
-                and len(linked_prs) == 1
-                and linked_prs[0].get("number") == TARGET_PR
+                and linked_pr_identity_ok
+                and run_info.get("head_branch") == TARGET_BRANCH
+                and str(run_info.get("path") or "").split("@", 1)[0] == ".github/workflows/sky-chat-bridge-tests.yml"
                 and bool(run_info.get("head_sha"))
             )
             if not trusted_failure:

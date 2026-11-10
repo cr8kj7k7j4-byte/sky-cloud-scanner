@@ -156,12 +156,16 @@ class SafePatchContracts(unittest.TestCase):
                 "conclusion": "failure",
                 "run_attempt": 1,
                 "head_sha": "abcd1234" * 5,
+                "head_branch": TARGET_BRANCH,
+                "path": ".github/workflows/sky-chat-bridge-tests.yml",
                 "pull_requests": [{"number": 511}],
             },
         }
         bad_cases = [
             {"pull_requests": [{"number": 512}]},
-            {"pull_requests": []},
+            {"pull_requests": [{"number": 512}, {"number": 511}]},
+            {"head_branch": "untrusted-research"},
+            {"path": ".github/workflows/other-ci.yml"},
             {"event": "push"},
             {"run_attempt": 2},
             {"run_attempt": None},
@@ -198,6 +202,41 @@ class SafePatchContracts(unittest.TestCase):
                     self.assertFalse(api.calls)
 
 
+    def test_empty_pr_links_can_recover_only_pinned_target_sha(self):
+        """GitHub legitimately returns pull_requests=[] for some PR workflow runs."""
+        payload = {
+            "action": "completed",
+            "workflow_run": {
+                "name": "Sky Chat Bridge Unit Checks",
+                "repository": {"full_name": "test/repo"},
+                "head_repository": {"full_name": "test/repo"},
+                "event": "pull_request",
+                "conclusion": "failure",
+                "run_attempt": 1,
+                "head_sha": "abcd1234" * 5,
+                "head_branch": TARGET_BRANCH,
+                "path": ".github/workflows/sky-chat-bridge-tests.yml",
+                "pull_requests": [],
+            },
+        }
+        with tempfile.TemporaryDirectory() as folder:
+            event_file = Path(folder, "event.json")
+            event_file.write_text(json.dumps(payload), encoding="utf-8")
+            api = FakeGithub("on:\\n  workflow_dispatch:\\n" + OLD)
+            with patch.dict(os.environ, {
+                "GITHUB_EVENT_NAME": "workflow_run",
+                "GITHUB_EVENT_PATH": str(event_file),
+                "GITHUB_REPOSITORY": "test/repo",
+                "GH_TOKEN": "offline-fixture",
+                "SKY_APPROVED_SAFE_PATCH": "true",
+            }), patch.object(governed, "OUTPUT", Path(folder, "latest.json")), \
+                 patch.object(governed, "Github", return_value=api):
+                self.assertEqual(governed.main(), 0)
+            result = json.loads(Path(folder, "latest.json").read_text())
+            self.assertEqual(result["state"], "DRAFT_REPAIR_PR_CREATED_AWAITING_CI_AND_W0_P0G")
+            self.assertEqual(result["target_sha"], "abcd1234" * 5)
+            self.assertEqual(result["self_review"]["status"], "PASS")
+
     def test_valid_same_sha_failure_event_creates_draft_in_offline_contract(self):
         """Simulated GitHub event only: must not be mistaken for real Actions E2E."""
         payload = {
@@ -210,6 +249,8 @@ class SafePatchContracts(unittest.TestCase):
                 "conclusion": "failure",
                 "run_attempt": 1,
                 "head_sha": "abcd1234" * 5,
+                "head_branch": TARGET_BRANCH,
+                "path": ".github/workflows/sky-chat-bridge-tests.yml",
                 "pull_requests": [{"number": 511}],
             },
         }
