@@ -1,0 +1,61 @@
+name: Sky Fugle Two-Stage Bounded Acceptance (Research Only)
+on:
+  push:
+    branches:
+      - research/fugle-two-stage-entitlement-audit-20261110
+    paths:
+      - research/sky_fugle_two_stage_acceptance.py
+      - tests/test_sky_fugle_two_stage_acceptance.py
+      - .github/workflows/sky-fugle-two-stage-acceptance.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  bounded-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install bounded test dependencies
+        run: python -m pip install pytest requests
+      - name: Check fail-closed contracts without API credentials
+        run: PYTHONPATH=. python -m pytest -q tests/test_sky_fugle_two_stage_acceptance.py
+      - name: Verify existing paid key is configured (without revealing value)
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+        run: |
+          python - <<'PY'
+          import os
+          if not os.environ.get("FUGLE_API_KEY"):
+              raise SystemExit("MISSING_FUGLE_API_KEY")
+          print("EXISTING_FUGLE_KEY_CONFIGURED")
+          PY
+      - name: Run bounded two-stage paid endpoint audit (no orders)
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+        run: PYTHONPATH=. python -m research.sky_fugle_two_stage_acceptance
+      - name: Verify research-only and record per-endpoint evidence
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path("output/fugle_two_stage_acceptance.json").read_text())
+          assert x["research_only"] and not x["production_eligible"]
+          assert not x["full_market_executed_certified"]
+          assert x["individual"]["requests_made"] <= 8
+          print("SNAPSHOT_TSE",x["snapshot"].get("TSE",{}).get("request_status"),
+                "SNAPSHOT_OTC",x["snapshot"].get("OTC",{}).get("request_status"))
+          print("INDIVIDUAL",x["individual"]["status_counts"])
+          print("QUOTA_VERDICT",x["quota_verdict"])
+          PY
+      - name: Upload bounded sanitized evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-fugle-two-stage-bounded-${{ github.run_id }}
+          path: output/fugle_two_stage_acceptance.json
+          if-no-files-found: warn
+          retention-days: 30
