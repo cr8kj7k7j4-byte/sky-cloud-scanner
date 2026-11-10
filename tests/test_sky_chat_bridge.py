@@ -50,6 +50,15 @@ class ChatScanBridgeTests(unittest.TestCase):
         self.assertEqual(result["fresh_executed_count"], 0)
         self.assertEqual(result["status"], "REPORT_READY_RESEARCH_ONLY")
         self.assertEqual(result["observed_price_coverage_pct"], 100)
+        self.assertEqual(result["quote_execution_sample_size"], 0)
+        self.assertIsNone(result["quote_execution_certification_pct"])
+        self.assertFalse(result["quote_certification_is_full_market"])
+
+        sampled = make_status("chat-20261109-b", report, observation=observation,
+                              stage2={"attempted_count": 4, "verified_executed_count": 3})
+        self.assertEqual(sampled["quote_execution_certification_pct"], 75.0)
+        self.assertEqual(sampled["quote_execution_sample_size"], 4)
+        self.assertFalse(sampled["quote_certification_is_full_market"])
 
     def test_snapshot_integrity_readback_does_not_certify_trades(self):
         row = {key: "待確認" for key in COLUMNS}
