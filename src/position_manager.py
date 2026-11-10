@@ -91,19 +91,21 @@ def evaluate_position(candidate: Dict[str, Any], near_pct: float = 0.006) -> Pos
     elif target is not None and _near(last, target, near_pct):
         state, action, reason = "NEAR_TARGET", "續抱", "價格接近第一目標"
     else:
-        profitable_or_flat = cost is None or last >= cost
+        profitable_or_flat = cost is not None and last >= cost
         add_price_reached = add_price is None or last >= add_price
         add_allowed = bool(
             add_signal_confirmed
             and profitable_or_flat
             and add_price_reached
-            and risk_status in (None, "ALLOW")
+            and risk_status == "ALLOW"
+            and effective_stop is not None
+            and add_price is not None
         )
         if add_allowed:
             state, action, reason = "ADD_READY", "加碼", "原部位非虧損且第二加碼訊號已確認"
 
     profitable_or_flat = (
-        last is not None and (cost is None or last >= cost)
+        last is not None and cost is not None and last >= cost
     )
     add_price_reached = (
         last is not None and (add_price is None or last >= add_price)
@@ -113,9 +115,13 @@ def evaluate_position(candidate: Dict[str, Any], near_pct: float = 0.006) -> Pos
         and add_signal_confirmed
         and profitable_or_flat
         and add_price_reached
-        and risk_status in (None, "ALLOW")
+        and risk_status == "ALLOW"
+        and effective_stop is not None
+        and add_price is not None
     )
 
+    if add_signal_confirmed and (cost is None or effective_stop is None or add_price is None or risk_status != "ALLOW"):
+        reason += "；成本、停損、加碼價或風控驗證不足，禁止加碼"
     if stop_widening_rejected:
         reason += "；偵測到停損放寬要求，已拒絕並維持較嚴格停損"
 
