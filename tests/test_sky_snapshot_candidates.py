@@ -28,6 +28,7 @@ class StageOneSnapshotTests(unittest.TestCase):
         self.assertEqual(r["by_exchange"]["TPEx"]["candidates"], 1)
         self.assertFalse(r["production_eligible"])
         self.assertTrue(all(x["action"] == "等待" for x in r["candidates"]))
+        self.assertTrue(all(x["classification"] == "未分級" for x in r["candidates"]))
         self.assertTrue(all(not x["executed_trade_verified"] for x in r["candidates"]))
 
     def test_stale_and_trial_and_price_and_volume_blocked(self):
