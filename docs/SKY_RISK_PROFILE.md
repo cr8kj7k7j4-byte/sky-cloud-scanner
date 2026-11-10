@@ -35,3 +35,12 @@ Taiwan standard lot size remains 1,000 shares unless instrument rules differ.
 ## Governance
 
 This profile configures risk capacity only. It does not authorize a candidate strategy, does not change Alpha logic, and does not imply profitability.
+
+## Paper-only research without a brokerage account
+
+- Opening a brokerage account is **NOT** a prerequisite for P0-R research, offline tests, Shadow observations, or PAPER_ONLY simulation.
+- Replace the previous live-holdings acceptance blocker with a **verifiable paper portfolio ledger**: simulated positions, original stops, realized daily simulated net PnL, open risk, and consecutive simulated stops.
+- Missing/mismatched simulated ledger data must fail closed. It is not valid to assume zero positions or zero daily loss.
+- A paper portfolio is never a real portfolio; paper fills, realized PnL, and execution assumptions must be labeled simulation.
+- The Fugle market-data API does not need broker-account authorization for this research gate.
+- Real order execution and brokerage ledger integrations are outside the present scope and remain disabled.
