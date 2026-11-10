@@ -89,6 +89,36 @@ class SafePatchContracts(unittest.TestCase):
         self.assertEqual(report["state"], "HOLD")
         self.assertFalse(any(method != "GET" for _, method, _ in api.calls))
 
+    def test_source_is_pinned_to_immutable_sha(self):
+        api = FakeGithub("on:\n  workflow_dispatch:\n" + OLD)
+        result = run(api, allow_write=False, event_name="workflow_dispatch")
+        self.assertEqual(result["state"], "PATCH_READY_FOR_DRAFT_PR")
+        reads = [path for path, method, _ in api.calls
+                 if method == "GET" and path.startswith("/contents/")]
+        self.assertEqual(len(reads), 1)
+        self.assertTrue(reads[0].endswith("?ref=" + "abcd1234" * 5))
+
+    def test_pr_head_changed_during_diagnosis_does_not_write(self):
+        class AdvancingGithub(FakeGithub):
+            def __init__(self, source):
+                super().__init__(source)
+                self.pr_reads = 0
+            def call(self, path, method="GET", body=None):
+                if path == "/pulls/511" and method == "GET":
+                    self.calls.append((path, method, body))
+                    self.pr_reads += 1
+                    current = ("abcd1234" * 5 if self.pr_reads == 1
+                               else "new_sha_is_not_the_original")
+                    return {"state": "open", "draft": True, "merged": False,
+                            "head": {"ref": TARGET_BRANCH, "sha": current}}
+                return super().call(path, method, body)
+        api = AdvancingGithub("on:\n  workflow_dispatch:\n" + OLD)
+        result = run(api, allow_write=True, event_name="workflow_run",
+                     expected_sha="abcd1234" * 5)
+        self.assertEqual(result["state"], "HOLD")
+        self.assertIn("TARGET_PR_HEAD_CHANGED_BEFORE_PATCH", result["blockers"])
+        self.assertFalse(any(method != "GET" for _, method, _ in api.calls))
+
     def test_stale_ci_sha_never_writes(self):
         api = FakeGithub("on:\\n  workflow_dispatch:\\n" + OLD)
         report = run(api, allow_write=True, event_name="workflow_run",
