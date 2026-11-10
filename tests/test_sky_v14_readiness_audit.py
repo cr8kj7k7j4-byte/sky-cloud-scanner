@@ -49,8 +49,8 @@ class FormalReadinessTests(unittest.TestCase):
         self.assertEqual(report["now_action"], "禁止交易")
         by_gate = {x["gate"]: x for x in report["checks"]}
         self.assertEqual(by_gate["individual_quote_sample"]["status"], "EVIDENCED")
-        self.assertEqual(by_gate["five_minute_candle_sample"]["status"], "EVIDENCED")
-        for name in ("full_market_fresh_executions", "official_vwap",
+        self.assertEqual(by_gate["five_minute_candle_observed_sample"]["status"], "EVIDENCED")
+        for name in ("full_market_fresh_executions", "five_minute_candle_causal_quality", "official_vwap",
                      "breakout_and_anti_chase", "complete_slippage_fill_cost_rr",
                      "p0_r_portfolio_ledger", "p0_k_evidence_ledger",
                      "full_v14_rule_validation"):
@@ -107,9 +107,42 @@ class FormalReadinessTests(unittest.TestCase):
         x["v14_ticker_5m_samples"] = []
         x["stage2_quote_preview"] = []
         result = evidence_check(x)
-        check = next(g for g in result["checks"] if g["gate"] == "five_minute_candle_sample")
+        check = next(g for g in result["checks"] if g["gate"] == "five_minute_candle_observed_sample")
         self.assertEqual(check["status"], "NOT_VERIFIED")
         self.assertFalse(result["a_plus_authorized"])
+
+    def test_attention_or_incomplete_candles_are_not_causally_certified(self):
+        x = base()
+        x["v14_ticker_5m_samples"][0].update(
+            status="INCOMPLETE_TICKER_OR_5M_EVIDENCE",
+            is_attention=True, bar_sequence_valid=True,
+            rejected_future_five_min_bars=0,
+            excluded_unfinished_five_min_bars=0,
+            bar_timestamp_semantics_certified=False,
+        )
+        d = {item["gate"]: item for item in evidence_check(x)["checks"]}
+        self.assertEqual(d["five_minute_candle_observed_sample"]["status"], "EVIDENCED")
+        self.assertEqual(d["five_minute_candle_causal_quality"]["status"], "NOT_VERIFIED")
+
+    def test_boolean_bar_count_cannot_pass_observed(self):
+        x = base()
+        x["v14_ticker_5m_samples"][0]["valid_today_five_min_bars"] = True
+        d = {item["gate"]: item for item in evidence_check(x)["checks"]}
+        self.assertEqual(d["five_minute_candle_observed_sample"]["status"], "NOT_VERIFIED")
+        self.assertEqual(d["five_minute_candle_causal_quality"]["status"], "NOT_VERIFIED")
+
+    def test_audit_never_promotes_even_if_all_candle_evidence_marked_true(self):
+        x = base()
+        x["v14_ticker_5m_samples"][0].update(
+            status="CANDLE_TICKER_RESEARCH_READY_NOT_TRADE",
+            bar_sequence_valid=True, rejected_future_five_min_bars=0,
+            excluded_unfinished_five_min_bars=0,
+            bar_timestamp_semantics_certified=True,
+        )
+        report = evidence_check(x)
+        self.assertFalse(report["production_eligible"])
+        self.assertFalse(report["a_plus_authorized"])
+        self.assertEqual(report["verdict"], "INSUFFICIENT_DATA")
 
     def test_bool_count_must_not_be_accepted(self):
         x = base()
