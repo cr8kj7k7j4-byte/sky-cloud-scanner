@@ -93,6 +93,7 @@ def _build_chain(last=10.25, daily_pnl=0.0, execution_policy=None):
 
     portfolio = {
         "account_equity": 1_000_000,
+        "positions_verified": True,  # Verified synthetic fixture, not a live portfolio
         "daily_pnl": daily_pnl,
         "open_risk": 0,
         "concurrent_positions": 0,
