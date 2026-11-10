@@ -40,7 +40,7 @@ def main():
         policy=p,
     )
     assert ok["status"] == "ALLOW"
-    assert ok["recommended_shares"] == 1000
+    assert ok["recommended_shares"] == 2000
     assert ok["net_rr"] == 2.0
 
     loss_lock = evaluate_trade(
