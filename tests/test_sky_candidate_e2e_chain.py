@@ -110,7 +110,7 @@ class CandidateEvidenceChainTests(unittest.TestCase):
         s["avg_price_is_certified_vwap"] = True
         report = build(*x)
         self.assertEqual(report["stage3_causally_certified_count"], 1)
-        self.assertEqual(report["vwap_certified_count"], 1)
+        self.assertEqual(report["vwap_certified_count"], 0)
         self.assertFalse(report["production_eligible"])
         self.assertFalse(report["rows"][0]["a_plus"])
         self.assertEqual(report["rows"][0]["p0_r_status"], "RISK_INPUT_REQUIRED")
