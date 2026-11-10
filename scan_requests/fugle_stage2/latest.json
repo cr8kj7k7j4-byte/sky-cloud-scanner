@@ -1,0 +1,6 @@
+{
+  "request_id": "fugle-stage2-20261110-0940-acceptance",
+  "scope": "ENTITLEMENT_MINIMAL",
+  "read_only_no_orders": true,
+  "reason": "User authorized three-part validation; 2 snapshots and 2 individual quote checks only"
+}
