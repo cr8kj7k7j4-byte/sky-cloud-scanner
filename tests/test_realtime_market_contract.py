@@ -86,14 +86,38 @@ def test_lastupdated_without_trade_time_is_not_a_trade():
 
 
 def test_fugle_stale_date_future_and_stale_time_rejected():
-    q = {"date": "2026-11-03", "lastPrice": 80,
-         "closeTime": int(NOW.timestamp() * 1_000_000)}
+    q = {"date": "2026-11-03", "lastTrade": {
+        "price": 80, "time": int(NOW.timestamp() * 1_000_000)}}
     assert fugle_executed_trade(q, NOW)[2] == "STALE_TRADING_DATE"
     q["date"] = "2026-11-04"
-    q["closeTime"] = int((NOW - timedelta(minutes=6)).timestamp() * 1_000_000)
+    q["lastTrade"]["time"] = int((NOW - timedelta(minutes=6)).timestamp() * 1_000_000)
     assert fugle_executed_trade(q, NOW)[2] == "STALE_EXECUTED_TRADE"
-    q["closeTime"] = int((NOW + timedelta(minutes=3)).timestamp() * 1_000_000)
+    q["lastTrade"]["time"] = int((NOW + timedelta(minutes=3)).timestamp() * 1_000_000)
     assert fugle_executed_trade(q, NOW)[2] == "FUTURE_TRADE_TIMESTAMP"
+
+
+def test_close_time_cannot_certify_an_individual_execution():
+    q = {"date": NOW.date().isoformat(), "lastPrice": 80,
+         "closeTime": int(NOW.timestamp() * 1_000_000)}
+    assert fugle_executed_trade(q, NOW)[2] == "MISSING_EXECUTED_TRADE_TIME"
+    q["lastTrade"] = {"price": 80, "time": None}
+    assert fugle_executed_trade(q, NOW)[2] == "MISSING_EXECUTED_TRADE_TIME"
+
+
+def test_nonfinite_or_trial_prices_cannot_certify_market_coverage():
+    from src.realtime_quote_evidence import validate_whole_market_rows
+    pool = [{"symbol": "2330", "exchange": "TWSE"},
+            {"symbol": "8088", "exchange": "TPEx"}]
+    invalid = [{"symbol": "2330", "last": float("nan"), "quote_source": "Fugle bulk snapshot",
+                "last_trade_timestamp": NOW.isoformat(), "quote_date": NOW.date().isoformat()},
+               {"symbol": "8088", "last": 50, "isTrial": True, "quote_source": "Fugle bulk snapshot",
+                "last_trade_timestamp": NOW.isoformat(), "quote_date": NOW.date().isoformat()}]
+    report = validate_whole_market_rows(pool, invalid, now=NOW)
+    assert report["valid_quote_count"] == 0
+    assert report["snapshot_reference_count"] == 0
+    assert report["valid_whole_market_operational"] is False
+    assert fugle_executed_trade({"date": NOW.date().isoformat(),
+                                 "lastTrade": {"price": float("inf"), "time": NOW.isoformat()}}, NOW)[2] == "MISSING_EXECUTED_LAST_PRICE"
 
 
 def test_mis_quote_requires_exchange_day_and_fresh_last_trade():
