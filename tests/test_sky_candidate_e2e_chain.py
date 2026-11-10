@@ -58,6 +58,17 @@ class CandidateEvidenceChainTests(unittest.TestCase):
         self.assertIn("OFFICIAL_VWAP_PROVENANCE", row["evidence_missing"])
         self.assertIn("禁止新進場", markdown(report))
 
+    def test_snapshot_price_under_100_but_verified_price_above_100_is_disqualified(self):
+        x = reports()
+        x[0]["candidates"][0]["observed_price"] = 99.8
+        x[1]["results"][0]["verified_trade_price"] = 100.5
+        row = build(*x)["rows"][0]
+        self.assertTrue(row["quote_verified"])
+        self.assertFalse(row["verified_trade_price_below_100"])
+        self.assertIn("VERIFIED_TRADE_PRICE_NOT_BELOW_100", row["evidence_missing"])
+        self.assertFalse(row["a_plus"])
+        self.assertEqual(row["action"], "禁止交易")
+
     def test_unverified_quote_does_not_use_snapshot_as_trade(self):
         x = reports()
         x[1]["results"][0]["status"] = "MISSING_EXECUTED_TRADE_TIME"
