@@ -42,6 +42,32 @@ class StageOneSnapshotTests(unittest.TestCase):
         self.assertEqual(r["candidate_count"], 0)
         self.assertEqual(sum(r["excluded_reasons"].values()), 6)
 
+    def test_real_snapshot_to_stage1_without_lasttrade_time(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        from research.sky_full_universe_information import build
+        now = datetime(2026, 11, 10, 9, 12, tzinfo=ZoneInfo("Asia/Taipei"))
+        universe = [{"symbol": "1101", "name": "A", "exchange": "TWSE"},
+                    {"symbol": "8089", "name": "B", "exchange": "TPEx"}]
+        snapshots = {
+            "TSE": {"date": "2026-11-10", "data": [
+                {"symbol": "1101", "lastPrice": 50, "tradeVolume": 1000,
+                 "changePercent": 1.0, "lastUpdated": now.isoformat()}]},
+            "OTC": {"date": "2026-11-10", "data": [
+                {"symbol": "8089", "lastPrice": 40, "tradeVolume": 900,
+                 "changePercent": 2.0, "closeTime": now.isoformat()}]},
+        }
+        observation = build(universe, snapshots, now)
+        ranked = screen(observation)
+        self.assertEqual(observation["observed_price_count"], 2)
+        self.assertEqual(observation["fresh_executed_count"], 0)
+        self.assertEqual(ranked["candidate_count"], 2)
+        self.assertEqual(ranked["by_exchange"]["TWSE"]["candidates"], 1)
+        self.assertEqual(ranked["by_exchange"]["TPEx"]["candidates"], 1)
+        self.assertTrue(all(item["last_trade_time"] is None for item in ranked["candidates"]))
+        self.assertTrue(all(item["executed_trade_verified"] is False for item in ranked["candidates"]))
+        self.assertTrue(all(item["production_eligible"] is False for item in ranked["candidates"]))
+
     def test_reject_duplicate_universe(self):
         with self.assertRaisesRegex(ValueError, "DUPLICATE_SYMBOL"):
             screen(self.report([self.row("1101"), self.row("1101")]))

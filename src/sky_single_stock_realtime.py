@@ -46,12 +46,17 @@ def collect(symbol: str, now=None) -> dict:
         ticker = fugle.get_ticker(symbol)
         if not isinstance(quote, dict) or not isinstance(ticker, dict):
             raise ValueError("Invalid Fugle response payload")
-        trade = quote.get("lastTrade") or {}
+        trade = quote.get("lastTrade")
+        trade = trade if isinstance(trade, dict) else {}
         last_price = trade.get("price") if trade.get("price") is not None else quote.get("lastPrice")
-        last_time = timestamp_tpe(trade.get("time") or quote.get("closeTime"))
+        # A quote refresh/closeTime is not a last executed-trade timestamp.
+        last_time = timestamp_tpe(trade.get("time"))
         updated_time = timestamp_tpe(quote.get("lastUpdated"))
         result.update({
             "quote_date": quote.get("date"), "last_price": last_price,
+            "observed_price": last_price, "observed_at_tpe": now.isoformat(),
+            "observation_requires_last_trade_time": False,
+            "executed_trade_verified": False,
             "last_trade_tpe": last_time, "last_updated_tpe": updated_time,
             "high": quote.get("highPrice"), "low": quote.get("lowPrice"),
             "open": quote.get("openPrice"), "average_price": quote.get("avgPrice"),
@@ -62,8 +67,14 @@ def collect(symbol: str, now=None) -> dict:
             "is_disposition": ticker.get("isDisposition"),
             "quote_market": quote.get("market"),
         })
-        if not isinstance(last_price, (float, int)) or last_price <= 0 or not last_time:
+        if (isinstance(last_price, bool) or not isinstance(last_price, (float, int))
+                or last_price <= 0):
             result["status"] = "INVALID_OR_MISSING_PRICE"
+        elif quote.get("date") != now.date().isoformat():
+            result["status"] = "STALE_TRADING_DATE"
+        elif not last_time:
+            # Preserve an observed price while withholding verified-live status.
+            result["status"] = "UNVERIFIED_EXECUTION_TIME"
         else:
             seen = datetime.fromisoformat(last_time)
             quote_date = quote.get("date")
@@ -83,6 +94,7 @@ def collect(symbol: str, now=None) -> dict:
                 result["status"] = "PRICE_CAP_EXCEEDED"
             else:
                 result["status"] = "REALTIME_QUOTE_VERIFIED"
+                result["executed_trade_verified"] = True
         return result
     except Exception as exc:
         result.update({"status": "QUOTE_FETCH_FAILED", "error_type": type(exc).__name__})
@@ -99,7 +111,9 @@ def main():
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(payload, ensure_ascii=False, indent=2))
-    if payload["status"] != "REALTIME_QUOTE_VERIFIED":
+    # Collecting a valid unverified observation succeeds as research ingestion.
+    # Its payload still explicitly denies executed-trade verification and orders.
+    if payload["status"] not in ("REALTIME_QUOTE_VERIFIED", "UNVERIFIED_EXECUTION_TIME"):
         raise SystemExit(2)
 
 
