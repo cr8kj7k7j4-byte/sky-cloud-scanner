@@ -111,7 +111,9 @@ def main():
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(payload, ensure_ascii=False, indent=2))
-    if payload["status"] != "REALTIME_QUOTE_VERIFIED":
+    # Collecting a valid unverified observation succeeds as research ingestion.
+    # Its payload still explicitly denies executed-trade verification and orders.
+    if payload["status"] not in ("REALTIME_QUOTE_VERIFIED", "UNVERIFIED_EXECUTION_TIME"):
         raise SystemExit(2)
 
 
