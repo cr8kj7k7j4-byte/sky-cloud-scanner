@@ -3,8 +3,9 @@ on:
   push:
     branches: [main]
     paths: ['.github/workflows/sky-pr511-repair-watchdog.yml']
-  schedule:
-    - cron: '*/5 * * * *'
+  # PAUSED on 2026-11-10 by user request: formerly scheduled trigger.
+  # schedule:
+  # - cron: '*/5 * * * *'
   workflow_dispatch:
 permissions:
   contents: read
