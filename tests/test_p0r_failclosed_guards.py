@@ -1,0 +1,58 @@
+from src.risk_engine import RiskPolicy, evaluate_trade, evaluate_candidate
+from src.position_manager import evaluate_position
+
+
+def test_policy_matches_p0r_profile():
+    p = RiskPolicy()
+    assert 500000 * p.risk_per_trade_pct == 5000
+    assert 500000 * p.daily_loss_limit_pct == 10000
+    assert 500000 * p.max_portfolio_heat_pct == 15000
+    assert 500000 * p.max_position_pct == 100000
+    assert p.max_concurrent_positions == 3
+
+
+def test_two_losses_lock_even_without_daily_limit():
+    decision = evaluate_trade(entry=50, stop=48, target=54, account_equity=500000,
+                              consecutive_losses=2, policy=RiskPolicy())
+    assert decision["status"] == "BLOCK"
+    assert decision["recommended_shares"] == 0
+
+
+def test_long_stop_cannot_be_above_entry():
+    decision = evaluate_trade(entry=50, stop=51, target=54, account_equity=500000)
+    assert decision["status"] == "BLOCK"
+
+
+def test_missing_verified_portfolio_cannot_size():
+    result = evaluate_candidate({"entry": 50, "stop": 48, "target": 55}, {"account_equity": 500000})
+    assert result["status"] == "RISK_INPUT_REQUIRED"
+    assert result["recommended_shares"] == 0
+
+
+def test_missing_cost_or_stop_cannot_add():
+    base = {"symbol": "TEST", "last": 12, "cost": 10, "initial_stop": 9,
+            "add_price": 11, "add_signal_confirmed": True, "risk": {"status": "ALLOW"}}
+    for field in ("cost", "initial_stop", "add_price"):
+        case = dict(base)
+        case.pop(field)
+        decision = evaluate_position(case)
+        assert decision.add_allowed is False, field
+    case = dict(base)
+    case["risk"] = {}
+    assert evaluate_position(case).add_allowed is False
+
+
+def test_lose_money_cannot_add_or_widen_stop():
+    case = {"symbol": "TEST", "last": 9.8, "cost": 10, "initial_stop": 9,
+            "stop": 8, "add_price": 9.5, "add_signal_confirmed": True,
+            "risk": {"status": "ALLOW"}}
+    decision = evaluate_position(case)
+    assert decision.stop_widening_rejected
+    assert decision.effective_stop == 9
+    assert decision.add_allowed is False
+
+
+def test_daily_boundary_blocks():
+    decision = evaluate_trade(entry=50, stop=48, target=54, account_equity=500000,
+                              daily_pnl=-10000)
+    assert decision["status"] == "BLOCK"
