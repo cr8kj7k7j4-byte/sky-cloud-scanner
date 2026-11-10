@@ -1,6 +1,6 @@
 {
-  "command": "Sky 當沖現在掃一次",
-  "request_id": "chat-20261110-0855-on-demand-001",
+  "command": "Sky 快掃",
+  "request_id": "chat-20261110-quickscan-user-0855",
   "read_only_no_orders": true,
-  "reason": "User requested fresh 2026-11-10 08:55 Asia/Taipei intraday scan; paid Fugle market observations only; no auto orders"
+  "reason": "User explicitly requested Sky 快掃: fresh paid Fugle all-market observations, time provenance, 13-column research output; no auto order"
 }
