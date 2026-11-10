@@ -150,6 +150,8 @@ class SafePatchContracts(unittest.TestCase):
             "action": "completed",
             "workflow_run": {
                 "name": "Sky Chat Bridge Unit Checks",
+                "repository": {"full_name": "test/repo"},
+                "head_repository": {"full_name": "test/repo"},
                 "event": "pull_request",
                 "conclusion": "failure",
                 "run_attempt": 1,
@@ -168,6 +170,10 @@ class SafePatchContracts(unittest.TestCase):
             {"run_attempt": "1"},
             {"run_attempt": "invalid"},
             {"head_sha": ""},
+            {"repository": {"full_name": "foreign/repo"}},
+            {"head_repository": {"full_name": "foreign/repo"}},
+            {"repository": None},
+            {"head_repository": None},
         ]
         for diff in bad_cases:
             with self.subTest(diff=diff):
