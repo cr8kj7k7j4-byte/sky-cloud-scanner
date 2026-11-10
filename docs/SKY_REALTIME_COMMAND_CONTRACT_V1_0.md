@@ -25,11 +25,11 @@ Use for:
 
 Pipeline:
 1. TWSE + TPEx official current universe.
-2. TWSE MIS batched TSE + OTC operational intraday quotes.
-3. Record quote coverage and timestamp.
-4. Apply the relevant strategy/candidate rules.
-5. Deep-dive shortlisted symbols using Fugle single-stock realtime data where available.
-6. Never describe MIS OTC as TPEx-official realtime certification.
+2. Paid Fugle Developer API TSE and OTC bulk snapshots are the sole allowed whole-market market-price/volume source.
+3. Record separate universe, bulk snapshot, observed-price, and fresh executed-trade coverage for both exchanges.
+4. Verify shortlisted symbols with Fugle individual realtime quotes; snapshot update time alone is not last execution time.
+5. Apply the relevant strategy/candidate rules only to appropriate verified data; retain explicitly unverified research observations.
+6. Never fall back to TWSE MIS, TPEx free quote prices, a web quote, or any other unpaid market-price provider when Fugle is missing or blocked. Fail closed for executable signals.
 
 ### Single-stock realtime
 Use for:
@@ -92,7 +92,7 @@ For every Sky scan command, return all **actually acquired, source-attributed** 
 
 Separate output fields for `observation_available`, `live_execution_evidence`, `production_eligible`, and `block_reason`. Do not turn observed daily closes into executed live quotes, invent missing execution prices/scores, or override P0-R risk and research promotion gates. No automatic orders.
 
-Swing V1.1's historical `*_D.json` artifact may be stale. If frozen D-close freshness fails, preserve the hard failure, but run an independent TWSE/TPEx daily cross-section with Fugle candidate-only live verification; publish its observational candidate table and JSON artifact regardless of the V1.1 verification result. This split-scope report **is not a replacement V1.1 signal** and **is not full-market live executed-price coverage**. Refreshing the frozen historical data source is a separate unresolved engineering prerequisite.
+Swing V1.1's historical `*_D.json` artifact may be stale. If frozen D-close freshness fails, preserve the hard failure, but run an independent TWSE/TPEx daily cross-section with Fugle paid bulk cross-section and Fugle candidate-only live verification; publish its observational candidate table and JSON artifact regardless of the V1.1 verification result. This split-scope report **is not a replacement V1.1 signal** and **is not full-market live executed-price coverage**. Refreshing the frozen historical data source is a separate unresolved engineering prerequisite.
 
 ## Chat execution bridge
 
