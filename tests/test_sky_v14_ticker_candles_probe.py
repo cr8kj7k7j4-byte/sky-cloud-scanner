@@ -15,13 +15,16 @@ def stage2():
 
 def ticker(symbol):
     return {"date":"2026-11-10","boardLot":1000,
+            "symbol":symbol,"exchange":"TWSE" if symbol=="2409" else "TPEx",
             "canDayTrade":True,"canBuyDayTrade":True,
             "securityStatus":"NORMAL","limitUpPrice":33,
             "tradingCurrency":"TWD",
             "isDisposition":False,"isAttention":False,"isSpecificAbnormally":False}
 
 def candles(symbol,timeframe="5"):
-    return {"date":"2026-11-10","timeframe":"5","data":[
+    return {"date":"2026-11-10","timeframe":"5",
+            "symbol":symbol,"exchange":"TWSE" if symbol=="2409" else "TPEx",
+            "data":[
         {"date":f"2026-11-10T{10+i//12:02d}:{(i%12)*5:02d}:00+08:00",
          "close":30+i*0.01,"volume":100} for i in range(6)]}
 
@@ -51,6 +54,28 @@ class DeepFiveMinTests(unittest.TestCase):
         x=run(stage2(),ticker_fn=ticker,candle_fn=candles,sleep_fn=lambda _:None,now=NOW)
         self.assertTrue(all(z["production_eligible"] is False for z in x["samples"]))
 
+
+    def test_cross_symbol_or_exchange_fails_closed(self):
+        for endpoint in ("ticker", "candles"):
+            for field in ("symbol", "exchange"):
+                for invalid_value in (None, "WRONG"):
+                    def wrong_ticker(symbol):
+                        t=ticker(symbol)
+                        if endpoint=="ticker":
+                            t[field]=invalid_value
+                        return t
+                    def wrong_candles(symbol,timeframe="5"):
+                        c=candles(symbol,timeframe)
+                        if endpoint=="candles":
+                            c[field]=invalid_value
+                        return c
+                    x=run(stage2(),ticker_fn=wrong_ticker,candle_fn=wrong_candles,
+                          sleep_fn=lambda _:None,now=NOW)
+                    self.assertTrue(all(z["source_identity_matches"] is False
+                                        and z["status"]=="INCOMPLETE_TICKER_OR_5M_EVIDENCE"
+                                        and z["feature_preview"] is None
+                                        and z["production_eligible"] is False
+                                        for z in x["samples"]), (endpoint,field,invalid_value))
 
     def test_unknown_risk_flags_fail_closed(self):
         for flag in ("isDisposition", "isAttention", "isSpecificAbnormally"):
