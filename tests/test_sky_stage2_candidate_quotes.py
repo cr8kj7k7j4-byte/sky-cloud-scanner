@@ -17,7 +17,8 @@ class Stage2BridgeTests(unittest.TestCase):
         return {"schema":"SKY_STAGE1_FUGLE_SNAPSHOT_CANDIDATES_V1",
                 "candidate_count":100, "candidates":[
                   {"symbol":str(1101+i), "exchange":"TWSE",
-                   "observed_price":55.0, "production_eligible":False} for i in range(10)
+                   "observed_price":55.0, "reported_volume_raw":1000,
+                   "change_pct_observed":2.0, "production_eligible":False} for i in range(10)
                 ]+[{"symbol":str(8001+i), "exchange":"TPEx",
                      "observed_price":55.0, "production_eligible":False} for i in range(10)]}
 
@@ -48,6 +49,12 @@ class Stage2BridgeTests(unittest.TestCase):
         r=verify(self.stage1(),quote_fn=rejected,sleep_fn=lambda _:None,now_fn=lambda:NOW)
         self.assertEqual(r["attempted_count"],1)
         self.assertEqual(r["rate_limited_count"],1)
+
+    def test_rapid_rise_removed_before_api_query(self):
+        data = self.stage1()
+        data["candidates"][0]["change_pct_observed"] = 8.0
+        picked = select(data)
+        self.assertNotIn(data["candidates"][0]["symbol"], [x["symbol"] for x in picked])
 
     def test_cannot_expand_beyond_six_per_market(self):
         with self.assertRaisesRegex(ValueError,"INVALID_SAMPLE_SIZE"):
