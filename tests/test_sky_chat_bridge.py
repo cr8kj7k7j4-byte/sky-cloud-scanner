@@ -117,6 +117,25 @@ class ChatScanBridgeTests(unittest.TestCase):
         self.assertEqual(status["status"], "DATA_BLOCKED_SOURCE_FAILURE")
         self.assertEqual(status["block_reason"], "SOURCE_DATA_INCOMPLETE")
 
+    def test_missing_request_fails_closed_and_writes_diagnostic(self):
+        import json
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        import src.sky_chat_bridge as bridge
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with patch.object(bridge, "REQUEST", root / "missing-request.json"), \
+                 patch.object(bridge, "OUTPUT", root / "diagnostics"):
+                with self.assertRaises(SystemExit) as err:
+                    bridge.main()
+                self.assertEqual(err.exception.code, 1)
+            status = json.loads((root / "diagnostics" / "latest.json").read_text())
+            self.assertEqual(status["status"], "FAILED")
+            self.assertFalse(status["production_eligible"])
+            self.assertFalse(status["automatic_order"])
+
     def test_report_missing_column(self):
         report={"schema":"SKY_DAYTRADE_13COL_RESEARCH_V2","rows":[{"股票代碼":"2330"}],"row_count":1,"production_eligible":False}
         with self.assertRaisesRegex(ValueError,"MISSING_13_COLUMNS"):
