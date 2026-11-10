@@ -96,12 +96,12 @@ class TestSafeRepair(unittest.TestCase):
                     raise urllib.error.HTTPError("https://api.github.com/", 404, "missing", {}, None)
                 if path.startswith("contents/") and method == "GET":
                     return {"encoding": "base64", "sha": "blob123",
-                            "content": base64.b64encode(b"x = 1  \\n").decode()}
+                            "content": base64.b64encode(b"x = 1  \n").decode()}
                 if path == "git/refs" and method == "POST":
                     return {"ref": body["ref"]}
                 if path.startswith("contents/") and method == "PUT":
                     self_written = base64.b64decode(body["content"]).decode()
-                    assert self_written == "x = 1\\n"
+                    assert self_written == "x = 1\n"
                     assert body["branch"].startswith("auto-repair/")
                     return {"content": {"sha": "nextblob"}}
                 if path == "pulls" and method == "POST":
