@@ -1,4 +1,5 @@
 name: Sky Snapshot Integrity Research Acceptance
+# MANUAL_ACCEPTANCE_ONESHOT_20261110_PAUSE_CRON: one limited research run; no scheduled trigger.
 on:
   push:
     branches:
