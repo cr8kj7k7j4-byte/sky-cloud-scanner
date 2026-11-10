@@ -23,6 +23,8 @@ on:
 
 permissions:
   contents: read
+  actions: read
+  pull-requests: read
 
 concurrency:
   group: sky-recovery-watchdog-${{ github.ref }}
