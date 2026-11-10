@@ -194,6 +194,26 @@ class InnovationBoardSnapshotContracts(unittest.TestCase):
         self.assertEqual(report["snapshot_errors"]["TIB"], "HTTP_403")
         self.assertEqual(report["trade_decision"], "🔴 禁止新進場、未驗證通過")
 
+    def test_innovation_name_served_by_tse_is_not_claimed_missing(self):
+        # A suffix-based TIB candidate can be returned in the TSE endpoint.
+        # Its real provider source must stay TSE; do not invent TIB coverage.
+        tse = {"date": NOW.date().isoformat(), "data": [
+            {"symbol": "1234", "lastPrice": 42},
+            {"symbol": "2237", "lastPrice": 55},
+        ]}
+        tib = {"date": NOW.date().isoformat(), "data": []}
+        report = build(self.universe, {"TSE": tse, "OTC": self.otc, "TIB": tib}, NOW)
+        twse = report["snapshot_integrity"]["TWSE"]
+        self.assertEqual(twse["official_symbols_missing_from_snapshot"], 0)
+        self.assertEqual(twse["innovation_board_missing_count"], 0)
+        self.assertEqual(twse["innovation_board_missing_from_tib_endpoint_count"], 1)
+        self.assertEqual(twse["innovation_board_found_in_tse_not_tib"], ["2237"])
+        row = next(x for x in report["all_symbols"] if x["symbol"] == "2237")
+        self.assertEqual(row["snapshot_market_source"], "TSE")
+        self.assertEqual(row["market"], "TSE")
+        self.assertEqual(row["data_status"], "UNVERIFIED_EXECUTION_TIME")
+        self.assertFalse(row["production_eligible"])
+
     def test_tib_unexpected_symbols_remain_diagnostic_not_entries(self):
         tib = {"date": NOW.date().isoformat(), "data": [
             {"symbol": "2237", "lastPrice": 55},
