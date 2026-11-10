@@ -26,6 +26,62 @@ jobs:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
           SKY_FUGLE_ONLY_MARKETDATA: '1'
         run: python -m src.sky_chat_bridge
+      - name: Verify status and preserve a failed-run diagnostic
+        if: always()
+        env:
+          BRIDGE_OUTCOME: ${{ steps.bridge.outcome }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p = Path("output/chat_bridge/latest.json")
+          failure = {
+              "schema": "SKY_CHAT_SCAN_STATUS_V1",
+              "status": "FAILED_NO_VALID_STATUS",
+              "scan_id": os.getenv("GITHUB_RUN_ID"),
+              "production_eligible": False,
+              "automatic_order": False,
+              "block_reason": "BRIDGE_STATUS_MISSING_OR_INVALID",
+          }
+          valid = False
+          if p.exists():
+              try:
+                  data = json.loads(p.read_text(encoding="utf-8"))
+                  valid = (
+                      isinstance(data, dict)
+                      and data.get("schema") == "SKY_CHAT_SCAN_STATUS_V1"
+                      and data.get("scan_id") == os.getenv("GITHUB_RUN_ID")
+                      and data.get("production_eligible") is False
+                      and data.get("automatic_order") is False
+                      and data.get("status") == "REPORT_READY_RESEARCH_ONLY"
+                      and isinstance(data.get("row_count"), int)
+                      and data["row_count"] > 0
+                      and isinstance(data.get("observed_price_count"), int)
+                      and data["observed_price_count"] > 0
+                      and isinstance(data.get("data_timestamp"), str)
+                      and bool(data.get("data_timestamp"))
+                      and data.get("source") == "FUGLE_PAID_SNAPSHOT"
+                  )
+              except (OSError, ValueError, TypeError):
+                  data = failure
+              if not isinstance(data, dict):
+                  data = failure
+          else:
+              data = failure
+          if not valid:
+              # Preserve an explicit diagnostic even when the bridge crashed
+              # before writing one; do not attach old successful scan files.
+              if data.get("status") == "REPORT_READY_RESEARCH_ONLY":
+                  data = failure
+              data["production_eligible"] = False
+              data["automatic_order"] = False
+              p.parent.mkdir(parents=True, exist_ok=True)
+              p.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          if not valid or os.getenv("BRIDGE_OUTCOME") != "success":
+              raise SystemExit("SCAN_VALIDATION_FAILED")
+          PY
       - name: Upload complete 13-column report and status
         if: always()
         uses: actions/upload-artifact@v4
@@ -41,7 +97,7 @@ jobs:
             output/sky_quickscan_information/v14_ticker_5m_evidence.json
             output/sky_quickscan_information/candidate_e2e_chain.json
             output/sky_quickscan_information/candidate_e2e_chain.md
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14
       - name: Publish sanitized summary for ChatGPT GitHub connector
         if: always()
