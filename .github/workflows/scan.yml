@@ -8,14 +8,11 @@ on:
       - 'scan_requests/mcr/now.json'
       - 'scan_requests/quickscan/latest.json'
   schedule:
-    # UTC, Asia/Taipei UTC+8. Weekdays; official trading-calendar gate below.
-    # 09:00-09:55 every 5 minutes (12 slots); 09:00 initial data may fail closed.
-    - cron: "*/5 1 * * 1-5"
-    # 10:00-12:55 every 5 minutes (36 slots).
-    - cron: "*/5 2-4 * * 1-5"
-    # 13:00-13:30 every 5 minutes (7 slots); total 55.
-    # GitHub scheduled jobs can be delayed or skipped; artifacts contain actual start time.
-    - cron: "0-30/5 5 * * 1-5"
+    # UTC; Asia/Taipei UTC+8. Weekdays; official trading-calendar gate below.
+    # Taipei 09:05, 09:15, 09:30, 09:50 and 10:15.
+    # GitHub scheduled jobs may be delayed or skipped; verify run artifacts.
+    - cron: "5,15,30,50 1 * * 1-5"
+    - cron: "15 2 * * 1-5"
 
 permissions:
   contents: write
@@ -46,9 +43,8 @@ jobs:
               "run_attempt": os.environ["GITHUB_RUN_ATTEMPT"],
               "source": "GitHub event payload and runner clock",
               "cron_utc": [
-                  "*/5 1 * * 1-5",
-                  "*/5 2-4 * * 1-5",
-                  "0-30/5 5 * * 1-5"
+                  "5,15,30,50 1 * * 1-5",
+                  "15 2 * * 1-5"
               ],
               "note": "Run/job start may be delayed; cron proves schedule rule identity, not punctuality. A cron entry contains multiple local slots; compare run times with expected Asia/Taipei schedule and check missed slots separately."
           }
