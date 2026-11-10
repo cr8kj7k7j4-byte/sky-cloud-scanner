@@ -56,3 +56,23 @@ def test_daily_boundary_blocks():
     decision = evaluate_trade(entry=50, stop=48, target=54, account_equity=500000,
                               daily_pnl=-10000)
     assert decision["status"] == "BLOCK"
+
+def test_candidate_requires_complete_cost_gate_and_no_real_order():
+    from src.execution_engine import ExecutionCostPolicy
+    context = {"account_equity": 500000, "daily_pnl": 0, "open_risk": 0,
+               "concurrent_positions": 0, "consecutive_losses": 0,
+               "positions_verified": True,
+               "execution_policy": ExecutionCostPolicy(enforce_gate=False)}
+    result = evaluate_candidate({"entry": 50, "stop": 49, "target": 52}, context)
+    assert result["status"] == "BLOCK"
+    assert result["recommended_shares"] == 0
+    assert result["execution_status"] == "EXECUTION_INPUT_REQUIRED"
+
+
+def test_reaching_target_does_not_allow_add():
+    case = {"symbol": "TEST", "last": 12, "cost": 10, "initial_stop": 9,
+            "target": 12, "add_price": 11, "add_signal_confirmed": True,
+            "risk": {"status": "ALLOW"}}
+    decision = evaluate_position(case)
+    assert decision.state == "TAKE_PROFIT"
+    assert decision.add_allowed is False
