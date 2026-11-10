@@ -1,11 +1,6 @@
-name: Sky Auto-Repair Research Controller (Event or Manual)
+name: Sky Auto-Repair Legacy Manual Diagnostic
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/sky-auto-repair.yml'
-      - 'scripts/sky_auto_repair.py'
-      - 'tests/test_sky_auto_repair.py'
+  # Legacy controller is manual-only to prevent duplicate automatic repair.
   workflow_dispatch:
   # GitHub periodic schedule paused by user. Push/manual event triggers only.
 permissions:
