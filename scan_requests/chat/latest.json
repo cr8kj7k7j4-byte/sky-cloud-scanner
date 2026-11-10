@@ -1,6 +1,6 @@
 {
-  "command": "Sky 當沖現在掃一次",
-  "request_id": "chat-20261110-daytrade-0901-user",
+  "command": "Sky 快掃",
+  "request_id": "chat-20261110-user-quickscan-repeat-003",
   "read_only_no_orders": true,
-  "reason": "User requested live daytrade scan at 2026-11-10 09:01 Asia/Taipei. Capture paid Fugle market observations and all 13 columns, do not authorize trade without executed-time market gate."
+  "reason": "User requested Sky 快掃 again. Run paid Fugle full market read-only and validate 13-column outputs and fresh trade-time coverage; no trading orders."
 }
