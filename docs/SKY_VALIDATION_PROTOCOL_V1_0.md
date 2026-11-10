@@ -106,6 +106,11 @@ Counterfactual outcome 不得描述為真實成交或真實損益。
 ## Gate 10 — Production Promotion
 P0-G 僅在全部 Gate 通過後可將 Challenger 升為 Champion。
 
+### 單一 GitHub 帳號治理程序（2026-11-11）
+本專案目前採單一帳號維護。W0／P0-G 為功能責任與最終決策角色，不代表必須存在另一個 GitHub 審查帳號。正式評估由儲存庫擁有者檢查並留下可追溯的決策紀錄（所評估 SHA、CI、資料證據、P0-R／P0-X 風控、未通過項目及 HOLD／REJECT／PROMOTE_CANDIDATE 結論），不以第二位 reviewer 的 APPROVED、CODEOWNERS 或非作者帳號審查為前置條件。
+
+不變的安全底線：所有必要驗證 Gate 必須實質通過；Draft PR 不能僅因上述帳號要求取消而自動合併；不自動下單、不啟用未驗證 Production、不以自審取代測試或實際行情 Artifact。GitHub 分支保護若另設 reviewer 門檻，須由管理員另外檢查與調整，文件修改本身不會變更 GitHub 平台設定。
+
 任何一項重大 Gate 失敗：
 - Candidate → HOLD / REJECTED / ARCHIVED
 - 不得用主觀信心補足證據。
