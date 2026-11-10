@@ -159,6 +159,14 @@ def build(universe, snapshots, checked_at, errors=None):
             ) if official_sets[exchange] else 0.0,
             "snapshot_date": payload.get("date") if isinstance(payload, dict) else None,
             "snapshot_time_is_execution_time": False,
+            "missing_official_symbols": [
+                {"symbol": str(meta["symbol"]), "name": str(meta.get("name") or ""),
+                 "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
+                 "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"}
+                for meta in universe
+                if meta.get("exchange") == exchange
+                and str(meta["symbol"]) not in present
+            ],
         }
     rows = []
     for meta in universe:
