@@ -61,11 +61,23 @@ def evidence_check(status):
 
     # Audit samples as observation only; avoid conflating Stage3 samples with
     # the full universe, certified VWAP or validated intraday strategy rules.
+    # Merely observing candle rows is not proof of causal availability.
+    # Do not confuse an incomplete/attention-stock sample with validated bars.
     candle_samples = [
         x for x in sample if isinstance(x, dict)
         and isinstance(x.get("valid_today_five_min_bars"), int)
+        and not isinstance(x["valid_today_five_min_bars"], bool)
         and x["valid_today_five_min_bars"] > 0
         and x.get("candles_timeframe") == "5"
+    ]
+    causally_screened = [
+        x for x in candle_samples
+        if x.get("bar_sequence_valid") is True
+        and x.get("rejected_future_five_min_bars") == 0
+        and isinstance(x.get("excluded_unfinished_five_min_bars"), int)
+        and not isinstance(x["excluded_unfinished_five_min_bars"], bool)
+        and x.get("status") == "CANDLE_TICKER_RESEARCH_READY_NOT_TRADE"
+        and x.get("bar_timestamp_semantics_certified") is True
     ]
     claimed_vwap = [x.get("avg_price_is_certified_vwap") is True
                     for x in sample if isinstance(x, dict)]
@@ -113,9 +125,14 @@ def evidence_check(status):
              {"sample_verified": verified, "sample_attempted": stage2_attempted,
               "preview_verified_timestamps": observed_quote_times},
              ["受控樣本成交時間、429 或資料一致性尚未通過"]),
-        gate("five_minute_candle_sample", bool(candle_samples) and no_hard_block,
-             {"sample_count": len(sample), "samples_with_5m_candles": len(candle_samples)},
-             ["需要來源時間語義、完成棒、連續性與全候選涵蓋"]),
+        gate("five_minute_candle_observed_sample", bool(candle_samples) and no_hard_block,
+             {"sample_count": len(sample), "observed_five_minute_bars": len(candle_samples),
+              "scope": "OBSERVATION_ONLY_NOT_CAUSAL_CERTIFICATION"},
+             ["尚未觀察到有效五分鐘 K 線樣本"]),
+        gate("five_minute_candle_causal_quality", bool(sample) and
+             len(causally_screened) == len(sample) and no_hard_block,
+             {"sample_count": len(sample), "causally_certified_count": len(causally_screened)},
+             ["缺來源時間戳語義認證、已完成棒、連續性或明確安全旗標；不可等同正式多週期驗收"]),
         gate("official_vwap", False,
              {"sample_declared_vwap_certified": certified_vwap},
              ["未取得正式成交量加權均價（VWAP）來源與因果驗證"]),
