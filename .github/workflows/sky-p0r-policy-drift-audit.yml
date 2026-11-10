@@ -1,0 +1,37 @@
+name: Sky P0-R Runtime Policy Drift Audit (Read Only)
+on:
+  pull_request:
+    paths:
+      - 'research/sky_p0r_policy_runtime_drift.py'
+      - 'tests/test_sky_p0r_policy_runtime_drift.py'
+      - '.github/workflows/sky-p0r-policy-drift-audit.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'research/sky_p0r_policy_runtime_drift.py'
+      - 'tests/test_sky_p0r_policy_runtime_drift.py'
+      - '.github/workflows/sky-p0r-policy-drift-audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run synthetic fail-closed policy regression tests
+        run: python -m unittest tests.test_sky_p0r_policy_runtime_drift -v
+      - name: Generate config drift evidence (NO TRADE)
+        run: python -m research.sky_p0r_policy_runtime_drift
+      - name: Upload review-only evidence report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-p0r-policy-drift-${{ github.run_id }}
+          path: output/sky_p0r_policy_drift/
+          if-no-files-found: warn
+          retention-days: 30
