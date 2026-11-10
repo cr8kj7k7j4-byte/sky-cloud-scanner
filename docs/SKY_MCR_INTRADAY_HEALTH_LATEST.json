@@ -1,32 +1,32 @@
 {
   "schema": "SKY_MCR_INTRADAY_HEALTH_V1",
-  "published_at_utc": "2026-11-10T04:29:55.463131+00:00",
-  "run_id": "42756177761",
-  "run_url": "https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/42756177761",
+  "published_at_utc": "2026-11-10T05:28:23.286688+00:00",
+  "run_id": "42762259477",
+  "run_url": "https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/42762259477",
   "financing_source_date": "2026-11-06",
-  "quote_observed_at": "2026-11-10T12:29:50.208044+08:00",
+  "quote_observed_at": "2026-11-10T13:28:12.725251+08:00",
   "mcr_observation_count": 520,
   "mcr_with_observed_price": 519,
   "mcr_fresh_executed_count": 0,
   "mcr_independent_accepted_executed_count": 0,
   "all_market_universe_count": 1986,
-  "all_market_observed_price_count": 1911,
+  "all_market_observed_price_count": 1926,
   "all_market_fresh_executed_count": 0,
   "by_exchange": {
     "TWSE": {
       "universe": 1091,
       "snapshot_rows": 1060,
       "fresh_executed": 0,
-      "observed_price": 1057,
-      "snapshot_reference_without_trade_time": 1057,
+      "observed_price": 1058,
+      "snapshot_reference_without_trade_time": 1058,
       "fresh_executed_pct": 0.0
     },
     "TPEx": {
       "universe": 895,
       "snapshot_rows": 895,
       "fresh_executed": 0,
-      "observed_price": 854,
-      "snapshot_reference_without_trade_time": 854,
+      "observed_price": 868,
+      "snapshot_reference_without_trade_time": 868,
       "fresh_executed_pct": 0.0
     }
   },
