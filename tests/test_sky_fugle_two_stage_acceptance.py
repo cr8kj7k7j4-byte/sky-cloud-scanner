@@ -56,3 +56,27 @@ def test_429_is_classified_and_stops():
     assert error_category(requests.HTTPError(response=response)) == "RATE_LIMIT_429"
     assert result["any_429"] is True
     assert result["requests_made"] == 1
+
+
+def test_twelve_symbol_limit_alternates_markets_and_stops_at_budget():
+    tse = [{"symbol": str(2300 + i), "lastPrice": 35.0, "tradeVolume": 5000 - i}
+           for i in range(7)]
+    otc = [{"symbol": str(8100 + i), "lastPrice": 45.0, "tradeVolume": 5000 - i}
+           for i in range(7)]
+    raw = {"TSE": {"data": tse}, "OTC": {"data": otc}}
+    selected = choose_samples(raw)
+    assert len(selected) == 12
+    assert [m for m, _ in selected] == ["TSE", "OTC"] * 6
+
+    calls = []
+    def fetch(symbol):
+        calls.append(symbol)
+        return {"symbol": symbol, "market": "TSE" if symbol.startswith("23") else "OTC",
+                "date": NOW.date().isoformat(),
+                "lastTrade": {"price": 40.0, "time": NOW.isoformat()}}
+    report = audit_individual(raw, fetch=fetch, checked=NOW, sleep=lambda _: None)
+    assert report["requested_limit"] == 12
+    assert report["requests_made"] == 12
+    assert report["fresh_executed"] == 12
+    assert len(calls) == 12
+    assert report["any_429"] is False
