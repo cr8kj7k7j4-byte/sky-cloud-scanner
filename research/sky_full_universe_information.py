@@ -132,6 +132,34 @@ def build(universe, snapshots, checked_at, errors=None):
                     code = str(q.get("symbol") or "")
                     if code:
                         by_exchange[exchange][code] = (q, str(data.get("date") or ""))
+    # Snapshot diagnostics are informational; never certify executed-trade coverage.
+    official_sets = {
+        exchange: {str(meta["symbol"]) for meta in universe
+                   if meta.get("exchange") == exchange}
+        for exchange in MARKET
+    }
+    snapshot_integrity = {}
+    for exchange, market in MARKET.items():
+        payload = snapshots.get(market)
+        raw = payload.get("data") if isinstance(payload, dict) else None
+        raw = raw if isinstance(raw, list) else []
+        symbols = [str(q.get("symbol") or "") for q in raw if isinstance(q, dict)]
+        present = set(symbols) & official_sets[exchange]
+        snapshot_integrity[exchange] = {
+            "api_response_valid": statuses[exchange] == "RETURNED",
+            "raw_rows": len(raw),
+            "unique_returned_symbols": len(set(symbols) - {""}),
+            "duplicate_symbol_rows": len(symbols) - len(set(symbols) - {""})
+                - symbols.count(""),
+            "blank_symbol_rows": symbols.count(""),
+            "unexpected_symbols": len(set(symbols) - {""} - official_sets[exchange]),
+            "official_symbols_missing_from_snapshot": len(official_sets[exchange] - present),
+            "official_symbol_coverage_pct": round(
+                100 * len(present) / len(official_sets[exchange]), 2
+            ) if official_sets[exchange] else 0.0,
+            "snapshot_date": payload.get("date") if isinstance(payload, dict) else None,
+            "snapshot_time_is_execution_time": False,
+        }
     rows = []
     for meta in universe:
         exchange = meta.get("exchange")
@@ -167,6 +195,9 @@ def build(universe, snapshots, checked_at, errors=None):
         "checked_at_tpe": checked_at.isoformat(),
         "universe_count": len(rows), "snapshot_status": statuses,
         "snapshot_errors": errors or {}, "by_exchange": by_market,
+        "snapshot_integrity": snapshot_integrity,
+        "snapshot_api_calls_expected_per_scan": 2,
+        "individual_quote_calls_are_bounded_separately": True,
         "observed_price_count": sum(x["last_price"] is not None for x in rows),
         "snapshot_reference_requires_last_trade_time": False,
         "snapshot_reference_without_trade_time_count": sum(
