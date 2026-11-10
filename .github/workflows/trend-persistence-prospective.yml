@@ -82,6 +82,44 @@ jobs:
           fi
           python research/trend_persistence_prospective.py "${args[@]}"
 
+      - name: Ensure failure diagnostics artifact exists
+        if: always()
+        shell: bash
+        run: |
+          # Preserve the original job failure, and never fabricate research evidence.
+          # This fallback also handles download, setup, or test failures before Python executes.
+          mkdir -p output/trend_persistence_prospective
+          python - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          out = Path("output/trend_persistence_prospective")
+          report = out / "latest.md"
+          failure = out / "failure.json"
+          if not report.is_file() or not report.stat().st_size:
+              if not failure.is_file():
+                  payload = {
+                      "schema": "SKY_W1_PROSPECTIVE_BLOCKED_V1",
+                      "status": "DATA_BLOCKED",
+                      "reason": "WORKFLOW_UPSTREAM_OR_OUTPUT_BLOCKED",
+                      "run_id": os.getenv("GITHUB_RUN_ID"),
+                      "checked_at_utc": datetime.now(timezone.utc).isoformat(),
+                      "state_updated": False,
+                      "trade_eligible": False,
+                      "production_change": False,
+                  }
+                  failure.write_text(json.dumps(payload, indent=2) + "\\n", encoding="utf-8")
+              report.write_text(
+                  "# W1 Trend Persistence prospective: DATA_BLOCKED\\n\\n"
+                  "- Reason: WORKFLOW_UPSTREAM_OR_OUTPUT_BLOCKED\\n"
+                  "- State updated: false\\n- Trade eligible: false\\n"
+                  "- Production change: false\\n",
+                  encoding="utf-8",
+              )
+          PY
+
       - name: Publish dashboard
         if: always()
         run: |
