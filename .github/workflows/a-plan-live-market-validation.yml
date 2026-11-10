@@ -3,9 +3,10 @@ name: Sky A-Plan Live Market Acceptance
 
 on:
   workflow_dispatch:
-  schedule:
-    # Taiwan 09:20 weekday, UTC 01:20. Separate from 09:15/09:30 main scanner.
-    - cron: "20 1 * * 1-5"
+  # PAUSED on 2026-11-10 by user request: formerly scheduled trigger.
+  # schedule:
+  # # Taiwan 09:20 weekday, UTC 01:20. Separate from 09:15/09:30 main scanner.
+  # - cron: "20 1 * * 1-5"
   push:
     branches: [main]
     paths:
