@@ -1,6 +1,6 @@
 {
   "command": "Sky 當沖現在掃一次",
-  "request_id": "chat-20261110-preopen-0720-readback",
+  "request_id": "chat-20261110-0855-on-demand-001",
   "read_only_no_orders": true,
-  "reason": "User-authorized 2026-11-10 preopen live read-only Fugle TSE+OTC bridge smoke and full 13-column artifact validation; no trading promotion"
+  "reason": "User requested fresh 2026-11-10 08:55 Asia/Taipei intraday scan; paid Fugle market observations only; no auto orders"
 }
