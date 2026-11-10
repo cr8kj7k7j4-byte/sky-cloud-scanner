@@ -32,6 +32,14 @@ class DeepFiveMinTests(unittest.TestCase):
         self.assertTrue(all(z["valid_today_five_min_bars"]==6 for z in x["samples"]))
         self.assertTrue(all(z["status"]=="CANDLE_TICKER_RESEARCH_READY_NOT_TRADE" for z in x["samples"]))
         self.assertFalse(x["official_v14_entry_eligible"])
+    def test_attention_stock_cannot_pass_research_readiness(self):
+        def attention(symbol):
+            data=ticker(symbol)
+            data["isAttention"]=True
+            return data
+        x=run(stage2(),ticker_fn=attention,candle_fn=candles,sleep_fn=lambda _:None,now=NOW)
+        self.assertTrue(all(z["status"]=="INCOMPLETE_TICKER_OR_5M_EVIDENCE" for z in x["samples"]))
+
     def test_old_candle_date_fails(self):
         def old(_,timeframe="5"):
             q=candles(_,timeframe);q["date"]="2026-11-09";return q
