@@ -76,3 +76,10 @@ def test_full_market_research_visibility_routes_are_explicit():
         assert route.realtime_required is True
         assert route.whole_market_required is True
         assert "research_visibility" in route.execution_target
+
+
+def test_quickscan_route_declares_paid_fugle_only_market_data():
+    route = route_command("Sky 快掃")
+    assert route.whole_market_required
+    assert "Fugle Developer API" in route.notes
+    assert "No MIS price fallback" in route.notes
