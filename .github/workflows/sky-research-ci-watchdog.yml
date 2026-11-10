@@ -5,10 +5,7 @@ on:
     paths:
       - "ops/recovery/**"
       - ".github/workflows/sky-research-ci-watchdog.yml"
-  schedule:
-    # GitHub schedules use UTC; 5min cadence is approximate, not guaranteed.
-    # No timezone conversion needed for a 5min interval.
-    - cron: "*/5 * * * *"
+  # The 24-hour schedule expired. Keep PR tests and manual dispatch.
   workflow_dispatch:
 
 permissions:
