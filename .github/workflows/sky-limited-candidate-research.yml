@@ -11,10 +11,11 @@ on:
       - "research/limited_candidate_scanner.py"
       - ".github/workflows/sky-limited-candidate-research.yml"
   workflow_dispatch:
-  schedule:
-    # 09:20 Asia/Taipei weekdays; independent read-only limited scope research.
-    # Actual GitHub schedule start time may be delayed.
-    - cron: "20 1 * * 1-5"
+  # PAUSED on 2026-11-10 by user request: formerly scheduled trigger.
+  # schedule:
+  # # 09:20 Asia/Taipei weekdays; independent read-only limited scope research.
+  # # Actual GitHub schedule start time may be delayed.
+  # - cron: "20 1 * * 1-5"
 permissions:
   contents: read
 concurrency:
