@@ -76,3 +76,32 @@ def test_reaching_target_does_not_allow_add():
     decision = evaluate_position(case)
     assert decision.state == "TAKE_PROFIT"
     assert decision.add_allowed is False
+
+def test_paper_only_does_not_require_broker_account():
+    from src.execution_engine import ExecutionCostPolicy
+    from src.cost_profiles import USER_CASH_DAYTRADE_20261022
+    cost = USER_CASH_DAYTRADE_20261022.to_execution_policy(
+        entry_slippage_bps=5, exit_slippage_bps=5, spread_bps=10,
+        liquidity_penalty_bps=2, enforce_gate=True)
+    paper_ledger = {"mode": "PAPER_ONLY", "daily_realized_net_pnl_twd": 0,
+                    "consecutive_stops": 0, "open_positions": 0,
+                    "open_stop_risk_twd": 0}
+    ctx = {"mode": "PAPER_ONLY", "paper_ledger": paper_ledger,
+           "account_equity": 500000, "daily_pnl": 0, "open_risk": 0,
+           "concurrent_positions": 0, "consecutive_losses": 0,
+           "execution_policy": cost}
+    result = evaluate_candidate({"entry": 50, "stop": 49, "target": 53}, ctx)
+    assert result["status"] == "ALLOW"
+    assert result["portfolio_allowed"] is True
+
+
+def test_paper_only_missing_or_mismatched_ledger_fails_closed():
+    from src.execution_engine import ExecutionCostPolicy
+    ctx = {"mode": "PAPER_ONLY", "account_equity": 500000, "daily_pnl": 0,
+           "open_risk": 0, "concurrent_positions": 0, "consecutive_losses": 0,
+           "execution_policy": ExecutionCostPolicy()}
+    assert evaluate_candidate({"entry": 50, "stop": 49, "target": 53}, ctx)["recommended_shares"] == 0
+    ctx["paper_ledger"] = {"mode": "PAPER_ONLY", "daily_realized_net_pnl_twd": -10000,
+                           "consecutive_stops": 0, "open_positions": 0,
+                           "open_stop_risk_twd": 0}
+    assert evaluate_candidate({"entry": 50, "stop": 49, "target": 53}, ctx)["status"] == "RISK_INPUT_REQUIRED"
