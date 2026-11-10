@@ -97,7 +97,10 @@ def build(stage1, stage2, stage3):
         avg_price = micro.get("average_price") if verified_quote else None
         vwap_source_audit = review_quote_vwap_evidence(micro if verified_quote else {})
         cost_source_audit = review_cost_evidence()
-        vwap_certified = bool(causal_verified and candle.get("avg_price_is_certified_vwap") is True)
+        # Never accept a source flag as formal VWAP certification. The independent
+        # numerator / denominator, time-causal execution, and official unit
+        # contract must be validated separately and reviewed by W0/P0-G.
+        vwap_certified = False
         # Formal P0-R cannot be checked from synthetic zero holdings. Call only
         # with absent price levels, forcing the canonical risk engine to block.
         risk = evaluate_trade(
