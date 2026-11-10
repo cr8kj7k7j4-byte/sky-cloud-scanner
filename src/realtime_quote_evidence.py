@@ -7,6 +7,7 @@ confirmed same-day executed trade.
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from math import isfinite
 from zoneinfo import ZoneInfo
 
 TPE = ZoneInfo("Asia/Taipei")
@@ -53,11 +54,11 @@ def fugle_executed_trade(quote, now=None, *, max_age_seconds=120):
         raw = quote.get("lastPrice")
     try:
         price = float(raw)
-        if price <= 0:
+        if not isfinite(price) or price <= 0:
             raise ValueError()
     except (TypeError, ValueError):
         return None, None, "MISSING_EXECUTED_LAST_PRICE"
-    ts = timestamp_tpe(trade.get("time") or quote.get("closeTime"))
+    ts = timestamp_tpe(trade.get("time"))  # closeTime/lastUpdated are not execution timestamps
     if ts is None:
         return None, None, "MISSING_EXECUTED_TRADE_TIME"
     if quote.get("date") != now.date().isoformat() or ts.date() != now.date():
@@ -147,7 +148,7 @@ def validate_whole_market_rows(universe, rows, now=None, *, min_coverage_pct=80.
                 reference_price = float(row.get("last"))
             except (ValueError, TypeError):
                 reference_price = 0.0
-            if (reference_price > 0 and str(row.get("quote_date") or "") == now.date().isoformat()
+            if (isfinite(reference_price) and reference_price > 0 and str(row.get("quote_date") or "") == now.date().isoformat()
                     and row.get("isTrial") is not True):
                 snapshot_reference[symbol] = row
             ts = timestamp_tpe(row.get("last_trade_timestamp"))
@@ -157,7 +158,7 @@ def validate_whole_market_rows(universe, rows, now=None, *, min_coverage_pct=80.
                 price = 0.0
             age = (now - ts).total_seconds() if ts else None
             valid = (
-                price > 0 and ts is not None
+                isfinite(price) and price > 0 and row.get("isTrial") is not True and ts is not None
                 and str(row.get("quote_date") or "") == now.date().isoformat()
                 and ts.date() == now.date()
                 and age is not None and -30 <= age <= max_age_seconds
