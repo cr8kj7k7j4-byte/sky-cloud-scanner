@@ -10,6 +10,11 @@ on:
   workflow_run:
     workflows: ["Sky Chat Bridge Unit Checks"]
     types: [completed]
+  pull_request:
+    paths:
+      - 'scripts/sky_governed_auto_repair.py'
+      - 'tests/test_sky_governed_auto_repair.py'
+      - '.github/workflows/sky-governed-auto-repair.yml'
   push:
     branches: [main]
     paths:
@@ -18,14 +23,35 @@ on:
       - '.github/workflows/sky-governed-auto-repair.yml'
 # IMPORTANT: no cron and no paid market data. Prior user-requested pause remains.
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
   actions: read
 concurrency:
   group: sky-governed-auto-repair
   cancel-in-progress: false
 jobs:
+  security-contract-tests:
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify event SHA, fork, replay and no-write guards without credentials
+        run: |
+          python -m py_compile scripts/sky_governed_auto_repair.py
+          python -m unittest tests.test_sky_governed_auto_repair -v
   governed-repair:
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: read
     runs-on: ubuntu-latest
     timeout-minutes: 6
     env:

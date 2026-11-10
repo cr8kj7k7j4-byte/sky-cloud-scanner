@@ -57,6 +57,7 @@ class Github:
     def __init__(self, repo: str, token: str):
         if not token or not repo or "/" not in repo:
             raise ValueError("GITHUB_AUTH_OR_REPO_MISSING")
+        self.repo = repo
         self.base = "https://api.github.com/repos/" + repo
         self.headers = {"Authorization": "Bearer " + token,
                         "Accept": "application/vnd.github+json",
@@ -73,7 +74,7 @@ class Github:
             return json.loads(b.decode("utf-8")) if b else {}
 
 
-def run(api: Github, *, allow_write: bool, event_name: str) -> dict:
+def run(api: Github, *, allow_write: bool, event_name: str, expected_sha: str | None = None) -> dict:
     report = {"schema": "SKY_GOVERNED_AUTO_REPAIR_V1",
               "checked_at_utc": datetime.now(timezone.utc).isoformat(),
               "trigger": event_name, "mode": "SAFE_PATCH" if allow_write else "DIAGNOSE_ONLY",
@@ -88,10 +89,16 @@ def run(api: Github, *, allow_write: bool, event_name: str) -> dict:
     head = pr["head"]
     sha = head["sha"]
     report["target_sha"] = sha
+    if expected_sha is not None and (not expected_sha or sha != expected_sha):
+        report["blockers"].append("TRIGGER_SHA_NOT_CURRENT_PR_HEAD")
+        return report
+    if (head.get("repo") or {}).get("full_name") != api.repo:
+        report["blockers"].append("TARGET_REPOSITORY_NOT_TRUSTED")
+        return report
     if head["ref"] != TARGET_BRANCH:
         report["blockers"].append("TARGET_BRANCH_CHANGED")
         return report
-    path = "/contents/" + TARGET_FILE + "?ref=" + TARGET_BRANCH
+    path = "/contents/" + TARGET_FILE + "?ref=" + sha
     doc = api.call(path)
     before = base64.b64decode(doc["content"]).decode("utf-8")
     after, fixes = safe_patch(before)
@@ -107,7 +114,13 @@ def run(api: Github, *, allow_write: bool, event_name: str) -> dict:
     if not allow_write:
         report["state"] = "PATCH_READY_FOR_DRAFT_PR"
         return report
-    # Never update production or the target branch.  Draft PR targets research head.
+    # Fail closed if the owning PR advanced after the initial read.  All patch
+    # source bytes above came from immutable SHA, not a mutable branch name.
+    latest = api.call(f"/pulls/{TARGET_PR}")
+    if (latest.get("head") or {}).get("sha") != sha:
+        report["blockers"].append("TARGET_PR_HEAD_CHANGED_BEFORE_PATCH")
+        return report
+    # Never update production or the target branch. Draft PR targets research head.
     branch = "research/sky-auto-repair-pr511-" + sha[:12]
     try:
         api.call("/git/refs", "POST", {"ref": "refs/heads/" + branch, "sha": sha})
@@ -146,11 +159,27 @@ def main() -> int:
             event_file = os.environ.get("GITHUB_EVENT_PATH")
             payload = json.loads(Path(event_file).read_text()) if event_file else {}
             run_info = payload.get("workflow_run", {})
-            if run_info.get("name") != "Sky Chat Bridge Unit Checks" or run_info.get("conclusion") != "failure":
+            linked_prs = run_info.get("pull_requests") or []
+            trusted_failure = (
+                payload.get("action") == "completed"
+                and run_info.get("name") == "Sky Chat Bridge Unit Checks"
+                and (run_info.get("repository") or {}).get("full_name") == api.repo
+                and (run_info.get("head_repository") or {}).get("full_name") == api.repo
+                and run_info.get("event") == "pull_request"
+                and run_info.get("conclusion") == "failure"
+                and type(run_info.get("run_attempt")) is int
+                and run_info["run_attempt"] == 1
+                and len(linked_prs) == 1
+                and linked_prs[0].get("number") == TARGET_PR
+                and bool(run_info.get("head_sha"))
+            )
+            if not trusted_failure:
                 result = {"schema": "SKY_GOVERNED_AUTO_REPAIR_V1", "state": "NOT_APPLICABLE",
-                          "reason": "NOT_TARGET_FREE_CI_FAILURE", "production_eligible": False}
+                          "reason": "UNVERIFIED_TARGET_PR_CI_FAILURE",
+                          "production_eligible": False, "automatic_order": False}
             else:
-                result = run(api, allow_write=write, event_name=event)
+                result = run(api, allow_write=write, event_name=event,
+                             expected_sha=run_info["head_sha"])
         else:
             result = run(api, allow_write=write, event_name=event)
     except Exception as exc:
