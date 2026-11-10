@@ -110,12 +110,12 @@ jobs:
                       "trade_eligible": False,
                       "production_change": False,
                   }
-                  failure.write_text(json.dumps(payload, indent=2) + "\\n", encoding="utf-8")
+                  failure.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
               report.write_text(
-                  "# W1 Trend Persistence prospective: DATA_BLOCKED\\n\\n"
-                  "- Reason: WORKFLOW_UPSTREAM_OR_OUTPUT_BLOCKED\\n"
-                  "- State updated: false\\n- Trade eligible: false\\n"
-                  "- Production change: false\\n",
+                  "# W1 Trend Persistence prospective: DATA_BLOCKED\n\n"
+                  "- Reason: WORKFLOW_UPSTREAM_OR_OUTPUT_BLOCKED\n"
+                  "- State updated: false\n- Trade eligible: false\n"
+                  "- Production change: false\n",
                   encoding="utf-8",
               )
           PY
