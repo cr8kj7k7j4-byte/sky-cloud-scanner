@@ -38,10 +38,11 @@ on:
       - "tests/test_shadow_evidence.py"
       - "tests/test_w4_scan_artifact_eligibility.py"
   workflow_dispatch:
-  schedule:
-    - cron: "30 16 * * 1-5"
-      timezone: "Asia/Taipei"
-
+  # PAUSED on 2026-11-10 by user request: formerly scheduled trigger.
+  # schedule:
+  # - cron: "30 16 * * 1-5"
+  # timezone: "Asia/Taipei"
+  # 
 permissions:
   contents: read
   actions: read
