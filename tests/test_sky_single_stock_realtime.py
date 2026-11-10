@@ -48,6 +48,21 @@ class SingleStockRealtimeTests(unittest.TestCase):
         self.assertIsNone(result["last_price"])
         self.assertFalse(result["execution_authorized"])
 
+    def test_missing_lasttrade_time_keeps_observation_without_live_certification(self):
+        quote, ticker = self.sample()
+        quote.pop("lastTrade")
+        quote["closeTime"] = epoch_us(NOW)
+        with patch("src.sky_single_stock_realtime.fugle.get_quote", return_value=quote), patch(
+            "src.sky_single_stock_realtime.fugle.get_ticker", return_value=ticker
+        ):
+            result = collect("1569", NOW)
+        self.assertEqual(result["status"], "UNVERIFIED_EXECUTION_TIME")
+        self.assertEqual(result["observed_price"], 92.2)
+        self.assertIsNone(result["last_trade_tpe"])
+        self.assertFalse(result["executed_trade_verified"])
+        self.assertFalse(result["execution_authorized"])
+        self.assertFalse(result["live_order_enabled"])
+
     def test_stale_quote_fail_closed(self):
         quote, ticker = self.sample(minutes=5)
         with patch("src.sky_single_stock_realtime.fugle.get_quote", return_value=quote), patch(
