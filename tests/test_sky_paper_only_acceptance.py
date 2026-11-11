@@ -82,6 +82,33 @@ class PaperOnlyAcceptanceTest(unittest.TestCase):
         self.assertEqual(result["schedule_reliability_verdict"], "INSUFFICIENT_DATA")
         self.assertFalse(result["production_eligible"])
 
+    def test_paper_performance_needs_ledger_cost_and_independent_sources(self):
+        ledger = {
+            "reconciled": True, "paper_fill_count": 1,
+            "paper_cost_arithmetic_reconciled": True,
+        }
+        signal = {"verified_github_provenance": {"github_metadata_verified": True}}
+        market = {"source_artifact_verified": True}
+        result = audit_status({}, paper_readback=ledger,
+                              signal_source=signal, market_source=market)
+        self.assertTrue(result["paper_fills_provided"])
+        self.assertTrue(result["paper_after_cost_performance_verified"])
+        self.assertEqual(result["paper_performance_verdict"],
+                         "VERIFIED_PAPER_ESTIMATE_RESEARCH_ONLY")
+        self.assertFalse(result["production_eligible"])
+        for bad_signal, bad_market, bad_ledger in (
+            ({}, market, ledger),
+            (signal, {}, ledger),
+            (signal, market, {**ledger, "paper_cost_arithmetic_reconciled": False}),
+            (signal, market, {**ledger, "reconciled": False}),
+            (signal, market, {**ledger, "paper_fill_count": 0}),
+        ):
+            with self.subTest(signal=bad_signal, market=bad_market, ledger=bad_ledger):
+                bad = audit_status({}, paper_readback=bad_ledger,
+                                   signal_source=bad_signal, market_source=bad_market)
+                self.assertFalse(bad["paper_after_cost_performance_verified"])
+                self.assertEqual(bad["paper_performance_verdict"], "INSUFFICIENT_DATA")
+
     def test_invalid_timestamp_keeps_unverified(self):
         self.assertFalse(audit_status({"data_timestamp": "not-a-time"})["market_data_timestamp_valid"])
 
