@@ -14,6 +14,7 @@ on:
       - 'research/fugle_market_quality_audit.py'
       - 'src/sky_fugle_stage2_probe.py'
       - 'tests/test_sky_fugle_paid_http_atomic_boundary.py'
+      - 'tests/test_sky_fugle_direct_http_atomic_paths.py'
       - 'tests/test_sky_fugle_request_identity.py'
       - 'research/sky_paid_fugle_api_inventory.py'
       - 'tests/test_sky_paid_fugle_api_inventory.py'
@@ -46,7 +47,7 @@ jobs:
         run: |
           python -m pip install pyyaml requests
           python -m py_compile research/sky_paid_fugle_api_guard.py
-          python -m unittest tests.test_sky_paid_fugle_api_guard tests.test_sky_paid_fugle_api_inventory tests.test_sky_fugle_request_identity tests.test_sky_fugle_atomic_ref_claim tests.test_sky_fugle_paid_http_atomic_boundary -v
+          python -m unittest tests.test_sky_paid_fugle_api_guard tests.test_sky_paid_fugle_api_inventory tests.test_sky_fugle_request_identity tests.test_sky_fugle_atomic_ref_claim tests.test_sky_fugle_paid_http_atomic_boundary tests.test_sky_fugle_direct_http_atomic_paths -v
       - name: Verify nine paid entrypoints share a guard and refuse unverified claims
         run: |
           python - <<'PY'
