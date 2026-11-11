@@ -71,6 +71,21 @@ class SelectedQuoteAtomicClaimTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "REMOTE_ATOMIC_CLAIM_READBACK_MISMATCH"):
                     verify_remote_claims(receipt, git=lambda *args, **kwargs: Mock(stdout=stdout))
 
+    def test_single_stock_paid_job_is_read_only_and_manual(self):
+        from pathlib import Path
+        source = (Path(__file__).resolve().parents[1] /
+                  ".github/workflows/sky-single-stock-realtime.yml").read_text()
+        claim, paid = source.split("  quote:\n", 1)
+        self.assertIn("if: github.event_name == 'workflow_dispatch'", claim)
+        self.assertIn("contents: write", claim)
+        self.assertIn("needs: atomic_quote_claim", paid)
+        self.assertIn("github.event_name == 'workflow_dispatch' && needs.atomic_quote_claim.result == 'success'", paid)
+        self.assertIn("contents: read", paid)
+        self.assertNotIn("contents: write", paid)
+        self.assertIn("sky_fugle_selected_quote_atomic_claim --verify", paid)
+        self.assertIn("actions/download-artifact@v4", paid)
+        self.assertIn("steps.verify_claim.outcome == 'success'", paid)
+
     def test_paid_job_has_no_write_permissions(self):
         from pathlib import Path
         source = (Path(__file__).resolve().parents[1] /
