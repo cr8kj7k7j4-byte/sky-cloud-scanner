@@ -108,7 +108,9 @@ def main():
             receipt, provenance = _receipt_from_github(
                 os.environ.get("GITHUB_REPOSITORY", ""), run_id)
             status, payload = join(
-                bars, receipt, external_signal_provenance_verified=True)
+                bars, receipt, external_signal_provenance_verified=True,
+                external_bar_provenance_verified=(
+                    bars.get("github_bar_source_verified") is True))
             status["verified_github_provenance"] = provenance
             if payload is not None and status.get("reconciled") is True:
                 target = Path("output/sky_paper_runtime/completed_market_evidence.json")
