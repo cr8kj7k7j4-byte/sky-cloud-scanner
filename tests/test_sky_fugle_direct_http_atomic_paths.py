@@ -17,6 +17,22 @@ class DirectFugleAtomicGateTests(unittest.TestCase):
         mock_http.assert_not_called()
         self.assertEqual(gate.call_count, 1)
 
+    def test_bounded_429_retry_reuses_single_atomic_claim(self):
+        from research.download_pit_universe_intraday import _request_chunk
+        rejected = Mock(status_code=429, headers={"Retry-After": "0"})
+        accepted = Mock(status_code=200, headers={})
+        accepted.json.return_value = {"data": [{"date": "2026-11-02T09:00:00+08:00"}]}
+        http = Mock(side_effect=[rejected, accepted])
+        with patch("research.download_pit_universe_intraday.guard_fugle_request") as gate:
+            with patch("research.download_pit_universe_intraday.headers",
+                       return_value={"X-API-KEY": "MOCK_ONLY"}):
+                data = _request_chunk(
+                    "2330", date(2026, 11, 2), date(2026, 11, 3),
+                    request_get=http, sleep_fn=lambda _: None)
+        self.assertEqual(len(data), 1)
+        self.assertEqual(gate.call_count, 1)
+        self.assertEqual(http.call_count, 2)
+
     def test_stage2_duplicate_never_calls_http(self):
         from src.sky_fugle_stage2_probe import run
         mock_http = Mock()
