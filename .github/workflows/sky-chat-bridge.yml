@@ -58,7 +58,7 @@ jobs:
           }
           validate_request(payload)
           Path("scan_requests/chat/latest.json").write_text(
-              json.dumps(payload, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8"
+              json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
           )
           print(json.dumps({"request_id": request_id, "command": payload["command"],
                             "read_only_no_orders": True}, ensure_ascii=False))
