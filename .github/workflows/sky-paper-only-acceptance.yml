@@ -7,6 +7,8 @@ on:
       - "tests/test_sky_w0_shared_blocker_audit.py"
       - "tests/test_sky_paper_only_acceptance.py"
       - "research/sky_paper_trade_trace.py"
+      - "research/sky_p0r_paper_ledger_readback.py"
+      - "tests/test_sky_p0r_paper_ledger_readback.py"
       - "research/sky_brokerless_contract_audit.py"
       - "tests/test_sky_brokerless_contract_audit.py"
       - "research/sky_candidate_e2e_chain.py"
@@ -32,6 +34,10 @@ jobs:
         run: python -m unittest discover -s tests -p test_sky_paper_only_acceptance.py -v
       - name: Trace hypothetical paper entries and fail missing cost evidence
         run: python -m unittest discover -s tests -p test_sky_paper_trade_trace.py -v
+      - name: Validate real paper-ledger readback contract without inventing events
+        run: python -m unittest discover -s tests -p test_sky_p0r_paper_ledger_readback.py -v
+      - name: Read back existing simulator evidence or produce explicit HOLD
+        run: python -m research.sky_p0r_paper_ledger_readback
       - name: Enforce broker-free research contracts across commands and stages
         run: python -m unittest discover -s tests -p test_sky_brokerless_contract_audit.py -v
       - name: Inventory all tracked models commands rules and workflows
@@ -51,6 +57,7 @@ jobs:
           name: sky-paper-only-acceptance-${{ github.run_id }}
           path: |
             output/sky_paper_only_acceptance/
+            output/sky_p0r_paper_ledger_readback/
             output/sky_brokerless_contract/
             output/w0_shared_blocker_audit/
           if-no-files-found: error
