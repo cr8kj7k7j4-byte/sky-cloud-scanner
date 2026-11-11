@@ -4,7 +4,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from research.sky_paid_fugle_api_guard import (
-    artifact_name, check_reservation, prepare, slots,
+    artifact_name, check_reservation, prepare, slots, workflow_request_scope,
 )
 
 
@@ -53,6 +53,21 @@ class FugleGuardTests(unittest.TestCase):
     def test_naive_timestamp_rejected(self):
         with self.assertRaisesRegex(ValueError, "NAIVE_TIMESTAMP"):
             slots(datetime(2026, 11, 11))
+
+    def test_distinct_inputs_do_not_block_unrelated_requests(self):
+        a = workflow_request_scope("Sky Report", {"inputs": {"symbols": "2330"}})
+        b = workflow_request_scope("Sky Report", {"inputs": {"symbols": "2317"}})
+        c = workflow_request_scope("Other Workflow", {"inputs": {"symbols": "2330"}})
+        self.assertNotEqual(a, b)
+        self.assertNotEqual(a, c)
+        self.assertEqual(a, workflow_request_scope("Sky Report", {"inputs": {"symbols": "2330"}}))
+        self.assertTrue(len(a) < 128)
+
+    def test_invalid_workflow_context_blocks_paid_requests(self):
+        with self.assertRaises(ValueError):
+            workflow_request_scope("", {"inputs": {}})
+        with self.assertRaises(ValueError):
+            workflow_request_scope("Sky", {"inputs": "not a mapping"})
 
     def test_receipt_without_secrets_or_market_data(self):
         with TemporaryDirectory() as td:
