@@ -18,6 +18,7 @@ def payload():
     status = {
         "schema": "SKY_CHAT_SCAN_STATUS_V1",
         "scan_id": RUN, "request_id": REQ,
+        "head_sha": SHA,
         "run_url": "https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/" + RUN,
         "completed_at_utc": (NOW - timedelta(seconds=20)).isoformat(),
         "data_timestamp": (NOW - timedelta(seconds=40)).isoformat(),
@@ -61,6 +62,14 @@ class ArtifactReadbackTests(unittest.TestCase):
                 verify_download(Path(td), run_id=RUN, request_id=REQ,
                                 head_sha=SHA, expected_sha="b" * 40,
                                 artifact_id="1", now=NOW)
+
+    def test_downloaded_status_wrong_sha_rejected(self):
+        with self.assertRaisesRegex(ValueError, "DOWNLOADED_STATUS_SHA_MISMATCH"):
+            self.check(lambda status, report: status.update(head_sha="b" * 40))
+
+    def test_downloaded_status_missing_sha_rejected(self):
+        with self.assertRaisesRegex(ValueError, "DOWNLOADED_STATUS_SHA_MISMATCH"):
+            self.check(lambda status, report: status.pop("head_sha"))
 
     def test_wrong_request_rejected(self):
         with self.assertRaisesRegex(ValueError, "REQUEST_ID_MISMATCH"):
