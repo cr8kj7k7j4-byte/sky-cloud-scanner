@@ -40,6 +40,7 @@ def replay(events, *, run_id, scan_id, observed_at, source_artifact,
     orders, positions, fills, rejections, seen = {}, {}, [], [], set()
     last = None
     stops = 0
+    realized_net = 0.0
     for event in events:
         if not isinstance(event, dict):
             raise ValueError("INVALID_EVENT")
@@ -96,7 +97,8 @@ def replay(events, *, run_id, scan_id, observed_at, source_artifact,
                 heat = sum((p["entry_price"]-p["original_stop"])*p["shares"]
                            for p in positions.values())
                 if (price*shares > 100000 or risk > 5000 or heat+risk > 15000
-                    or len(positions) >= 3 or cash < price*shares+fee or stops >= 2):
+                    or len(positions) >= 3 or cash < price*shares+fee or stops >= 2
+                    or realized_net <= -10000):
                     raise ValueError("PAPER_RISK_CAPACITY_BLOCK")
                 cash -= price*shares+fee
                 positions[symbol] = {"symbol": symbol, "entry_price": price,
@@ -126,6 +128,8 @@ def replay(events, *, run_id, scan_id, observed_at, source_artifact,
                 if not evaluate_paper_journal([row])["paper_cost_arithmetic_reconciled"]:
                     raise ValueError("INVALID_COST_JOURNAL")
                 fills.append(row)
+                single = evaluate_paper_journal([row])["paper_net_pnl_estimate_twd"]
+                realized_net += single
                 cash += price*shares-fee-sum(costs.values())
                 stops = stops + 1 if event["reason"] == "STOP" else 0
                 del positions[symbol]
@@ -137,6 +141,8 @@ def replay(events, *, run_id, scan_id, observed_at, source_artifact,
     if fills and pnl is None:
         raise ValueError("INCOMPLETE_JOURNAL")
     pnl = pnl if pnl is not None else 0.0
+    if abs(pnl - realized_net) > 0.01:
+        raise ValueError("PAPER_LEDGER_PNL_MISMATCH")
     open_risk = sum((p["entry_price"]-p["original_stop"])*p["shares"] for p in positions.values())
     snapshot = {"mode": "PAPER_ONLY", "run_id": run_id, "scan_id": scan_id,
         "observed_at": observed.isoformat(), "source_artifact": source_artifact,
