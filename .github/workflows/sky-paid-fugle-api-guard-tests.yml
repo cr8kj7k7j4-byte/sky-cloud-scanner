@@ -38,7 +38,7 @@ jobs:
           python-version: '3.12'
       - name: Syntax and isolated guard contract tests (NO FUGLE SECRET)
         run: |
-          python -m pip install pyyaml
+          python -m pip install pyyaml requests
           python -m py_compile research/sky_paid_fugle_api_guard.py
           python -m unittest tests.test_sky_paid_fugle_api_guard tests.test_sky_paid_fugle_api_inventory tests.test_sky_fugle_request_identity tests.test_sky_fugle_atomic_ref_claim tests.test_sky_fugle_paid_http_atomic_boundary -v
       - name: Verify nine paid entrypoints share a guard and refuse unverified claims
