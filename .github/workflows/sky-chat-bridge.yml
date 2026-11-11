@@ -38,13 +38,17 @@ jobs:
           from pathlib import Path
 
           p = Path("output/chat_bridge/latest.json")
+          bridge_outcome = os.getenv("BRIDGE_OUTCOME", "unknown")
           failure = {
               "schema": "SKY_CHAT_SCAN_STATUS_V1",
-              "status": "FAILED_NO_VALID_STATUS",
+              "status": ("DATA_BLOCKED_BRIDGE_CANCELLED" if bridge_outcome == "cancelled"
+                         else "FAILED_NO_VALID_STATUS"),
               "scan_id": os.getenv("GITHUB_RUN_ID"),
+              "bridge_step_outcome": bridge_outcome,
               "production_eligible": False,
               "automatic_order": False,
-              "block_reason": "BRIDGE_STATUS_MISSING_OR_INVALID",
+              "block_reason": ("BRIDGE_JOB_CANCELLED" if bridge_outcome == "cancelled"
+                               else "BRIDGE_STATUS_MISSING_OR_INVALID"),
           }
           valid = False
           if p.exists():
@@ -71,11 +75,14 @@ jobs:
                   data = failure
           else:
               data = failure
-          if not valid:
-              # Preserve an explicit diagnostic even when the bridge crashed
-              # before writing one; do not attach old successful scan files.
-              if isinstance(data, dict) and data.get("status") == "REPORT_READY_RESEARCH_ONLY":
+          if not valid or bridge_outcome != "success":
+              # A cancelled bridge must not reuse a partial/old success status.
+              # Even if the runner executes always() cleanup, report NO_TRADE.
+              if bridge_outcome == "cancelled":
                   data = failure
+              elif isinstance(data, dict) and data.get("status") == "REPORT_READY_RESEARCH_ONLY":
+                  data = failure
+              data["bridge_step_outcome"] = bridge_outcome
               data["production_eligible"] = False
               data["automatic_order"] = False
               p.parent.mkdir(parents=True, exist_ok=True)
