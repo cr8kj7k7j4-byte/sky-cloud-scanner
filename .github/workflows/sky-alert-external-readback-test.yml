@@ -136,6 +136,7 @@ jobs:
         env:
           HISTORICAL_OUTCOME: ${{ steps.historical_download.outcome }}
           BRIDGE_OUTCOME: ${{ steps.bridge_download.outcome }}
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           mkdir -p output/sky_alert_external_readback
           python - <<'PY'
@@ -144,7 +145,7 @@ jobs:
           good=os.environ.get('HISTORICAL_OUTCOME')=='success' and os.environ.get('BRIDGE_OUTCOME')=='success'
           receipt={
             'schema':'SKY_ALERT_EXTERNAL_READBACK_DEPENDENCY_V1',
-            'head_sha':os.environ['GITHUB_SHA'],
+            'head_sha':os.environ['EXPECTED_HEAD_SHA'],
             'github_run_id':os.environ['GITHUB_RUN_ID'],
             'historical_artifact_download':os.environ.get('HISTORICAL_OUTCOME'),
             'bridge_artifact_download':os.environ.get('BRIDGE_OUTCOME'),
@@ -164,6 +165,18 @@ jobs:
           path: output/sky_alert_external_readback/
           if-no-files-found: error
           retention-days: 30
+
+      - name: Reject missing dependency after diagnostic evidence upload
+        if: always()
+        shell: bash
+        env:
+          HISTORICAL_OUTCOME: ${{ steps.historical_download.outcome }}
+          BRIDGE_OUTCOME: ${{ steps.bridge_download.outcome }}
+        run: |
+          if [ "$HISTORICAL_OUTCOME" != "success" ] || [ "$BRIDGE_OUTCOME" != "success" ]; then
+            echo "::error::BLOCKED_DEPENDENCY: GitHub Artifact API unavailable/rate limited. Diagnostic receipt uploaded; no acceptance."
+            exit 1
+          fi
 
   # Proves a second job can independently download and interpret the artifact
   # produced by the first job, at this same PR HEAD and Actions run.
