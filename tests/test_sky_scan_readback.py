@@ -47,10 +47,11 @@ class ReadbackContracts(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "STALE_RECEIPT"):
             check(x)
 
-    def test_old_snapshot_capture_is_never_trade_verified(self):
+    def test_old_snapshot_capture_fails_closed(self):
         x = good()
         x["data_timestamp"] = (NOW - timedelta(days=1)).isoformat()
-        self.assertFalse(check(x)["snapshot_is_executed_trade_time"])
+        with self.assertRaisesRegex(ValueError, "STALE_SNAPSHOT_CAPTURE"):
+            check(x)
 
     def test_fail_closed_for_wrong_provenance(self):
         for key, value in (("scan_id", "older"), ("request_id", "other"),
