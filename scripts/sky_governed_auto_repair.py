@@ -17,6 +17,13 @@ TARGET_PR = 511
 TARGET_BRANCH = "research/fugle-snapshot-diagnostics-20261110"
 TARGET_FILE = ".github/workflows/sky-snapshot-integrity-research-acceptance.yml"
 OUTPUT = Path("output/sky_governed_auto_repair/latest.json")
+# Dedicated non-market, research-only fixture. This branch never targets main
+# for auto repair. It is not a second auto-repair engine.
+SMOKE_BRANCH = "research/sky-governed-smoke-acceptance-20261111"
+SMOKE_FILE = "research/sky_governed_auto_repair_smoke_fixture.txt"
+SMOKE_BROKEN = "SKY_GOVERNED_SMOKE_BROKEN_V1\n"
+SMOKE_FIXED = "SKY_GOVERNED_SMOKE_FIXED_V1\n"
+
 # The exact two known-safe changes are allowed, nothing else.
 OLD = """SHA=$(gh api "$TARGET" --jq '.sha' 2>/dev/null || true)"""
 NEW = """SHA=$(gh api "$TARGET?ref=research/fugle-snapshot-diagnostics-20261110" --jq '.sha' 2>/dev/null || true)"""
@@ -146,6 +153,118 @@ def run(api: Github, *, allow_write: bool, event_name: str, expected_sha: str | 
     return report
 
 
+
+def run_smoke(api: Github, *, expected_sha: str, allow_write: bool,
+              linked_prs: list) -> dict:
+    """Repair one isolated CI smoke fixture; no market, PR #511 or main writes."""
+    result = {
+        "schema": "SKY_GOVERNED_AUTO_REPAIR_V1",
+        "mode": "BOUNDED_SMOKE_E2E",
+        "trigger": "workflow_run",
+        "research_only": True, "production_eligible": False,
+        "automatic_order": False, "automatic_merge": False,
+        "paid_api_calls": 0, "state": "HOLD", "blockers": [],
+        "candidate_fixes": [], "applied_fixes": [],
+        "source_sha": expected_sha,
+    }
+    if not expected_sha or len(expected_sha) != 40:
+        result["blockers"].append("INVALID_SMOKE_SHA")
+        return result
+    # Query exactly one open PR for a fixed, non-production branch.
+    owner = api.repo.partition("/")[0]
+    prs = api.call("/pulls?state=open&head=" + owner + ":" + SMOKE_BRANCH + "&per_page=10")
+    if not isinstance(prs, list) or len(prs) != 1:
+        result["blockers"].append("SMOKE_PR_NOT_UNIQUE")
+        return result
+    pr = prs[0]
+    pr_number = pr.get("number")
+    head = pr.get("head") or {}
+    if (pr.get("state") != "open" or not pr.get("draft")
+            or (pr.get("base") or {}).get("ref") != "main"
+            or head.get("ref") != SMOKE_BRANCH
+            or (head.get("repo") or {}).get("full_name") != api.repo
+            or head.get("sha") != expected_sha
+            or not isinstance(pr_number, int)
+            or (linked_prs and (len(linked_prs) != 1
+                                or linked_prs[0].get("number") != pr_number))):
+        result["blockers"].append("SMOKE_PR_IDENTITY_OR_SHA_INVALID")
+        return result
+    result["target_pr"] = pr_number
+    result["target_sha"] = expected_sha
+    doc = api.call("/contents/" + SMOKE_FILE + "?ref=" + expected_sha)
+    raw = base64.b64decode(doc["content"]).decode("utf-8")
+    if raw == SMOKE_FIXED:
+        result["blockers"].append("NO_SMOKE_REPAIR_NEEDED")
+        return result
+    if raw != SMOKE_BROKEN:
+        result["blockers"].append("UNAPPROVED_SMOKE_CONTENT")
+        return result
+    result["candidate_fixes"] = ["FIX_ISOLATED_SMOKE_FIXTURE_ONLY"]
+    result["self_review"] = {
+        "status": "PASS", "exact_allowlist": True,
+        "production_eligible": False, "automatic_merge": False,
+    }
+    if not allow_write:
+        result["state"] = "SMOKE_PATCH_READY_NO_WRITE"
+        return result
+    # Fresh SHA before any write; unrelated branch changes fail closed.
+    current = api.call("/pulls/" + str(pr_number))
+    if ((current.get("head") or {}).get("sha") != expected_sha
+            or not current.get("draft")
+            or current.get("state") != "open"):
+        result["blockers"].append("SMOKE_PR_CHANGED_BEFORE_WRITE")
+        return result
+    repair_branch = "research/sky-governed-smoke-fixed-" + expected_sha[:12]
+    try:
+        api.call("/git/refs", "POST",
+                 {"ref": "refs/heads/" + repair_branch, "sha": expected_sha})
+    except urllib.error.HTTPError as exc:
+        if exc.code == 422:
+            result["blockers"].append("SMOKE_BRANCH_EXISTS_NO_REPEAT")
+            return result
+        raise
+    api.call("/contents/" + SMOKE_FILE, "PUT", {
+        "message": "test: deterministic smoke fixture safe correction [no trade]",
+        "content": base64.b64encode(SMOKE_FIXED.encode("utf-8")).decode("ascii"),
+        "sha": doc["sha"], "branch": repair_branch,
+    })
+    result["repair_branch"] = repair_branch
+    try:
+        created = api.call("/pulls", "POST", {
+        "title": "DRAFT: governed research-only smoke fixture repair",
+        "head": repair_branch, "base": SMOKE_BRANCH, "draft": True,
+        "body": ("Non-market, deterministic one-file smoke acceptance only; "
+                 "source SHA " + expected_sha + ". Run downstream CI and read "
+                 "GitHub artifact before considering E2E verified. No auto-merge."),
+        })
+    except urllib.error.HTTPError as exc:
+        if exc.code == 403:
+            result["blockers"].append("GITHUB_TOKEN_DRAFT_PR_PERMISSION_403")
+            result["state"] = "HOLD_DRAFT_PR_PERMISSION"
+            result["applied_fixes"] = ["FIX_ISOLATED_SMOKE_FIXTURE_ONLY"]
+            return result
+        raise
+    result["repair_pr"] = created.get("html_url")
+    result["repair_pr_number"] = created.get("number")
+    result["applied_fixes"] = ["FIX_ISOLATED_SMOKE_FIXTURE_ONLY"]
+    # GITHUB_TOKEN-created PRs do not cause automatic pull_request CI.
+    # workflow_dispatch is the GitHub-supported explicit exception; dispatch
+    # only this free offline contract workflow on the exact repaired branch.
+    try:
+        api.call("/actions/workflows/sky-chat-bridge-tests.yml/dispatches",
+                 "POST", {"ref": repair_branch})
+        result["downstream_ci_dispatch"] = "REQUESTED"
+    except urllib.error.HTTPError as exc:
+        if exc.code in (403, 404, 422):
+            result["blockers"].append("DOWNSTREAM_DISPATCH_HTTP_" + str(exc.code))
+            result["downstream_ci_dispatch"] = "BLOCKED"
+            result["state"] = "DRAFT_SMOKE_REPAIR_CREATED_CI_DISPATCH_BLOCKED"
+            return result
+        raise
+    result["state"] = "DRAFT_SMOKE_REPAIR_CREATED_CI_DISPATCHED_AWAITING_PROOF"
+    return result
+
+
 def main() -> int:
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     event = os.environ.get("GITHUB_EVENT_NAME", "manual")
@@ -160,6 +279,14 @@ def main() -> int:
             payload = json.loads(Path(event_file).read_text()) if event_file else {}
             run_info = payload.get("workflow_run", {})
             linked_prs = run_info.get("pull_requests") or []
+            # GitHub may return pull_requests=[] for genuine pull_request runs.
+            # In that case accept *only* the exact current trusted PR head SHA;
+            # run() checks SHA, repository, draft state and branch before writes.
+            # Never accept ambiguous or non-target linked PRs.
+            linked_pr_identity_ok = (
+                not linked_prs
+                or (len(linked_prs) == 1 and linked_prs[0].get("number") == TARGET_PR)
+            )
             trusted_failure = (
                 payload.get("action") == "completed"
                 and run_info.get("name") == "Sky Chat Bridge Unit Checks"
@@ -169,14 +296,23 @@ def main() -> int:
                 and run_info.get("conclusion") == "failure"
                 and type(run_info.get("run_attempt")) is int
                 and run_info["run_attempt"] == 1
-                and len(linked_prs) == 1
-                and linked_prs[0].get("number") == TARGET_PR
+                and (run_info.get("head_branch") in (TARGET_BRANCH, SMOKE_BRANCH))
+                and str(run_info.get("path") or "").split("@", 1)[0] == ".github/workflows/sky-chat-bridge-tests.yml"
                 and bool(run_info.get("head_sha"))
             )
+            target_branch = run_info.get("head_branch")
+            if target_branch == TARGET_BRANCH:
+                trusted_failure = trusted_failure and linked_pr_identity_ok
+            elif target_branch == SMOKE_BRANCH:
+                trusted_failure = trusted_failure and len(linked_prs) <= 1
             if not trusted_failure:
                 result = {"schema": "SKY_GOVERNED_AUTO_REPAIR_V1", "state": "NOT_APPLICABLE",
                           "reason": "UNVERIFIED_TARGET_PR_CI_FAILURE",
                           "production_eligible": False, "automatic_order": False}
+            elif target_branch == SMOKE_BRANCH:
+                result = run_smoke(api, allow_write=write,
+                                   expected_sha=run_info["head_sha"],
+                                   linked_prs=linked_prs)
             else:
                 result = run(api, allow_write=write, event_name=event,
                              expected_sha=run_info["head_sha"])
