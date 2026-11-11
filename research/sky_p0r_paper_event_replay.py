@@ -6,6 +6,7 @@ import json
 import math
 from research.sky_paper_trade_trace import evaluate_paper_journal
 from research.sky_p0r_order_gate import evaluate_paper_order
+from src.cost_profiles import USER_CASH_DAYTRADE_20261022
 
 def _at(value):
     if not isinstance(value, str):
@@ -113,6 +114,9 @@ def replay(events, *, run_id, scan_id, observed_at, source_artifact,
                     or len(positions) >= 3 or cash < price*shares+fee or stops >= 2
                     or realized_net <= -10000):
                     raise ValueError("PAPER_RISK_CAPACITY_BLOCK")
+                expected_fee = price * shares * USER_CASH_DAYTRADE_20261022.buy_commission_rate
+                if abs(fee - expected_fee) > 0.1:
+                    raise ValueError("BUY_FEE_PROFILE_MISMATCH")
                 cash -= price*shares+fee
                 positions[symbol] = {"symbol": symbol, "entry_price": price,
                     "original_stop": stop, "shares": int(shares), "entry_time": at.isoformat(),
@@ -130,6 +134,10 @@ def replay(events, *, run_id, scan_id, observed_at, source_artifact,
                     costs[field] = _num(event.get(field))
                     if costs[field] < 0:
                         raise ValueError("NEGATIVE_EXECUTION_COST")
+                profile = USER_CASH_DAYTRADE_20261022
+                if (abs(fee - price*shares*profile.sell_commission_rate) > 0.1 or
+                    abs(costs["sale_tax_twd"] - price*shares*profile.sell_tax_rate) > 0.1):
+                    raise ValueError("SELL_COST_PROFILE_MISMATCH")
                 row = {"paper_trade_id": event_id, "signal_id": p["signal_id"],
                     "market_scan_id": scan_id, "symbol": symbol,
                     "market_data_time": p["market_data_time"],
