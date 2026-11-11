@@ -5,6 +5,12 @@ on:
     branches: [research/fugle-snapshot-diagnostics-20261110]
     paths:
       - 'research/sky_full_universe_information.py'
+      - 'src/sky_chat_bridge.py'
+      - 'src/sky_scan_readback.py'
+      - 'tests/test_sky_scan_readback.py'
+      - 'src/sky_scan_readback.py'
+      - 'tests/test_sky_scan_readback.py'
+      - 'tests/test_sky_chat_bridge.py'
       - 'tests/test_sky_full_universe_information.py'
       - '.github/workflows/sky-chat-bridge-tests.yml'
   pull_request:
@@ -45,6 +51,6 @@ jobs:
       - name: Install tested runtime HTTP dependency
         run: pip install requests
       - name: Syntax-check bridge files
-        run: python -m py_compile research/sky_full_universe_information.py src/sky_chat_bridge.py src/sky_mcp_contract.py research/sky_snapshot_candidates.py src/sky_stage2_candidate_quotes.py src/sky_stage2_deep_quality.py src/sky_v14_ticker_candles_probe.py research/sky_candidate_e2e_chain.py research/sky_stage5_vwap_cost_evidence.py research/sky_stage5_breakout_antichase_evidence.py
+        run: python -m py_compile src/sky_scan_readback.py research/sky_full_universe_information.py src/sky_chat_bridge.py src/sky_mcp_contract.py research/sky_snapshot_candidates.py src/sky_stage2_candidate_quotes.py src/sky_stage2_deep_quality.py src/sky_v14_ticker_candles_probe.py research/sky_candidate_e2e_chain.py research/sky_stage5_vwap_cost_evidence.py research/sky_stage5_breakout_antichase_evidence.py
       - name: Run isolated contracts without paid credentials
-        run: python -m unittest tests.test_sky_full_universe_information tests.test_sky_chat_bridge tests.test_sky_mcp_contract tests.test_sky_snapshot_candidates tests.test_sky_stage2_candidate_quotes tests.test_sky_stage2_deep_quality tests.test_sky_v14_ticker_candles_probe tests.test_sky_candidate_e2e_chain tests.test_sky_stage5_vwap_cost_evidence tests.test_sky_stage5_breakout_antichase_evidence -v
+        run: python -m unittest tests.test_sky_scan_readback tests.test_sky_full_universe_information tests.test_sky_chat_bridge tests.test_sky_mcp_contract tests.test_sky_snapshot_candidates tests.test_sky_stage2_candidate_quotes tests.test_sky_stage2_deep_quality tests.test_sky_v14_ticker_candles_probe tests.test_sky_candidate_e2e_chain tests.test_sky_stage5_vwap_cost_evidence tests.test_sky_stage5_breakout_antichase_evidence -v
