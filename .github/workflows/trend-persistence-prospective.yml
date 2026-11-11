@@ -8,9 +8,10 @@ on:
       - "research/trend_persistence_prospective.py"
       - "tests/test_trend_persistence_prospective.py"
       - ".github/workflows/trend-persistence-prospective.yml"
-  schedule:
-    - cron: "20 6 * * 1-5"
-
+  # PAUSED on 2026-11-10 by user request: formerly scheduled trigger.
+  # schedule:
+  # - cron: "20 6 * * 1-5"
+  # 
 permissions:
   actions: read
   contents: read

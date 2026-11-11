@@ -5,13 +5,14 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/sky-preopen-information-readiness.yml'
-  schedule:
-    # GitHub cron uses UTC. Asia/Taipei UTC+8:
-    # Previous UTC 23:30 -> local 07:30 on the next calendar day.
-    - cron: "30 23 * * 0-4"
-    # Local weekdays 08:00, 08:30, 08:50 and 09:00.
-    - cron: "0,30,50 0 * * 1-5"
-    - cron: "0 1 * * 1-5"
+  # PAUSED on 2026-11-10 by user request: formerly scheduled trigger.
+  # schedule:
+  # # GitHub cron uses UTC. Asia/Taipei UTC+8:
+  # # Previous UTC 23:30 -> local 07:30 on the next calendar day.
+  # - cron: "30 23 * * 0-4"
+  # # Local weekdays 08:00, 08:30, 08:50 and 09:00.
+  # - cron: "0,30,50 0 * * 1-5"
+  # - cron: "0 1 * * 1-5"
 permissions:
   contents: read
   actions: read

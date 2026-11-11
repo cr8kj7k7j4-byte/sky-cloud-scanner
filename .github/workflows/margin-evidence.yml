@@ -5,10 +5,11 @@ on:
       - "research/margin_evidence/**"
       - ".github/workflows/margin-evidence.yml"
   workflow_dispatch:
-  schedule:
-    # Taiwan 23:30; allow postmarket official reports time to publish.
-    - cron: "30 15 * * 1-5"
-
+  # PAUSED on 2026-11-10 by user request: formerly scheduled trigger.
+  # schedule:
+  # # Taiwan 23:30; allow postmarket official reports time to publish.
+  # - cron: "30 15 * * 1-5"
+  # 
 permissions:
   contents: write
 concurrency:

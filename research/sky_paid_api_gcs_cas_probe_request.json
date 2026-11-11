@@ -1,0 +1,13 @@
+{
+  "schema": "SKY_GCS_TWO_RUNNER_RESEARCH_REQUEST_V1",
+  "purpose": "GCS_IF_GENERATION_MATCH_ATOMIC_CAS_TWO_INDEPENDENT_RUNNERS",
+  "one_shot": true,
+  "synthetic": true,
+  "paid_provider_requests": 0,
+  "call_fugle": false,
+  "automatic_order": false,
+  "production_eligible": false,
+  "max_contenders": 2,
+  "allow_remote_state_prefix": "sky/research/paid-api-dedup/cas-acceptance-v1",
+  "initiated_tpe": "2026-11-11"
+}

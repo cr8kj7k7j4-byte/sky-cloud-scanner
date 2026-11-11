@@ -1,0 +1,173 @@
+name: Sky PR511 Repair Watchdog (5m Research Only)
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/sky-pr511-repair-watchdog.yml']
+  # PAUSED on 2026-11-10 by user request: formerly scheduled trigger.
+  # schedule:
+  # - cron: '*/5 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: write
+  pull-requests: write
+concurrency:
+  group: sky-pr511-repair-watchdog
+  cancel-in-progress: false
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TARGET_PR: '511'
+    steps:
+      - name: Check PR, CI and evidence; bounded retry on non-paid contract CI
+        shell: bash
+        run: |
+          python - <<'PY'
+          import base64, json, os, urllib.request, urllib.error
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          repo = os.environ['GITHUB_REPOSITORY']
+          pr_number = int(os.environ['TARGET_PR'])
+          token = os.environ['GH_TOKEN']
+          base = f'https://api.github.com/repos/{repo}'
+          headers = {
+              'Authorization': f'Bearer {token}',
+              'Accept': 'application/vnd.github+json',
+              'X-GitHub-Api-Version': '2022-11-28',
+              'User-Agent': 'Sky-research-repair-watchdog',
+          }
+          def api(path, method='GET', data=None):
+              body = json.dumps(data).encode('utf-8') if data is not None else None
+              request = urllib.request.Request(base + path, headers={
+                  **headers, **({'Content-Type': 'application/json'} if body else {})
+              }, data=body, method=method)
+              with urllib.request.urlopen(request, timeout=18) as response:
+                  raw = response.read()
+              return json.loads(raw) if raw else {}
+
+          now = datetime.now(timezone.utc).isoformat()
+          report = {
+              'schema': 'SKY_PR511_REPAIR_WATCHDOG_V1',
+              'checked_at_utc': now,
+              'pr_number': pr_number,
+              'research_only': True,
+              'production_eligible': False,
+              'automatic_order': False,
+              'paid_api_calls': 0,
+              'actions': [],
+              'blockers': [],
+              'ci': {},
+          }
+          try:
+              pr = api(f'/pulls/{pr_number}')
+              report['pr_open'] = pr.get('state') == 'open'
+              report['pr_draft'] = pr.get('draft')
+              report['pr_merged'] = pr.get('merged', False)
+              sha = pr['head']['sha']
+              report['head_sha'] = sha
+              report['head_branch'] = pr['head']['ref']
+              if pr.get('state') != 'open' or pr.get('merged'):
+                  report['status'] = 'PR_CLOSED_REQUIRES_REVIEW'
+                  report['blockers'].append('PR_CLOSED_OR_MERGED_MANUAL_REVIEW')
+              else:
+                  runs = api(f'/actions/runs?head_sha={sha}&per_page=100').get('workflow_runs', [])
+                  names = (
+                      'Sky Chat Bridge Unit Checks',
+                      'Research Freeze Governance',
+                      'Sky Governance E2E Validation',
+                      'P0-G Validation Consolidation Tests',
+                  )
+                  selected = {}
+                  for item in runs:
+                      name = item.get('name')
+                      if name in names and (name not in selected or item['id'] > selected[name]['id']):
+                          selected[name] = item
+                  for name in names:
+                      item = selected.get(name)
+                      if item:
+                          report['ci'][name] = {
+                              'run_id': item['id'], 'status': item.get('status'),
+                              'conclusion': item.get('conclusion'),
+                              'attempt': item.get('run_attempt'),
+                          }
+                      else:
+                          report['ci'][name] = {'status': 'NOT_FOUND'}
+                          report['blockers'].append('MISSING_CI_' + name.replace(' ', '_'))
+                  # Only retry one failed, free contract check, once. Never retrigger paid Snapshot.
+                  check = selected.get('Sky Chat Bridge Unit Checks')
+                  if check and check.get('status') == 'completed' and check.get('conclusion') in ('failure','timed_out') and int(check.get('run_attempt',1)) == 1:
+                      api(f"/actions/runs/{check['id']}/rerun-failed-jobs", method='POST')
+                      report['actions'].append('ONE_TIME_RETRY_BRIDGE_CONTRACT_CI')
+                  elif check and check.get('conclusion') == 'failure':
+                      report['blockers'].append('BRIDGE_CI_FAILURE_NEEDS_ENGINEERING')
+                  for name, item in selected.items():
+                      if item.get('status') != 'completed':
+                          report['blockers'].append('CI_NOT_COMPLETE_' + name.replace(' ','_'))
+                      elif item.get('conclusion') != 'success':
+                          report['blockers'].append('CI_' + str(item.get('conclusion')).upper() + '_' + name.replace(' ','_'))
+                  receipt_path = '/contents/docs/SKY_SNAPSHOT_INTEGRITY_RESEARCH_LATEST.json?ref=research/fugle-snapshot-diagnostics-20261110'
+                  try:
+                      record = api(receipt_path)
+                      receipt = json.loads(base64.b64decode(record['content']).decode('utf-8'))
+                      report['snapshot_receipt'] = {
+                          'run_id': receipt.get('run_id'),
+                          'head_sha': receipt.get('head_sha'),
+                          'status': receipt.get('status'),
+                          'checked_at_tpe': receipt.get('checked_at_tpe'),
+                          'twse_missing': (receipt.get('snapshot_integrity') or {}).get('TWSE',{}).get('official_symbols_missing_from_snapshot'),
+                          'twse_missing_list_count': len((receipt.get('snapshot_integrity') or {}).get('TWSE',{}).get('missing_official_symbols',[])),
+                          'fresh_executed_count': receipt.get('fresh_executed_count'),
+                      }
+                      if receipt.get('head_sha') != sha:
+                          report['blockers'].append('SNAPSHOT_RECEIPT_SHA_STALE')
+                      if ((receipt.get('snapshot_integrity') or {}).get('TWSE',{}).get('official_symbols_missing_from_snapshot') or 0) > 0:
+                          report['blockers'].append('TWSE_MISSING_SYMBOLS_NEED_CLASSIFICATION')
+                  except (urllib.error.HTTPError, ValueError, KeyError, UnicodeError) as error:
+                      report['blockers'].append('SNAPSHOT_RECEIPT_UNREADABLE_' + type(error).__name__)
+                  # These are structural review gates, not solvable by blindly re-running CI.
+                  report['blockers'].extend([
+                      'LIVE_TRADE_TIMESTAMP_GATE_NOT_CERTIFIED',
+                      'CROSS_WORKFLOW_API_DEDUP_NOT_VERIFIED',
+                      'W0_P0G_MANUAL_REVIEW_REQUIRED',
+                  ])
+                  report['status'] = 'AWAITING_RESEARCH_VALIDATION' if report['blockers'] else 'READY_FOR_MANUAL_GOVERNANCE'
+              # Post a state-change-only note, not one comment per five minutes.
+              fingerprint = json.dumps(sorted(set(report['blockers'])),ensure_ascii=False,separators=(',',':'))
+              import hashlib
+              mark = 'sky-pr511-watchdog-state:' + hashlib.sha256(fingerprint.encode()).hexdigest()[:16]
+              report['state_signature'] = mark
+              comments = api(f'/issues/{pr_number}/comments?per_page=100')
+              previous = next((c for c in reversed(comments) if 'sky-pr511-watchdog-state:' in c.get('body','')), None)
+              if previous is None or mark not in previous.get('body',''):
+                  message = (
+                      f'<!-- {mark} -->\n'
+                      f'**Sky PR #511 五分鐘研究監控：{report["status"]}**\n'
+                      f'- Head: \`{sha[:12]}\`；收據：\`{report.get("snapshot_receipt",{}).get("head_sha","NONE")[:12]}\`。\n'
+                      f'- 阻礙：' + ', '.join(report['blockers'][:12]) + '\n'
+                      f'- 自動動作：' + ', '.join(report['actions'] or ['none']) + '\n'
+                      f'- 僅研究監控／不下單／不合併／不重新呼叫付費行情。\n'
+                  )
+                  api(f'/issues/{pr_number}/comments',method='POST',data={'body':message})
+                  report['actions'].append('POST_STATE_CHANGE_PR_COMMENT')
+          except Exception as error:
+              report['status'] = 'MONITOR_ERROR'
+              report['blockers'].append(type(error).__name__ + ': ' + str(error)[:160])
+          out = Path('output/sky_pr511_watchdog')
+          out.mkdir(parents=True, exist_ok=True)
+          (out / 'latest.json').write_text(json.dumps(report, ensure_ascii=False, indent=2)+'\n',encoding='utf-8')
+          print(json.dumps(report,ensure_ascii=False))
+          if report['status'] == 'MONITOR_ERROR':
+              raise SystemExit(1)
+          PY
+      - name: Upload monitoring receipt even when error
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-pr511-watchdog-${{ github.run_id }}
+          path: output/sky_pr511_watchdog/latest.json
+          if-no-files-found: warn
+          retention-days: 14

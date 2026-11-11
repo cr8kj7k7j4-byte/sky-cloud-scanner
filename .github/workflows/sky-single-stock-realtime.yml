@@ -27,7 +27,7 @@ jobs:
         run: pip install -r requirements.txt
       - name: Test realtime gating without remote API
         run: python -m unittest tests.test_sky_single_stock_realtime -v
-      - name: Query and validate realtime Fugle API quote
+      - name: Collect Fugle quote (reference permitted; execution marked separately)
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
           SYMBOL: ${{ inputs.symbol || '1569' }}

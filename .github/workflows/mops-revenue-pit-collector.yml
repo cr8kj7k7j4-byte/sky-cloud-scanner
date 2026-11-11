@@ -2,13 +2,14 @@ name: MOPS Revenue PIT Collector
 
 on:
   workflow_dispatch:
-  schedule:
-    # Asia/Taipei 08:05-20:35 every 30 minutes on days 1-15,
-    # covering the monthly-revenue filing window with margin for holidays.
-    - cron: '5,35 0-12 1-15 * *'
-    # Outside the main filing window, keep one daily observation for
-    # corrections / late filings. 04:05 UTC = 12:05 Asia/Taipei.
-    - cron: '5 4 16-31 * *'
+  # PAUSED on 2026-11-10 by user request: formerly scheduled trigger.
+  # schedule:
+  # # Asia/Taipei 08:05-20:35 every 30 minutes on days 1-15,
+  # # covering the monthly-revenue filing window with margin for holidays.
+  # - cron: '5,35 0-12 1-15 * *'
+  # # Outside the main filing window, keep one daily observation for
+  # # corrections / late filings. 04:05 UTC = 12:05 Asia/Taipei.
+  # - cron: '5 4 16-31 * *'
   push:
     # Safe one-shot source smoke after a collector/workflow update on main.
     # A ledger data commit does not match these paths and cannot loop.

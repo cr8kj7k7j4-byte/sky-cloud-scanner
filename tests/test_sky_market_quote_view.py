@@ -32,6 +32,22 @@ class QuoteViewerTests(unittest.TestCase):
         self.assertIsNone(result["quotes"][0]["price"])
         self.assertEqual(result["quotes"][0]["status"],"STALE_EXECUTED_TRADE")
 
+    def test_missing_trade_clock_retains_only_reference_observation(self):
+        def no_execution_clock(_):
+            return {"symbol": "2330", "date": "2026-11-06", "lastPrice": 89.5,
+                    "lastUpdated": int(NOW.timestamp() * 1_000_000),
+                    "closeTime": int(NOW.timestamp() * 1_000_000)}
+        result = collect(["2330"], now=NOW, universe=UNIVERSE,
+                         fetch=no_execution_clock)
+        item = result["quotes"][0]
+        self.assertEqual(item["status"], "MISSING_EXECUTED_TRADE_TIME")
+        self.assertIsNone(item["price"])
+        self.assertIsNone(item["trade_at_tpe"])
+        self.assertEqual(item["observed_price"], 89.5)
+        self.assertEqual(result["observed_count"], 1)
+        self.assertEqual(result["fresh_count"], 0)
+        self.assertFalse(result["execution_authorized"])
+
     def test_plan_restriction_fail_closed(self):
         def denied(_): raise PermissionError()
         result=collect(["2330"],now=NOW,universe=UNIVERSE,fetch=denied)
