@@ -5,8 +5,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 concurrency:
-  group: sky-snapshot-integrity-research
+  group: sky-fugle-paid-global-research-v1-live-wholemarket
   cancel-in-progress: false
 jobs:
   snapshot-acceptance:
@@ -21,7 +22,28 @@ jobs:
         run: python -m pip install requests
       - name: Verify research contracts without credentials
         run: python -m unittest tests.test_sky_full_universe_information tests.test_sky_chat_bridge -q
+      - name: Reserve shared live snapshot paid API slot
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:live:wholemarket'
+      - name: Publish sanitized reservation before paid request
+        id: claim
+        if: steps.guard.outputs.allowed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.guard.outputs.claim_name }}
+          path: output/fugle_api_guard/claim.json
+          if-no-files-found: error
+          retention-days: 2
+      - name: Verify reservation ZIP readback before any paid request
+        id: verify_claim
+        if: steps.guard.outputs.allowed == 'true' && steps.claim.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:live:wholemarket' --verify
       - name: Observe bounded paid Snapshot TSE OTC and innovation-board TIB once each
+        if: steps.guard.outputs.allowed == 'true' && steps.verify_claim.outcome == 'success'
         id: snapshot
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
