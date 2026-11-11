@@ -82,8 +82,8 @@ jobs:
                       text = p.read_text(encoding="utf-8")
                       # Only jobs containing the paid secret must depend on the gate.
                       import re
-                      sections = re.split(r"(?=^  [A-Za-z][\\w-]*:\\s*$)", text.split("jobs:", 1)[1], flags=re.M)
-                      affected = any(re.search(r"^  " + re.escape(name) + r":\\s*$", section, flags=re.M)
+                      sections = re.split(r"(?=^  [A-Za-z][\w-]*:\s*$)", text.split("jobs:", 1)[1], flags=re.M)
+                      affected = any(re.search(r"^  " + re.escape(name) + r":\s*$", section, flags=re.M)
                                      and "secrets.FUGLE_API_KEY" in section for section in sections)
                       if affected:
                           needs = job.get("needs", [])
