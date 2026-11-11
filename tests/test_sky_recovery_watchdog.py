@@ -36,5 +36,24 @@ class RecoveryWatchdogTests(unittest.TestCase):
         self.assertEqual(report["market_status"], "STALE_OR_MISSING_REPORT")
         self.assertFalse(report["production_trade_eligible"])
 
+
+class PaidRequestSafetyBridgeTests(unittest.TestCase):
+    """No-paid-provider regression visible to the canonical main watchdog PR gate."""
+
+    def test_atomic_contract_requires_real_shared_store_not_bool_flag(self):
+        from research.sky_paid_api_dedup_contract import (
+            canonical_request_key, reserve, finalize_ready,
+        )
+        from tests.test_sky_paid_api_dedup_contract import SharedMockStore
+        key = canonical_request_key("FUGLE", "/snapshot", {"market":"TWSE"},
+                                    "authorized-plan", "2026-11-11")
+        store = SharedMockStore()
+        self.assertEqual(reserve(store, key, "runner-1", "attempt-1"), "CALL_ONCE")
+        self.assertEqual(reserve(store, key, "runner-2", "attempt-1"), "BLOCK_IN_FLIGHT")
+        self.assertFalse(finalize_ready(store, key, "runner-1", "attempt-1",
+                                        "gs://results/verified", "z"*64))
+        self.assertEqual(reserve(store, key, "runner-2", "attempt-2"), "BLOCK_IN_FLIGHT")
+        # A successful mock test is NOT a distributed real-runner shared lock.
+
 if __name__ == "__main__":
     unittest.main()
