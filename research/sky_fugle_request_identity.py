@@ -25,8 +25,18 @@ def canonical_fugle_request(method: str, url: str, *, parameters: dict | None = 
     parsed = urlsplit(url)
     if parsed.username or parsed.password or parsed.fragment:
         raise ValueError("UNSAFE_FUGLE_URL")
-    if parsed.scheme and (parsed.scheme != "https" or parsed.hostname != "api.fugle.tw"):
-        raise ValueError("UNTRUSTED_FUGLE_HOST")
+    if parsed.scheme:
+        # A changed port or non-Fugle origin is a different transport.
+        # Never grant the official API's reservation to an untrusted target.
+        try:
+            port = parsed.port
+        except ValueError as exc:
+            raise ValueError("INVALID_FUGLE_PORT") from exc
+        if (parsed.scheme != "https" or parsed.hostname != "api.fugle.tw"
+                or port not in (None, 443)):
+            raise ValueError("UNTRUSTED_FUGLE_HOST")
+    elif parsed.netloc or not parsed.path.startswith("/"):
+        raise ValueError("INVALID_RELATIVE_ENDPOINT")
     if not SAFE_ENDPOINT.fullmatch(parsed.path):
         raise ValueError("UNSUPPORTED_FUGLE_ENDPOINT")
     params = parse_qsl(parsed.query, keep_blank_values=True, strict_parsing=True)

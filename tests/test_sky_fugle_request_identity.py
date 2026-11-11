@@ -32,6 +32,10 @@ class CanonicalFugleRequestTests(unittest.TestCase):
         for url in (
             "http://api.fugle.tw/intraday/quote/2330",
             "https://evil.example/intraday/quote/2330",
+            "https://api.fugle.tw:8443/intraday/quote/2330",
+            "https://api.fugle.tw:bad/intraday/quote/2330",
+            "//evil.example/intraday/quote/2330",
+            "intraday/quote/2330",
             "/unknown",
             "/intraday/quote/2330?secret=token",
             "/intraday/quote/2330?limit=1&limit=2",
