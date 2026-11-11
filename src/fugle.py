@@ -16,8 +16,11 @@ def _atomic_research_paid_gate(path, params):
     Never enable this as a Production entitlement by merely setting env vars;
     owner review of token scope, tag lifetime, and provider capacity is required.
     """
-    if os.getenv("SKY_PAID_ATOMIC_ENFORCE") != "1":
-        return
+    mode = os.getenv("SKY_PAID_ATOMIC_ENFORCE")
+    if mode is None:
+        return  # Historical callers are unchanged until a governed rollout.
+    if mode != "1":
+        raise RuntimeError("INVALID_ATOMIC_ENFORCEMENT_MODE")
     from research.sky_fugle_atomic_ref_claim import guard_fugle_request
     guard_fugle_request(BASE + path, params)
 
