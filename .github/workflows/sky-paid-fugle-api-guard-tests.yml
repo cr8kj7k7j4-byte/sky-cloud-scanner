@@ -4,6 +4,7 @@ on:
     paths:
       - 'research/sky_paid_fugle_api_guard.py'
       - 'research/sky_paid_fugle_api_inventory.py'
+      - 'tests/test_sky_paid_fugle_api_inventory.py'
       - 'tests/test_sky_paid_fugle_api_guard.py'
       - '.github/workflows/sky-paid-fugle-api-guard-tests.yml'
       - '.github/workflows/sky-chat-bridge.yml'
@@ -26,7 +27,7 @@ jobs:
       - name: Syntax and isolated guard contract tests (NO FUGLE SECRET)
         run: |
           python -m py_compile research/sky_paid_fugle_api_guard.py
-          python -m unittest tests.test_sky_paid_fugle_api_guard -v
+          python -m unittest tests.test_sky_paid_fugle_api_guard tests.test_sky_paid_fugle_api_inventory -v
       - name: Verify all four paid entrypoints share a guard and refuse unverified claims
         run: |
           python - <<'PY'
