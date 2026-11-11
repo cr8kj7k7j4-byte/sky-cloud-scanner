@@ -74,10 +74,22 @@ jobs:
           if not chosen.isdigit():
               raise SystemExit("INVALID_BAR_RUN_ID")
           def api(endpoint):
-              result = subprocess.run(["gh", "api", endpoint],
-                                      check=True, capture_output=True,
-                                      text=True, timeout=30)
-              return json.loads(result.stdout)
+              import time
+              for attempt in range(3):
+                  result = subprocess.run(["gh", "api", endpoint],
+                                          capture_output=True,
+                                          text=True, timeout=30)
+                  if result.returncode == 0:
+                      return json.loads(result.stdout)
+                  # Report the actual GitHub error, never expose GH_TOKEN.
+                  details = (result.stderr or "").strip().replace(
+                      os.environ.get("GH_TOKEN", "__NO_TOKEN__"), "[redacted]")
+                  print(f"GitHub readback attempt {attempt + 1}/3 failed "
+                        f"(exit {result.returncode}): {details[:500]}", flush=True)
+                  if attempt != 2:
+                      time.sleep(attempt + 1)
+              raise SystemExit("GITHUB_BAR_PROVENANCE_API_UNAVAILABLE")
+
           baseline = api(f"repos/{repo}/actions/runs/{pinned}")
           run = api(f"repos/{repo}/actions/runs/{chosen}")
           if (str(run.get("id")) != chosen
