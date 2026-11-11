@@ -118,3 +118,38 @@ def test_individually_confirmed_execution_remains_research_only(monkeypatch, tmp
     assert x["strategy_signal"] is False
     assert x["production_eligible"] is False
     assert result["operational_full_market_scan"] is False
+
+
+def test_policy_blocked_mis_fallback_keeps_paid_snapshot_observation(monkeypatch, tmp_path):
+    """Disallowed free fallback must not crash or certify research observations."""
+    from src import swing_live_scanner as scan
+    monkeypatch.setattr(scan, "OUT", tmp_path)
+    universe = [{"symbol": "1234", "exchange": "TWSE", "market": "TSE"}] * 2
+    row = {"symbol": "1234", "name": "sample", "exchange": "TWSE",
+           "quote_source": "Fugle bulk snapshot", "last": 42.0,
+           "volume": 1000, "trade_value": 42000000,
+           "quote_date": "2026-11-11", "last_trade_timestamp": None}
+    monkeypatch.setattr(scan, "load_official_universe",
+                        lambda: (universe, {"twse": 2, "tpex": 0}))
+    monkeypatch.setattr(scan, "fetch_fugle_snapshot_quotes",
+                        lambda *a, **k: ([row], []))
+
+    def disallowed(_):
+        raise PermissionError("FREE_MIS_MARKETDATA_DISABLED_BY_USER_POLICY")
+
+    monkeypatch.setattr(scan, "fetch_mis_quotes", disallowed)
+    monkeypatch.setattr(scan, "validate_whole_market_rows",
+                        lambda *a, **k: {"accepted_rows": [],
+                                         "valid_whole_market_operational": False,
+                                         "quote_scope": "PARTIAL_EXECUTED_LIVE"})
+    monkeypatch.setattr(scan, "get_quote", lambda _: {})
+    monkeypatch.setattr(scan, "fugle_executed_trade",
+                        lambda *a, **k: (None, None, "NO_FRESH_TRADE"))
+    monkeypatch.setattr(scan, "render_mobile_table", lambda _: "")
+    result = scan.run("swing5d")
+    assert result["operational_full_market_scan"] is False
+    assert result["candidate_count"] == 0
+    assert result["unverified_snapshot_observation_count"] == 1
+    assert result["unverified_snapshot_observations"][0]["production_eligible"] is False
+    assert any("MIS_FALLBACK_BLOCKED_BY_POLICY" in w for w in result["warnings"])
+    assert (tmp_path / "latest_swing5d.json").exists()
