@@ -47,9 +47,9 @@ class FuglePaidHttpBoundaryTests(unittest.TestCase):
 
     def test_invalid_explicit_guard_mode_never_sends_paid_http(self):
         for mode in ("true", "0", "", "enabled"):
-            with self.subTest(mode=mode), \\
-                 patch.dict(os.environ, {"SKY_PAID_ATOMIC_ENFORCE": mode}), \\
-                 patch("src.fugle._headers", return_value={"X-API-KEY": "test"}), \\
+            with self.subTest(mode=mode), \
+                 patch.dict(os.environ, {"SKY_PAID_ATOMIC_ENFORCE": mode}), \
+                 patch("src.fugle._headers", return_value={"X-API-KEY": "test"}), \
                  patch("src.fugle.requests.get") as http:
                 with self.assertRaisesRegex(RuntimeError, "INVALID_ATOMIC_ENFORCEMENT_MODE"):
                     fugle.get_quote("2330")
