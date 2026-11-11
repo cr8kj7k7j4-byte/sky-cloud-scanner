@@ -1,0 +1,76 @@
+name: Sky Alert External Artifact Readback (No Market API)
+on:
+  pull_request:
+    paths:
+      - 'research/sky_alert_reader.py'
+      - 'tests/test_sky_alert_reader.py'
+      - '.github/workflows/sky-alert-external-readback-test.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  historical-readback-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install declared dependencies
+        run: pip install -r requirements.txt
+      - name: Download an existing historical scan artifact from GitHub
+        uses: actions/download-artifact@v4
+        with:
+          name: sky-scan-42643956587
+          run-id: 42643956587
+          github-token: ${{ github.token }}
+          path: historical-artifact
+      - name: Re-evaluate at read time; historical data MUST fail closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p output/sky_alert_external_readback
+          set +e
+          python -m research.sky_alert_reader \
+            --input historical-artifact/output/sky_quickscan_information/full_universe.json \
+            --json-output output/sky_alert_external_readback/reader_receipt.json \
+            --markdown-output output/sky_alert_external_readback/latest.md
+          code=$?
+          set -e
+          python - "$code" <<'PY'
+          import json, os, sys
+          from pathlib import Path
+          receipt=json.loads(Path('output/sky_alert_external_readback/reader_receipt.json').read_text(encoding='utf-8'))
+          assert int(sys.argv[1]) == 2, 'historical artifact cannot be current'
+          assert receipt['freshness_status'] in ('STALE_SOURCE', 'DATA_BLOCKED', 'MISSING_SOURCE_TIME')
+          assert receipt['production_eligible'] is False
+          assert receipt['action'] == '禁止交易'
+          report=receipt.get('report')
+          if report:
+              assert report['fresh_executed_count'] == 0
+              assert all(x.get('production_eligible') is False for x in report['all_symbols'])
+          evidence={
+              'schema':'SKY_ALERT_EXTERNAL_HISTORICAL_READBACK_V1',
+              'test_head_sha':os.getenv('GITHUB_SHA'),
+              'source_run_id':42643956587,
+              'source_artifact':'sky-scan-42643956587',
+              'source_is_historical':True,
+              'freshness_status':receipt['freshness_status'],
+              'production_eligible':False,
+              'real_current_scan_verified':False,
+              'mobile_command_verified':False,
+              'result':'PASS_HISTORICAL_FAIL_CLOSED_ONLY',
+          }
+          Path('output/sky_alert_external_readback/test_verdict.json').write_text(json.dumps(evidence,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps(evidence,ensure_ascii=False))
+          PY
+      - name: Upload readback evidence even if test fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-alert-historical-readback-${{ github.run_id }}
+          path: output/sky_alert_external_readback/
+          if-no-files-found: warn
+          retention-days: 30
