@@ -119,6 +119,23 @@ jobs:
           python -m research.sky_paid_fugle_api_guard --scope ci-smoke-${{ github.run_id }}
           grep -qx 'allowed=false' "$GITHUB_OUTPUT"
           echo 'SECOND_PAID_REQUEST_BLOCKED_WITHOUT_FUGLE_API'
+      - name: Reserve different mock request without being falsely blocked
+        id: distinct
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_paid_fugle_api_guard --scope ci-distinct-${{ github.run_id }}
+      - name: Upload different mock request's reservation
+        if: steps.distinct.outputs.allowed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.distinct.outputs.claim_name }}
+          path: output/fugle_api_guard/claim.json
+          if-no-files-found: error
+          retention-days: 2
+      - name: Independently read back distinct mock reservation
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_paid_fugle_api_guard --scope ci-distinct-${{ github.run_id }} --verify
       - name: Inventory other Fugle paid entrypoints without paid calls
         run: python -m research.sky_paid_fugle_api_inventory
       - name: Publish explicit inventory and remaining blockers
