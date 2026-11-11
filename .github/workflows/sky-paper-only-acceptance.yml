@@ -96,6 +96,63 @@ jobs:
         run: python -m research.sky_w0_shared_blocker_audit
       - name: Read actual latest scan metadata and publish honest HOLD verdict
         run: python -m research.sky_paper_only_acceptance
+      - name: Distinguish green engineering tests from PAPER_ONLY E2E acceptance
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          output = Path("output/sky_p0r_paper_ledger_readback")
+          output.mkdir(parents=True, exist_ok=True)
+          def read(name):
+              try:
+                  value = json.loads(Path(name).read_text(encoding="utf-8"))
+                  return value if isinstance(value, dict) else {}
+              except (OSError, ValueError):
+                  return {}
+
+          signal = read(output / "external_signal_source_status.json")
+          ledger = read(output / "latest.json")
+          paper = read("output/sky_paper_only_acceptance/latest.json")
+          accepted = (
+              signal.get("reconciled") is True
+              and ledger.get("reconciled") is True
+              and ledger.get("paper_cost_arithmetic_reconciled") is True
+              and ledger.get("paper_fill_count", 0) > 0
+              and paper.get("paper_after_cost_performance_verified") is True
+          )
+          result = {
+              "schema": "SKY_P0R_EXPLICIT_E2E_GATE_V1",
+              "head_sha": os.getenv("GITHUB_SHA"),
+              "workflow_run_id": os.getenv("GITHUB_RUN_ID"),
+              "engineering_tests_are_not_e2e_acceptance": True,
+              "paper_e2e_verdict": "PASS_RESEARCH_ONLY" if accepted else "INSUFFICIENT_DATA",
+              "signal_reason": signal.get("reason"),
+              "signal_verdict": signal.get("verdict"),
+              "ledger_verdict": ledger.get("verdict"),
+              "paper_performance_verdict": paper.get("paper_performance_verdict"),
+              "paper_fill_count": ledger.get("paper_fill_count"),
+              "production_eligible": False,
+              "automatic_order": False,
+              "trade_action": "禁止交易",
+          }
+          (output / "explicit_e2e_gate.json").write_text(
+              json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          summary = (
+              "### P0-R PAPER_ONLY validation (research only)\n"
+              f"- E2E gate: **{result['paper_e2e_verdict']}**\n"
+              f"- Signal: {result['signal_verdict']} / {result['signal_reason']}\n"
+              f"- Ledger: {result['ledger_verdict']}, fills: {result['paper_fill_count']}\n"
+              "- Green CI tests alone **do not** close #508 or enable Production.\n"
+              "- Trading remains disabled.\n"
+          )
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as file:
+              file.write(summary)
+          if not accepted:
+              print("::warning title=PAPER_ONLY E2E HOLD::Research CI may be green, but actual paper trade ledger/cost acceptance is incomplete")
+          PY
       - name: Upload paper research acceptance audit
         if: always()
         uses: actions/upload-artifact@v4
