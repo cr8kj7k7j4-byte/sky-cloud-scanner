@@ -74,5 +74,41 @@ class ExternalSignalVerificationTests(unittest.TestCase):
             _receipt_from_github("owner/repo",RUN,fetch=fetch,downloader=downloader)
 
 
+    def test_failed_external_readback_writes_fail_closed_status(self):
+        from research.sky_p0r_external_signal_source import main
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as tmp:
+            from os import chdir, getcwd
+            original = getcwd()
+            try:
+                chdir(tmp)
+                folder = Path("output/sky_p0r_paper_ledger_readback")
+                folder.mkdir(parents=True)
+                (folder / "verified_512_completed_bars.json").write_text(
+                    json.dumps({"source_run_id": "upstream-run"}), encoding="utf-8")
+                with patch.dict("os.environ", {
+                    "SKY_P0R_SIGNAL_RUN_ID": "12345",
+                    "GITHUB_REPOSITORY": "owner/repo",
+                }), patch(
+                    "research.sky_p0r_external_signal_source._receipt_from_github",
+                    side_effect=ValueError("UNTRUSTED_SIGNAL_WORKFLOW_RUN"),
+                ):
+                    self.assertEqual(main(), 0)
+                status = json.loads(
+                    (folder / "external_signal_source_status.json").read_text(
+                        encoding="utf-8"))
+                self.assertEqual(status["verdict"], "INSUFFICIENT_DATA")
+                self.assertEqual(
+                    status["reason"], "EXTERNAL_SIGNAL_READBACK_OR_PROVENANCE_FAILED")
+                self.assertEqual(status["paper_fill_count"], 0)
+                self.assertFalse(status["reconciled"])
+                self.assertFalse(status["production_eligible"])
+                self.assertFalse(status["automatic_order"])
+                self.assertEqual(status["error_type"], "ValueError")
+            finally:
+                chdir(original)
+
+
+
 if __name__=="__main__":
     unittest.main()
