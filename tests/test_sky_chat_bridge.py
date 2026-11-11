@@ -18,6 +18,18 @@ class ChatScanBridgeTests(unittest.TestCase):
         self.assertIn("REPORT_DUPLICATE_OR_MISSING_SYMBOL", validator)
         self.assertIn("ARTIFACT_ID_MISSING", validator)
 
+    def test_cancelled_bridge_preserves_fail_closed_diagnostic(self):
+        from pathlib import Path
+        workflow = (Path(__file__).resolve().parents[1] /
+                    ".github/workflows/sky-chat-bridge.yml").read_text(encoding="utf-8")
+        self.assertIn('bridge_outcome == "cancelled"', workflow)
+        self.assertIn('"DATA_BLOCKED_BRIDGE_CANCELLED"', workflow)
+        self.assertIn('"BRIDGE_JOB_CANCELLED"', workflow)
+        self.assertIn('data["bridge_step_outcome"] = bridge_outcome', workflow)
+        self.assertIn('if not valid or bridge_outcome != "success"', workflow)
+        self.assertIn('data["production_eligible"] = False', workflow)
+        self.assertIn('data["automatic_order"] = False', workflow)
+
     def test_research_branch_scan_cannot_publish_main_status(self):
         from pathlib import Path
         workflow = (Path(__file__).resolve().parents[1] /
