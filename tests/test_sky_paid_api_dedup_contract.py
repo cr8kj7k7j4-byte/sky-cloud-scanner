@@ -80,6 +80,25 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(reserve(store, key(), "run1", "a1"), "BLOCK_IN_FLIGHT")
         self.assertFalse(finalize_ready(store, key(), "run1", "a2", "gs://test/out", "a" * 64))
 
+    def test_invalid_digest_and_unverified_quota_cannot_be_ready(self):
+        from research.sky_paid_api_dedup_contract import Record
+        from datetime import datetime, timezone
+        k = key()
+        now = datetime.now(timezone.utc).isoformat()
+        kwargs = dict(key=k, state="READY", owner_run_id="run1",
+                      attempt_id="a1", created_at=now, updated_at=now,
+                      result_uri="gs://object", result_sha256="z" * 64)
+        with self.assertRaisesRegex(ValueError, "INVALID_RESULT_SHA256"):
+            Record(**kwargs)
+        kwargs["result_sha256"] = "a" * 64
+        kwargs["quota_units"] = -1
+        with self.assertRaisesRegex(ValueError, "UNVERIFIED_QUOTA_UNITS"):
+            Record(**kwargs)
+        store = SharedMockStore()
+        reserve(store, k, "run1", "a1")
+        self.assertFalse(finalize_ready(store,k,"run1","a1","gs://object","z"*64))
+        self.assertEqual(reserve(store,k,"run2","a2"),"BLOCK_IN_FLIGHT")
+
     def test_no_stale_lease_takeover_and_invalid_time(self):
         from datetime import datetime
         store = SharedMockStore()
