@@ -315,7 +315,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m unittest tests.test_sky_alert_reader -v
-          test -s readback/output/sky_quickscan_information/full_universe.json
+          # The reader must emit DATA_BLOCKED receipt even if input is absent.
           python -m research.sky_alert_reader \
             --input readback/output/sky_quickscan_information/full_universe.json \
             --json-output readback-verification/reader_receipt.json \
