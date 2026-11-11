@@ -21,9 +21,26 @@ def aware(s):
         raise ValueError("UNZONED_TIME")
     return d.astimezone(timezone.utc)
 
-def adapt(payload, *, actual_run, actual_sha, artifact_id):
-    if (str(actual_run) != ACCEPTED_RUN or actual_sha != ACCEPTED_SHA
-            or str(artifact_id) != ACCEPTED_ARTIFACT):
+def adapt(payload, *, actual_run, actual_sha, artifact_id,
+          verified_future_source=None):
+    # Historical acceptance stays pinned. A new source is admissible ONLY
+    # when the workflow supplies independently verified GitHub metadata.
+    expected = (ACCEPTED_RUN, ACCEPTED_SHA, ACCEPTED_ARTIFACT)
+    if verified_future_source is not None:
+        proof = verified_future_source
+        if (not isinstance(proof, dict)
+                or proof.get("github_run_verified") is not True
+                or proof.get("successful_completed_run") is not True
+                or proof.get("unique_artifact_verified") is not True
+                or proof.get("source_workflow_matches_accepted") is not True
+                or proof.get("production_eligible") is not False):
+            raise ValueError("UNVERIFIED_FUTURE_BAR_SOURCE")
+        expected = (str(proof.get("run_id")), str(proof.get("head_sha")),
+                    str(proof.get("artifact_id")))
+        if any(not x or x == "None" for x in expected):
+            raise ValueError("INCOMPLETE_FUTURE_BAR_PROVENANCE")
+    if (str(actual_run) != expected[0] or actual_sha != expected[1]
+            or str(artifact_id) != expected[2]):
         raise ValueError("EXTERNAL_RUN_PROVENANCE_MISMATCH")
     if (not isinstance(payload, dict) or payload.get("head_sha") != actual_sha
             or str(payload.get("run_id")) != str(actual_run)
@@ -104,9 +121,14 @@ def main():
     ap.add_argument("--head-sha",required=True)
     ap.add_argument("--artifact-id",required=True)
     ap.add_argument("--output",required=True)
+    ap.add_argument("--verified-future-source",default=None,
+                    help="JSON receipt generated from GitHub API, never caller claims")
     args=ap.parse_args()
+    attestation=(json.loads(Path(args.verified_future_source).read_text(encoding="utf-8"))
+                 if args.verified_future_source else None)
     result=adapt(json.loads(Path(args.input).read_text(encoding="utf-8")),
-        actual_run=args.run_id,actual_sha=args.head_sha,artifact_id=args.artifact_id)
+        actual_run=args.run_id,actual_sha=args.head_sha,artifact_id=args.artifact_id,
+        verified_future_source=attestation)
     out=Path(args.output)
     out.parent.mkdir(parents=True,exist_ok=True)
     out.write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
