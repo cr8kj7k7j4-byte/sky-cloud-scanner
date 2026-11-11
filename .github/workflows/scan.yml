@@ -306,18 +306,29 @@ jobs:
       - name: Install readback dependencies
         run: pip install -r requirements.txt
       - name: Download uploaded scan artifact from this same run
+        id: artifact_download
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           name: sky-scan-${{ github.run_id }}
           path: readback
       - name: Verify externally downloaded Sky alert input and regenerate receipt
+        if: always()
         shell: bash
+        env:
+          ARTIFACT_DOWNLOAD_OUTCOME: ${{ steps.artifact_download.outcome }}
         run: |
           set -euo pipefail
+          mkdir -p readback-verification
           python -m unittest tests.test_sky_alert_reader -v
-          # The reader must emit DATA_BLOCKED receipt even if input is absent.
+          # Even a GitHub download error must yield a fail-closed receipt.
+          if [ "$ARTIFACT_DOWNLOAD_OUTCOME" != "success" ]; then
+            INPUT="readback/NO_DOWNLOADED_ARTIFACT.json"
+          else
+            INPUT="readback/output/sky_quickscan_information/full_universe.json"
+          fi
           python -m research.sky_alert_reader \
-            --input readback/output/sky_quickscan_information/full_universe.json \
+            --input "$INPUT" \
             --json-output readback-verification/reader_receipt.json \
             --markdown-output readback-verification/latest.md
       - name: Upload external readback verdict (including blocked state)
