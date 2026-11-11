@@ -35,7 +35,8 @@ def _hold(reason, *, source_run_id=None, signal_run_id=None):
             "automatic_order": False, "trade_action": "禁止交易"}
 
 
-def join(verified_bars, signal_receipt=None, *, external_signal_provenance_verified=False):
+def join(verified_bars, signal_receipt=None, *, external_signal_provenance_verified=False,
+         external_bar_provenance_verified=False):
     """Convert only an explicitly precommitted signal into input for existing simulator.
 
     Caller is responsible for independently downloading and verifying the signal
@@ -52,10 +53,15 @@ def join(verified_bars, signal_receipt=None, *, external_signal_provenance_verif
     from research.sky_p0r_512_source_adapter import (
         ACCEPTED_RUN, ACCEPTED_SHA, ACCEPTED_ARTIFACT,
     )
-    if (str(verified_bars.get("source_run_id")) != ACCEPTED_RUN
-            or verified_bars.get("source_sha") != ACCEPTED_SHA
-            or str(verified_bars.get("source_artifact_id")) != ACCEPTED_ARTIFACT):
+    is_historical = (
+        str(verified_bars.get("source_run_id")) == ACCEPTED_RUN
+        and verified_bars.get("source_sha") == ACCEPTED_SHA
+        and str(verified_bars.get("source_artifact_id")) == ACCEPTED_ARTIFACT
+    )
+    if not is_historical and external_bar_provenance_verified is not True:
         raise ValueError("BAR_SOURCE_PROVENANCE_MISMATCH")
+    if not is_historical and verified_bars.get("github_bar_source_verified") is not True:
+        raise ValueError("FUTURE_BAR_GITHUB_RECEIPT_REQUIRED")
     source_run = verified_bars.get("source_run_id")
     observation = _at(verified_bars.get("observed_at"))
     if signal_receipt is None:
@@ -100,7 +106,7 @@ def join(verified_bars, signal_receipt=None, *, external_signal_provenance_verif
     if any(b.get("source_type") != "MARKET_OBSERVATION"
            or b.get("symbol") != symbol
            or b.get("source_artifact") !=
-               f"sky-512-5m-evidence-{ACCEPTED_RUN}:{ACCEPTED_ARTIFACT}"
+               f"sky-512-5m-evidence-{source_run}:{verified_bars['source_artifact_id']}"
            for b in bars):
         raise ValueError("BAR_SOURCE_MISMATCH")
     if not any(_at(b["started_at"]) > published for b in bars):
