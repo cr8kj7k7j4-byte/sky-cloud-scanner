@@ -98,6 +98,8 @@ jobs:
         run: python -m research.sky_paper_only_acceptance
       - name: Distinguish green engineering tests from PAPER_ONLY E2E acceptance
         if: always()
+        env:
+          SKY_PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           python - <<'PY'
           import json
@@ -125,7 +127,7 @@ jobs:
           )
           result = {
               "schema": "SKY_P0R_EXPLICIT_E2E_GATE_V1",
-              "head_sha": os.getenv("GITHUB_SHA"),
+              "head_sha": os.getenv("SKY_PR_HEAD_SHA"),
               "workflow_run_id": os.getenv("GITHUB_RUN_ID"),
               "engineering_tests_are_not_e2e_acceptance": True,
               "paper_e2e_verdict": "PASS_RESEARCH_ONLY" if accepted else "INSUFFICIENT_DATA",
