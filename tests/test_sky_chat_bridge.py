@@ -41,12 +41,12 @@ class ChatScanBridgeTests(unittest.TestCase):
         workflow = (Path(__file__).resolve().parents[1] /
                     ".github/workflows/sky-chat-bridge.yml").read_text(encoding="utf-8")
         match = re.search(
-            r"      - name: Verify status and preserve a failed-run diagnostic\\n"
-            r".*?          python - <<'PY'\\n"
-            r"(.*?)\\n          PY\\n"
+            r"      - name: Verify status and preserve a failed-run diagnostic\n"
+            r".*?          python - <<'PY'\n"
+            r"(.*?)\n          PY\n"
             r"      - name: Upload complete", workflow, re.S)
         self.assertIsNotNone(match, "Bridge diagnostic guard missing")
-        guard = "\\n".join(line[10:] if line.startswith("          ") else line
+        guard = "\n".join(line[10:] if line.startswith("          ") else line
                           for line in match.group(1).splitlines())
         with tempfile.TemporaryDirectory() as tmp:
             target = Path(tmp) / "output/chat_bridge/latest.json"
