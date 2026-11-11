@@ -38,7 +38,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: sky-fugle-paid-global-research-v1
+  group: sky-fugle-paid-global-research-v1-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref_name }}-${{ inputs.symbol || inputs.symbols || 'all' }}-${{ inputs.from_date || inputs.start_date || 'start' }}-${{ inputs.end_date || inputs.to_date || 'end' }}
   cancel-in-progress: false
 jobs:
   sky_paid_reservation:
