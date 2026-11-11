@@ -93,6 +93,20 @@ class DeepFiveMinTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"BAR_COUNT_MISMATCH"):
             validate(receipt,expected_sha="sha512",expected_run_id="123")
 
+    def test_bounded_raw_sample_never_claims_stage2_or_trade(self):
+        candidates=[{"symbol":"2409","exchange":"TWSE"},
+                    {"symbol":"5202","exchange":"TPEx"}]
+        x=run(None,ticker_fn=ticker,candle_fn=candles,
+              sleep_fn=lambda _:None,now=NOW,evidence_candidates=candidates)
+        self.assertFalse(x["stage2_quote_verified"])
+        self.assertEqual(x["attempted_api_requests"],4)
+        self.assertTrue(all(s["status"]=="RAW_5M_RESEARCH_SAMPLE_NO_STAGE2"
+                            and s["feature_preview"] is None
+                            and s["production_eligible"] is False
+                            for s in x["samples"]))
+        with self.assertRaisesRegex(ValueError,"BAD_EVIDENCE_SAMPLE_SET"):
+            run(None,evidence_candidates=[{"symbol":"2409","exchange":"TWSE"}])
+
     def test_attention_stock_cannot_pass_research_readiness(self):
         def attention(symbol):
             data=ticker(symbol)
