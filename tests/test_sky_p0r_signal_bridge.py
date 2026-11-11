@@ -81,6 +81,23 @@ class SignalPaperBridgeTests(unittest.TestCase):
         s["published_at"]=s["signal"]["signal_time"]="2026-11-11T10:40:00+08:00"
         with self.assertRaisesRegex(ValueError,"FUTURE_OR_INCOMPLETE_BARS"):
             join(data,s,external_signal_provenance_verified=True)
+    def test_claimed_external_verification_cannot_substitute_wrong_bar_provenance(self):
+        for field, wrong in (("source_run_id", "OTHER"),
+                             ("source_sha", "other"),
+                             ("source_artifact_id", "fake")):
+            data=copy.deepcopy(bars())
+            data[field]=wrong
+            with self.subTest(field=field), self.assertRaisesRegex(ValueError,"BAR_SOURCE_PROVENANCE_MISMATCH"):
+                join(data,None,external_signal_provenance_verified=True)
+
+    def test_altered_candle_source_rejected_even_with_true_flag(self):
+        data=copy.deepcopy(bars())
+        data["bar_sources"]["2409"]["completed_bars"][0]["source_artifact"]="forged"
+        sig=signal()
+        sig["published_at"]=sig["signal"]["signal_time"]="2026-11-11T10:40:00+08:00"
+        with self.assertRaisesRegex(ValueError,"BAR_SOURCE_MISMATCH"):
+            join(data,sig,external_signal_provenance_verified=True)
+
     def test_synthetic_bars_do_not_elevate_production(self):
         bad=bars()
         bad["production_eligible"]=True
