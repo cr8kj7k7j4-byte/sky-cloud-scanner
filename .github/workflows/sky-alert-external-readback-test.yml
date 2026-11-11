@@ -91,6 +91,38 @@ jobs:
           assert x['action'] == '禁止交易'
           assert x['report'] is None
           PY
+      - name: Download existing real Chat Bridge full-universe artifact (no new scan)
+        uses: actions/download-artifact@v4
+        with:
+          name: sky-chat-42967413280
+          run-id: 42967413280
+          github-token: ${{ github.token }}
+          path: historical-chat-bridge
+      - name: Independently read current-day-but-now-stale real bridge report
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          python -m research.sky_alert_reader \
+            --input historical-chat-bridge/sky_quickscan_information/full_universe.json \
+            --json-output output/sky_alert_external_readback/bridge_reader_receipt.json \
+            --markdown-output output/sky_alert_external_readback/bridge_reader.md
+          status=$?
+          set -e
+          python - "$status" <<'PY'
+          import json, sys
+          from pathlib import Path
+          source=json.loads(Path('historical-chat-bridge/sky_quickscan_information/full_universe.json').read_text(encoding='utf-8'))
+          receipt=json.loads(Path('output/sky_alert_external_readback/bridge_reader_receipt.json').read_text(encoding='utf-8'))
+          assert int(sys.argv[1]) == 2, 'expired observed snapshot must not be current'
+          assert source['schema'] == 'SKY_INFORMATION_FIRST_FULL_UNIVERSE_V1'
+          assert source['universe_count'] == len(source['all_symbols']) > 0
+          assert receipt['freshness_status'] == 'STALE_SOURCE'
+          assert receipt['fresh_executed_count_at_read'] == 0
+          assert receipt['production_eligible'] is False
+          assert receipt['action'] == '禁止交易'
+          print('PASS_BRIDGE_ARTIFACT_EXTERNAL_READBACK_FAIL_CLOSED',len(source['all_symbols']))
+          PY
       - name: Upload readback evidence even if test fails
         if: always()
         uses: actions/upload-artifact@v4
