@@ -70,6 +70,27 @@ jobs:
           Path('output/sky_alert_external_readback/test_verdict.json').write_text(json.dumps(evidence,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
           print(json.dumps(evidence,ensure_ascii=False))
           PY
+      - name: Verify missing external artifact fails closed with a downloadable receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          python -m research.sky_alert_reader \
+            --input historical-artifact/NO_DOWNLOADED_ARTIFACT.json \
+            --json-output output/sky_alert_external_readback/missing_artifact_receipt.json \
+            --markdown-output output/sky_alert_external_readback/missing_artifact.md
+          code=$?
+          set -e
+          python - "$code" <<'PY'
+          import json, sys
+          from pathlib import Path
+          x=json.loads(Path('output/sky_alert_external_readback/missing_artifact_receipt.json').read_text(encoding='utf-8'))
+          assert int(sys.argv[1]) == 2
+          assert x['freshness_status'] == 'DATA_BLOCKED'
+          assert x['production_eligible'] is False
+          assert x['action'] == '禁止交易'
+          assert x['report'] is None
+          PY
       - name: Upload readback evidence even if test fails
         if: always()
         uses: actions/upload-artifact@v4
