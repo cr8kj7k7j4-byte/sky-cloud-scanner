@@ -150,12 +150,13 @@ jobs:
           print("STRICT_YAML_UNIQUE_KEY_VALIDATED:", checked)
           PY
       - name: Reserve mock-only unique GitHub Artifact slot
+        if: github.event_name == 'workflow_dispatch'
         id: reserve
         env:
           GH_TOKEN: ${{ github.token }}
         run: python -m research.sky_paid_fugle_api_guard --scope ci-smoke-${{ github.run_id }}
       - name: Upload mock-only reservation (NO PAID API)
-        if: steps.reserve.outputs.allowed == 'true'
+        if: github.event_name == 'workflow_dispatch' && steps.reserve.outputs.allowed == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.reserve.outputs.claim_name }}
@@ -163,10 +164,12 @@ jobs:
           if-no-files-found: error
           retention-days: 2
       - name: Independent GitHub API receipt readback
+        if: github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ github.token }}
         run: python -m research.sky_paid_fugle_api_guard --verify --scope ci-smoke-${{ github.run_id }}
       - name: Verify second same-scope request is rejected without Fugle
+        if: github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -177,12 +180,13 @@ jobs:
           grep -qx 'allowed=false' "$GITHUB_OUTPUT"
           echo 'SECOND_PAID_REQUEST_BLOCKED_WITHOUT_FUGLE_API'
       - name: Reserve different mock request without being falsely blocked
+        if: github.event_name == 'workflow_dispatch'
         id: distinct
         env:
           GH_TOKEN: ${{ github.token }}
         run: python -m research.sky_paid_fugle_api_guard --scope ci-distinct-${{ github.run_id }}
       - name: Upload different mock request's reservation
-        if: steps.distinct.outputs.allowed == 'true'
+        if: github.event_name == 'workflow_dispatch' && steps.distinct.outputs.allowed == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.distinct.outputs.claim_name }}
@@ -190,6 +194,7 @@ jobs:
           if-no-files-found: error
           retention-days: 2
       - name: Independently read back distinct mock reservation
+        if: github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ github.token }}
         run: python -m research.sky_paid_fugle_api_guard --scope ci-distinct-${{ github.run_id }} --verify
