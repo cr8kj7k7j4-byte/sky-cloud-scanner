@@ -113,11 +113,12 @@ def join(verified_bars, signal_receipt=None, *, external_signal_provenance_verif
     payload = {"context": context, "signal": signal, "completed_bars": bars}
     # Producer checks canonical P0-R / P0-X risk, full explicit cost inputs,
     # completed exits and event→journal reconciliation; cannot infer a fill.
-    # Publication may postdate signal_time, so do not give the simulator the
-    # earlier time to trade from; require strict equality as a safe precommit.
-    if published != signal_at:
-        return _hold("SIGNAL_COMMIT_TIME_NOT_EQUAL_TO_SIGNAL_TIME",
-                     source_run_id=source_run, signal_run_id=signal_receipt["signal_run_id"]), None
+    # The independent GitHub artifact upload is the earliest verifiable signal
+    # commit. Use its effective timestamp instead of the receipt's earlier
+    # claimed signal_time; never backdate a simulated entry.
+    if published < signal_at:
+        raise ValueError("SIGNAL_COMMIT_BEFORE_SIGNAL_TIME")
+    payload["signal"] = {**signal, "signal_time": published.isoformat()}
     result = produce(payload)
     out = {"schema": "SKY_P0R_SIGNAL_TO_PAPER_CHAIN_V1",
            "verdict": result["verdict"], "reason": None,
