@@ -6,6 +6,7 @@ a v1.4 signal or infer 5m breakout profitability. Never sends orders.
 from __future__ import annotations
 import time
 import math
+import os
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import requests
@@ -44,9 +45,14 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
         try:
             attempts+=1
             ticker=ticker_fn(row["symbol"])
+            ticker_received_at_tpe=datetime.now(TPE).isoformat()
             sleep_fn(1.0)
             attempts+=1
             candles=candle_fn(row["symbol"],timeframe="5")
+            candles_received_at_tpe=datetime.now(TPE).isoformat()
+            result["ticker_received_at_tpe"]=ticker_received_at_tpe
+            result["candles_received_at_tpe"]=candles_received_at_tpe
+            result["observation_time_tpe"]=now.isoformat()
             if isinstance(ticker,dict) and isinstance(ticker.get("data"),dict):
                 ticker=ticker["data"]
             if not isinstance(ticker,dict) or not isinstance(candles,dict):
@@ -66,6 +72,17 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                     and candles.get("exchange")==row["exchange"]
                 )
                 bars=candles.get("data")
+                # Preserve a bounded, credential-free raw provider receipt for
+                # later same-SHA Artifact inspection; do not infer its semantics.
+                result["raw_five_min_candles"]={
+                    "symbol":candles.get("symbol"),
+                    "exchange":candles.get("exchange"),
+                    "date":candles.get("date"),
+                    "timeframe":candles.get("timeframe"),
+                    "data":[{key:bar.get(key) for key in ("date","open","high","low","close","volume")}
+                            for bar in bars if isinstance(bar,dict)][:100]
+                            if isinstance(bars,list) else None,
+                }
                 # Research PIT guard: conservatively treat the timestamp as a bar
                 # START until provider semantics are formally certified. Never use
                 # any bar that could still be forming at the scan observation time.
@@ -182,6 +199,9 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
         sleep_fn(1.0)
     return {
         "schema":"SKY_V14_TICKER_5M_RESEARCH_PROVENANCE_V1",
+        "head_sha":os.environ.get("GITHUB_SHA"),
+        "run_id":os.environ.get("GITHUB_RUN_ID"),
+        "data_receipt_kind":"LIVE_ONLY_IF_PROVIDER_CONFIRMED",
         "time_tpe":now.isoformat(),
         "attempted_api_requests":attempts,
         "rate_limited":hit429,
