@@ -38,6 +38,25 @@ def signal():
 
 
 class SignalPaperBridgeTests(unittest.TestCase):
+    def test_future_bar_run_requires_separate_attestation(self):
+        data=copy.deepcopy(bars())
+        data["source_run_id"]="98765432"
+        data["source_sha"]="a"*40
+        data["source_artifact_id"]="45678"
+        data["github_bar_source_verified"]=True
+        data["bar_sources"]["2409"]["completed_bars"][0]["source_artifact"]=(
+            "sky-512-5m-evidence-98765432:45678")
+        with self.assertRaisesRegex(ValueError,"BAR_SOURCE_PROVENANCE_MISMATCH"):
+            join(data,None)
+        data["github_bar_source_verified"]=False
+        with self.assertRaisesRegex(ValueError,"FUTURE_BAR_GITHUB_RECEIPT_REQUIRED"):
+            join(data,None,external_bar_provenance_verified=True)
+        data["github_bar_source_verified"]=True
+        status,payload=join(data,None,external_bar_provenance_verified=True)
+        self.assertEqual(status["reason"],"PRECOMMITTED_SIGNAL_ARTIFACT_MISSING")
+        self.assertEqual(status["paper_fill_count"],0)
+        self.assertIsNone(payload)
+
     def test_missing_signal_is_explicit_hold(self):
         status,payload=join(bars(),None)
         self.assertEqual(status["reason"],"PRECOMMITTED_SIGNAL_ARTIFACT_MISSING")
