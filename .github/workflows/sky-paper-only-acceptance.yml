@@ -9,6 +9,7 @@ on:
       - "research/sky_paper_trade_trace.py"
       - "research/sky_p0r_paper_ledger_readback.py"
       - "research/sky_p0r_paper_event_replay.py"
+      - "research/sky_p0r_order_gate.py"
       - "tests/test_sky_p0r_paper_event_replay.py"
       - "tests/test_sky_p0r_paper_ledger_readback.py"
       - "research/sky_brokerless_contract_audit.py"
