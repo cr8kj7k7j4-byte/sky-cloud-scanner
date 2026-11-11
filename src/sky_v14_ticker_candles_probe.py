@@ -5,7 +5,9 @@ a v1.4 signal or infer 5m breakout profitability. Never sends orders.
 """
 from __future__ import annotations
 import time
-from datetime import datetime
+import math
+import os
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import requests
 
@@ -29,9 +31,19 @@ def selected(stage2):
     return picked
 
 
-def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sleep, now=None):
+def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sleep, now=None, evidence_candidates=None):
     now=now or datetime.now(TPE)
-    selected_rows=selected(stage2)
+    if evidence_candidates is None:
+        selected_rows=selected(stage2)
+    else:
+        # Isolated evidence-only path: never misrepresent these as Stage2
+        # quote-verified candidates, nor use them to approve model features.
+        if (not isinstance(evidence_candidates, list) or len(evidence_candidates)!=2
+                or {x.get("exchange") for x in evidence_candidates if isinstance(x,dict)}!={"TWSE","TPEx"}
+                or any(not isinstance(x.get("symbol"),str) or not x["symbol"].isdigit()
+                       for x in evidence_candidates)):
+            raise ValueError("BAD_EVIDENCE_SAMPLE_SET")
+        selected_rows=evidence_candidates
     output=[]
     attempts=0
     hit429=False
@@ -43,9 +55,14 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
         try:
             attempts+=1
             ticker=ticker_fn(row["symbol"])
+            ticker_received_at_tpe=datetime.now(TPE).isoformat()
             sleep_fn(1.0)
             attempts+=1
             candles=candle_fn(row["symbol"],timeframe="5")
+            candles_received_at_tpe=datetime.now(TPE).isoformat()
+            result["ticker_received_at_tpe"]=ticker_received_at_tpe
+            result["candles_received_at_tpe"]=candles_received_at_tpe
+            result["observation_time_tpe"]=now.isoformat()
             if isinstance(ticker,dict) and isinstance(ticker.get("data"),dict):
                 ticker=ticker["data"]
             if not isinstance(ticker,dict) or not isinstance(candles,dict):
@@ -55,20 +72,82 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                 tdate=ticker.get("date")
                 cdate=candles.get("date")
                 actual_tf=str(candles.get("timeframe") or "")
+                # Both official Fugle endpoints return symbol and exchange.
+                # A cross-stock or cross-exchange response must never be
+                # used for this candidate's model feature preview.
+                source_identity_matches=(
+                    ticker.get("symbol")==row["symbol"]
+                    and candles.get("symbol")==row["symbol"]
+                    and ticker.get("exchange")==row["exchange"]
+                    and candles.get("exchange")==row["exchange"]
+                )
                 bars=candles.get("data")
+                # Preserve a bounded, credential-free raw provider receipt for
+                # later same-SHA Artifact inspection; do not infer its semantics.
+                result["raw_five_min_candles"]={
+                    "symbol":candles.get("symbol"),
+                    "exchange":candles.get("exchange"),
+                    "date":candles.get("date"),
+                    "timeframe":candles.get("timeframe"),
+                    "data":[{key:bar.get(key) for key in ("date","open","high","low","close","volume")}
+                            for bar in bars if isinstance(bar,dict)][:100]
+                            if isinstance(bars,list) else None,
+                }
+                # Research PIT guard: conservatively treat the timestamp as a bar
+                # START until provider semantics are formally certified. Never use
+                # any bar that could still be forming at the scan observation time.
                 valid=[]
+                last_accepted_stamp=None
+                rejected_future_bars=0
+                excluded_incomplete_bars=0
+                invalid_bar_sequence=False
+                prior_stamp=None
                 if isinstance(bars,list):
                     for b in bars:
                         if not isinstance(b,dict):
+                            invalid_bar_sequence=True
                             continue
                         try:
                             stamp=datetime.fromisoformat(str(b["date"]).replace("Z","+00:00"))
-                            if stamp.utcoffset() is None or stamp.astimezone(TPE).date()!=now.date():
+                            if stamp.utcoffset() is None:
+                                invalid_bar_sequence=True
                                 continue
-                            if b.get("close") is None or b.get("volume") is None:
+                            stamp=stamp.astimezone(TPE)
+                            # A 5-minute candle must start on a local 5-minute
+                            # grid. Reject malformed minute/second offsets
+                            # rather than treating them as certified 5m bars.
+                            if stamp.minute % 5 or stamp.second or stamp.microsecond:
+                                invalid_bar_sequence=True
+                                continue
+                            if prior_stamp is not None:
+                                if stamp<=prior_stamp:
+                                    invalid_bar_sequence=True  # duplicate or out of order
+                                elif stamp-prior_stamp != timedelta(minutes=5):
+                                    # Missing 5m bars make multi-bar features
+                                    # non-contiguous; do not infer valid coverage.
+                                    invalid_bar_sequence=True
+                            prior_stamp=stamp
+                            if stamp.date()!=now.date():
+                                invalid_bar_sequence=True
+                                continue
+                            if stamp>now:
+                                rejected_future_bars+=1
+                                continue
+                            if stamp+timedelta(minutes=5)>now:
+                                excluded_incomplete_bars+=1
+                                continue
+                            close, volume = b.get("close"), b.get("volume")
+                            if (isinstance(close, bool) or isinstance(volume, bool)
+                                    or not isinstance(close, (int, float))
+                                    or not isinstance(volume, (int, float))
+                                    or not math.isfinite(close) or not math.isfinite(volume)
+                                    or close <= 0 or volume < 0):
+                                invalid_bar_sequence=True
                                 continue
                             valid.append(b)
-                        except (KeyError, ValueError, TypeError):
+                            last_accepted_stamp=stamp
+                        except (KeyError, ValueError, TypeError, OverflowError):
+                            invalid_bar_sequence=True
                             continue
                 boardlot=ticker.get("boardLot")
                 eligible=ticker.get("canDayTrade") is True and ticker.get("canBuyDayTrade") is True
@@ -78,9 +157,15 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                 snapshot={
                     "last":quote_price,"avg_price":row.get("microstructure",{}).get("average_price")
                 }
-                features=build_features(snapshot,valid).to_dict() if len(valid)>=2 else None
+                # Do not expose potentially contaminated model features from
+                # invalid bar order, future bars, or mismatched source dates.
+                preview_safe = (evidence_candidates is None and source_identity_matches and len(valid)>=2 and not invalid_bar_sequence
+                                and rejected_future_bars==0 and actual_tf=="5"
+                                and tdate==day and cdate==day)
+                features=build_features(snapshot,valid).to_dict() if preview_safe else None
                 result.update({
                     "ticker_date":tdate,"candles_date":cdate,
+                    "source_identity_matches":source_identity_matches,
                     "board_lot_shares":boardlot,
                     "trading_currency":ticker.get("tradingCurrency"),
                     "can_day_trade":ticker.get("canDayTrade"),
@@ -92,17 +177,26 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                     "limit_up":limit,"is_limit_up":is_limit,
                     "candles_timeframe":actual_tf,
                     "valid_today_five_min_bars":len(valid),
+                    "rejected_future_five_min_bars":rejected_future_bars,
+                    "excluded_unfinished_five_min_bars":excluded_incomplete_bars,
+                    "bar_sequence_valid":not invalid_bar_sequence,
+                    "last_feature_bar_time_tpe":last_accepted_stamp.isoformat() if last_accepted_stamp else None,
+                    "bar_timestamp_semantics_certified":False,
                     "feature_preview":features,
                     "avg_price_is_certified_vwap":False,
                     "official_bar_volume_unit":"整股張數（Fugle 官方 Intraday Candles 文件）",
                 })
-                ready=(tdate==day and cdate==day and actual_tf=="5" and len(valid)>=6
+                ready=(evidence_candidates is None and source_identity_matches and tdate==day and cdate==day
+                       and actual_tf=="5" and len(valid)>=6
+                       and not invalid_bar_sequence and rejected_future_bars==0
                        and eligible and not is_limit and ticker.get("securityStatus")=="NORMAL"
-                       and ticker.get("isDisposition") is not True
-                       and ticker.get("isAttention") is not True
-                       and ticker.get("isSpecificAbnormally") is not True
+                       and ticker.get("isDisposition") is False
+                       and ticker.get("isAttention") is False
+                       and ticker.get("isSpecificAbnormally") is False
                        and boardlot is not None and float(boardlot)>0)
-                result["status"]="CANDLE_TICKER_RESEARCH_READY_NOT_TRADE" if ready else "INCOMPLETE_TICKER_OR_5M_EVIDENCE"
+                result["status"]=("RAW_5M_RESEARCH_SAMPLE_NO_STAGE2" if evidence_candidates is not None
+                                  else "CANDLE_TICKER_RESEARCH_READY_NOT_TRADE" if ready
+                                  else "INCOMPLETE_TICKER_OR_5M_EVIDENCE")
         except requests.HTTPError as exc:
             status=exc.response.status_code if exc.response is not None else None
             result["status"]="RATE_LIMITED" if status==429 else "HTTP_ERROR"
@@ -117,6 +211,10 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
         sleep_fn(1.0)
     return {
         "schema":"SKY_V14_TICKER_5M_RESEARCH_PROVENANCE_V1",
+        "stage2_quote_verified":evidence_candidates is None,
+        "head_sha":os.environ.get("GITHUB_SHA"),
+        "run_id":os.environ.get("GITHUB_RUN_ID"),
+        "data_receipt_kind":"LIVE_ONLY_IF_PROVIDER_CONFIRMED",
         "time_tpe":now.isoformat(),
         "attempted_api_requests":attempts,
         "rate_limited":hit429,

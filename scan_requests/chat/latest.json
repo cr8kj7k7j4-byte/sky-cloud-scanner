@@ -1,6 +1,6 @@
 {
   "command": "Sky 快掃",
-  "request_id": "chat-20261110-1317-fullchain-recheck",
+  "request_id": "chat-20261111-0904-live-intraday",
   "read_only_no_orders": true,
-  "reason": "User explicitly authorized immediate traceable full-market quote, bounded 5m causal evidence, VWAP/cost PAPER_ONLY research validation; do not duplicate W3A W3B W6 PR work or enable live orders."
+  "reason": "One-time authorized live market data validation; market snapshot + limited Quote + 5-minute bars; no schedules resumed; NO_TRADE until verified."
 }

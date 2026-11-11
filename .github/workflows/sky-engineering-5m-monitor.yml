@@ -1,0 +1,35 @@
+name: Sky Engineering Five-Minute Read-Only Monitor
+on:
+  workflow_dispatch:
+  # Scheduled monitoring consolidated into sky-pr511-repair-watchdog.yml.
+  # Retain manual dispatch for the broader read-only engineering audit.
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+concurrency:
+  group: sky-engineering-readonly-5m
+  cancel-in-progress: false
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check PR #511, latest-head CI and schedule overlap (GitHub only)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/sky_engineering_5m_monitor.py
+      - name: Upload monitor report even on GitHub API failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-engineering-monitor-${{ github.run_id }}
+          path: |
+            output/engineering_5m_monitor/latest.json
+            output/engineering_5m_monitor/latest.md
+          if-no-files-found: error
+          retention-days: 7

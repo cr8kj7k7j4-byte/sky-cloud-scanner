@@ -140,3 +140,13 @@ For Sky Day Trading v1.4, the formal governance status is:
 
 See:
 `docs/W0_V14_HISTORICAL_REPLAY_GOVERNANCE_DECISION_20261026.md`
+
+## Single-maintainer W0/P0-G governance operating mode — 2026-11-11
+
+The repository is maintained through a single GitHub account. **A different GitHub account's independent APPROVED review is not a mandatory prerequisite** for research-only engineering changes or for performing governed validation. Do not create duplicate accounts or require additional collaborators solely to satisfy reviewer independence. This clarification supersedes earlier operational suggestions requiring a second GitHub identity.
+
+**Retained approval authority and objective gates:** W0/P0-G remains a documented governance **decision gate** under one maintainer. The owner may record an explicit, attributable `OWNER_GOVERNANCE_DECISION` in a GitHub issue/PR after all applicable evidence has been independently reproducible through CI, immutable SHA/Artifact checks, safety inspection and actual end-to-end validation; the decision must be dated and must name the scope (`RESEARCH_ONLY` vs `PRODUCTION_PROMOTION`), known limitations and decision (`HOLD`, `REJECT`, or `APPROVE_SCOPE_ONLY`). Automated CI or bot self-review are evidence, **not** automatic governance approval. A GitHub self-review is not required; a PR comment or designated decision record is acceptable when authored by the owner.
+
+For the repair controller specifically, retain security conditions: allowlisted scope, immutable-source SHA checks, failed-event identity, isolation in Draft PR, downstream CI and Artifact readback, no automatic merge, no paid Fugle requests or unapproved schedules, no Production-trading/order changes. When genuine end-to-end evidence is missing, report `HOLD / E2E_NOT_VERIFIED` rather than claim approval. The owner can approve the **research-only safety control** after its evidence requirements are satisfied, but this is distinct from allowing autonomous trading or promoting models.
+
+**Production promotion remains blocked** until all Gate 0–10 requirements and the P0-R/P0-G evidence standards hold, and the repository owner explicitly records a scope-specific promotion decision. No number of green tests, paper signals, simulated fills or self-review comments can waive execution causality, costs, risk/portfolio constraints, or forward-study requirements. Existing `ARCHIVED_NO_RETUNE` and paused schedule policies remain intact.

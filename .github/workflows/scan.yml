@@ -7,13 +7,14 @@ on:
     paths:
       - 'scan_requests/mcr/now.json'
       - 'scan_requests/quickscan/latest.json'
-  schedule:
-    # UTC; Asia/Taipei UTC+8. Weekdays; official trading-calendar gate below.
-    # Taipei 09:05, 09:15, 09:30, 09:50 and 10:15.
-    # GitHub scheduled jobs may be delayed or skipped; verify run artifacts.
-    - cron: "5,15,30,50 1 * * 1-5"
-    - cron: "15 2 * * 1-5"
-
+  # PAUSED on 2026-11-10 by user request: formerly scheduled trigger.
+  # schedule:
+  # # UTC; Asia/Taipei UTC+8. Weekdays; official trading-calendar gate below.
+  # # Taipei 09:05, 09:15, 09:30, 09:50 and 10:15.
+  # # GitHub scheduled jobs may be delayed or skipped; verify run artifacts.
+  # - cron: "5,15,30,50 1 * * 1-5"
+  # - cron: "15 2 * * 1-5"
+  # 
 permissions:
   contents: write
 

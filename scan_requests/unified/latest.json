@@ -1,8 +1,9 @@
 {
   "command": "all_market",
-  "requested_at": "2026-11-09T12:03:00+08:00",
-  "reason": "pre-close verified evidence capture 2026-11-09; 13-column research visibility, no trades",
-  "scope": "TWSE_TPEx_snapshot_plus_bounded_individual_fugle_confirmation_RESEARCH_ONLY_NO_TRADE",
-  "acceptance": "verify_information_columns_13col_and_preview_in_docs_status",
-  "requested_at_utc": "2026-11-09T05:27:14.699Z"
+  "requested_at": "2026-11-11T09:10:00+08:00",
+  "reason": "Post-merge Swing 5D policy-safe fallback live acceptance; user authorized one-time run",
+  "scope": "SWING5D_RESEARCH_ONLY_NO_TRADE",
+  "acceptance": "verify swing5d artifact exists and read back; source coverage, timestamps, no orders",
+  "request_id": "swing5d-postfix-20261111-0910",
+  "fix_pr": 532
 }

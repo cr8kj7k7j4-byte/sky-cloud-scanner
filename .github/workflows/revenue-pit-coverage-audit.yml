@@ -2,9 +2,10 @@ name: Revenue Historical PIT Coverage Audit
 
 on:
   workflow_dispatch:
-  schedule:
-    # Recompute after the main monthly-revenue filing window.
-    - cron: '30 3 16 * *'
+  # PAUSED on 2026-11-10 by user request: formerly scheduled trigger.
+  # schedule:
+  # # Recompute after the main monthly-revenue filing window.
+  # - cron: '30 3 16 * *'
   push:
     branches:
       - 'governance/revenue-pit-coverage-gate'

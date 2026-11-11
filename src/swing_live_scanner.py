@@ -102,7 +102,14 @@ def run(mode="swing5d", top_n=20, deep_n=8):
     rows, warnings = fetch_fugle_snapshot_quotes(universe, trading_date=now.date().isoformat())
     snapshot_count = len(rows)
     if not universe or (len(rows) / len(universe)) < 0.80:
-        fallback_rows, fallback_warnings = fetch_mis_quotes(universe)
+        try:
+            fallback_rows, fallback_warnings = fetch_mis_quotes(universe)
+        except PermissionError as exc:
+            # User policy explicitly disables free MIS market data. Keep paid
+            # Fugle observations and preserve the fail-closed market gate.
+            fallback_rows, fallback_warnings = [], [
+                "MIS_FALLBACK_BLOCKED_BY_POLICY: " + str(exc)
+            ]
         merged = {r["symbol"]: r for r in fallback_rows}
         # Prefer the validated bulk snapshot on duplicate symbols.
         merged.update({r["symbol"]: r for r in rows})

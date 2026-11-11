@@ -5,9 +5,10 @@ name: Three Model Research Daily Dispatcher (No Cloud Credentials)
 # 09:30 UTC = 17:30 Asia/Taipei Mon-Fri (research ledger).
 # 10:30 UTC = 18:30 Asia/Taipei Mon-Fri (next-session price markout).
 on:
-  schedule:
-    - cron: '30 9 * * 1-5'
-    - cron: '30 10 * * 1-5'
+  # PAUSED on 2026-11-10 by user request: formerly scheduled trigger.
+  # schedule:
+  # - cron: '30 9 * * 1-5'
+  # - cron: '30 10 * * 1-5'
   workflow_dispatch:
     inputs:
       task:
