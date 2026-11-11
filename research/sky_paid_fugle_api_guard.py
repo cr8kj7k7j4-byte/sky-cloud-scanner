@@ -243,9 +243,17 @@ def main():
                     if str(exc) != "OWN_RESERVATION_NOT_VISIBLE" or attempt == 3:
                         raise
                     time.sleep(2)
+                except HTTPError as exc:
+                    # Newly indexed GitHub Artifact ZIP URLs can briefly
+                    # return 404. Never retry 401/403 or a mismatched claim.
+                    if exc.code != 404 or attempt == 3:
+                        raise
+                    time.sleep(2)
 
         except (ValueError, RuntimeError, HTTPError, URLError, TimeoutError, OSError, zipfile.BadZipFile) as exc:
             code = str(exc) if type(exc) is RuntimeError and str(exc).isupper() and len(str(exc)) < 90 else type(exc).__name__
+            if isinstance(exc, HTTPError):
+                code = "GITHUB_ARTIFACT_HTTP_" + str(exc.code)
             print("FUGLE_RESERVATION_READBACK_BLOCKED:" + code)
             raise SystemExit(2) from None
     # No error or uncertain GitHub result may authorize paid queries.
