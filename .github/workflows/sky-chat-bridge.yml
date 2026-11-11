@@ -224,6 +224,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           EXTERNAL_READBACK_OUTCOME: ${{ steps.external_readback.outcome }}
           EXTERNAL_RECEIPT_UPLOAD_OUTCOME: ${{ steps.external_receipt_upload.outcome }}
+          EXPECTED_ARTIFACT_ID: ${{ steps.main_artifact_upload.outputs.artifact-id }}
         run: |
           python - <<'PY'
           import json
@@ -252,6 +253,13 @@ jobs:
               and str(receipt.get("run_id")) == os.environ.get("GITHUB_RUN_ID")
               and receipt.get("head_sha") == os.environ.get("GITHUB_SHA")
               and receipt.get("request_id") == data.get("request_id")
+              and str(receipt.get("artifact_id")) == os.environ.get("EXPECTED_ARTIFACT_ID")
+              and bool(os.environ.get("EXPECTED_ARTIFACT_ID"))
+              and type(receipt.get("row_count")) is int
+              and receipt.get("row_count") == data.get("row_count")
+              and receipt.get("production_eligible") is False
+              and receipt.get("automatic_order") is False
+              and receipt.get("trade_action") == "禁止交易"
               and data.get("status") == "REPORT_READY_RESEARCH_ONLY"
           )
           data["external_readback_verified"] = bool(valid_external)
