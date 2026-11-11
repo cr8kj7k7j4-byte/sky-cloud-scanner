@@ -15,6 +15,8 @@ jobs:
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -29,6 +31,8 @@ jobs:
           path: historical-artifact
       - name: Re-evaluate at read time; historical data MUST fail closed
         shell: bash
+        env:
+          TEST_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
           mkdir -p output/sky_alert_external_readback
@@ -53,7 +57,7 @@ jobs:
               assert all(x.get('production_eligible') is False for x in report['all_symbols'])
           evidence={
               'schema':'SKY_ALERT_EXTERNAL_HISTORICAL_READBACK_V1',
-              'test_head_sha':os.getenv('GITHUB_SHA'),
+              'test_head_sha':os.getenv('TEST_HEAD_SHA'),
               'source_run_id':42643956587,
               'source_artifact':'sky-scan-42643956587',
               'source_is_historical':True,
