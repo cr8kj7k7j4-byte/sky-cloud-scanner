@@ -46,7 +46,7 @@ jobs:
         id: guard
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python -m research.sky_paid_fugle_api_guard
+        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:live:wholemarket'
       - name: Publish global reservation before any paid call
         id: claim
         if: steps.guard.outputs.allowed == 'true'
@@ -61,7 +61,7 @@ jobs:
         if: steps.guard.outputs.allowed == 'true' && steps.claim.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python -m research.sky_paid_fugle_api_guard --verify
+        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:live:wholemarket' --verify
       - name: Run paid Fugle market snapshots into private immutable GCS
         if: steps.guard.outputs.allowed == 'true' && steps.verify_claim.outcome == 'success'
         env:
