@@ -30,7 +30,7 @@ jobs:
         id: guard
         env:
           GH_TOKEN: ${{ github.token }}
-          SKY_PAID_SCOPE: "sky:quote:selected:${{ inputs.symbols || '2330,6488' }}"
+          SKY_PAID_SCOPE: "sky:quote:${{ inputs.symbols || '2330,6488' }}"
         run: python -m research.sky_paid_fugle_api_guard --scope "$SKY_PAID_SCOPE"
       - name: Publish reservation before paid request
         id: claim
@@ -46,7 +46,7 @@ jobs:
         if: steps.guard.outputs.allowed == 'true' && steps.claim.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
-          SKY_PAID_SCOPE: "sky:quote:selected:${{ inputs.symbols || '2330,6488' }}"
+          SKY_PAID_SCOPE: "sky:quote:${{ inputs.symbols || '2330,6488' }}"
         run: python -m research.sky_paid_fugle_api_guard --scope "$SKY_PAID_SCOPE" --verify
       - name: Retrieve selected executed trade quotes (no orders)
         if: steps.guard.outputs.allowed == 'true' && steps.verify_claim.outcome == 'success'
