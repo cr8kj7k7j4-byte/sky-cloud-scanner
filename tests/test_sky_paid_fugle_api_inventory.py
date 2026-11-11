@@ -56,7 +56,7 @@ jobs:
     def test_real_repository_reports_wiring_but_no_runtime_promotion(self):
         result = audit()
         self.assertGreaterEqual(result["secret_referencing_workflow_count"], 40)
-        self.assertEqual(result["atomic_endpoint_code_wired_candidate_count"], 2)
+        self.assertEqual(result["atomic_endpoint_code_wired_candidate_count"], 3)
         self.assertEqual(result["atomic_endpoint_enforced_workflow_count"], 0)
         self.assertEqual(result["repository_wide_acceptance"], "HOLD")
 
