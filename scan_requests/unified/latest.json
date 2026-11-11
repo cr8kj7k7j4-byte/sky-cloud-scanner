@@ -1,8 +1,9 @@
 {
   "command": "all_market",
-  "requested_at": "2026-11-11T09:05:00+08:00",
-  "reason": "User requested immediate Sky Swing 5D research scan; reuse existing unified workflow; no scheduled restart",
+  "requested_at": "2026-11-11T09:10:00+08:00",
+  "reason": "Post-merge Swing 5D policy-safe fallback live acceptance; user authorized one-time run",
   "scope": "SWING5D_RESEARCH_ONLY_NO_TRADE",
-  "acceptance": "read latest run artifacts; verify source timestamps, scope, swing5d 13-column observations, no trade promotion",
-  "request_id": "swing5d-once-20261111-0905"
+  "acceptance": "verify swing5d artifact exists and read back; source coverage, timestamps, no orders",
+  "request_id": "swing5d-postfix-20261111-0910",
+  "fix_pr": 532
 }
