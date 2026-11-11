@@ -68,6 +68,31 @@ class DeepFiveMinTests(unittest.TestCase):
             self.assertIn("date",raw["data"][0])
             self.assertIn("close",raw["data"][0])
 
+    def test_readback_rejects_wrong_sha_and_run_id(self):
+        from unittest.mock import patch
+        from research.sky_512_artifact_validate import validate
+        with patch.dict("os.environ", {"GITHUB_SHA": "sha512", "GITHUB_RUN_ID": "123"}):
+            receipt=run(stage2(),ticker_fn=ticker,candle_fn=candles,
+                        sleep_fn=lambda _:None,now=NOW)
+        expected=validate(receipt,expected_sha="sha512",expected_run_id="123")
+        self.assertFalse(expected["production_eligible"])
+        self.assertEqual(expected["status"],
+                         "ARTIFACT_DATA_READBACK_PASS_PENDING_PROVIDER_SEMANTICS")
+        with self.assertRaisesRegex(ValueError,"SHA_MISMATCH"):
+            validate(receipt,expected_sha="another",expected_run_id="123")
+        with self.assertRaisesRegex(ValueError,"RUN_ID_MISMATCH"):
+            validate(receipt,expected_sha="sha512",expected_run_id="456")
+
+    def test_readback_rejects_tampered_candle_or_count(self):
+        from unittest.mock import patch
+        from research.sky_512_artifact_validate import validate
+        with patch.dict("os.environ", {"GITHUB_SHA": "sha512", "GITHUB_RUN_ID": "123"}):
+            receipt=run(stage2(),ticker_fn=ticker,candle_fn=candles,
+                        sleep_fn=lambda _:None,now=NOW)
+        receipt["samples"][0]["valid_today_five_min_bars"]+=1
+        with self.assertRaisesRegex(ValueError,"BAR_COUNT_MISMATCH"):
+            validate(receipt,expected_sha="sha512",expected_run_id="123")
+
     def test_attention_stock_cannot_pass_research_readiness(self):
         def attention(symbol):
             data=ticker(symbol)
