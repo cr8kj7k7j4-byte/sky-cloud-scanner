@@ -111,6 +111,38 @@ jobs:
           assert central == 33, ("CENTRAL_RESERVATION_COUNT_DRIFT", central)
           print("MERGE_PUSH_PAID_BLOCKED_WORKFLOWS:", central)
           PY
+      - name: Reject duplicate YAML keys in every paid-gated workflow
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import yaml
+
+          class UniqueKeyLoader(yaml.SafeLoader):
+              pass
+
+          def unique_mapping(loader, node):
+              loader.flatten_mapping(node)
+              result = {}
+              for key_node, value_node in node.value:
+                  key = loader.construct_object(key_node, deep=True)
+                  if key in result:
+                      raise ValueError(f"DUPLICATE_YAML_KEY:{key}")
+                  result[key] = loader.construct_object(value_node, deep=True)
+              return result
+
+          UniqueKeyLoader.add_constructor(
+              yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, unique_mapping)
+          checked = 0
+          for path in sorted(Path(".github/workflows").glob("*.yml")):
+              source = path.read_text(encoding="utf-8")
+              if "research.sky_paid_fugle_api_guard" not in source:
+                  continue
+              with path.open(encoding="utf-8") as handle:
+                  yaml.load(handle, Loader=UniqueKeyLoader)
+              checked += 1
+          assert checked >= 42, ("EXPECTED_GUARDED_WORKFLOWS", checked)
+          print("STRICT_YAML_UNIQUE_KEY_VALIDATED:", checked)
+          PY
       - name: Reserve mock-only unique GitHub Artifact slot
         id: reserve
         env:
