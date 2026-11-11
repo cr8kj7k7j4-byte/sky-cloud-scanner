@@ -8,6 +8,8 @@ on:
       - "tests/test_sky_paper_only_acceptance.py"
       - "research/sky_paper_trade_trace.py"
       - "research/sky_p0r_paper_ledger_readback.py"
+      - "research/sky_p0r_paper_event_replay.py"
+      - "tests/test_sky_p0r_paper_event_replay.py"
       - "tests/test_sky_p0r_paper_ledger_readback.py"
       - "research/sky_brokerless_contract_audit.py"
       - "tests/test_sky_brokerless_contract_audit.py"
@@ -36,6 +38,10 @@ jobs:
         run: python -m unittest discover -s tests -p test_sky_paper_trade_trace.py -v
       - name: Validate real paper-ledger readback contract without inventing events
         run: python -m unittest discover -s tests -p test_sky_p0r_paper_ledger_readback.py -v
+      - name: Validate event-to-ledger simulation without inventing fills
+        run: python -m unittest discover -s tests -p test_sky_p0r_paper_event_replay.py -v
+      - name: Replay real simulator events if available, otherwise explicit HOLD
+        run: python -m research.sky_p0r_paper_event_replay
       - name: Read back existing simulator evidence or produce explicit HOLD
         run: python -m research.sky_p0r_paper_ledger_readback
       - name: Enforce broker-free research contracts across commands and stages
