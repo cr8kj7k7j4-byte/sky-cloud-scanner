@@ -1,6 +1,7 @@
 name: Sky Chat Bridge Unit Checks
 on:
   # Research-only free contract CI, no cron and no paid Fugle calls.
+  # Run after integrating latest main into #511; checks use no Fugle credentials.
   push:
     branches: [research/fugle-snapshot-diagnostics-20261110]
     paths:
