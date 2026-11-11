@@ -95,12 +95,40 @@ def prepare(scope: str, now: datetime, lookup, run_id: str, outdir: Path):
     return allowed, artifact_name(scope, slots(now)[0]), out
 
 
+def workflow_request_scope(workflow: str, event: dict) -> str:
+    """Distinct inputs must not be treated as duplicate paid requests.
+
+    This is a workflow-level fallback, NOT endpoint-level cross-workflow dedup.
+    """
+    if not workflow or not isinstance(event, dict):
+        raise ValueError("INVALID_WORKFLOW_REQUEST")
+    inputs = event.get("inputs")
+    if inputs is None:
+        inputs = {}
+    if not isinstance(inputs, dict):
+        raise ValueError("INVALID_WORKFLOW_INPUTS")
+    normalized = json.dumps(inputs, ensure_ascii=False, sort_keys=True,
+                            separators=(",", ":"))
+    digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:20]
+    identity = hashlib.sha256(workflow.encode("utf-8")).hexdigest()[:16]
+    return f"sky:paid:workflow:{identity}:{digest}"
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--scope", default=DEFAULT_SCOPE)
+    p.add_argument("--workflow-scope", action="store_true")
     p.add_argument("--verify", action="store_true")
     args = p.parse_args()
     now = datetime.now(timezone.utc)
+    if args.workflow_scope:
+        try:
+            event_file = Path(os.environ["GITHUB_EVENT_PATH"])
+            event = json.loads(event_file.read_text(encoding="utf-8"))
+            args.scope = workflow_request_scope(os.environ["GITHUB_WORKFLOW"], event)
+        except (OSError, KeyError, ValueError, TypeError) as exc:
+            print("FUGLE_WORKFLOW_SCOPE_BLOCKED:" + type(exc).__name__)
+            raise SystemExit(2) from None
     # A paid step must verify its own uploaded reservation is visible in GitHub.
     if args.verify:
         try:
