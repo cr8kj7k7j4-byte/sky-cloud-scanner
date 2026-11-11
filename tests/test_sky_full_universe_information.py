@@ -193,6 +193,15 @@ def test_zero_volume_with_valid_observation_is_not_reclassified_as_missing_price
 import unittest
 
 
+class MissingPriceDiagnosticsContracts(unittest.TestCase):
+    # CI invokes unittest, not pytest discovery: execute the no-market regressions.
+    def test_zero_volume_missing_price_distinguished(self):
+        test_missing_price_zero_volume_is_separate_from_provider_miss_and_keeps_protection()
+
+    def test_zero_volume_with_valid_price_is_not_promoted(self):
+        test_zero_volume_with_valid_observation_is_not_reclassified_as_missing_price()
+
+
 class InnovationBoardSnapshotContracts(unittest.TestCase):
     def setUp(self):
         self.universe = [
