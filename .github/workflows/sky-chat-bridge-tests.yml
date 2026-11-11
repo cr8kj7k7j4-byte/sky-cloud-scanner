@@ -139,7 +139,18 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/sky-synthetic-transport
-          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "sky-synthetic-transport-$GITHUB_RUN_ID" --dir /tmp/sky-synthetic-transport
+          # Newly uploaded GitHub Artifact ZIPs can briefly return 404 after listing.
+          # Retry only bounded read-back (no market requests, no duplicate uploads).
+          downloaded=0
+          for attempt in 1 2 3 4 5; do
+            if gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "sky-synthetic-transport-$GITHUB_RUN_ID" --dir /tmp/sky-synthetic-transport; then
+              downloaded=1
+              break
+            fi
+            echo "Synthetic Artifact readback not ready (attempt $attempt/5)" >&2
+            sleep 3
+          done
+          test "$downloaded" = 1 || { echo "SYNTHETIC_ARTIFACT_EXTERNAL_READBACK_FAILED"; exit 1; }
           python - <<'PY'
           import json, os
           from pathlib import Path
