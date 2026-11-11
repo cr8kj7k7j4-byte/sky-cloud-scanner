@@ -96,7 +96,7 @@ jobs:
         id: guard
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python -m research.sky_paid_fugle_api_guard
+        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:live:wholemarket'
       - name: Upload reservation before any paid call
         if: steps.guard.outputs.allowed == 'true'
         id: claim
@@ -111,7 +111,7 @@ jobs:
         id: verify_claim
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python -m research.sky_paid_fugle_api_guard --verify
+        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:live:wholemarket' --verify
       - name: Diagnose data sources
         if: steps.calendar.outputs.should_scan == 'true' && steps.guard.outputs.allowed == 'true' && steps.verify_claim.outcome == 'success'
         env:
