@@ -123,6 +123,11 @@ def consume(report, *, now=None):
         for name, stats in (report.get("by_exchange") or {}).items()
     }
     output["trade_decision"] = "🔴 禁止新進場、未驗證通過"
+    # Source clock freshness is not the same as a verified executed trade.
+    # Preserve all information rows, but do not advertise a zero-trade
+    # snapshot as a current usable market observation.
+    if status == "CURRENT_REPORT_OBSERVATION_ONLY" and output["fresh_executed_count"] == 0:
+        status = "NO_VERIFIED_EXECUTIONS"
     return {
         "schema": SCHEMA,
         "read_at_tpe": now.isoformat(),
