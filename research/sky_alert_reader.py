@@ -142,9 +142,9 @@ def main():
         report = receipt["report"]
         md += (
             f"觀察檔數：{len(report['all_symbols'])}；"
-            f"讀取時有效逐筆成交檔數：{receipt['fresh_executed_count_at_read']}\\n\\n"
+            f"讀取時有效逐筆成交檔數：{receipt['fresh_executed_count_at_read']}\n\n"
         )
-        md += "歷史資料只能作為研究觀察，不代表即時行情或交易訊號。\\n"
+        md += "歷史資料只能作為研究觀察，不代表即時行情或交易訊號。\n"
     else:
         md += f"資料讀取失敗：{receipt.get('block_reason', 'UNKNOWN')}\n"
     md += "\n**🔴 禁止新進場、未驗證通過；不得將過期觀察價視為即時成交價。**\n"
