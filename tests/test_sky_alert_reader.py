@@ -66,6 +66,22 @@ class SkyAlertReaderTest(unittest.TestCase):
                 self.assertEqual(result["fresh_executed_count_at_read"], 0)
                 self.assertFalse(result["production_eligible"])
 
+    def test_truncated_universe_is_blocked(self):
+        self.report["universe_count"] += 1
+        with self.assertRaisesRegex(ValueError, "UNIVERSE_COUNT_MISMATCH"):
+            consume(self.report, now=self.now)
+
+    def test_duplicate_symbols_are_blocked(self):
+        self.report["all_symbols"].append(dict(self.report["all_symbols"][0]))
+        self.report["universe_count"] += 1
+        with self.assertRaisesRegex(ValueError, "DUPLICATE_SOURCE_SYMBOLS"):
+            consume(self.report, now=self.now)
+
+    def test_exchange_coverage_mismatch_is_blocked(self):
+        self.report["by_exchange"]["TWSE"]["universe"] += 1
+        with self.assertRaisesRegex(ValueError, "EXCHANGE_COVERAGE_MISMATCH"):
+            consume(self.report, now=self.now)
+
     def test_invalid_schema_is_rejected(self):
         with self.assertRaises(ValueError):
             consume({}, now=self.now)
