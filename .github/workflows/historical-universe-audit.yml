@@ -11,8 +11,9 @@ on:
       - 'tests/test_official_universe_events.py'
       - 'tests/test_point_in_time_universe.py'
       - '.github/workflows/historical-universe-audit.yml'
-  schedule:
-    - cron: '30 14 * * *'
+  # PAUSED on 2026-11-10 by user request: formerly scheduled trigger.
+  # schedule:
+  # - cron: '30 14 * * *'
   push:
     branches:
       - main

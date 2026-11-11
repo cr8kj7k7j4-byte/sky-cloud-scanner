@@ -6,11 +6,12 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/sky-daytrade-preopen-readiness.yml'
-  schedule:
-    # Taipei UTC+8. Four independent pre-open checks on Taiwan weekdays.
-    # Does not claim schedule punctuality or trading-day completion.
-    - cron: '15,30,45,55 0 * * 1-5'
-
+  # PAUSED on 2026-11-10 by user request: formerly scheduled trigger.
+  # schedule:
+  # # Taipei UTC+8. Four independent pre-open checks on Taiwan weekdays.
+  # # Does not claim schedule punctuality or trading-day completion.
+  # - cron: '15,30,45,55 0 * * 1-5'
+  # 
 permissions:
   contents: read
   actions: read

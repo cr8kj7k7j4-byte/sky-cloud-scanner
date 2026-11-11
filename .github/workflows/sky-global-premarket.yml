@@ -6,8 +6,9 @@ on:
       - 'src/sky_global_premarket.py'
       - 'tests/test_sky_global_premarket.py'
       - '.github/workflows/sky-global-premarket.yml'
-  schedule:
-    - cron: '0 0 * * 1-5' # 08:00 Asia/Taipei
+  # PAUSED on 2026-11-10 by user request: formerly scheduled trigger.
+  # schedule:
+  # - cron: '0 0 * * 1-5' # 08:00 Asia/Taipei
 permissions:
   contents: read
 jobs:

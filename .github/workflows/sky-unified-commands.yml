@@ -4,9 +4,10 @@ on:
     branches: [main]
     paths:
       - 'scan_requests/unified/latest.json'
-  schedule:
-    # 09:10 / 09:20 Asia/Taipei on weekdays; trading-calendar gate in runner.
-    - cron: '10,20 1 * * 1-5'
+  # PAUSED on 2026-11-10 by user request: formerly scheduled trigger.
+  # schedule:
+  # # 09:10 / 09:20 Asia/Taipei on weekdays; trading-calendar gate in runner.
+  # - cron: '10,20 1 * * 1-5'
   workflow_dispatch:
     inputs:
       command:

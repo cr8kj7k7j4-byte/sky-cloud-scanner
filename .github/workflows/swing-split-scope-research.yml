@@ -9,10 +9,11 @@ on:
       - "src/swing_split_scope_scanner.py"
       - "tests/test_swing_split_scope_scanner.py"
       - ".github/workflows/swing-split-scope-research.yml"
-  schedule:
-    - cron: "15 9 * * 1-5"
-      timezone: "Asia/Taipei"
-
+  # PAUSED on 2026-11-10 by user request: formerly scheduled trigger.
+  # schedule:
+  # - cron: "15 9 * * 1-5"
+  # timezone: "Asia/Taipei"
+  # 
 permissions:
   contents: read
 

@@ -1,9 +1,10 @@
 name: Sky Recovery Read-Only Acceptance
 on:
   workflow_dispatch:
-  schedule:
-    # 18:20 Asia/Taipei = 10:20 UTC; read-only after regular session.
-    - cron: '20 10 * * 1-5'
+  # PAUSED on 2026-11-10 by user request: formerly scheduled trigger.
+  # schedule:
+  # # 18:20 Asia/Taipei = 10:20 UTC; read-only after regular session.
+  # - cron: '20 10 * * 1-5'
   pull_request:
     paths:
       - 'research/sky_recovery_gate.py'
