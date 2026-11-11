@@ -238,6 +238,26 @@ def source_binding_verified(payload, binding, verified_bars):
     return binding.get("paper_input_sha256") == digest
 
 
+
+def signal_import_status_verified(status, binding):
+    """Reject stale locally persisted source files after a failed import."""
+    if not isinstance(status, dict) or not isinstance(binding, dict):
+        return False
+    proof = status.get("verified_github_provenance")
+    bound = binding.get("signal_provenance")
+    if (status.get("reconciled") is not True
+            or status.get("production_eligible") is not False
+            or status.get("automatic_order") is not False
+            or not isinstance(proof, dict) or not isinstance(bound, dict)
+            or proof.get("github_metadata_verified") is not True):
+        return False
+    for key in ("signal_run_id", "signal_sha", "signal_artifact_id",
+                "artifact_uploaded_at", "effective_published_at"):
+        if not proof.get(key) or str(proof[key]) != str(bound.get(key)):
+            return False
+    return True
+
+
 def main():
     base=Path("output/sky_paper_runtime")
     source=base/"completed_market_evidence.json"
@@ -257,13 +277,17 @@ def main():
         return 0
     payload=json.loads(source.read_text(encoding="utf-8"))
     binding_file=base/"source_binding.json"
-    verified_file=Path("output/sky_p0r_paper_ledger_readback/verified_512_completed_bars.json")
+    receipt_root=Path("output/sky_p0r_paper_ledger_readback")
+    verified_file=receipt_root/"verified_512_completed_bars.json"
+    status_file=receipt_root/"external_signal_source_status.json"
     try:
         binding=json.loads(binding_file.read_text(encoding="utf-8"))
         verified=json.loads(verified_file.read_text(encoding="utf-8"))
+        signal_status=json.loads(status_file.read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        binding,verified=None,None
-    provenance_verified=source_binding_verified(payload,binding,verified)
+        binding,verified,signal_status=None,None,None
+    provenance_verified=(signal_import_status_verified(signal_status,binding)
+                         and source_binding_verified(payload,binding,verified))
     if not provenance_verified:
         report={"verdict":"INDEPENDENT_MARKET_SIGNAL_SOURCE_BINDING_MISSING",
                 "events":[],"snapshot":None}
