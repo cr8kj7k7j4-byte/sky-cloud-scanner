@@ -11,6 +11,8 @@ on:
       - "research/sky_p0r_paper_event_replay.py"
       - "research/sky_p0r_order_gate.py"
       - "research/sky_p0r_market_event_producer.py"
+      - "research/sky_p0r_512_source_adapter.py"
+      - "tests/test_sky_p0r_512_source_adapter.py"
       - "tests/test_sky_p0r_market_event_producer.py"
       - "tests/test_sky_p0r_paper_event_replay.py"
       - "tests/test_sky_p0r_paper_ledger_readback.py"
@@ -24,6 +26,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 jobs:
   paper-acceptance:
     runs-on: ubuntu-latest
@@ -45,6 +48,23 @@ jobs:
         run: python -m unittest discover -s tests -p test_sky_p0r_paper_event_replay.py -v
       - name: Test completed market bars to paper events to ledger
         run: python -m unittest discover -s tests -p test_sky_p0r_market_event_producer.py -v
+      - name: Test independently verified source bars without manufacturing signals
+        run: python -m unittest tests.test_sky_p0r_512_source_adapter -v
+      - name: Read accepted #512 live Artifact (no provider calls or simulated fills)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          RUN=42950211804
+          EXPECTED_SHA=b9e2f57b02b6c22b0f45d3fb7ae21e2a1cca0ac0
+          ARTIFACT_ID=13824108931
+          ACTUAL_SHA=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN" --jq '.head_sha')
+          test "$ACTUAL_SHA" = "$EXPECTED_SHA" || { echo "UPSTREAM_RUN_SHA_MISMATCH"; exit 1; }
+          ACTUAL_ARTIFACT=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN/artifacts" --jq '.artifacts[] | select(.name == "sky-512-5m-evidence-42950211804") | .id')
+          test "$ACTUAL_ARTIFACT" = "$ARTIFACT_ID" || { echo "UPSTREAM_ARTIFACT_ID_MISMATCH"; exit 1; }
+          mkdir -p /tmp/sky-512-pr508-source
+          gh run download "$RUN" --repo "$GITHUB_REPOSITORY" --name "sky-512-5m-evidence-$RUN" --dir /tmp/sky-512-pr508-source
+          python -m research.sky_p0r_512_source_adapter             --input /tmp/sky-512-pr508-source/v14_ticker_5m_evidence.json             --run-id "$RUN" --head-sha "$ACTUAL_SHA" --artifact-id "$ACTUAL_ARTIFACT"             --output output/sky_p0r_paper_ledger_readback/verified_512_completed_bars.json
       - name: Generate paper-only events only when completed market evidence exists
         run: python -m research.sky_p0r_market_event_producer
       - name: Replay real simulator events if available, otherwise explicit HOLD
