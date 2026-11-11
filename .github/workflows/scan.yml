@@ -82,7 +82,7 @@ jobs:
           x=json.loads(Path("output/trading_calendar_status.json").read_text(encoding="utf-8"))
           gate=scan_session_gate(x)
           Path("output/scan_session_gate.json").write_text(
-              json.dumps(gate,ensure_ascii=False,indent=2)+"\\n",encoding="utf-8")
+              json.dumps(gate,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
           if x.get("source_status") != "PASS":
               raise SystemExit("Official trading calendar unavailable; scan withheld.")
           print("true" if gate["should_scan"] else "false")
