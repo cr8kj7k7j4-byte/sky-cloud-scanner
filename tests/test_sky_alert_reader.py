@@ -58,6 +58,14 @@ class SkyAlertReaderTest(unittest.TestCase):
         self.assertEqual(result["report"]["all_symbols"][0]["data_status"], "STALE_AT_READ")
         self.assertFalse(result["production_eligible"])
 
+    def test_nonfinite_last_price_never_certifies_trade(self):
+        for bad in (float("inf"), float("-inf"), float("nan")):
+            with self.subTest(bad=repr(bad)):
+                self.report["all_symbols"][0]["last_price"] = bad
+                result = consume(self.report, now=self.now)
+                self.assertEqual(result["fresh_executed_count_at_read"], 0)
+                self.assertFalse(result["production_eligible"])
+
     def test_invalid_schema_is_rejected(self):
         with self.assertRaises(ValueError):
             consume({}, now=self.now)
