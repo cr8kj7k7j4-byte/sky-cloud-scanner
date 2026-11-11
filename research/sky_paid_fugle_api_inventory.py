@@ -55,7 +55,7 @@ def audit(root: Path = WORKFLOW_DIR) -> dict:
             "references_paid_fugle_secret": True,
             "shared_group": SHARED_GROUP in source,
             "preflight_present": "python -m research.sky_paid_fugle_api_guard" in source,
-            "receipt_readback": "sky_paid_fugle_api_guard --verify" in source,
+            "receipt_readback": bool(re.search(r"sky_paid_fugle_api_guard[^\\n]*--verify", source)),
             "triggers": flags,
             "static_cohort": cohort(path.name),
             "manual_or_event_trigger_available": any(flags.values()),
