@@ -111,6 +111,32 @@ def check_trading_day(target: date | None=None) -> dict:
         }
 
 
+
+def scan_session_gate(calendar: dict, now: datetime | None = None) -> dict:
+    """Fail closed outside regular TWSE/TPEx session, independently of holiday gate.
+
+    This function does not call TWSE or any paid market API. It evaluates the
+    already fetched official calendar response and the Taiwan local clock.
+    """
+    current=(now or datetime.now(TZ)).astimezone(TZ)
+    minute=current.hour*60+current.minute
+    regular=current.weekday()<5 and 9*60<=minute<13*60+30
+    same_day=calendar.get("date")==current.date().isoformat()
+    approved=(calendar.get("source_status")=="PASS"
+              and calendar.get("should_scan") is True and same_day and regular)
+    return {
+        "schema":"SKY_SCAN_TPE_REGULAR_SESSION_GATE_V1",
+        "checked_at_tpe":current.isoformat(),
+        "official_trading_date":calendar.get("date"),
+        "official_calendar_status":calendar.get("source_status"),
+        "is_regular_session":regular,
+        "calendar_date_matches":same_day,
+        "should_scan":approved,
+        "reason":"APPROVED_IN_SESSION" if approved else "OUTSIDE_SESSION_OR_CALENDAR_BLOCKED",
+        "automatic_order":False,
+    }
+
+
 def main():
     ap=argparse.ArgumentParser()
     ap.add_argument("--date")
