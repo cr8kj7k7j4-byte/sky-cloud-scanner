@@ -22,6 +22,8 @@ on:
       - 'tests/test_sky_repair_progress_monitor.py'
       - 'research/sky_w0_dedup_inventory.py'
       - 'tests/test_sky_w0_dedup_inventory.py'
+      - 'research/sky_paid_api_dedup_contract.py'
+      - 'tests/test_sky_paid_api_dedup_contract.py'
       - '.github/workflows/sky-recovery-watchdog.yml'
 
 permissions:
@@ -70,6 +72,28 @@ jobs:
       - name: Test structural paid API overlap audit without Fugle calls
         if: always()
         run: python -m unittest tests.test_sky_w0_dedup_inventory -v
+      - name: Test paid API shared-store mock contract (zero provider calls)
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest tests.test_sky_paid_api_dedup_contract -v
+          mkdir -p output/w0_repo_dedup
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          Path('output/w0_repo_dedup/mock_runtime_contract.json').write_text(
+              json.dumps({
+                  'schema':'SKY_PAID_API_DEDUP_MOCK_CONTRACT_V1',
+                  'run_id':os.getenv('GITHUB_RUN_ID'),
+                  'sha':os.getenv('GITHUB_SHA'),
+                  'tests':'PASS',
+                  'scope':'MOCK_ATOMIC_STORE_ONLY',
+                  'cross_workflow_runtime_lease_verified':False,
+                  'paid_provider_requests':0,
+                  'production_eligible':False
+              }, indent=2)+'\\n', encoding='utf-8')
+          PY
       - name: Collect W0 cross-Workflow paid entrypoint audit (no provider calls)
         if: always()
         run: python -m research.sky_w0_dedup_inventory
