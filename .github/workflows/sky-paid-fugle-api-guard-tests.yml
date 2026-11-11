@@ -12,6 +12,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 jobs:
   deterministic-guard-contract:
     runs-on: ubuntu-latest
@@ -43,3 +44,30 @@ jobs:
               assert "if-no-files-found: error" in s, path
               print("GUARDED:", path)
           PY
+      - name: Reserve mock-only unique GitHub Artifact slot
+        id: reserve
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_paid_fugle_api_guard --scope ci-smoke-${{ github.run_id }}
+      - name: Upload mock-only reservation (NO PAID API)
+        if: steps.reserve.outputs.allowed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.reserve.outputs.claim_name }}
+          path: output/fugle_api_guard/claim.json
+          if-no-files-found: error
+          retention-days: 2
+      - name: Independent GitHub API receipt readback
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_paid_fugle_api_guard --verify --scope ci-smoke-${{ github.run_id }}
+      - name: Verify second same-scope request is rejected without Fugle
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          export GITHUB_OUTPUT="$(mktemp)"
+          python -m research.sky_paid_fugle_api_guard --scope ci-smoke-${{ github.run_id }}
+          grep -qx 'allowed=false' "$GITHUB_OUTPUT"
+          echo 'SECOND_PAID_REQUEST_BLOCKED_WITHOUT_FUGLE_API'
