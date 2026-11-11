@@ -121,15 +121,15 @@ jobs:
           mkdir -p /tmp/sky-synthetic-transport
           # GitHub's freshly uploaded Artifact can temporarily return HTTP 404.
           # Retry only this non-market readback, bounded; all other errors fail closed.
-          for ATTEMPT in 1 2 3 4; do
+          for ATTEMPT in 1 2 3 4 5 6 7 8 9 10; do
             if gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "sky-synthetic-transport-$GITHUB_RUN_ID" --dir /tmp/sky-synthetic-transport 2>/tmp/sky-synthetic-download-error; then
               break
             fi
-            if ! grep -q 'HTTP 404: Not Found' /tmp/sky-synthetic-download-error || [ "$ATTEMPT" -eq 4 ]; then
+            if ! grep -q 'HTTP 404: Not Found' /tmp/sky-synthetic-download-error || [ "$ATTEMPT" -eq 10 ]; then
               cat /tmp/sky-synthetic-download-error >&2
               exit 1
             fi
-            sleep 2
+            sleep 3
           done
           python - <<'PY'
           import json, os
