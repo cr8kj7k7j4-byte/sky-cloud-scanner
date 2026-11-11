@@ -308,6 +308,9 @@ jobs:
             'source_artifact':'sky-scan-'+os.environ['GITHUB_RUN_ID'],
             'download_outcome':'success',
             'input_sha256':hashlib.sha256((p/'source_fixture.json').read_bytes()).hexdigest(),
+            'receipt_report_sha256':hashlib.sha256(json.dumps(
+              r['report'],ensure_ascii=False,sort_keys=True,separators=(',',':'),
+              allow_nan=False).encode('utf-8')).hexdigest(),
             'production_eligible':False,
           }
           (p/'reader_receipt.json').write_text(json.dumps(r,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
