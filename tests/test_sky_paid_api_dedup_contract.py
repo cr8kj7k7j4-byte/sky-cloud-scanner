@@ -13,6 +13,12 @@ class SharedMockStore:
     def __init__(self):
         self.data = {}
         self.lock = threading.Lock()
+        self.persisted_results = {}
+    def write_result(self, uri, data):
+        self.persisted_results[uri] = bytes(data)
+    def verify_durable_result(self, uri, digest):
+        data = self.persisted_results.get(uri)
+        return data is not None and hashlib.sha256(data).hexdigest() == digest
     def create_if_absent(self, key, record):
         with self.lock:
             if key in self.data:
@@ -61,9 +67,30 @@ class ContractTests(unittest.TestCase):
         store = SharedMockStore()
         self.assertEqual(reserve(store, key(), "run1", "a1"), "CALL_ONCE")
         digest = hashlib.sha256(b"sample").hexdigest()
+        self.assertFalse(finalize_ready(store, key(), "run1", "a1", "gs://test/result", digest))
+        self.assertEqual(reserve(store, key(), "run2", "a1"), "BLOCK_IN_FLIGHT")
+        store.write_result("gs://test/result", b"tampered")
+        self.assertFalse(finalize_ready(store, key(), "run1", "a1", "gs://test/result", digest))
+        store.write_result("gs://test/result", b"sample")
         self.assertFalse(finalize_ready(store, key(), "run2", "a1", "gs://test/result", digest))
         self.assertTrue(finalize_ready(store, key(), "run1", "a1", "gs://test/result", digest))
         self.assertEqual(reserve(store, key(), "run2", "a1"), "REUSE_READY")
+
+    def test_missing_durable_verifier_must_not_promote_ready(self):
+        store = SharedMockStore()
+        reserve(store, key(), "run1", "a1")
+        store.verify_durable_result = None
+        digest = hashlib.sha256(b"sample").hexdigest()
+        self.assertFalse(finalize_ready(store, key(), "run1", "a1", "gs://test/result", digest))
+        self.assertEqual(reserve(store, key(), "run2", "a2"), "BLOCK_IN_FLIGHT")
+
+    def test_durable_verify_failure_keeps_in_flight(self):
+        store = SharedMockStore()
+        reserve(store, key(), "run1", "a1")
+        digest = hashlib.sha256(b"sample").hexdigest()
+        store.write_result("gs://test/result", b"wrong")
+        self.assertFalse(finalize_ready(store, key(), "run1", "a1", "gs://test/result", digest))
+        self.assertEqual(reserve(store, key(), "run2", "a2"), "BLOCK_IN_FLIGHT")
 
     def test_timeout_uncertain_prevents_retry_and_other_owner(self):
         store = SharedMockStore()
