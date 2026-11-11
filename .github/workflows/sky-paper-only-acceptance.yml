@@ -55,6 +55,9 @@ jobs:
       - name: Test independently verified source bars without manufacturing signals
         run: python -m unittest tests.test_sky_p0r_512_source_adapter -v
       - name: Read GitHub-verified #512 completed bars (historical pin or future run)
+        # No precommitted signal => zero valid paper events. Avoid exhausted
+        # GitHub installation API and retain explicit downstream HOLD.
+        if: ${{ vars.SKY_P0R_SIGNAL_RUN_ID != '' }}
         env:
           GH_TOKEN: ${{ github.token }}
           SKY_P0R_BAR_RUN_ID: ${{ vars.SKY_P0R_BAR_RUN_ID }}
