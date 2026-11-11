@@ -44,7 +44,7 @@ def canonical_fugle_request(method: str, url: str, *, parameters: dict | None = 
     if "from" in values and "to" in values and values["from"] > values["to"]:
         raise ValueError("INVALID_DATE_RANGE")
     identity = {"provider": "fugle", "method": "GET",
-                "endpoint": parsed.path.removeprefix("/marketdata/v1.0/stock/"),
+                "endpoint": parsed.path.removeprefix("/marketdata/v1.0/stock/").lstrip("/"),
                 "params": sorted(values.items())}
     raw = json.dumps(identity, ensure_ascii=True, separators=(",", ":"), sort_keys=True)
     return "sky:fugle:endpoint:v1:" + hashlib.sha256(raw.encode("utf-8")).hexdigest()[:32]
