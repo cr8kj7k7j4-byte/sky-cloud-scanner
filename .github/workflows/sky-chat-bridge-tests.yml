@@ -68,7 +68,7 @@ jobs:
           fixture = Path("research/sky_governed_auto_repair_smoke_fixture.txt")
           fixture_state = "ABSENT"
           if fixture.exists():
-              fixture_state = "FIXED" if fixture.read_text(encoding="utf-8") == "SKY_GOVERNED_SMOKE_FIXED_V1\\n" else "UNVERIFIED"
+              fixture_state = "FIXED" if fixture.read_text(encoding="utf-8") == "SKY_GOVERNED_SMOKE_FIXED_V1\n" else "UNVERIFIED"
           receipt = {
               "schema": "SKY_BRIDGE_CI_EVIDENCE_V1",
               "head_sha": os.environ["SKY_HEAD_SHA"],
@@ -85,7 +85,7 @@ jobs:
           }
           output = Path("output/sky_bridge_ci_receipt.json")
           output.parent.mkdir(parents=True, exist_ok=True)
-          output.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\\n", encoding="utf-8")
+          output.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
           print(json.dumps(receipt))
           PY
       - name: Publish isolated bridge CI receipt
