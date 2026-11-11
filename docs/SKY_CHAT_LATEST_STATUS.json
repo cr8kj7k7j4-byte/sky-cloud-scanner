@@ -1,7 +1,7 @@
 {
   "schema": "SKY_CHAT_SCAN_STATUS_V1",
   "status": "FAILED_NO_STATUS",
-  "scan_id": "42955409575",
+  "scan_id": "42966634642",
   "production_eligible": false,
   "automatic_order": false
 }
