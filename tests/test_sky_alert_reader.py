@@ -40,6 +40,11 @@ class SkyAlertReaderTest(unittest.TestCase):
         result = consume(self.report, now=self.now)
         self.assertEqual(result["fresh_executed_count_at_read"], 0)
 
+    def test_empty_artifact_is_rejected(self):
+        self.report["all_symbols"] = []
+        with self.assertRaisesRegex(ValueError, "EMPTY_SOURCE_ROWS"):
+            consume(self.report, now=self.now)
+
     def test_invalid_schema_is_rejected(self):
         with self.assertRaises(ValueError):
             consume({}, now=self.now)
