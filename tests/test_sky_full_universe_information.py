@@ -255,5 +255,9 @@ class SnapshotAcceptanceWorkflowSafetyContracts(unittest.TestCase):
         self.assertIn('os.environ.get("GITHUB_SHA")', source)
         self.assertNotIn("contents: write", source)
         self.assertNotIn("gh api --method PUT", source)
-        self.assertNotIn("GH_TOKEN:", source)
+        # GH_TOKEN is permitted only for read-only GitHub Artifact reservation checks.
+        self.assertIn("actions: read", source)
+        self.assertIn("sky_paid_fugle_api_guard", source)
+        self.assertIn("steps.verify_claim.outcome == 'success'", source)
+        self.assertNotIn("gh api --method POST", source)
 
