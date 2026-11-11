@@ -8,8 +8,6 @@ on:
       - 'src/sky_chat_bridge.py'
       - 'src/sky_scan_readback.py'
       - 'tests/test_sky_scan_readback.py'
-      - 'src/sky_scan_readback.py'
-      - 'tests/test_sky_scan_readback.py'
       - 'tests/test_sky_chat_bridge.py'
       - 'tests/test_sky_full_universe_information.py'
       - '.github/workflows/sky-chat-bridge-tests.yml'
