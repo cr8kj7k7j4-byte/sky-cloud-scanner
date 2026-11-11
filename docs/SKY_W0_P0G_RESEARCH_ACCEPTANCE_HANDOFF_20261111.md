@@ -22,7 +22,7 @@
 4. **執行成本／PAPER_ONLY Gate**：PR #508 head `aa379bbc5061a08aba099dcfef64ac6d994e6938` 19 項 CI PASS，毛 RR=1.5 但費後 RR<1.5 禁止進場，執行成本缺值禁止買進，不改目標／放寬停損。Run [#42863564893](https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/42863564893) PAPER_ONLY offline tests + Artifact 通過，但 `paper_performance_verdict=INSUFFICIENT_DATA`，缺獨立可核的訊號／市場時間／入出場／填單假設／實際估計成本帳本；不可聲稱完成績效或實盤成交。
 5. **付費 API 去重 Gate**：PR #515 靜態列出不同手動／推送觸發與 concurrency groups；**尚無跨 Workflow 共用 runtime lease、provider request ID/呼叫量帳本、同時觸發防護的真實證據**。停用 GitHub `schedule` 不等於排除手動重複付費；沒有證據不得宣稱實際重複扣款。W0 稽核僅讀 GitHub 不呼叫 Fugle。
 6. **自動修補閉環 Gate**：既有主控制器 `sky-governed-auto-repair.yml` 事件觸發已測試；#520 事件來源 SHA/重試防護仍是 Draft，未獲獨立審核，亦缺真實失敗 CI → Draft 修補 PR → 下游 CI／Artifact 全鏈閉環。#518 須與 #520 去重，不重建第三套。
-7. **正式 W0／P0-G**：上述 Gate 未全通過，`PROMOTE`、`PRODUCTION_ELIGIBLE` 均 **否**；審查結果 **HOLD／INSUFFICIENT_DATA**。此文件不是獨立簽核，須獨立審查人員實際核對最新 SHA、來源 Artifact、成本、風控及治理登錄。
+7. **正式 W0／P0-G**：上述 Gate 未全通過，`PROMOTE`、`PRODUCTION_ELIGIBLE` 均 **否**；審查結果 **HOLD／INSUFFICIENT_DATA**。此文件不是獨立簽核，由單一 Repository Owner 以 W0／P0-G 可追溯決策核對最新 SHA、來源 Artifact、成本、風控及治理登錄；不要求第二個 GitHub 帳號，且不能以自動 CI 取代核准。
 
 ## 後續最小可驗收順序
 
@@ -32,3 +32,9 @@
 - 最後由獨立 W0／P0-G 治理審核，若任何 Gate 尚未核實，保持 HOLD/NO_TRADE。
 
 **硬性限制：** 不自動下單；不調高目標、不放寬停損；不自行合併 Production；GitHub 定時 schedule 維持全部暫停，既有 ChatGPT 每小時任務獨立複核。
+
+## #515 GCS 兩 Runner 研究驗收補充（2026-11-11）
+
+- 原研究分支 [Run 43001033337](https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/43001033337) 在 GCP WIF 身分階段失敗：`unauthorized_client / rejected by attribute condition`；未取得 GCS 存取、未驗證兩 Runner CAS、未發出富果請求。不可用離線 mock PASS 代替。
+- 保留既有 IAM 身分條件，不擴權，不改 Production 模型或交易功能。研究級替代路徑：僅在受信任 main 上對一次性 `research/sky_paid_api_gcs_cas_probe_request.json` push 執行兩個獨立 Runner 的**合成** GCS create-if-absent／generation CAS，第三 Runner 驗證結果，Workflow 無 Fugle secret、無 cron、無交易權限。
+- 此為 W0 可審查的研究級測試整合，不代表全付費入口已接線；即使 main 測試通過，`cross_workflow_runtime_lease_verified` 仍須另外驗收，正式交易維持 NO_TRADE。
