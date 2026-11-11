@@ -87,6 +87,8 @@ jobs:
               assert p.read_text(encoding="utf-8") == expected, "ISOLATED_SMOKE_FIXTURE_REQUIRES_APPROVED_PATCH"
           PY
       - name: Prepare synthetic research-only Artifact transport probe
+        env:
+          SKY_PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         shell: bash
         run: |
           set -euo pipefail
@@ -119,6 +121,9 @@ jobs:
               "not_market_data": True,
               "run_id": os.environ["GITHUB_RUN_ID"],
               "head_sha": os.environ["GITHUB_SHA"],
+              "workflow_checkout_sha": os.environ["GITHUB_SHA"],
+              "pull_request_head_sha": os.environ["SKY_PR_HEAD_SHA"],
+              "sha_scope": "PR_MERGE_CHECKOUT_NOT_HEAD" if os.environ["GITHUB_EVENT_NAME"] == "pull_request" else "CHECKOUT_SHA",
               "production_eligible": False,
               "automatic_order": False,
           }
@@ -158,6 +163,12 @@ jobs:
           assert validate_request({"command":data["command"],"request_id":data["request_id"],"read_only_no_orders":True}) == data["request_id"]
           assert data["run_id"] == os.environ["GITHUB_RUN_ID"]
           assert data["head_sha"] == os.environ["GITHUB_SHA"]
+          assert data["workflow_checkout_sha"] == os.environ["GITHUB_SHA"]
+          assert len(data["pull_request_head_sha"]) == 40
+          assert all(c in "0123456789abcdef" for c in data["pull_request_head_sha"])
+          assert data["sha_scope"] == ("PR_MERGE_CHECKOUT_NOT_HEAD" if os.environ["GITHUB_EVENT_NAME"] == "pull_request" else "CHECKOUT_SHA")
+          if os.environ["GITHUB_EVENT_NAME"] != "pull_request":
+              assert data["pull_request_head_sha"] == data["workflow_checkout_sha"]
           assert data["production_eligible"] is False
           assert data["automatic_order"] is False
           print("SYNTHETIC_ARTIFACT_STORAGE_DOWNLOAD_PASS")
