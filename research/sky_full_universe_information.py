@@ -88,7 +88,12 @@ def record(meta, payload, source_date, checked_at):
     if source_date != checked_at.date().isoformat():
         result["data_status"] = "SNAPSHOT_DATE_NOT_TODAY"
     elif price is None:
-        result["data_status"] = "MISSING_EXECUTED_PRICE"
+        # A returned Snapshot row with explicitly zero reported volume is not
+        # a missing symbol. Never infer suspension or invent a closing price.
+        result["data_status"] = (
+            "ZERO_REPORTED_VOLUME_NO_PRICE" if result["volume"] == 0
+            else "MISSING_EXECUTED_PRICE"
+        )
     elif ts is None:
         result["data_status"] = "UNVERIFIED_EXECUTION_TIME"
     elif ts.date() != checked_at.date() or result["time_age_seconds"] > 180:
@@ -251,6 +256,22 @@ def build(universe, snapshots, checked_at, errors=None):
         }
         by_market[exchange]["fresh_executed_pct"] = round(
             100 * by_market[exchange]["fresh_executed"] / len(subset), 1) if subset else 0.0
+    # Separate provider coverage from missing execution prices and no-trade observations.
+    # Keep every official symbol in the denominator; these diagnostics never
+    # certify a quote, trading suspension, or an executable order.
+    missing_price_rows = [x for x in rows if x["last_price"] is None]
+    missing_price_diagnostics = [
+        {
+            "symbol": x["symbol"],
+            "name": x["name"],
+            "exchange": x["exchange"],
+            "snapshot_market_source": x.get("snapshot_market_source"),
+            "reported_volume": x.get("volume"),
+            "data_status": x["data_status"],
+            "official_trading_status": "UNVERIFIED",
+        }
+        for x in missing_price_rows
+    ]
     verified = sum(x["data_status"] == "FRESH_EXECUTED_TRADE" for x in rows)
     report = {
         "schema": "SKY_INFORMATION_FIRST_FULL_UNIVERSE_V1",
@@ -261,6 +282,11 @@ def build(universe, snapshots, checked_at, errors=None):
         "snapshot_api_calls_expected_per_scan": 3 if expected_tib else 2,
         "individual_quote_calls_are_bounded_separately": True,
         "observed_price_count": sum(x["last_price"] is not None for x in rows),
+        "missing_price_count": len(missing_price_rows),
+        "zero_reported_volume_no_price_count": sum(
+            x["data_status"] == "ZERO_REPORTED_VOLUME_NO_PRICE" for x in missing_price_rows),
+        "missing_price_diagnostics": missing_price_diagnostics,
+        "missing_price_official_status_certified": False,
         # A valid Snapshot observation is NOT an individual Quote execution certification.
         "snapshot_reference_coverage_pct": round(
             100 * sum(x["last_price"] is not None for x in rows) / len(rows), 2
