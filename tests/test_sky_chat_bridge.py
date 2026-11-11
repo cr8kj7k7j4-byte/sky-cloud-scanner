@@ -6,14 +6,17 @@ class ChatScanBridgeTests(unittest.TestCase):
         from pathlib import Path
         workflow = (Path(__file__).resolve().parents[1] /
                     ".github/workflows/sky-chat-bridge.yml").read_text(encoding="utf-8")
-        self.assertIn("actions: read", workflow)
-        self.assertIn('gh run download "$GITHUB_RUN_ID"', workflow)
-        self.assertIn("ARTIFACT_RUN_SHA_MISMATCH", workflow)
-        self.assertIn('root / "chat_bridge/latest.json"', workflow)
-        self.assertIn('root / "sky_quickscan_information/latest_13col.json"', workflow)
-        self.assertIn("ARTIFACT_DUPLICATE_SYMBOLS", workflow)
-        self.assertIn("sky-chat-readback-", workflow)
-        self.assertIn("steps.readback.outcome == 'success'", workflow)
+        validator = (Path(__file__).resolve().parents[1] /
+                     "scripts/sky_chat_artifact_readback.py").read_text(encoding="utf-8")
+        self.assertEqual(workflow.count("  actions: read"), 1)
+        self.assertEqual(workflow.count('gh run download "$GITHUB_RUN_ID"'), 1)
+        self.assertIn('--head-sha "$HEAD_SHA" --expected-sha "$GITHUB_SHA"', workflow)
+        self.assertIn("sky-chat-external-readback-", workflow)
+        self.assertIn('root / "chat_bridge/latest.json"', validator)
+        self.assertIn('root / "sky_quickscan_information/latest_13col.json"', validator)
+        self.assertIn("RUN_HEAD_SHA_MISMATCH", validator)
+        self.assertIn("REPORT_DUPLICATE_OR_MISSING_SYMBOL", validator)
+        self.assertIn("ARTIFACT_ID_MISSING", validator)
 
     def test_research_branch_scan_cannot_publish_main_status(self):
         from pathlib import Path
