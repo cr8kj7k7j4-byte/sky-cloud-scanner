@@ -95,9 +95,9 @@ class DispatchAliasContractTests(unittest.TestCase):
         workflow = WORKFLOW.read_text(encoding="utf-8")
         segment = workflow.split("      - name: Verify status and preserve a failed-run diagnostic", 1)[1]
         segment = segment.split("      - name: Upload complete 13-column report and status", 1)[0]
-        match = re.search(r"          python - <<'PY'\\n(.*?)\\n          PY", segment, re.S)
+        match = re.search(r"          python - <<'PY'\n(.*?)\n          PY", segment, re.S)
         self.assertIsNotNone(match)
-        code = "\\n".join(line[10:] if line.startswith("          ") else line
+        code = "\n".join(line[10:] if line.startswith("          ") else line
                          for line in match.group(1).splitlines())
         scenarios = [
             ({"GUARD_OUTCOME": "success", "GUARD_ALLOWED": "false"},
