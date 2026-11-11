@@ -44,3 +44,12 @@ This profile configures risk capacity only. It does not authorize a candidate st
 - A paper portfolio is never a real portfolio; paper fills, realized PnL, and execution assumptions must be labeled simulation.
 - The Fugle market-data API does not need broker-account authorization for this research gate.
 - Real order execution and brokerage ledger integrations are outside the present scope and remain disabled.
+
+## P0-R research acceptance — explicit broker-independent gate (2026-11-11)
+
+- **Removed mandatory prerequisite:** proving that a real brokerage account, order API, holdings API, or trade/fill history API exists or can be authorized. The user has no brokerage account; do not request opening one for research acceptance.
+- **Required instead:** a traceable `PAPER_ONLY` simulated ledger with timestamped portfolio snapshots, position and original-stop provenance, simulated orders/fills and non-fills, execution assumptions, realized *simulated* daily net PnL, consecutive simulated stop count, open risk and audit-readable artifacts.
+- All simulated fills must be distinguished from market observations. Apply full modeled fees, taxes, spread, slippage, liquidity and fill assumptions; missing or inconsistent simulation evidence fails closed.
+- Enforce existing P0-R capital, per-trade risk, notional, concurrent position, portfolio heat, daily stop, two-loss lock and execution-adjusted RR constraints unchanged.
+- Gate result is **RESEARCH/PAPER_ONLY only**; no inference of real fill quality, real PnL or Production readiness. `LIVE_TRADING_ENABLED=false` / no real broker order endpoint remains a hard invariant.
+- Real broker integration and Small Live are **deferred, optional future scopes** needing separate explicit authorization; they are not blockers for P0-R research/Shadow/Paper verification. Existing strategy promotion, W0/P0-G, data and CI/Artifact gates remain in force.
