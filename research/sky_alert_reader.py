@@ -37,6 +37,10 @@ def consume(report, *, now=None):
         raise ValueError("INVALID_SOURCE_SCHEMA")
     if not isinstance(report.get("all_symbols"), list) or not isinstance(report.get("ranked_observations"), list):
         raise ValueError("INVALID_SOURCE_ROWS")
+    # A zero-row artifact can be retained as evidence but must never be
+    # reported as a current usable whole-market observation.
+    if not report["all_symbols"]:
+        raise ValueError("EMPTY_SOURCE_ROWS")
     checked = _timestamp(report.get("checked_at_tpe"))
     age = (now - checked).total_seconds() if checked else None
     if age is None:
