@@ -33,6 +33,26 @@ jobs:
         self.assertEqual(cohort("w3a-full-pit-history-export.yml"), "HISTORICAL_DATA_OR_BACKTEST")
         self.assertEqual(cohort("sky-selected-quote-view.yml"), "LIVE_MARKET_OR_SCAN")
 
+    def test_artifact_guard_cannot_be_misreported_as_atomic_endpoint_gate(self):
+        with TemporaryDirectory() as td:
+            p = Path(td) / "fugle.yml"
+            p.write_text(
+                """on:
+  workflow_dispatch:
+concurrency:
+  group: sky-fugle-paid-global-research-v1
+jobs:
+  observe:
+    steps:
+      - env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+      - run: python -m research.sky_paid_fugle_api_guard --verify
+""", encoding="utf-8")
+            result = audit(Path(td))
+            self.assertEqual(result["unguarded_candidate_count"], 0)
+            self.assertEqual(result["atomic_endpoint_enforced_workflow_count"], 0)
+            self.assertEqual(result["repository_wide_acceptance"], "HOLD")
+
     def test_inventory_holds_when_any_unguarded_manual_entrypoint_exists(self):
         with TemporaryDirectory() as td:
             p = Path(td) / "legacy.yml"
