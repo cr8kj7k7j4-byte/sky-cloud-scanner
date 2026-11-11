@@ -51,6 +51,21 @@ class ExternalSignalVerificationTests(unittest.TestCase):
         self.assertEqual(proof["signal_sha"],SHA)
         self.assertEqual(proof["signal_artifact_id"],ARTIFACT_ID)
 
+    def test_github_assigned_artifact_id_is_bound_after_upload(self):
+        # A signal producer cannot know GitHub's Artifact ID before upload.
+        def downloader(folder):
+            receipt = {k: v for k, v in RECEIPT.items()
+                       if k != "signal_artifact_id"}
+            (folder / "precommitted_signal.json").write_text(
+                json.dumps(receipt), encoding="utf-8")
+        def fetch(endpoint):
+            return META if endpoint.endswith("/runs/12345") else LISTING
+        receipt, proof = _receipt_from_github(
+            "owner/repo", RUN, fetch=fetch, downloader=downloader)
+        self.assertEqual(receipt["signal_artifact_id"], ARTIFACT_ID)
+        self.assertEqual(proof["signal_artifact_id"], ARTIFACT_ID)
+        self.assertTrue(proof["github_metadata_verified"])
+
     def test_non_success_run_rejected(self):
         def fetch(endpoint):
             return {**META,"conclusion":"failure"} if endpoint.endswith("/runs/12345") else LISTING
