@@ -36,6 +36,13 @@ def _receipt_from_github(repo, run_id, fetch=_gh_api, downloader=None):
             or not isinstance(run.get("head_sha"), str)
             or len(run["head_sha"]) != 40):
         raise ValueError("UNTRUSTED_SIGNAL_WORKFLOW_RUN")
+    # Only an explicitly W0-approved signal-emitting workflow may provide
+    # executable PAPER_ONLY research plans. A generic successful GitHub job
+    # (for example a synthetic transport check) is never a signal authority.
+    approved_workflow_id = os.getenv("SKY_P0R_APPROVED_SIGNAL_WORKFLOW_ID", "").strip()
+    if (not approved_workflow_id.isdigit()
+            or str(run.get("workflow_id")) != approved_workflow_id):
+        raise ValueError("SIGNAL_WORKFLOW_NOT_GOVERNANCE_APPROVED")
     listing = fetch(f"repos/{repo}/actions/runs/{run_id}/artifacts")
     artifacts = listing.get("artifacts")
     name = f"sky-precommitted-paper-signal-{run_id}"
