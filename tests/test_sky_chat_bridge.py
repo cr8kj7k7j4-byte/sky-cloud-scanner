@@ -60,6 +60,62 @@ class ChatScanBridgeTests(unittest.TestCase):
             self.assertFalse(data["production_eligible"])
             self.assertFalse(data["automatic_order"])
 
+    def test_main_status_publish_guard_executes_fail_closed(self):
+        import json
+        import os
+        import re
+        import subprocess
+        import sys
+        import tempfile
+        from pathlib import Path
+
+        workflow = (Path(__file__).resolve().parents[1] /
+                    ".github/workflows/sky-chat-bridge.yml").read_text(encoding="utf-8")
+        match = re.search(
+            r"      - name: Publish sanitized summary for ChatGPT GitHub connector\n"
+            r".*?          python - <<'PY'\n"
+            r"(.*?)\n          PY\n", workflow, re.S)
+        self.assertIsNotNone(match, "Published-status verification script missing")
+        guard = "\n".join(line[10:] if line.startswith("          ") else line
+                          for line in match.group(1).splitlines())
+        for download, upload, receipt_status, should_pass in (
+            ("success", "failure", "PASS_RESEARCH_ONLY", False),
+            ("failure", "success", "PASS_RESEARCH_ONLY", False),
+            ("success", "success", "FAILED_CLOSED", False),
+            ("success", "success", "PASS_RESEARCH_ONLY", True),
+        ):
+            with self.subTest(download=download, upload=upload, receipt=receipt_status):
+                with tempfile.TemporaryDirectory() as tmp:
+                    root = Path(tmp)
+                    (root / "output/chat_bridge").mkdir(parents=True)
+                    (root / "output/chat_bridge_readback").mkdir(parents=True)
+                    status = {"schema": "SKY_CHAT_SCAN_STATUS_V1",
+                              "status": "REPORT_READY_RESEARCH_ONLY",
+                              "scan_id": "123456", "request_id": "req-123",
+                              "production_eligible": False, "automatic_order": False}
+                    receipt = {"status": receipt_status, "run_id": "123456",
+                               "head_sha": "a" * 40, "request_id": "req-123",
+                               "production_eligible": False, "automatic_order": False}
+                    (root / "output/chat_bridge/latest.json").write_text(
+                        json.dumps(status), encoding="utf-8")
+                    (root / "output/chat_bridge_readback/external_receipt.json").write_text(
+                        json.dumps(receipt), encoding="utf-8")
+                    env = dict(os.environ, GITHUB_RUN_ID="123456",
+                               GITHUB_SHA="a" * 40, EXTERNAL_READBACK_OUTCOME=download,
+                               EXTERNAL_RECEIPT_UPLOAD_OUTCOME=upload)
+                    result = subprocess.run([sys.executable, "-c", guard],
+                                            cwd=tmp, env=env, capture_output=True, text=True)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    published = json.loads(Path("/tmp/sky-chat-status.json").read_text(encoding="utf-8"))
+                    self.assertIs(published["external_readback_verified"], should_pass)
+                    self.assertFalse(published["production_eligible"])
+                    self.assertFalse(published["automatic_order"])
+                    if should_pass:
+                        self.assertEqual(published["status"], "REPORT_READY_RESEARCH_ONLY")
+                    else:
+                        self.assertEqual(published["status"], "DATA_BLOCKED_EXTERNAL_READBACK")
+                        self.assertEqual(published["readback"]["trade_action"], "禁止交易")
+
     def test_research_branch_scan_cannot_publish_main_status(self):
         from pathlib import Path
         workflow = (Path(__file__).resolve().parents[1] /
