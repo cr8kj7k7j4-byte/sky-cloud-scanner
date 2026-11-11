@@ -40,6 +40,30 @@ def consume(report, *, now=None):
     # reported as a current usable whole-market observation.
     if not report["all_symbols"]:
         raise ValueError("EMPTY_SOURCE_ROWS")
+    declared_count = report.get("universe_count")
+    if type(declared_count) is not int or declared_count != len(report["all_symbols"]):
+        raise ValueError("UNIVERSE_COUNT_MISMATCH")
+    # A file with duplicated identifiers can fake market coverage. Validate
+    # both listed exchanges against the advertised canonical source counts.
+    keys = []
+    for entry in report["all_symbols"]:
+        if not isinstance(entry, dict) or entry.get("exchange") not in ("TWSE", "TPEx"):
+            raise ValueError("INVALID_SOURCE_ROW")
+        symbol = str(entry.get("symbol") or "")
+        if not symbol:
+            raise ValueError("MISSING_SOURCE_SYMBOL")
+        keys.append((entry["exchange"], symbol))
+    if len(set(keys)) != len(keys):
+        raise ValueError("DUPLICATE_SOURCE_SYMBOLS")
+    exchange_counts = report.get("by_exchange")
+    if not isinstance(exchange_counts, dict) or not all(
+        isinstance(exchange_counts.get(market), dict)
+        and type(exchange_counts[market].get("universe")) is int
+        and exchange_counts[market]["universe"] ==
+        sum(entry["exchange"] == market for entry in report["all_symbols"])
+        for market in ("TWSE", "TPEx")
+    ):
+        raise ValueError("EXCHANGE_COVERAGE_MISMATCH")
     checked = _timestamp(report.get("checked_at_tpe"))
     age = (now - checked).total_seconds() if checked else None
     if age is None:
