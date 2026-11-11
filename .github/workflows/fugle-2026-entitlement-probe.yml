@@ -79,6 +79,8 @@ jobs:
         if: github.event_name != 'pull_request'
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+          SKY_PAID_ATOMIC_ENFORCE: '1'
+          GH_TOKEN: ${{ github.token }}
         run: python -m research.fugle_2026_entitlement_probe --out research_output/fugle_2026_entitlement_probe.json
       - name: Upload sanitized result
         if: github.event_name != 'pull_request'
