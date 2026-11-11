@@ -14,7 +14,36 @@ concurrency:
   group: sky-fugle-paid-global-research-v1-quote-${{ inputs.symbols || 'default' }}
   cancel-in-progress: false
 jobs:
+  atomic_quote_claim:
+    # Isolate the only Git ref write to this preflight job. No Fugle secret.
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Atomically claim all selected endpoints before paid job (NO FUGLE)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SKY_SELECTED_SYMBOLS: ${{ inputs.symbols }}
+        run: python -m research.sky_fugle_selected_quote_atomic_claim
+      - name: Upload per-endpoint atomic receipt before paid job
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-selected-atomic-${{ github.run_id }}
+          path: output/fugle_api_guard/selected_quote_atomic.json
+          if-no-files-found: error
+          retention-days: 14
+
   quote:
+    needs: atomic_quote_claim
+    if: needs.atomic_quote_claim.result == 'success'
+    permissions:
+      contents: read
+      actions: read
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
@@ -26,6 +55,15 @@ jobs:
         run: |
           pip install -r requirements.txt
           python -m unittest tests.test_sky_market_quote_view -v
+      - name: Download exact atomic claim receipt from privileged preflight
+        uses: actions/download-artifact@v4
+        with:
+          name: sky-selected-atomic-${{ github.run_id }}
+          path: output/fugle_api_guard/
+      - name: Verify same SHA, current 5m slot, and all selected endpoint claims
+        env:
+          SKY_SELECTED_SYMBOLS: ${{ inputs.symbols }}
+        run: python -m research.sky_fugle_selected_quote_atomic_claim --verify
       - name: Reserve cross-workflow paid API slot
         id: guard
         env:
