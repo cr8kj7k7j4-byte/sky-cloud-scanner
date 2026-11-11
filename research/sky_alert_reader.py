@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -67,6 +68,7 @@ def consume(report, *, now=None):
             and 0 <= trade_age <= MAX_TRADE_AGE_SECONDS
             and isinstance(row.get("last_price"), (int, float))
             and not isinstance(row.get("last_price"), bool)
+            and math.isfinite(row["last_price"])
             and row["last_price"] > 0
         )
         if not fresh:
