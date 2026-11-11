@@ -68,6 +68,9 @@ class AtomicStore(Protocol):
     def create_if_absent(self, key: str, record: Record) -> bool: ...
     def read(self, key: str) -> tuple[Record, str] | None: ...
     def compare_and_swap(self, key: str, version: str, record: Record) -> bool: ...
+    def verify_durable_result(self, uri: str, digest: str) -> bool:
+        """Confirm persisted result bytes hash to digest using a trusted shared backend."""
+        ...
 
 
 def reserve(store: AtomicStore, key: str, owner_run_id: str,
@@ -114,6 +117,11 @@ def finalize_ready(store: AtomicStore, key: str, owner_run_id: str,
             or record.attempt_id != attempt_id or not uri
             or not isinstance(digest, str) or len(digest) != 64
             or any(c not in "0123456789abcdef" for c in digest)):
+        return False
+    # No syntactically plausible digest can promote an unuploaded/altered result.
+    # Absence/failure of a shared-store verifier must remain fail-closed.
+    verifier = getattr(store, "verify_durable_result", None)
+    if not callable(verifier) or verifier(uri, digest) is not True:
         return False
     updated = replace(record, state="READY", result_uri=uri,
                       result_sha256=digest, provider_request_id=provider_request_id,
