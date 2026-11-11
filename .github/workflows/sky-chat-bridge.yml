@@ -7,6 +7,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: write
+  actions: read
 concurrency:
   group: sky-chat-scan
   cancel-in-progress: false
@@ -97,6 +98,61 @@ jobs:
             output/sky_quickscan_information/v14_ticker_5m_evidence.json
             output/sky_quickscan_information/candidate_e2e_chain.json
             output/sky_quickscan_information/candidate_e2e_chain.md
+          if-no-files-found: error
+          retention-days: 14
+      - name: Independently download and validate same-run GitHub Artifact
+        id: readback
+        if: ${{ success() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/sky-artifact-readback
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "sky-chat-$GITHUB_RUN_ID" --dir /tmp/sky-artifact-readback
+          ACTUAL_SHA=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --jq '.head_sha')
+          test "$ACTUAL_SHA" = "$GITHUB_SHA" || { echo "ARTIFACT_RUN_SHA_MISMATCH"; exit 1; }
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from src.sky_scan_readback import validate_scan_readback
+          from src.sky_chat_bridge import validate_report
+          root = Path("/tmp/sky-artifact-readback")
+          status = json.loads((root / "chat_bridge/latest.json").read_text(encoding="utf-8"))
+          report = json.loads((root / "sky_quickscan_information/latest_13col.json").read_text(encoding="utf-8"))
+          request = json.loads(Path("scan_requests/chat/latest.json").read_text(encoding="utf-8"))
+          receipt = validate_scan_readback(
+              status, expected_run_id=os.environ["GITHUB_RUN_ID"],
+              expected_request_id=request["request_id"])
+          rows = validate_report(report)
+          if report.get("row_count") != status.get("row_count") or len(rows) != status["row_count"]:
+              raise SystemExit("ARTIFACT_ROW_COUNT_MISMATCH")
+          symbols = [row["股票代碼"] for row in rows]
+          if len(symbols) != len(set(symbols)):
+              raise SystemExit("ARTIFACT_DUPLICATE_SYMBOLS")
+          if receipt["production_eligible"] or receipt["automatic_order"]:
+              raise SystemExit("ARTIFACT_UNSAFE_TRADING_STATUS")
+          proof = {
+              "schema": "SKY_EXTERNAL_ARTIFACT_READBACK_V1",
+              "run_id": os.environ["GITHUB_RUN_ID"],
+              "head_sha": os.environ["GITHUB_SHA"],
+              "request_id": request["request_id"],
+              "source_artifact_name": "sky-chat-" + os.environ["GITHUB_RUN_ID"],
+              "downloaded_files_verified": ["chat_bridge/latest.json", "sky_quickscan_information/latest_13col.json"],
+              "row_count": len(rows),
+              "snapshot_is_executed_trade_time": False,
+              "production_eligible": False,
+              "automatic_order": False,
+              "status": "PASS_RESEARCH_READBACK_ONLY",
+          }
+          Path("output/chat_bridge/external_artifact_readback.json").write_text(json.dumps(proof, ensure_ascii=False, indent=2)+"\\n", encoding="utf-8")
+          print(json.dumps(proof, ensure_ascii=False))
+          PY
+      - name: Upload independent Artifact readback receipt
+        if: ${{ steps.readback.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-chat-readback-${{ github.run_id }}
+          path: output/chat_bridge/external_artifact_readback.json
           if-no-files-found: error
           retention-days: 14
       - name: Publish sanitized summary for ChatGPT GitHub connector
