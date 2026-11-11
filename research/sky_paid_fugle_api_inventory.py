@@ -48,7 +48,7 @@ def audit(root: Path = WORKFLOW_DIR) -> dict:
     rows = []
     for path in sorted(root.glob("*.yml")) + sorted(root.glob("*.yaml")):
         source = path.read_text(encoding="utf-8")
-        if "secrets.FUGLE_API_KEY" not in source:
+        if not re.search(r"^\\s*FUGLE_API_KEY:\\s*\\$\\{\\{\\s*secrets\\.FUGLE_API_KEY\\s*\\}\\}", source, re.M):
             continue
         flags = triggers(source)
         row = {
