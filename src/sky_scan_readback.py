@@ -40,6 +40,7 @@ def validate_scan_readback(
     expected_request_id: str,
     now: datetime | None = None,
     max_receipt_age_seconds: int = 300,
+    max_capture_age_seconds: int = 300,
 ) -> dict[str, Any]:
     """Fail closed on stale/foreign status; return research-only readback.
 
@@ -87,6 +88,10 @@ def validate_scan_readback(
     captured = _parse_time(status.get("data_timestamp"), "SNAPSHOT_CAPTURE_AT")
     if captured > current + timedelta(seconds=30):
         raise ValueError("SNAPSHOT_CAPTURE_IN_FUTURE")
+    if not isinstance(max_capture_age_seconds, int) or max_capture_age_seconds < 0:
+        raise ValueError("INVALID_CAPTURE_MAX_AGE")
+    if (current - captured).total_seconds() > max_capture_age_seconds:
+        raise ValueError("STALE_SNAPSHOT_CAPTURE")
     # Capture time is a provenance field, NEVER verified trade execution time.
     return {
         "status": "RESEARCH_REPORT_READABLE_NOT_TRADE_CERTIFIED",
