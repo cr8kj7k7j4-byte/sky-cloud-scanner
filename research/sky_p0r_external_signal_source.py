@@ -96,17 +96,26 @@ def main():
         status = _hold("VERIFIED_MARKET_BARS_MISSING",
                        source_run_id=source_run, signal_run_id=run_id)
     else:
-        receipt, provenance = _receipt_from_github(
-            os.environ.get("GITHUB_REPOSITORY", ""), run_id)
-        status, payload = join(
-            bars, receipt, external_signal_provenance_verified=True)
-        status["verified_github_provenance"] = provenance
-        if payload is not None and status.get("reconciled") is True:
-            target = Path("output/sky_paper_runtime/completed_market_evidence.json")
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(
-                json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
-                encoding="utf-8")
+        try:
+            receipt, provenance = _receipt_from_github(
+                os.environ.get("GITHUB_REPOSITORY", ""), run_id)
+            status, payload = join(
+                bars, receipt, external_signal_provenance_verified=True)
+            status["verified_github_provenance"] = provenance
+            if payload is not None and status.get("reconciled") is True:
+                target = Path("output/sky_paper_runtime/completed_market_evidence.json")
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text(
+                    json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+                    encoding="utf-8")
+        except (ValueError, KeyError, TypeError, OSError,
+                subprocess.CalledProcessError, subprocess.TimeoutExpired,
+                json.JSONDecodeError) as exc:
+            # An unavailable or untrusted external receipt must yield a durable
+            # fail-closed Artifact, never a silent green paper-trade verdict.
+            status = _hold("EXTERNAL_SIGNAL_READBACK_OR_PROVENANCE_FAILED",
+                           source_run_id=source_run, signal_run_id=run_id)
+            status["error_type"] = type(exc).__name__
     (output / "external_signal_source_status.json").write_text(
         json.dumps(status, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8")
