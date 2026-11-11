@@ -2,6 +2,14 @@ import unittest
 from src.sky_chat_bridge import COLUMNS, make_status, validate_report, validate_request
 
 class ChatScanBridgeTests(unittest.TestCase):
+    def test_research_branch_scan_cannot_publish_main_status(self):
+        from pathlib import Path
+        workflow = (Path(__file__).resolve().parents[1] /
+                    ".github/workflows/sky-chat-bridge.yml").read_text(encoding="utf-8")
+        publish_step = workflow.split("- name: Publish sanitized summary for ChatGPT GitHub connector", 1)[1]
+        self.assertIn("if: ${{ always() && github.ref == 'refs/heads/main' }}", publish_step)
+        self.assertIn("if: always()", workflow.split("- name: Upload complete 13-column report and status", 1)[1].split("- name: Publish sanitized summary", 1)[0])
+
     def test_request_good(self):
         self.assertEqual(validate_request({"command":"Sky 當沖現在掃一次","request_id":"chat-20261109-a","read_only_no_orders":True}),"chat-20261109-a")
 
