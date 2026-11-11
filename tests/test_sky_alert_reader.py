@@ -2,7 +2,7 @@ import unittest
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from research.sky_full_universe_information import build
-from research.sky_alert_reader import consume
+from research.sky_alert_reader import consume, consume_uploaded_receipt
 
 TZ = ZoneInfo("Asia/Taipei")
 
@@ -90,6 +90,51 @@ class SkyAlertReaderTest(unittest.TestCase):
         self.assertTrue(result["observation_available"])
         self.assertFalse(result["production_eligible"])
         self.assertEqual(result["action"], "禁止交易")
+
+    def test_downloaded_github_receipt_is_revalidated_at_read_clock(self):
+        original = consume(self.report, now=self.now)
+        original["provenance"] = {
+            "schema": "SKY_ALERT_EXTERNAL_READBACK_PROVENANCE_V1",
+            "source_repo": "cr8kj7k7j4-byte/sky-cloud-scanner",
+            "source_run_id": "42912345678",
+            "source_head_sha": "a" * 40,
+            "source_artifact": "sky-scan-42912345678",
+            "download_outcome": "success",
+            "input_sha256": "b" * 64,
+            "production_eligible": False,
+        }
+        result = consume_uploaded_receipt(
+            original, expected_run_id="42912345678",
+            expected_head_sha="a" * 40, now=self.now + timedelta(minutes=8),
+        )
+        self.assertTrue(result["provenance_validated_at_read"])
+        self.assertEqual(result["freshness_status"], "STALE_SOURCE")
+        self.assertEqual(result["fresh_executed_count_at_read"], 0)
+        self.assertFalse(result["production_eligible"])
+        self.assertFalse(result["external_mobile_command_verified"])
+
+    def test_downloaded_github_receipt_rejects_wrong_run_and_sha(self):
+        original = consume(self.report, now=self.now)
+        original["provenance"] = {
+            "schema": "SKY_ALERT_EXTERNAL_READBACK_PROVENANCE_V1",
+            "source_repo": "cr8kj7k7j4-byte/sky-cloud-scanner",
+            "source_run_id": "42912345678",
+            "source_head_sha": "a" * 40,
+            "source_artifact": "sky-scan-42912345678",
+            "download_outcome": "success",
+            "input_sha256": "b" * 64,
+            "production_eligible": False,
+        }
+        with self.assertRaisesRegex(ValueError, "UPLOADED_RUN_ID_MISMATCH"):
+            consume_uploaded_receipt(original, expected_run_id="999",
+                                     expected_head_sha="a" * 40, now=self.now)
+        with self.assertRaisesRegex(ValueError, "UPLOADED_HEAD_SHA_MISMATCH"):
+            consume_uploaded_receipt(original, expected_run_id="42912345678",
+                                     expected_head_sha="c" * 40, now=self.now)
+        original["provenance"]["download_outcome"] = "failure"
+        with self.assertRaisesRegex(ValueError, "UPLOADED_DOWNLOAD_NOT_VERIFIED"):
+            consume_uploaded_receipt(original, expected_run_id="42912345678",
+                                     expected_head_sha="a" * 40, now=self.now)
 
     def test_invalid_schema_is_rejected(self):
         with self.assertRaises(ValueError):
