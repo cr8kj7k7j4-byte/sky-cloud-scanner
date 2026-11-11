@@ -1,0 +1,89 @@
+name: Sky Fugle Atomic Cross-Run Proof B (NO PAID)
+# One-shot research branch proof. No market-data secrets, no orders, no schedule.
+on:
+  push:
+    branches:
+      - 'research/w0-fugle-api-dedup-guard-20261111'
+    paths:
+      - '.github/workflows/sky-fugle-atomic-cross-run-proof-*.yml'
+permissions:
+  contents: write
+jobs:
+  prove-atomic-ref:
+    if: github.ref == 'refs/heads/research/w0-fugle-api-dedup-guard-20261111'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test atomic logic offline first (no Fugle)
+        run: python -m unittest tests.test_sky_fugle_atomic_ref_claim tests.test_sky_fugle_request_identity -v
+      - name: Attempt one GitHub atomic ref claim (no paid API)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json, os, time
+          from pathlib import Path
+          from urllib.error import HTTPError
+          from urllib.request import Request, urlopen
+          from research.sky_fugle_atomic_ref_claim import claim_ref, try_claim
+          from research.sky_fugle_request_identity import canonical_fugle_request
+          repo = os.environ['GITHUB_REPOSITORY']
+          sha = os.environ['GITHUB_SHA']
+          scope = canonical_fugle_request('GET', '/intraday/quote/2330')
+          # sha-specific fixture: two distinct workflow runs of the same push
+          # compete for the exact same ref; no market data accessed.
+          slot = int(sha[:12], 16)
+          ref = claim_ref(scope, slot)
+          headers = {
+              'Authorization': 'Bearer ' + os.environ['GH_TOKEN'],
+              'Accept': 'application/vnd.github+json',
+              'X-GitHub-Api-Version': '2022-11-28',
+              'User-Agent': 'Sky-Atomic-Cross-Run-Proof',
+          }
+          def create(candidate, target):
+              body = json.dumps({'ref': candidate, 'sha': target}).encode()
+              request = Request('https://api.github.com/repos/' + repo + '/git/refs',
+                                data=body, headers=headers, method='POST')
+              try:
+                  with urlopen(request, timeout=15) as response:
+                      obj = json.load(response)
+                      return {'status': response.status, 'ref': obj.get('ref')}
+              except HTTPError as exc:
+                  if exc.code != 422:
+                      raise
+                  # HTTP 422 alone cannot prove a duplicate. Independently verify ref.
+                  get = Request('https://api.github.com/repos/' + repo +
+                                '/git/ref/' + candidate.removeprefix('refs/'),
+                                headers=headers)
+                  with urlopen(get, timeout=15) as response:
+                      existing = json.load(response)
+                  return {'status': 422,
+                          'existing': existing.get('ref') == candidate and
+                                      existing.get('object', {}).get('sha') == target}
+          time.sleep(5)
+          won = try_claim(ref, sha, create)
+          receipt = {
+              'schema': 'SKY_ATOMIC_CROSS_RUN_PROOF_V1',
+              'run_id': os.environ['GITHUB_RUN_ID'],
+              'sha': sha, 'claim_ref': ref,
+              'outcome': 'ATOMIC_WINNER' if won else 'DUPLICATE_BLOCKED',
+              'no_fugle_calls': True, 'no_orders': True,
+              'research_only': True, 'production_eligible': False,
+          }
+          out = Path('output/fugle_atomic_cross_run')
+          out.mkdir(parents=True, exist_ok=True)
+          (out / 'receipt.json').write_text(json.dumps(receipt, indent=2) + '\n')
+          print('ATOMIC_CROSS_RUN_PROOF:', receipt['outcome'], receipt['run_id'])
+          PY
+      - name: Upload scrubbed proof artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-fugle-atomic-cross-run-b-${{ github.run_id }}
+          path: output/fugle_atomic_cross_run/receipt.json
+          if-no-files-found: error
+          retention-days: 14
