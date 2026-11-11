@@ -107,7 +107,10 @@ def workflow_request_scope(workflow: str, event: dict) -> str:
         inputs = {}
     if not isinstance(inputs, dict):
         raise ValueError("INVALID_WORKFLOW_INPUTS")
-    normalized = json.dumps(inputs, ensure_ascii=False, sort_keys=True,
+    identity_input = dict(inputs)
+    if event.get("after") and isinstance(event.get("after"), str):
+        identity_input["_push_after_sha"] = event["after"]
+    normalized = json.dumps(identity_input, ensure_ascii=False, sort_keys=True,
                             separators=(",", ":"))
     digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:20]
     identity = hashlib.sha256(workflow.encode("utf-8")).hexdigest()[:16]
@@ -125,7 +128,9 @@ def main():
         try:
             event_file = Path(os.environ["GITHUB_EVENT_PATH"])
             event = json.loads(event_file.read_text(encoding="utf-8"))
-            args.scope = workflow_request_scope(os.environ["GITHUB_WORKFLOW"], event)
+            args.scope = workflow_request_scope(
+                os.environ["GITHUB_WORKFLOW"] + ":" + os.environ["GITHUB_EVENT_NAME"]
+                + ":" + os.environ["GITHUB_REF"], event)
         except (OSError, KeyError, ValueError, TypeError) as exc:
             print("FUGLE_WORKFLOW_SCOPE_BLOCKED:" + type(exc).__name__)
             raise SystemExit(2) from None
