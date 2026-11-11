@@ -299,6 +299,18 @@ jobs:
             'result':'PASS_SYNTHETIC_FAIL_CLOSED_ONLY',
           }
           (p/'test_verdict.json').write_text(json.dumps(meta,indent=2)+'\n',encoding='utf-8')
+          import hashlib
+          r['provenance']={
+            'schema':'SKY_ALERT_EXTERNAL_READBACK_PROVENANCE_V1',
+            'source_repo':'cr8kj7k7j4-byte/sky-cloud-scanner',
+            'source_run_id':os.environ['GITHUB_RUN_ID'],
+            'source_head_sha':os.environ['EXPECTED_HEAD_SHA'],
+            'source_artifact':'sky-scan-'+os.environ['GITHUB_RUN_ID'],
+            'download_outcome':'success',
+            'input_sha256':hashlib.sha256((p/'source_fixture.json').read_bytes()).hexdigest(),
+            'production_eligible':False,
+          }
+          (p/'reader_receipt.json').write_text(json.dumps(r,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
           PY
       - name: Upload synthetic test evidence for an independent job
         uses: actions/upload-artifact@v4
@@ -317,6 +329,12 @@ jobs:
       actions: read
     timeout-minutes: 5
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - name: Download artifact uploaded in another job in this run
         uses: actions/download-artifact@v4
         with:
@@ -346,4 +364,32 @@ jobs:
           assert receipt['fresh_executed_count_at_read']==0
           assert receipt['action']=='禁止交易'
           print('PASS_SAME_RUN_MECHANICAL_ARTIFACT_READBACK_NO_MARKET_API',os.environ['EXPECTED_RUN_ID'],os.environ['EXPECTED_HEAD_SHA'])
+          PY
+      - name: Invoke read-only Sky 警戒 CLI against downloaded receipt
+        env:
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_RUN_ID: ${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          python -m research.sky_alert_reader \
+            --receipt downloaded-fixture/reader_receipt.json \
+            --expected-run-id "$EXPECTED_RUN_ID" \
+            --expected-head-sha "$EXPECTED_HEAD_SHA" \
+            --json-output verified-mobile-contract/receipt.json \
+            --markdown-output verified-mobile-contract/latest.md
+          status=$?
+          set -e
+          python - "$status" <<'PY'
+          import json,sys
+          from pathlib import Path
+          x=json.loads(Path('verified-mobile-contract/receipt.json').read_text(encoding='utf-8'))
+          assert int(sys.argv[1])==2, 'stale external receipt must not return current'
+          assert x['freshness_status']=='STALE_SOURCE'
+          assert x['provenance_validated_at_read'] is True
+          assert x['external_mobile_command_verified'] is False
+          assert x['production_eligible'] is False
+          assert x['action']=='禁止交易'
+          print('PASS_SKY_ALERT_RECEIPT_CLI_OFFLINE_FAIL_CLOSED')
           PY
