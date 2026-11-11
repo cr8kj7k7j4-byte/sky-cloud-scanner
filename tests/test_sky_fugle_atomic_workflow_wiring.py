@@ -19,6 +19,19 @@ class AtomicWorkflowWiringTests(unittest.TestCase):
         self.assertLess(source.index("guard_fugle_request(f"), source.index("response = get("))
         self.assertIn("sky_paid_reservation:", w)
 
+    def test_stage2_paid_step_has_atomic_gate(self):
+        workflow = (ROOT / ".github/workflows/sky-fugle-stage2-probe.yml").read_text()
+        source = (ROOT / "src/sky_fugle_stage2_probe.py").read_text()
+        paid = workflow.split("      - name: Probe 2 market snapshots and 2 individual quotes", 1)[1]
+        paid = paid.split("      - name:", 1)[0]
+        self.assertIn("SKY_PAID_ATOMIC_ENFORCE: '1'", paid)
+        self.assertIn("GH_TOKEN: ${{ github.token }}", paid)
+        self.assertIn("verify_claim.outcome == 'success'", paid)
+        self.assertIn("contents: write", workflow)
+        self.assertIn("guard_fugle_request(BASE + path, params)", source)
+        self.assertLess(source.index("guard_fugle_request(BASE + path, params)"),
+                        source.index("response = request(BASE + path"))
+
     def test_bridge_paid_step_has_research_atomic_gate(self):
         w = (ROOT / ".github/workflows/sky-chat-bridge.yml").read_text()
         source = (ROOT / "src/fugle.py").read_text()
