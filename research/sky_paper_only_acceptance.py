@@ -89,13 +89,45 @@ def audit_status(status, *, paper_readback=None, signal_source=None, market_sour
     ledger = paper_readback if isinstance(paper_readback, dict) else {}
     signal = signal_source if isinstance(signal_source, dict) else {}
     market = market_source if isinstance(market_source, dict) else {}
-    journal_present = ledger.get("paper_fill_count", 0) > 0 and ledger.get("reconciled") is True
-    signal_verified = (signal.get("verified_github_provenance") or {}).get(
-        "github_metadata_verified") is True
-    market_verified = market.get("source_artifact_verified") is True
+    proof = signal.get("verified_github_provenance")
+    if not isinstance(proof, dict):
+        proof = {}
+    fill_count = ledger.get("paper_fill_count")
+    journal_present = (isinstance(fill_count, int)
+                       and not isinstance(fill_count, bool) and fill_count > 0
+                       and ledger.get("reconciled") is True)
+    signal_verified = (
+        signal.get("reconciled") is True
+        and proof.get("github_metadata_verified") is True
+        and isinstance(signal.get("signal_source_run_id"), str)
+        and bool(signal["signal_source_run_id"])
+        and str(proof.get("signal_run_id")) == signal["signal_source_run_id"]
+        and bool(proof.get("signal_sha"))
+        and bool(proof.get("signal_artifact_id"))
+        and bool(proof.get("artifact_uploaded_at"))
+        and isinstance(signal.get("bar_source_run_id"), str)
+        and bool(signal["bar_source_run_id"])
+    )
+    market_events = market.get("paper_events_produced")
+    market_verified = (
+        market.get("source_artifact_verified") is True
+        and market.get("verdict") == "PAPER_EVENT_CHAIN_RECONCILED_ORIGIN_UNVERIFIED"
+        and isinstance(market_events, int)
+        and not isinstance(market_events, bool)
+        and market_events >= 4
+    )
+    matching_runs = (
+        signal.get("bar_source_run_id") == ledger.get("snapshot_run_id")
+        and bool(ledger.get("snapshot_run_id"))
+        and isinstance(ledger.get("source_artifact"), str)
+        and ledger["source_artifact"].startswith(
+            f"sky-512-5m-evidence-{signal.get('bar_source_run_id')}:")
+        and signal.get("paper_fill_count") == fill_count
+        and signal.get("paper_events_produced") == market_events
+    )
     cost_verified = ledger.get("paper_cost_arithmetic_reconciled") is True
     evidence_verified = bool(journal_present and signal_verified
-                             and market_verified and cost_verified)
+                             and market_verified and matching_runs and cost_verified)
     return {
         "schema": "SKY_PAPER_ONLY_ACCEPTANCE_V1",
         "mode": "PAPER_ONLY",
