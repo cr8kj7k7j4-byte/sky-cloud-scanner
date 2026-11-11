@@ -258,6 +258,15 @@ jobs:
         with:
           path: output/monitor_state.json
           key: sky-monitor-state-${{ github.run_id }}
+      - name: Validate Sky alert artifact freshness (read only, no rescan)
+        if: always() && steps.calendar.outputs.should_scan == 'true'
+        shell: bash
+        run: |
+          python -m unittest tests.test_sky_alert_reader -v
+          python -m research.sky_alert_reader \
+            --input output/sky_quickscan_information/full_universe.json \
+            --json-output output/sky_alert/reader_receipt.json \
+            --markdown-output output/sky_alert/latest.md
       - name: Upload scan report
         if: always()
         uses: actions/upload-artifact@v4
