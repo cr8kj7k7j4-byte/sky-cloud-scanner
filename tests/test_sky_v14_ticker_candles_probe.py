@@ -51,6 +51,23 @@ class DeepFiveMinTests(unittest.TestCase):
         self.assertTrue(all(z["valid_today_five_min_bars"]==6 for z in x["samples"]))
         self.assertTrue(all(z["status"]=="CANDLE_TICKER_RESEARCH_READY_NOT_TRADE" for z in x["samples"]))
         self.assertFalse(x["official_v14_entry_eligible"])
+    def test_raw_receipt_is_bounded_and_keeps_observation_time(self):
+        x=run(stage2(),ticker_fn=ticker,candle_fn=candles,
+              sleep_fn=lambda _:None,now=NOW)
+        self.assertEqual(x["data_receipt_kind"],"LIVE_ONLY_IF_PROVIDER_CONFIRMED")
+        self.assertEqual(x["time_tpe"],NOW.isoformat())
+        for sample in x["samples"]:
+            self.assertEqual(sample["observation_time_tpe"],NOW.isoformat())
+            self.assertTrue(sample["ticker_received_at_tpe"])
+            self.assertTrue(sample["candles_received_at_tpe"])
+            raw=sample["raw_five_min_candles"]
+            self.assertEqual(raw["symbol"],sample["symbol"])
+            self.assertEqual(raw["exchange"],sample["exchange"])
+            self.assertEqual(raw["timeframe"],"5")
+            self.assertEqual(len(raw["data"]),6)
+            self.assertIn("date",raw["data"][0])
+            self.assertIn("close",raw["data"][0])
+
     def test_attention_stock_cannot_pass_research_readiness(self):
         def attention(symbol):
             data=ticker(symbol)
