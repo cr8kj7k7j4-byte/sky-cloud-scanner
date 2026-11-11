@@ -84,8 +84,9 @@ def _request_chunk(symbol, a, b, *, timeframe="5", request_get=requests.get, sle
         "fields": "open,high,low,close,volume,average",
         "sort": "asc",
     }
+    # One claim per logical request; bounded HTTP 429 retries reuse that claim.
+    guard_fugle_request(url, params)
     for attempt in range(MAX_429_RETRIES + 1):
-        guard_fugle_request(url, params)
         r = request_get(url, params=params, headers=headers(), timeout=30)
         if r.status_code == 404:
             return []

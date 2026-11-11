@@ -151,8 +151,9 @@ def request_one(symbol: str, start: str, end: str, *, max_retries: int = 6):
         "sort": "asc",
     }
     backoff = [5, 10, 20, 30, 45, 60]
+    # Preflight once; 429 retries are not independent data requests.
+    guard_fugle_request(url, params)
     for attempt in range(max_retries + 1):
-        guard_fugle_request(url, params)
         r = requests.get(url, params=params, headers=headers(), timeout=30)
         if r.status_code == 404:
             return {"status": "NO_DATA_404", "bars": 0, "attempts": attempt + 1}
