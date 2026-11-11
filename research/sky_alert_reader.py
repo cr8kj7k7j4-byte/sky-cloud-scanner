@@ -17,7 +17,6 @@ SCHEMA = "SKY_ALERT_READ_RECEIPT_V1"
 SOURCE_SCHEMA = "SKY_INFORMATION_FIRST_FULL_UNIVERSE_V1"
 MAX_REPORT_AGE_SECONDS = 300
 MAX_TRADE_AGE_SECONDS = 180
-MAX_FUTURE_SECONDS = 30
 
 
 def _timestamp(value):
@@ -44,7 +43,7 @@ def consume(report, *, now=None):
     age = (now - checked).total_seconds() if checked else None
     if age is None:
         status = "MISSING_SOURCE_TIME"
-    elif age < -MAX_FUTURE_SECONDS:
+    elif age < 0:
         status = "FUTURE_SOURCE_TIME"
     elif now.date() != checked.date() or age > MAX_REPORT_AGE_SECONDS:
         status = "STALE_SOURCE"
@@ -65,7 +64,7 @@ def consume(report, *, now=None):
             and row.get("data_status") == "FRESH_EXECUTED_TRADE"
             and trade_age is not None
             and trade_time.date() == now.date()
-            and -MAX_FUTURE_SECONDS <= trade_age <= MAX_TRADE_AGE_SECONDS
+            and 0 <= trade_age <= MAX_TRADE_AGE_SECONDS
             and isinstance(row.get("last_price"), (int, float))
             and not isinstance(row.get("last_price"), bool)
             and row["last_price"] > 0
