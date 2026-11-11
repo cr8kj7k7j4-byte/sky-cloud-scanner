@@ -1,6 +1,6 @@
 {
   "command": "Sky 快掃",
-  "request_id": "chat-20261111-0902-intraday-verify",
+  "request_id": "chat-20261111-0904-live-intraday",
   "read_only_no_orders": true,
-  "reason": "2026-11-11 intraday user-authorized one-shot paid Fugle full-market observation; verify TSE/OTC Snapshot, bounded candidate Quote, causal 5m, artifacts, freshness; preserve paused cron, NO_TRADE, no Production change."
+  "reason": "One-time authorized live market data validation; market snapshot + limited Quote + 5-minute bars; no schedules resumed; NO_TRADE until verified."
 }
