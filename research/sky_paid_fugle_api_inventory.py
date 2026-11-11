@@ -70,6 +70,13 @@ def audit(root: Path = WORKFLOW_DIR) -> dict:
             "central_reservation_job": "  sky_paid_reservation:" in source,
             "paid_job_dependencies": source.count("needs: sky_paid_reservation") + source.count(", sky_paid_reservation]"),
             "central_fail_closed_final_gate": "Fail job when claim is rejected or not verified" in source,
+            # An Artifact reservation is NOT atomic across GitHub Runs.
+            # The separate atomic-ref research proof is not a deployed paid gate.
+            "atomic_endpoint_claim_enforced": (
+                "sky_fugle_atomic_ref_claim" in source
+                and "canonical_fugle_request" in source
+                and "ATOMIC_CLAIM_VERIFIED_BEFORE_PAID" in source
+            ),
         }
         row["candidate_guarded"] = all([
             row["shared_group"], row["preflight_present"], row["receipt_readback"],
@@ -92,9 +99,16 @@ def audit(root: Path = WORKFLOW_DIR) -> dict:
         "unguarded_manual_or_event_count": sum(r["manual_or_event_trigger_available"] for r in rows if not r["candidate_guarded"]),
         "cohort_counts": {k: sum(r["static_cohort"] == k for r in rows) for k in sorted({r["static_cohort"] for r in rows})},
         "workflows": rows,
+        "atomic_endpoint_enforced_workflow_count": sum(r["atomic_endpoint_claim_enforced"] for r in rows),
+        "atomic_endpoint_acceptance": "REQUIRES_RUNTIME_VERIFICATION",
         "no_market_calls": True,
         "request_dedup_e2e_verified": False,
-        "repository_wide_acceptance": "HOLD" if uncovered else "REQUIRES_RUNTIME_VERIFICATION",
+        "repository_wide_acceptance": (
+            "HOLD" if uncovered or any(
+                not r["atomic_endpoint_claim_enforced"]
+                for r in rows if not r["configuration_only_exemption"]
+            ) else "REQUIRES_RUNTIME_VERIFICATION"
+        ),
         "note": "Static source inspection only; zero uncovered does NOT prove endpoint-level cross-workflow de-duplication. Runtime and post-merge E2E remain mandatory.",
     }
 
