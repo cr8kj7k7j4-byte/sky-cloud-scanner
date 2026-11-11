@@ -36,3 +36,10 @@ def test_pass_guard_with_inconsistent_dates_is_blocked():
     })
     assert result["status"] == "BLOCKED_STALE_SIGNAL_HISTORY"
     assert not result["publication_allowed"]
+
+
+def test_missing_scan_report_blocks_and_keeps_production_disabled():
+    result = validate_swing_scan_output(None)
+    assert result["status"] == "BLOCKED_SCAN_OUTPUT_MISSING"
+    assert result["publication_allowed"] is False
+    assert result["production_eligible"] is False
