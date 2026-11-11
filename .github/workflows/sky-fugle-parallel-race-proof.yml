@@ -1,9 +1,8 @@
 name: Sky Fugle Paid Claim Parallel Race Proof (NO PAID)
 on:
-  pull_request:
-    paths:
-      - 'research/sky_paid_fugle_api_guard.py'
-      - '.github/workflows/sky-fugle-parallel-race-proof.yml'
+  # PR tokens may be restricted to the point that the GitHub Artifact lookup
+  # receives HTTP 403, which is a correct fail-closed result, not a race proof.
+  # Use an explicitly authorized, no-paid dispatch for the live Artifact test.
   workflow_dispatch:
 permissions:
   contents: read
