@@ -19,6 +19,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Safely remove exclusively pinned test-owned tags (no market data)
+        id: cleanup
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -78,6 +79,36 @@ jobs:
               "no_orders": True, "research_only": True,
           }, indent=2) + "\n")
           print("ATOMIC_TEST_FIXTURE_CLEANUP_PASS", len(rows))
+          PY
+      - name: Preserve a fail-closed cleanup diagnostic on API failure
+        if: always()
+        env:
+          CLEANUP_STEP_OUTCOME: ${{ steps.cleanup.outcome }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          dest = Path("output/fugle_api_guard/fixture_cleanup.json")
+          dest.parent.mkdir(parents=True, exist_ok=True)
+          if not dest.is_file():
+              receipt = {
+                  "schema": "SKY_ATOMIC_TEST_FIXTURE_CLEANUP_V1",
+                  "run_id": os.getenv("GITHUB_RUN_ID"),
+                  "head_sha": os.getenv("GITHUB_SHA"),
+                  "cleanup_verdict": "HOLD_UNVERIFIED",
+                  "reason": "CLEANUP_FAILED_BEFORE_RECEIPT",
+                  "source_step_outcome": os.getenv("CLEANUP_STEP_OUTCOME"),
+                  "rows": [],
+                  "tag_deletions_verified": False,
+                  "fugle_api_requests": 0,
+                  "no_orders": True,
+                  "research_only": True,
+                  "production_eligible": False,
+              }
+              dest.write_text(json.dumps(receipt, indent=2) + "\\n", encoding="utf-8")
+              print("ATOMIC_FIXTURE_CLEANUP_HOLD_RECEIPT_WRITTEN")
           PY
       - name: Publish sanitized cleanup receipt
         if: always()
