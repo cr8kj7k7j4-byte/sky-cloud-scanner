@@ -57,7 +57,7 @@ jobs:
         id: guard
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python -m research.sky_paid_fugle_api_guard
+        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:history:three-model'
       - name: Publish reservation before paid request
         id: claim
         if: steps.guard.outputs.allowed == 'true'
@@ -72,7 +72,7 @@ jobs:
         if: steps.guard.outputs.allowed == 'true' && steps.claim.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python -m research.sky_paid_fugle_api_guard --verify
+        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:history:three-model' --verify
       - name: Query actual paid Fugle candles and write create-only private ledger
         if: steps.guard.outputs.allowed == 'true' && steps.verify_claim.outcome == 'success'
         env:
