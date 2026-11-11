@@ -98,7 +98,7 @@ jobs:
               "should_scan":allowed,
               "reason":"APPROVED_IN_SESSION" if allowed else "OUTSIDE_SESSION_OR_CALENDAR_BLOCKED",
               "automatic_order":False,
-          },ensure_ascii=False,indent=2)+"\\n",encoding="utf-8"))
+          },ensure_ascii=False,indent=2)+"\n",encoding="utf-8"))
           print("true" if allowed else "false")
           PY
           )"
