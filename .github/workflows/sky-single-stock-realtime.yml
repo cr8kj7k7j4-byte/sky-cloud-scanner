@@ -35,7 +35,8 @@ jobs:
         id: guard
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:quote:single'
+          SKY_PAID_SCOPE: "sky:quote:single:${{ inputs.symbol || '1569' }}"
+        run: python -m research.sky_paid_fugle_api_guard --scope "$SKY_PAID_SCOPE"
       - name: Upload paid reservation before provider call
         id: claim
         if: steps.guard.outputs.allowed == 'true'
@@ -50,7 +51,8 @@ jobs:
         if: steps.guard.outputs.allowed == 'true' && steps.claim.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:quote:single' --verify
+          SKY_PAID_SCOPE: "sky:quote:single:${{ inputs.symbol || '1569' }}"
+        run: python -m research.sky_paid_fugle_api_guard --scope "$SKY_PAID_SCOPE" --verify
       - name: Collect Fugle quote (reference permitted; execution marked separately)
         if: steps.guard.outputs.allowed == 'true' && steps.verify_claim.outcome == 'success'
         env:
