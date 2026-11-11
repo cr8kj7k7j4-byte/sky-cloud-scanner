@@ -11,6 +11,9 @@ permissions:
   actions: read
 jobs:
   historical-readback-test:
+    # Remote historical downloads are a bounded manual audit; repeated PR
+    # updates must not exhaust the installation's GitHub Artifact API quota.
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
@@ -183,7 +186,7 @@ jobs:
   # This is a research-only pipeline contract test, NOT a paid live scan.
   same-run-receipt-consumer:
     needs: historical-readback-test
-    if: needs.historical-readback-test.result == 'success'
+    if: github.event_name == 'workflow_dispatch' && needs.historical-readback-test.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -226,4 +229,121 @@ jobs:
           assert missing["freshness_status"] == "DATA_BLOCKED"
           assert missing["production_eligible"] is False
           print("PASS_SAME_RUN_EXTERNAL_RECEIPT_CONSUMER", os.environ["EXPECTED_RUN_ID"], os.environ["EXPECTED_HEAD_SHA"])
+          PY
+
+  # Always-on PR smoke test: confirms actual cross-job ZIP upload/download
+  # without querying old runs or calling any market-data service. This does
+  # NOT certify the current market or real mobile command integration.
+  same-run-fixture-producer:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Produce synthetic stale-report fail-closed receipt
+        env:
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p output/synthetic_alert_receipt
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          rows=[
+            {'exchange':'TWSE','symbol':'0001','last_price':10,'last_trade_time':'2020-01-01T09:00:00+08:00','data_status':'FRESH_EXECUTED_TRADE'},
+            {'exchange':'TPEx','symbol':'0002','last_price':20,'last_trade_time':'2020-01-01T09:00:00+08:00','data_status':'FRESH_EXECUTED_TRADE'},
+          ]
+          report={
+            'schema':'SKY_INFORMATION_FIRST_FULL_UNIVERSE_V1',
+            'checked_at_tpe':'2020-01-01T09:00:00+08:00',
+            'universe_count':len(rows),
+            'by_exchange':{'TWSE':{'universe':1},'TPEx':{'universe':1}},
+            'all_symbols':rows,
+            'ranked_observations':rows,
+            'observation_mode':'SYNTHETIC_TEST_FIXTURE_NOT_REAL_MARKET',
+          }
+          Path('output/synthetic_alert_receipt/source_fixture.json').write_text(json.dumps(report,ensure_ascii=False)+'\n',encoding='utf-8')
+          PY
+          set +e
+          python -m research.sky_alert_reader \
+            --input output/synthetic_alert_receipt/source_fixture.json \
+            --json-output output/synthetic_alert_receipt/reader_receipt.json \
+            --markdown-output output/synthetic_alert_receipt/latest.md
+          status=$?
+          set -e
+          python - "$status" <<'PY'
+          import json,os,sys
+          from pathlib import Path
+          p=Path('output/synthetic_alert_receipt')
+          r=json.loads((p/'reader_receipt.json').read_text(encoding='utf-8'))
+          assert int(sys.argv[1]) == 2
+          assert r['freshness_status'] == 'STALE_SOURCE'
+          assert r['fresh_executed_count_at_read'] == 0
+          assert r['production_eligible'] is False
+          assert r['action'] == '禁止交易'
+          meta={
+            'schema':'SKY_ALERT_SAME_RUN_MECHANICAL_TEST_V1',
+            'pr_head_sha':os.environ['EXPECTED_HEAD_SHA'],
+            'run_id':os.environ['GITHUB_RUN_ID'],
+            'source_is_synthetic':True,
+            'live_market_verified':False,
+            'mobile_command_verified':False,
+            'result':'PASS_SYNTHETIC_FAIL_CLOSED_ONLY',
+          }
+          (p/'test_verdict.json').write_text(json.dumps(meta,indent=2)+'\n',encoding='utf-8')
+          PY
+      - name: Upload synthetic test evidence for an independent job
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-alert-mechanical-${{ github.run_id }}
+          path: output/synthetic_alert_receipt/
+          if-no-files-found: error
+          retention-days: 7
+
+  same-run-fixture-consumer:
+    needs: same-run-fixture-producer
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    timeout-minutes: 5
+    steps:
+      - name: Download artifact uploaded in another job in this run
+        uses: actions/download-artifact@v4
+        with:
+          name: sky-alert-mechanical-${{ github.run_id }}
+          path: downloaded-fixture
+      - name: Independently inspect receipt and run/SHA provenance
+        shell: bash
+        env:
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          root=Path('downloaded-fixture')
+          meta=json.loads((root/'test_verdict.json').read_text(encoding='utf-8'))
+          receipt=json.loads((root/'reader_receipt.json').read_text(encoding='utf-8'))
+          assert meta['pr_head_sha']==os.environ['EXPECTED_HEAD_SHA']
+          assert meta['run_id']==os.environ['EXPECTED_RUN_ID']
+          assert meta['source_is_synthetic'] is True
+          assert meta['live_market_verified'] is False
+          assert meta['mobile_command_verified'] is False
+          assert meta['result']=='PASS_SYNTHETIC_FAIL_CLOSED_ONLY'
+          assert receipt['freshness_status']=='STALE_SOURCE'
+          assert receipt['production_eligible'] is False
+          assert receipt['fresh_executed_count_at_read']==0
+          assert receipt['action']=='禁止交易'
+          print('PASS_SAME_RUN_MECHANICAL_ARTIFACT_READBACK_NO_MARKET_API',os.environ['EXPECTED_RUN_ID'],os.environ['EXPECTED_HEAD_SHA'])
           PY
