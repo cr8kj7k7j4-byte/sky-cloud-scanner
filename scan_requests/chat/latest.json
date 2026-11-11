@@ -1,6 +1,6 @@
 {
   "command": "Sky 快掃",
-  "request_id": "chat-20261111-0904-live-intraday",
+  "request_id": "chat-20261111-research-transport-proof-01",
   "read_only_no_orders": true,
-  "reason": "One-time authorized live market data validation; market snapshot + limited Quote + 5-minute bars; no schedules resumed; NO_TRADE until verified."
+  "reason": "Research-only no-market connector file-write to existing free CI; synthetic transport proof only; NO_TRADE; do not invoke paid Fugle scan."
 }
