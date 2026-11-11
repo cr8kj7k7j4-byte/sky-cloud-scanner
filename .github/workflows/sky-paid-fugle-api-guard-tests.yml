@@ -12,6 +12,9 @@ on:
       - '.github/workflows/sky-full-market-private.yml'
       - '.github/workflows/sky-selected-quote-view.yml'
       - '.github/workflows/three-model-fugle-private-ledger.yml'
+      - '.github/workflows/sky-unified-commands.yml'
+      - '.github/workflows/sky-single-stock-realtime.yml'
+      - '.github/workflows/swing-live-scan.yml'
       - '.github/workflows/scan.yml'
   workflow_dispatch:
 permissions:
@@ -30,7 +33,7 @@ jobs:
         run: |
           python -m py_compile research/sky_paid_fugle_api_guard.py
           python -m unittest tests.test_sky_paid_fugle_api_guard tests.test_sky_paid_fugle_api_inventory -v
-      - name: Verify six paid entrypoints share a guard and refuse unverified claims
+      - name: Verify nine paid entrypoints share a guard and refuse unverified claims
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -41,6 +44,9 @@ jobs:
               ".github/workflows/sky-full-market-private.yml",
               ".github/workflows/sky-selected-quote-view.yml",
               ".github/workflows/three-model-fugle-private-ledger.yml",
+              ".github/workflows/sky-unified-commands.yml",
+              ".github/workflows/sky-single-stock-realtime.yml",
+              ".github/workflows/swing-live-scan.yml",
           ):
               s = Path(path).read_text(encoding="utf-8")
               assert "group: sky-fugle-paid-global-research-v1" in s, path
