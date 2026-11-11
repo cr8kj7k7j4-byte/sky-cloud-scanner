@@ -34,6 +34,7 @@ class DispatchAliasContractTests(unittest.TestCase):
         text = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("branches: [main]", text)
         self.assertIn("inputs.command != 'use_saved_request'", text)
+        self.assertIn("inputs.command != '' && inputs.command != 'use_saved_request'", text)
         self.assertIn("SKY_DISPATCH_COMMAND: ${{ inputs.command }}", text)
         self.assertIn("SKY_DISPATCH_REQUEST_ID: ${{ inputs.request_id }}", text)
         self.assertIn("read_only_no_orders", text)
