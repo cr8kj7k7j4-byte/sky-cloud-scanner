@@ -5,6 +5,7 @@ on:
   push:
     branches: [research/fugle-snapshot-diagnostics-20261110]
     paths:
+      - 'scan_requests/chat/latest.json'
       - 'research/sky_full_universe_information.py'
       - 'src/sky_chat_bridge.py'
       - 'src/sky_scan_readback.py'
@@ -93,7 +94,17 @@ jobs:
           python - <<'PY'
           import json, os
           from pathlib import Path
+          from src.sky_chat_bridge import validate_request
+          from src.sky_scan_readback import canonical_command
+          request = json.loads(Path("scan_requests/chat/latest.json").read_text(encoding="utf-8"))
+          validate_request(request)
           proof = {
+              "request_id": request["request_id"],
+              "command": request["command"],
+              "canonical_command": canonical_command(request["command"]),
+              "trigger_event": os.environ["GITHUB_EVENT_NAME"],
+              "trigger_ref": os.environ["GITHUB_REF"],
+              "read_only_no_orders": True,
               "schema": "SKY_SYNTHETIC_ARTIFACT_TRANSPORT_PROBE_V1",
               "synthetic": True,
               "not_market_data": True,
@@ -129,6 +140,10 @@ jobs:
           data = json.loads(downloaded.read_text(encoding="utf-8"))
           assert data["schema"] == "SKY_SYNTHETIC_ARTIFACT_TRANSPORT_PROBE_V1"
           assert data["synthetic"] is True and data["not_market_data"] is True
+          assert data["read_only_no_orders"] is True
+          assert data["trigger_event"] in ("push", "pull_request", "workflow_dispatch")
+          from src.sky_chat_bridge import validate_request
+          assert validate_request({"command":data["command"],"request_id":data["request_id"],"read_only_no_orders":True}) == data["request_id"]
           assert data["run_id"] == os.environ["GITHUB_RUN_ID"]
           assert data["head_sha"] == os.environ["GITHUB_SHA"]
           assert data["production_eligible"] is False
