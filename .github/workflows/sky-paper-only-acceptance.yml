@@ -54,21 +54,81 @@ jobs:
         run: python -m unittest discover -s tests -p test_sky_p0r_market_event_producer.py -v
       - name: Test independently verified source bars without manufacturing signals
         run: python -m unittest tests.test_sky_p0r_512_source_adapter -v
-      - name: Read accepted #512 live Artifact (no provider calls or simulated fills)
+      - name: Read GitHub-verified #512 completed bars (historical pin or future run)
         env:
           GH_TOKEN: ${{ github.token }}
+          SKY_P0R_BAR_RUN_ID: ${{ vars.SKY_P0R_BAR_RUN_ID }}
         run: |
           set -euo pipefail
-          RUN=42950211804
-          EXPECTED_SHA=b9e2f57b02b6c22b0f45d3fb7ae21e2a1cca0ac0
-          ARTIFACT_ID=13824108931
-          ACTUAL_SHA=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN" --jq '.head_sha')
-          test "$ACTUAL_SHA" = "$EXPECTED_SHA" || { echo "UPSTREAM_RUN_SHA_MISMATCH"; exit 1; }
-          ACTUAL_ARTIFACT=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN/artifacts" --jq '.artifacts[] | select(.name == "sky-512-5m-evidence-42950211804") | .id')
-          test "$ACTUAL_ARTIFACT" = "$ARTIFACT_ID" || { echo "UPSTREAM_ARTIFACT_ID_MISMATCH"; exit 1; }
-          mkdir -p /tmp/sky-512-pr508-source
-          gh run download "$RUN" --repo "$GITHUB_REPOSITORY" --name "sky-512-5m-evidence-$RUN" --dir /tmp/sky-512-pr508-source
-          python -m research.sky_p0r_512_source_adapter             --input /tmp/sky-512-pr508-source/v14_ticker_5m_evidence.json             --run-id "$RUN" --head-sha "$ACTUAL_SHA" --artifact-id "$ACTUAL_ARTIFACT"             --output output/sky_p0r_paper_ledger_readback/verified_512_completed_bars.json
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
+
+          repo = os.environ["GITHUB_REPOSITORY"]
+          pinned = "42950211804"
+          pinned_sha = "b9e2f57b02b6c22b0f45d3fb7ae21e2a1cca0ac0"
+          pinned_artifact_id = "13824108931"
+          chosen = os.environ.get("SKY_P0R_BAR_RUN_ID", "").strip() or pinned
+          if not chosen.isdigit():
+              raise SystemExit("INVALID_BAR_RUN_ID")
+          def api(endpoint):
+              result = subprocess.run(["gh", "api", endpoint],
+                                      check=True, capture_output=True,
+                                      text=True, timeout=30)
+              return json.loads(result.stdout)
+          baseline = api(f"repos/{repo}/actions/runs/{pinned}")
+          run = api(f"repos/{repo}/actions/runs/{chosen}")
+          if (str(run.get("id")) != chosen
+                  or run.get("repository", {}).get("full_name") != repo
+                  or run.get("status") != "completed"
+                  or run.get("conclusion") != "success"
+                  or run.get("workflow_id") != baseline.get("workflow_id")
+                  or not isinstance(run.get("head_sha"), str)
+                  or len(run["head_sha"]) != 40):
+              raise SystemExit("UNTRUSTED_FUTURE_BAR_WORKFLOW_RUN")
+          artifacts = api(f"repos/{repo}/actions/runs/{chosen}/artifacts").get("artifacts", [])
+          name = f"sky-512-5m-evidence-{chosen}"
+          matches = [a for a in artifacts if a.get("name") == name
+                     and a.get("expired") is False
+                     and str(a.get("workflow_run", {}).get("id")) == chosen]
+          if len(matches) != 1:
+              raise SystemExit("BAR_ARTIFACT_NOT_UNIQUE_OR_MISSING")
+          artifact = matches[0]
+          if chosen == pinned and (
+                  run.get("head_sha") != pinned_sha
+                  or str(artifact.get("id")) != pinned_artifact_id):
+              raise SystemExit("HISTORICAL_BAR_PIN_MISMATCH")
+          path = Path("/tmp/sky-512-pr508-source")
+          path.mkdir(parents=True, exist_ok=True)
+          subprocess.run(["gh", "run", "download", chosen, "--repo", repo,
+                          "--name", name, "--dir", str(path)],
+                         check=True, timeout=60)
+          src = path / "v14_ticker_5m_evidence.json"
+          if not src.is_file():
+              raise SystemExit("BAR_EVIDENCE_MISSING")
+          command = ["python", "-m", "research.sky_p0r_512_source_adapter",
+                     "--input", str(src),
+                     "--run-id", chosen,
+                     "--head-sha", run["head_sha"],
+                     "--artifact-id", str(artifact["id"]),
+                     "--output", "output/sky_p0r_paper_ledger_readback/verified_512_completed_bars.json"]
+          if chosen != pinned:
+              # Generated only after independent GitHub API readback.
+              proof = {"github_run_verified": True, "successful_completed_run": True,
+                       "unique_artifact_verified": True,
+                       "source_workflow_matches_accepted": True,
+                       "production_eligible": False,
+                       "run_id": chosen, "head_sha": run["head_sha"],
+                       "artifact_id": str(artifact["id"]),
+                       "github_artifact_created_at": artifact.get("created_at")}
+              out = Path("output/sky_p0r_paper_ledger_readback/future_bar_github_receipt.json")
+              out.parent.mkdir(parents=True, exist_ok=True)
+              out.write_text(json.dumps(proof, indent=2) + "\\n", encoding="utf-8")
+              command.extend(["--verified-future-source", str(out)])
+          subprocess.run(command, check=True, timeout=40)
+          PY
       - name: Validate precommitted signal versus accepted market candles (no manufactured fills)
         run: python -m unittest tests.test_sky_p0r_signal_bridge -v
       - name: Verify GitHub precommitted signal artifact provenance (no fabricated receipts)
