@@ -83,4 +83,7 @@ def test_alert_uses_freshness_reader_not_paused_schedule():
     assert route.command_family == "SKY_ALERT_WHOLE_MARKET_OBSERVATION"
     assert "sky_alert_reader" in route.execution_target
     assert "scan.yml:" not in route.execution_target
+    assert "--receipt" in route.execution_target
+    assert "--expected-run-id" in route.execution_target
+    assert "--expected-head-sha" in route.execution_target
     assert route.realtime_required and route.whole_market_required
