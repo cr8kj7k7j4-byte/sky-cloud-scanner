@@ -1,8 +1,8 @@
 {
   "command": "all_market",
-  "requested_at": "2026-11-09T12:03:00+08:00",
-  "reason": "pre-close verified evidence capture 2026-11-09; 13-column research visibility, no trades",
-  "scope": "TWSE_TPEx_snapshot_plus_bounded_individual_fugle_confirmation_RESEARCH_ONLY_NO_TRADE",
-  "acceptance": "verify_information_columns_13col_and_preview_in_docs_status",
-  "requested_at_utc": "2026-11-09T05:27:14.699Z"
+  "requested_at": "2026-11-11T09:05:00+08:00",
+  "reason": "User requested immediate Sky Swing 5D research scan; reuse existing unified workflow; no scheduled restart",
+  "scope": "SWING5D_RESEARCH_ONLY_NO_TRADE",
+  "acceptance": "read latest run artifacts; verify source timestamps, scope, swing5d 13-column observations, no trade promotion",
+  "request_id": "swing5d-once-20261111-0905"
 }
