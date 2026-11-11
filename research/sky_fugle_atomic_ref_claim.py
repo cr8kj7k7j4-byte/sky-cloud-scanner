@@ -53,8 +53,11 @@ def guard_fugle_request(url: str, params: dict | None = None) -> None:
     This guard is research-only and defaults to OFF. Unknown URLs or GitHub
     write errors fail closed when enabled. Tests must mock provider transport.
     """
-    if os.getenv("SKY_PAID_ATOMIC_ENFORCE") != "1":
-        return
+    mode = os.getenv("SKY_PAID_ATOMIC_ENFORCE")
+    if mode is None:
+        return  # Legacy callers stay unchanged until governed rollout.
+    if mode != "1":
+        raise RuntimeError("INVALID_ATOMIC_ENFORCEMENT_MODE")
     from research.sky_fugle_request_identity import canonical_fugle_request
 
     scope = canonical_fugle_request("GET", url, parameters=params)
