@@ -45,6 +45,19 @@ class SkyAlertReaderTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "EMPTY_SOURCE_ROWS"):
             consume(self.report, now=self.now)
 
+    def test_small_future_source_offset_is_blocked(self):
+        self.report["checked_at_tpe"] = (self.now + timedelta(seconds=10)).isoformat()
+        result = consume(self.report, now=self.now)
+        self.assertEqual(result["freshness_status"], "FUTURE_SOURCE_TIME")
+        self.assertEqual(result["fresh_executed_count_at_read"], 0)
+
+    def test_future_execution_cannot_be_fresh(self):
+        self.report["all_symbols"][0]["last_trade_time"] = (self.now + timedelta(seconds=10)).isoformat()
+        result = consume(self.report, now=self.now)
+        self.assertEqual(result["fresh_executed_count_at_read"], 0)
+        self.assertEqual(result["report"]["all_symbols"][0]["data_status"], "STALE_AT_READ")
+        self.assertFalse(result["production_eligible"])
+
     def test_invalid_schema_is_rejected(self):
         with self.assertRaises(ValueError):
             consume({}, now=self.now)
