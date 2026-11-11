@@ -1,0 +1,109 @@
+name: Sky Single Owner Security Evidence
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  evidence-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Collect changed-file security evidence (no checkout or PR code execution)
+        uses: actions/github-script@v7
+        env:
+          EVIDENCE_FILE: sky-single-owner-security-evidence.json
+        with:
+          script: |
+            const fs = require('fs');
+            const { owner, repo } = context.repo;
+            const prNumber = context.payload.pull_request?.number || null;
+            const sha = context.payload.pull_request?.head?.sha || context.sha;
+            const record = {
+              schema_version: '1.0',
+              utc: new Date().toISOString(),
+              repository: owner + '/' + repo,
+              event_name: context.eventName,
+              run_id: String(context.runId),
+              head_sha: sha,
+              pr_number: prNumber,
+              findings: [],
+              reviewer_type: 'DETERMINISTIC_PREFLIGHT_NOT_AI',
+              ai_review: 'AI_REVIEW_NOT_ENABLED_FREE_MODE',
+              governance_decision: 'HOLD',
+              production_eligible: false,
+              auto_merge: false,
+              readback_verified: false,
+              status: 'HOLD'
+            };
+            if (!prNumber) {
+              record.findings.push({severity:'info', code:'MANUAL_NO_PR', detail:'No pull request; cannot attest PR diff'});
+            } else {
+              let files = [];
+              let filesApiUnavailable = false;
+              try {
+                files = await github.paginate(github.rest.pulls.listFiles, {
+                  owner, repo, pull_number: prNumber, per_page: 100
+                });
+              } catch (error) {
+                filesApiUnavailable = true;
+                const statusCode = Number(error.status || 0);
+                const isRateLimited = statusCode === 403 &&
+                  (Number(error.response?.headers?.['x-ratelimit-remaining']) === 0 ||
+                   /rate limit/i.test(String(error.message || '')));
+                record.findings.push({
+                  severity: 'blocker',
+                  code: isRateLimited ? 'GITHUB_API_RATE_LIMIT' : 'PR_FILES_API_UNAVAILABLE',
+                  http_status: statusCode || null
+                });
+                record.status = 'HOLD';
+              }
+              record.changed_files = filesApiUnavailable ? null : files.length;
+              for (const file of files) {
+                const path = file.filename;
+                const patch = file.patch;
+                const sensitive = path.startsWith('.github/workflows/') || /(^|\/)(risk|cost|trade|order|execution|auto_repair|governance)/i.test(path);
+                if (sensitive) record.findings.push({severity:'review', code:'SENSITIVE_SCOPE', path});
+                if (typeof patch !== 'string') {
+                  record.findings.push({severity:'review', code:'PATCH_MISSING', path});
+                  continue;
+                }
+                const additions = patch.split('\n').filter(line => line.startsWith('+') && !line.startsWith('+++')).map(line => line.slice(1)).join('\n');
+                const rules = [
+                  ['PRIVILEGED_TRIGGER', /\b(pull_request_target|workflow_run)\s*:/i],
+                  ['BROAD_WRITE_PERMISSION', /(?:permissions\s*:\s*write-all|(?:contents|actions|pull-requests|workflows)\s*:\s*write)/i],
+                  ['SHELL_REMOTE_EXEC', /(?:curl|wget)[^\n|]*\|\s*(?:sh|bash)/i],
+                  ['SECRET_ACCESS_CHANGED', /\bsecrets\s*\./i],
+                  ['EVAL_EXEC', /\b(?:eval|exec)\s*\(/i],
+                  ['UNGUARDED_AUTOMERGE', new RegExp('\\b(?:gh\\s+pr\\s+merge|' + 'auto' + '-merge)\\b', 'i')],
+                ];
+                for (const [code, pattern] of rules) {
+                  if (pattern.test(additions)) record.findings.push({severity:'review', code, path});
+                }
+              }
+            }
+            // This is an observable safety preflight, not a language-model review or governance approval.
+            // Missing independent AI review and Artifact readback always remain HOLD.
+            fs.writeFileSync(process.env.EVIDENCE_FILE, JSON.stringify(record, null, 2) + '\n');
+            if (record.findings.some(item => item.severity === 'blocker')) {
+              core.setFailed('PR diff could not be inspected; HOLD evidence artifact preserved.');
+            }
+            await core.summary
+              .addHeading('Sky Single Owner Security Evidence')
+              .addRaw('PR SHA: ' + sha + '\n\n')
+              .addRaw('Deterministic preflight only. AI review: NOT ENABLED (free static checks only). Governance: HOLD.\n\n')
+              .addRaw('Changed files: ' + String(record.changed_files || 0) + '\n\n')
+              .addRaw('Findings: ' + String(record.findings.length) + '\n\n')
+              .write();
+      - name: Upload immutable-run security evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-single-owner-security-${{ github.run_id }}
+          path: sky-single-owner-security-evidence.json
+          if-no-files-found: error
+          retention-days: 30
