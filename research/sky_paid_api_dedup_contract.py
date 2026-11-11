@@ -47,12 +47,20 @@ class Record:
     usage_source: str | None = None
 
     def __post_init__(self):
-        if len(self.key) != 64 or self.state not in STATES:
+        if (not isinstance(self.key, str) or len(self.key) != 64
+                or any(c not in "0123456789abcdef" for c in self.key)
+                or self.state not in STATES):
             raise ValueError("INVALID_RECORD")
         if not self.owner_run_id or not self.attempt_id:
             raise ValueError("MISSING_OWNER")
         if self.state == "READY" and not (self.result_uri and self.result_sha256):
             raise ValueError("READY_REQUIRES_VERIFIED_RESULT")
+        if self.result_sha256 is not None and (
+                not isinstance(self.result_sha256, str) or len(self.result_sha256) != 64
+                or any(c not in "0123456789abcdef" for c in self.result_sha256)):
+            raise ValueError("INVALID_RESULT_SHA256")
+        if self.quota_units is not None and (type(self.quota_units) is not int or self.quota_units < 0):
+            raise ValueError("UNVERIFIED_QUOTA_UNITS")
 
 
 class AtomicStore(Protocol):
@@ -103,7 +111,9 @@ def finalize_ready(store: AtomicStore, key: str, owner_run_id: str,
         return False
     record, version = pair
     if (record.state != "IN_FLIGHT" or record.owner_run_id != owner_run_id
-            or record.attempt_id != attempt_id or not uri or len(digest) != 64):
+            or record.attempt_id != attempt_id or not uri
+            or not isinstance(digest, str) or len(digest) != 64
+            or any(c not in "0123456789abcdef" for c in digest)):
         return False
     updated = replace(record, state="READY", result_uri=uri,
                       result_sha256=digest, provider_request_id=provider_request_id,
