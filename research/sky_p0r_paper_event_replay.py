@@ -185,7 +185,51 @@ def main():
     if not source.exists():
         print(json.dumps({"verdict": "INSUFFICIENT_DATA", "reason": "SIMULATOR_EVENTS_MISSING"}))
         return 0
-    payload = json.loads(source.read_text(encoding="utf-8"))
+    # Never replay a retained events.json after a subsequent failed import.
+    # A replay alone cannot prove its own origin: recheck current provenance
+    # and reconstruct the event chain from the same independently bound input.
+    from research.sky_p0r_market_event_producer import (
+        produce, source_binding_verified, signal_import_status_verified,
+    )
+    base = source.parent
+    evidence = Path("output/sky_p0r_paper_ledger_readback")
+    def read_json(path):
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+    payload = read_json(source)
+    market_input = read_json(base / "completed_market_evidence.json")
+    binding = read_json(base / "source_binding.json")
+    verified_bars = read_json(evidence / "verified_512_completed_bars.json")
+    signal_status = read_json(evidence / "external_signal_source_status.json")
+    market_status = read_json(evidence / "market_source_status.json")
+    trusted = (
+        isinstance(payload, dict) and isinstance(market_status, dict)
+        and market_status.get("source_artifact_verified") is True
+        and signal_import_status_verified(signal_status, binding)
+        and source_binding_verified(market_input, binding, verified_bars)
+    )
+    if not trusted:
+        print(json.dumps({"verdict": "INSUFFICIENT_DATA",
+                          "reason": "CURRENT_PAPER_EVENT_SOURCE_UNVERIFIED",
+                          "production_eligible": False}))
+        return 0
+    try:
+        reconstructed = produce(market_input)
+    except (ValueError, KeyError, TypeError):
+        reconstructed = {}
+    if (reconstructed.get("verdict") != "PAPER_EVENT_CHAIN_RECONCILED_ORIGIN_UNVERIFIED"
+            or payload.get("events") != reconstructed.get("events")
+            or payload.get("context") != {
+                k: reconstructed["snapshot"][k] for k in (
+                    "run_id", "scan_id", "observed_at",
+                    "source_artifact", "simulator_version")
+            }):
+        print(json.dumps({"verdict": "INSUFFICIENT_DATA",
+                          "reason": "PAPER_EVENT_CHAIN_REPLAY_MISMATCH",
+                          "production_eligible": False}))
+        return 0
     snapshot, fills = replay(payload["events"], **payload["context"])
     (source.parent / "snapshot.json").write_text(json.dumps(snapshot, ensure_ascii=False, indent=2)+"\n", encoding="utf-8")
     (source.parent / "closed_fills.json").write_text(json.dumps(fills, ensure_ascii=False, indent=2)+"\n", encoding="utf-8")
