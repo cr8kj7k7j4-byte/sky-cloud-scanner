@@ -30,6 +30,10 @@ def verify_download(root: Path, *, run_id: str, request_id: str,
     )
     if report.get("schema") != "SKY_DAYTRADE_13COL_RESEARCH_V2":
         raise ValueError("REPORT_SCHEMA_INVALID")
+    # Cross-check the two independently downloaded files, not just each alone.
+    # Both timestamps are Snapshot capture times, NOT executed-trade times.
+    if report.get("checked_at_tpe") != status.get("data_timestamp"):
+        raise ValueError("REPORT_CAPTURE_TIMESTAMP_MISMATCH")
     rows = report.get("rows")
     if not isinstance(rows, list) or len(rows) != report.get("row_count"):
         raise ValueError("REPORT_ROWS_INVALID")
