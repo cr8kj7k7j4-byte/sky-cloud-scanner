@@ -1,0 +1,45 @@
+name: Sky Paid Fugle API Dedup Guard Unit Checks
+on:
+  pull_request:
+    paths:
+      - 'research/sky_paid_fugle_api_guard.py'
+      - 'tests/test_sky_paid_fugle_api_guard.py'
+      - '.github/workflows/sky-paid-fugle-api-guard-tests.yml'
+      - '.github/workflows/sky-chat-bridge.yml'
+      - '.github/workflows/sky-fugle-stage2-probe.yml'
+      - '.github/workflows/sky-full-market-private.yml'
+      - '.github/workflows/scan.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  deterministic-guard-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax and isolated guard contract tests (NO FUGLE SECRET)
+        run: |
+          python -m py_compile research/sky_paid_fugle_api_guard.py
+          python -m unittest tests.test_sky_paid_fugle_api_guard -v
+      - name: Verify all four paid entrypoints share a guard and refuse unverified claims
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          for path in (
+              ".github/workflows/scan.yml",
+              ".github/workflows/sky-chat-bridge.yml",
+              ".github/workflows/sky-fugle-stage2-probe.yml",
+              ".github/workflows/sky-full-market-private.yml",
+          ):
+              s = Path(path).read_text(encoding="utf-8")
+              assert "group: sky-fugle-paid-global-research-v1" in s, path
+              assert "research.sky_paid_fugle_api_guard --verify" in s, path
+              assert "steps.verify_claim.outcome == 'success'" in s, path
+              assert "actions/upload-artifact@v4" in s, path
+              assert "if-no-files-found: error" in s, path
+              print("GUARDED:", path)
+          PY
