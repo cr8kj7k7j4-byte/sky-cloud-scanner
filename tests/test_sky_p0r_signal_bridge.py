@@ -49,16 +49,25 @@ class SignalPaperBridgeTests(unittest.TestCase):
         self.assertEqual(status["reason"],"SIGNAL_PUBLISHED_AFTER_BAR_OBSERVATION")
         self.assertEqual(status["paper_events_produced"],0)
         self.assertIsNone(payload)
+    def test_claimed_signal_provenance_cannot_force_paper_fills(self):
+        data=signal()
+        data["published_at"]=data["signal"]["signal_time"]="2026-11-11T10:40:00+08:00"
+        data["independently_verified"]=True  # Untrusted caller assertion.
+        result,payload=join(bars(),data)
+        self.assertEqual(result["reason"],"SIGNAL_ARTIFACT_NOT_INDEPENDENTLY_VERIFIED")
+        self.assertEqual(result["paper_fill_count"],0)
+        self.assertIsNone(payload)
+
     def test_unknown_symbol_cannot_be_paper_filled(self):
         data=signal()
         data["published_at"]=data["signal"]["signal_time"]="2026-11-11T10:40:00+08:00"
         data["signal"]["symbol"]="9999"
-        status,_=join(bars(),data)
+        status,_=join(bars(),data,external_signal_provenance_verified=True)
         self.assertEqual(status["reason"],"SIGNAL_SYMBOL_NOT_IN_VERIFIED_BARS")
     def test_missing_completed_future_bar_fails_closed(self):
         data=signal()
         data["published_at"]=data["signal"]["signal_time"]="2026-11-11T10:58:00+08:00"
-        status,_=join(bars(),data)
+        status,_=join(bars(),data,external_signal_provenance_verified=True)
         self.assertEqual(status["reason"],"NO_CANDLE_START_AFTER_SIGNAL_PUBLICATION")
     def test_mutated_scan_id_rejected(self):
         data=signal()
@@ -71,7 +80,7 @@ class SignalPaperBridgeTests(unittest.TestCase):
         s=signal()
         s["published_at"]=s["signal"]["signal_time"]="2026-11-11T10:40:00+08:00"
         with self.assertRaisesRegex(ValueError,"FUTURE_OR_INCOMPLETE_BARS"):
-            join(data,s)
+            join(data,s,external_signal_provenance_verified=True)
     def test_synthetic_bars_do_not_elevate_production(self):
         bad=bars()
         bad["production_eligible"]=True
