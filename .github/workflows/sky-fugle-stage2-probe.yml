@@ -9,9 +9,6 @@ permissions:
   contents: write
   actions: read
 concurrency:
-  group: sky-fugle-stage2-probe
-  cancel-in-progress: false
-concurrency:
   group: sky-fugle-paid-global-research-v1-stage2-probe
   cancel-in-progress: false
 jobs:
