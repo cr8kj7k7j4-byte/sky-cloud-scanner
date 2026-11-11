@@ -8,6 +8,8 @@ on:
       - 'tests/test_sky_fugle_atomic_ref_claim.py'
       - 'src/fugle.py'
       - 'research/download_pit_universe_intraday.py'
+      - 'research/download_intraday.py'
+      - 'research/download_expanded.py'
       - 'research/probe_fugle_pit_intraday_coverage.py'
       - 'research/three_model_fugle_pipeline.py'
       - 'research/fugle_2026_entitlement_probe.py'

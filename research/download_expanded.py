@@ -4,6 +4,7 @@ import argparse, json, os, time
 from datetime import date, timedelta
 from pathlib import Path
 import requests
+from research.sky_fugle_atomic_ref_claim import guard_fugle_request
 
 BASE = "https://api.fugle.tw/marketdata/v1.0/stock"
 UA = "SkyCloudScanner-ExpandedResearch/0.5"
@@ -34,6 +35,8 @@ def _request_chunk(symbol, a, b, *, request_get=requests.get, sleep_fn=time.slee
         "sort": "asc",
     }
 
+    # Every shard is independent; bounded 429 retries reuse its sole claim.
+    guard_fugle_request(url, params)
     for attempt in range(MAX_429_RETRIES + 1):
         r = request_get(url, params=params, headers=headers(), timeout=30)
 
