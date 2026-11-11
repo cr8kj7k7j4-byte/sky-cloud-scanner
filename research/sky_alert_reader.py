@@ -6,6 +6,7 @@ canonical research snapshot and refuses to describe stale observations as live.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 from datetime import datetime
@@ -143,6 +144,18 @@ def consume(report, *, now=None):
     }
 
 
+def receipt_report_sha256(report):
+    """Canonical digest of report bytes represented in the published JSON.
+
+    A digest detects accidental post-publication receipt/report corruption.
+    It is not a signature and cannot authenticate an untrusted artifact.
+    """
+    return hashlib.sha256(json.dumps(
+        report, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")).hexdigest()
+
+
 def consume_uploaded_receipt(payload, *, expected_run_id, expected_head_sha, now=None):
     """Consume an externally downloaded scan.yml readback receipt, without network access.
 
@@ -174,6 +187,11 @@ def consume_uploaded_receipt(payload, *, expected_run_id, expected_head_sha, now
     source_report = payload.get("report")
     if not isinstance(source_report, dict):
         raise ValueError("UPLOADED_REPORT_MISSING")
+    digest = provenance.get("receipt_report_sha256")
+    if (not isinstance(digest, str) or len(digest) != 64
+            or any(c not in "0123456789abcdef" for c in digest)
+            or digest != receipt_report_sha256(source_report)):
+        raise ValueError("UPLOADED_REPORT_HASH_MISMATCH")
     result = consume(source_report, now=now)
     result["provenance"] = dict(provenance)
     result["provenance_validated_at_read"] = True
