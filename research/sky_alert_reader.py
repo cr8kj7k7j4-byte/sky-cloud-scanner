@@ -143,15 +143,65 @@ def consume(report, *, now=None):
     }
 
 
+def consume_uploaded_receipt(payload, *, expected_run_id, expected_head_sha, now=None):
+    """Consume an externally downloaded scan.yml readback receipt, without network access.
+
+    Bind the ZIP receipt to an explicitly selected GitHub run and commit.
+    Re-evaluate the original source rows at *this* reader's clock; a previously
+    fresh receipt cannot become a permanently fresh mobile command response.
+    """
+    if not isinstance(payload, dict) or payload.get("schema") != SCHEMA:
+        raise ValueError("INVALID_UPLOADED_RECEIPT_SCHEMA")
+    provenance = payload.get("provenance")
+    if not isinstance(provenance, dict) or provenance.get("schema") != "SKY_ALERT_EXTERNAL_READBACK_PROVENANCE_V1":
+        raise ValueError("MISSING_UPLOADED_PROVENANCE")
+    if (not isinstance(expected_run_id, str) or not expected_run_id.isdigit()
+            or not isinstance(expected_head_sha, str) or len(expected_head_sha) != 40
+            or any(ch not in "0123456789abcdef" for ch in expected_head_sha.lower())):
+        raise ValueError("INVALID_EXPECTED_SOURCE_ID")
+    if str(provenance.get("source_run_id")) != expected_run_id:
+        raise ValueError("UPLOADED_RUN_ID_MISMATCH")
+    if provenance.get("source_head_sha") != expected_head_sha:
+        raise ValueError("UPLOADED_HEAD_SHA_MISMATCH")
+    if provenance.get("source_repo") != "cr8kj7k7j4-byte/sky-cloud-scanner":
+        raise ValueError("UPLOADED_REPOSITORY_MISMATCH")
+    if provenance.get("source_artifact") != "sky-scan-" + expected_run_id:
+        raise ValueError("UPLOADED_ARTIFACT_MISMATCH")
+    if provenance.get("download_outcome") != "success" or not provenance.get("input_sha256"):
+        raise ValueError("UPLOADED_DOWNLOAD_NOT_VERIFIED")
+    if provenance.get("production_eligible") is not False or payload.get("production_eligible") is not False:
+        raise ValueError("UPLOADED_RESEARCH_GUARD_FAILED")
+    source_report = payload.get("report")
+    if not isinstance(source_report, dict):
+        raise ValueError("UPLOADED_REPORT_MISSING")
+    result = consume(source_report, now=now)
+    result["provenance"] = dict(provenance)
+    result["provenance_validated_at_read"] = True
+    result["external_mobile_command_verified"] = False
+    result["production_eligible"] = False
+    result["action"] = "禁止交易"
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input", type=Path, required=True, help="Existing scan artifact; never an inferred latest run")
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--input", type=Path, help="Existing full-universe source artifact")
+    source.add_argument("--receipt", type=Path, help="Previously downloaded sky-alert-readback JSON")
+    parser.add_argument("--expected-run-id", help="Required when consuming a downloaded receipt")
+    parser.add_argument("--expected-head-sha", help="Required when consuming a downloaded receipt")
     parser.add_argument("--json-output", type=Path, required=True)
     parser.add_argument("--markdown-output", type=Path, required=True)
     args = parser.parse_args()
     try:
-        payload = json.loads(args.input.read_text(encoding="utf-8"))
-        receipt = consume(payload)
+        payload = json.loads((args.input or args.receipt).read_text(encoding="utf-8"))
+        if args.receipt:
+            receipt = consume_uploaded_receipt(
+                payload, expected_run_id=args.expected_run_id,
+                expected_head_sha=args.expected_head_sha,
+            )
+        else:
+            receipt = consume(payload)
     except (OSError, ValueError, TypeError, KeyError) as exc:
         receipt = {
             "schema": SCHEMA, "read_at_tpe": datetime.now(TZ).isoformat(),
