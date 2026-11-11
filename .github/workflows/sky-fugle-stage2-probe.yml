@@ -49,6 +49,8 @@ jobs:
         if: steps.guard.outputs.allowed == 'true' && steps.verify_claim.outcome == 'success'
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+          SKY_PAID_ATOMIC_ENFORCE: '1'
+          GH_TOKEN: ${{ github.token }}
         run: python -m src.sky_fugle_stage2_probe
       - name: Upload sanitized non-order evidence
         if: always()
