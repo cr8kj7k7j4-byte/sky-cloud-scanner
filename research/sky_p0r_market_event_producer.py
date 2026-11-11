@@ -186,9 +186,18 @@ def main():
     base=Path("output/sky_paper_runtime")
     source=base/"completed_market_evidence.json"
     if not source.is_file():
-        print(json.dumps({"verdict":"INSUFFICIENT_DATA",
-                          "reason":"VERIFIED_COMPLETED_MARKET_EVIDENCE_MISSING",
-                          "production_eligible":False}))
+        status={"schema":"SKY_P0R_PAPER_MARKET_SOURCE_STATUS_V1",
+                "verdict":"INSUFFICIENT_DATA",
+                "reason":"RAW_COMPLETED_OHLC_WITH_SOURCE_AND_APPROVED_SIGNAL_MISSING",
+                "input_path":str(source),
+                "source_artifact_verified":False,
+                "paper_events_produced":0,
+                "production_eligible":False}
+        output=Path("output/sky_p0r_paper_ledger_readback")
+        output.mkdir(parents=True,exist_ok=True)
+        (output/"market_source_status.json").write_text(
+            json.dumps(status,ensure_ascii=False,indent=2)+"\\n",encoding="utf-8")
+        print(json.dumps(status))
         return 0
     report=produce(json.loads(source.read_text(encoding="utf-8")))
     if report["snapshot"] is not None:
@@ -200,8 +209,14 @@ def main():
             "context":{k:report["snapshot"][k] for k in (
                 "run_id","scan_id","observed_at","source_artifact","simulator_version")}
         },ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
-    print(json.dumps({"verdict":report["verdict"],
-                      "event_count":len(report["events"]),"production_eligible":False}))
+    status={"schema":"SKY_P0R_PAPER_MARKET_SOURCE_STATUS_V1",
+            "verdict":report["verdict"], "source_artifact_verified":False,
+            "paper_events_produced":len(report["events"]),
+            "production_eligible":False}
+    output=Path("output/sky_p0r_paper_ledger_readback")
+    output.mkdir(parents=True,exist_ok=True)
+    (output/"market_source_status.json").write_text(json.dumps(status,ensure_ascii=False,indent=2)+"\\n",encoding="utf-8")
+    print(json.dumps(status))
     return 0
 
 if __name__=="__main__":
