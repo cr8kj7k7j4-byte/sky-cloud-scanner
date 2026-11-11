@@ -1,7 +1,9 @@
 import copy
+import hashlib
+import json
 import unittest
 
-from research.sky_p0r_market_event_producer import produce
+from research.sky_p0r_market_event_producer import produce, source_binding_verified
 
 def bar(start, finish, open_price, high, low, close):
     return {"symbol":"2409", "source_type":"MARKET_OBSERVATION",
@@ -29,6 +31,45 @@ SOURCE={
 }
 
 class MarketEventProducerTest(unittest.TestCase):
+    def test_paper_source_binding_rejects_unproven_and_mutated_payload(self):
+        payload=copy.deepcopy(SOURCE)
+        payload["context"]["run_id"]="12345"
+        payload["context"]["source_artifact"]="sky-512-5m-evidence-12345:67890"
+        for bar in payload["completed_bars"]:
+            bar["source_artifact"]=payload["context"]["source_artifact"]
+        payload["signal"]["signal_time"]="2026-11-11T09:05:00+08:00"
+        bars={"schema":"SKY_P0R_VERIFIED_SOURCE_BARS_V1",
+              "source_run_id":"12345","source_sha":"fixture-sha",
+              "source_artifact_id":"67890",
+              "observed_at":payload["context"]["observed_at"],
+              "production_eligible":False,"automatic_order":False,
+              "bar_sources":{"2409":{"completed_bars":payload["completed_bars"]}}}
+        digest=hashlib.sha256(json.dumps(payload,ensure_ascii=False,
+            sort_keys=True,separators=(",",":")).encode("utf-8")).hexdigest()
+        binding={"schema":"SKY_P0R_PAPER_SOURCE_BINDING_V1",
+                 "paper_input_sha256":digest,
+                 "market_run_id":"12345","market_sha":"fixture-sha",
+                 "market_artifact_id":"67890",
+                 "market_observed_at":payload["context"]["observed_at"],
+                 "signal_provenance":{"github_metadata_verified":True,
+                     "signal_run_id":"999","signal_sha":"fixture-signal-sha",
+                     "signal_artifact_id":"888",
+                     "artifact_uploaded_at":"2026-11-11T09:05:00+08:00",
+                     "effective_published_at":"2026-11-11T09:05:00+08:00"},
+                 "production_eligible":False,"automatic_order":False}
+        self.assertTrue(source_binding_verified(payload,binding,bars))
+        self.assertFalse(source_binding_verified(payload,None,bars))
+        self.assertFalse(source_binding_verified(payload,binding,None))
+        altered=copy.deepcopy(payload)
+        altered["completed_bars"][0]["close"]+=0.1
+        self.assertFalse(source_binding_verified(altered,binding,bars))
+        wrong=copy.deepcopy(binding)
+        wrong["signal_provenance"]["github_metadata_verified"]=False
+        self.assertFalse(source_binding_verified(payload,wrong,bars))
+        wrong=copy.deepcopy(binding)
+        wrong["signal_provenance"]["effective_published_at"]="2026-11-11T09:10:00+08:00"
+        self.assertFalse(source_binding_verified(payload,wrong,bars))
+
     def test_completed_future_bars_produce_reconciled_paper_only_estimates(self):
         report=produce(SOURCE)
         self.assertEqual(report["verdict"],"PAPER_EVENT_CHAIN_RECONCILED_ORIGIN_UNVERIFIED")
