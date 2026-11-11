@@ -126,6 +126,40 @@ jobs:
             --head-sha "$HEAD_SHA" --expected-sha "$GITHUB_SHA" \
             --artifact-id "$ARTIFACT_ID" \
             --receipt output/chat_bridge_readback/external_receipt.json
+      - name: Ensure external readback failure always has a diagnostic receipt
+        if: ${{ always() }}
+        env:
+          EXTERNAL_READBACK_OUTCOME: ${{ steps.external_readback.outcome }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+          p = Path("output/chat_bridge_readback/external_receipt.json")
+          p.parent.mkdir(parents=True, exist_ok=True)
+          try:
+              data = json.loads(p.read_text(encoding="utf-8"))
+          except (OSError, ValueError, TypeError):
+              data = {}
+          if not isinstance(data, dict):
+              data = {}
+          if os.environ.get("EXTERNAL_READBACK_OUTCOME") != "success":
+              data = {
+                  "schema": "SKY_CHAT_EXTERNAL_ARTIFACT_READBACK_V1",
+                  "status": "FAILED_CLOSED",
+                  "reason": "EXTERNAL_DOWNLOAD_OR_VERIFY_NOT_SUCCESSFUL",
+                  "external_readback_step_outcome": os.environ.get("EXTERNAL_READBACK_OUTCOME"),
+                  "run_id": os.getenv("GITHUB_RUN_ID"),
+                  "head_sha": os.getenv("GITHUB_SHA"),
+                  "request_id": None,
+                  "verified_at_utc": datetime.now(timezone.utc).isoformat(),
+                  "production_eligible": False,
+                  "automatic_order": False,
+                  "trade_action": "禁止交易",
+              }
+          p.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          PY
       - name: Upload independent readback receipt
         if: always()
         uses: actions/upload-artifact@v4
