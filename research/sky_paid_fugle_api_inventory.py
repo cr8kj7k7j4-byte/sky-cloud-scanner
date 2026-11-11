@@ -13,6 +13,31 @@ WORKFLOW_DIR = Path(".github/workflows")
 SHARED_GROUP = "group: sky-fugle-paid-global-research-v1"
 CONFIG_ONLY_EXEMPTIONS = {"three-model-cloud-auth-preflight.yml"}
 
+# Evidence is intentionally narrower than complete runtime enforcement.
+# These paths have an explicit research opt-in, scoped GitHub token and a
+# source-level request guard. A caller may still use an unreviewed path.
+ATOMIC_WIRED_SOURCE_CANDIDATES = {
+    "sky-chat-bridge.yml": "src/fugle.py",
+    "fugle-2026-entitlement-probe.yml": "research/fugle_2026_entitlement_probe.py",
+}
+
+
+def atomic_wired_candidate(workflow: str, source: str, *, repository_root: Path) -> bool:
+    path = ATOMIC_WIRED_SOURCE_CANDIDATES.get(workflow)
+    if not path:
+        return False
+    if not all(mark in source for mark in (
+        "SKY_PAID_ATOMIC_ENFORCE: '1'",
+        "GH_TOKEN: ${{ github.token }}",
+        "contents: write",
+    )):
+        return False
+    target = repository_root / path
+    if not target.is_file():
+        return False
+    return "guard_fugle_request(" in target.read_text(encoding="utf-8")
+
+
 
 def triggers(source: str) -> dict:
     # Only uncommented lines with a top-level on: nested YAML indentation.
@@ -67,6 +92,8 @@ def audit(root: Path = WORKFLOW_DIR) -> dict:
             "actual_paid_api_invocations": None,
             "owner_review_required": True,
             "configuration_only_exemption": path.name in CONFIG_ONLY_EXEMPTIONS,
+            "atomic_endpoint_code_wired_candidate": atomic_wired_candidate(
+                path.name, source, repository_root=Path(__file__).resolve().parents[1]),
             "central_reservation_job": "  sky_paid_reservation:" in source,
             "paid_job_dependencies": source.count("needs: sky_paid_reservation") + source.count(", sky_paid_reservation]"),
             "central_fail_closed_final_gate": "Fail job when claim is rejected or not verified" in source,
@@ -99,6 +126,8 @@ def audit(root: Path = WORKFLOW_DIR) -> dict:
         "unguarded_manual_or_event_count": sum(r["manual_or_event_trigger_available"] for r in rows if not r["candidate_guarded"]),
         "cohort_counts": {k: sum(r["static_cohort"] == k for r in rows) for k in sorted({r["static_cohort"] for r in rows})},
         "workflows": rows,
+        "atomic_endpoint_code_wired_candidate_count": sum(
+            r["atomic_endpoint_code_wired_candidate"] for r in rows),
         "atomic_endpoint_enforced_workflow_count": sum(r["atomic_endpoint_claim_enforced"] for r in rows),
         "atomic_endpoint_acceptance": "REQUIRES_RUNTIME_VERIFICATION",
         "no_market_calls": True,
