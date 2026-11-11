@@ -196,7 +196,7 @@ def main():
         output=Path("output/sky_p0r_paper_ledger_readback")
         output.mkdir(parents=True,exist_ok=True)
         (output/"market_source_status.json").write_text(
-            json.dumps(status,ensure_ascii=False,indent=2)+"\\n",encoding="utf-8")
+            json.dumps(status,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
         print(json.dumps(status))
         return 0
     report=produce(json.loads(source.read_text(encoding="utf-8")))
@@ -215,7 +215,7 @@ def main():
             "production_eligible":False}
     output=Path("output/sky_p0r_paper_ledger_readback")
     output.mkdir(parents=True,exist_ok=True)
-    (output/"market_source_status.json").write_text(json.dumps(status,ensure_ascii=False,indent=2)+"\\n",encoding="utf-8")
+    (output/"market_source_status.json").write_text(json.dumps(status,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     print(json.dumps(status))
     return 0
 
