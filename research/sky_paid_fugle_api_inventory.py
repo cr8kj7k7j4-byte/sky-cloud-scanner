@@ -18,6 +18,7 @@ CONFIG_ONLY_EXEMPTIONS = {"three-model-cloud-auth-preflight.yml"}
 # source-level request guard. A caller may still use an unreviewed path.
 ATOMIC_WIRED_SOURCE_CANDIDATES = {
     "sky-chat-bridge.yml": "src/fugle.py",
+    "sky-fugle-stage2-probe.yml": "src/sky_fugle_stage2_probe.py",
     "fugle-2026-entitlement-probe.yml": "research/fugle_2026_entitlement_probe.py",
 }
 
