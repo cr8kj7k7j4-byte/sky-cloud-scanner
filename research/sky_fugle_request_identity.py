@@ -14,7 +14,7 @@ from urllib.parse import parse_qsl, urlsplit
 
 SAFE_ENDPOINT = re.compile(r"^/(?:marketdata/v1\.0/stock/)?(snapshot/quotes/(?:TSE|OTC)|intraday/(?:quote|candles|ticker)/[0-9A-Za-z]+|intraday/tickers|historical/candles/[0-9A-Za-z]+)$")
 SAFE_SYMBOL = re.compile(r"^[0-9A-Za-z]{2,10}$")
-ALLOWED_PARAMETERS = frozenset({"from", "to", "timeframe", "type", "limit", "sort", "offset", "market"})
+ALLOWED_PARAMETERS = frozenset({"from", "to", "timeframe", "type", "limit", "sort", "offset", "market", "fields"})
 
 
 def canonical_fugle_request(method: str, url: str, *, parameters: dict | None = None) -> str:

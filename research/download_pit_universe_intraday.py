@@ -10,6 +10,8 @@ from typing import Iterable
 
 import requests
 
+from research.sky_fugle_atomic_ref_claim import guard_fugle_request
+
 BASE = "https://api.fugle.tw/marketdata/v1.0/stock"
 UA = "SkyCloudScanner-PITUniverse/1.0"
 MIN_INTERVAL = 1.10
@@ -83,6 +85,7 @@ def _request_chunk(symbol, a, b, *, timeframe="5", request_get=requests.get, sle
         "sort": "asc",
     }
     for attempt in range(MAX_429_RETRIES + 1):
+        guard_fugle_request(url, params)
         r = request_get(url, params=params, headers=headers(), timeout=30)
         if r.status_code == 404:
             return []

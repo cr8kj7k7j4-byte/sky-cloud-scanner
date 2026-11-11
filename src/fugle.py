@@ -18,20 +18,8 @@ def _atomic_research_paid_gate(path, params):
     """
     if os.getenv("SKY_PAID_ATOMIC_ENFORCE") != "1":
         return
-    from research.sky_fugle_request_identity import canonical_fugle_request
-    from research.sky_fugle_atomic_ref_claim import (
-        claim_ref, github_create_ref, try_claim,
-    )
-    scope = canonical_fugle_request("GET", BASE + path, parameters=params)
-    slot = int(datetime.now(timezone.utc).timestamp()) // 300
-    ref = claim_ref(scope, slot)
-    token = os.getenv("GH_TOKEN", "")
-    repo = os.getenv("GITHUB_REPOSITORY", "")
-    sha = os.getenv("GITHUB_SHA", "")
-    allowed = try_claim(ref, sha, github_create_ref(repo, token))
-    if not allowed:
-        raise RuntimeError("DUPLICATE_PAID_FUGLE_ENDPOINT_BLOCKED")
-
+    from research.sky_fugle_atomic_ref_claim import guard_fugle_request
+    guard_fugle_request(BASE + path, params)
 
 def _get(path, params=None):
     url = f"{BASE}{path}"

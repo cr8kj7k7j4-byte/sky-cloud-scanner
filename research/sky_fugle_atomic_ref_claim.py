@@ -10,10 +10,11 @@ from __future__ import annotations
 import hashlib
 import re
 import json
+import os
 from urllib.error import HTTPError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
-from datetime import datetime
+from datetime import datetime, timezone
 
 PREFIX = "refs/tags/sky-research-fugle-claim/"
 HEX = re.compile(r"^[0-9a-f]{32}$")
@@ -45,6 +46,26 @@ def try_claim(ref: str, sha: str, create_ref) -> bool:
     if result.get("status") == 422 and result.get("existing") is True:
         return False
     raise RuntimeError("ATOMIC_CLAIM_UNVERIFIED")
+
+def guard_fugle_request(url: str, params: dict | None = None) -> None:
+    """Optional endpoint claim immediately before a real Fugle HTTP request.
+
+    This guard is research-only and defaults to OFF. Unknown URLs or GitHub
+    write errors fail closed when enabled. Tests must mock provider transport.
+    """
+    if os.getenv("SKY_PAID_ATOMIC_ENFORCE") != "1":
+        return
+    from research.sky_fugle_request_identity import canonical_fugle_request
+
+    scope = canonical_fugle_request("GET", url, parameters=params)
+    slot = int(datetime.now(timezone.utc).timestamp()) // 300
+    ref = claim_ref(scope, slot)
+    repo = os.getenv("GITHUB_REPOSITORY", "")
+    token = os.getenv("GH_TOKEN", "")
+    sha = os.getenv("GITHUB_SHA", "")
+    if not try_claim(ref, sha, github_create_ref(repo, token)):
+        raise RuntimeError("DUPLICATE_PAID_FUGLE_ENDPOINT_BLOCKED")
+
 
 def github_create_ref(repo: str, token: str):
     """Return an atomic GitHub create-ref transport. 403/timeout fail closed."""

@@ -17,6 +17,8 @@ from urllib.request import Request, urlopen
 
 from research.three_model_research_signals import generate, verify_bars
 
+from research.sky_fugle_atomic_ref_claim import guard_fugle_request
+
 TPE = timezone(timedelta(hours=8))
 BASE = "https://api.fugle.tw/marketdata/v1.0/stock/historical/candles/"
 
@@ -68,6 +70,7 @@ def read_fugle(symbol, timeframe, start, end, key, get=None):
     for attempt in range(2):
         try:
             if get is None:
+                guard_fugle_request(req.full_url)
                 with urlopen(req, timeout=30) as response:
                     body = json.load(response)
             else:

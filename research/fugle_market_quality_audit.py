@@ -9,6 +9,8 @@ import urllib.request
 from html.parser import HTMLParser
 from zoneinfo import ZoneInfo
 
+from research.sky_fugle_atomic_ref_claim import guard_fugle_request
+
 TZ = ZoneInfo("Asia/Taipei")
 API = "https://api.fugle.tw/marketdata/v1.0/stock"
 SOURCES = {"TSE": "https://isin.twse.com.tw/isin/e_C_public.jsp?strMode=2", "OTC": "https://isin.twse.com.tw/isin/e_C_public.jsp?strMode=4"}
@@ -31,7 +33,9 @@ class Rows(HTMLParser):
 
 def request(url, key=None):
     headers={"User-Agent":"Mozilla/5.0 Sky-ReadOnly-Audit", "Accept":"*/*"}
-    if key: headers["X-API-KEY"]=key
+    if key:
+        headers["X-API-KEY"]=key
+        guard_fugle_request(url)
     with urllib.request.urlopen(urllib.request.Request(url,headers=headers),timeout=25) as res:
         return res.read(),res.headers.get_content_charset()
 
