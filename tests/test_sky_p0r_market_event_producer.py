@@ -37,9 +37,10 @@ class MarketEventProducerTest(unittest.TestCase):
                "signal_artifact_id":"888",
                "artifact_uploaded_at":"2026-11-11T09:05:00+08:00",
                "effective_published_at":"2026-11-11T09:05:00+08:00"}
-        binding={"signal_provenance":copy.deepcopy(proof)}
+        binding={"signal_provenance":copy.deepcopy(proof), "market_run_id":"456"}
         good={"reconciled":True,"production_eligible":False,
-              "automatic_order":False,"verified_github_provenance":copy.deepcopy(proof)}
+              "automatic_order":False,"verified_github_provenance":copy.deepcopy(proof),
+              "signal_source_run_id":"999", "bar_source_run_id":"456"}
         self.assertTrue(signal_import_status_verified(good,binding))
         for bad in (
             None, {}, {**good,"reconciled":False},
@@ -47,6 +48,9 @@ class MarketEventProducerTest(unittest.TestCase):
             {**good,"verified_github_provenance":{}},
             {**good,"verified_github_provenance":{**proof,"signal_run_id":"OLD"}},
             {**good,"verified_github_provenance":{**proof,"github_metadata_verified":False}},
+            {**good,"signal_source_run_id":"OTHER_SIGNAL_RUN"},
+            {**good,"bar_source_run_id":"OTHER_MARKET_RUN"},
+            {**good,"bar_source_run_id":None},
         ):
             with self.subTest(bad=bad):
                 self.assertFalse(signal_import_status_verified(bad,binding))
