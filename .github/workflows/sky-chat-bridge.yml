@@ -90,6 +90,8 @@ jobs:
         id: bridge
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          SKY_PAID_ATOMIC_ENFORCE: '1'
           SKY_FUGLE_ONLY_MARKETDATA: '1'
         run: python -m src.sky_chat_bridge
       - name: Verify status and preserve a failed-run diagnostic
