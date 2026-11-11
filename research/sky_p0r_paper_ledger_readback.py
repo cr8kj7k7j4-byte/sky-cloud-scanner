@@ -115,3 +115,30 @@ def audit_paper_ledger(snapshot, journal):
         "trade_action": "禁止交易",
         "verdict": "EVIDENCE_RECONCILED_ORIGIN_UNVERIFIED" if not errors else "INSUFFICIENT_DATA",
     }
+
+
+def main():
+    """Read ONLY already-created simulator files; never synthesize trades."""
+    import json
+    from pathlib import Path
+
+    directory = Path("output/sky_paper_runtime")
+    snapshot_path = directory / "snapshot.json"
+    journal_path = directory / "closed_fills.json"
+    try:
+        snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
+        journal = json.loads(journal_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        snapshot, journal = None, None
+    report = audit_paper_ledger(snapshot, journal)
+    output = Path("output/sky_p0r_paper_ledger_readback")
+    output.mkdir(parents=True, exist_ok=True)
+    (output / "latest.json").write_text(
+        json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    print(json.dumps(report, ensure_ascii=False, indent=2))
+    return 0  # HOLD is an evidence state, not a CI test failure.
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
