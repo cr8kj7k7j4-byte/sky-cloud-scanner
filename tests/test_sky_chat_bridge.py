@@ -87,13 +87,18 @@ class ChatScanBridgeTests(unittest.TestCase):
         self.assertIsNotNone(match, "Published-status verification script missing")
         guard = "\n".join(line[10:] if line.startswith("          ") else line
                           for line in match.group(1).splitlines())
-        for download, upload, receipt_status, should_pass in (
-            ("success", "failure", "PASS_RESEARCH_ONLY", False),
-            ("failure", "success", "PASS_RESEARCH_ONLY", False),
-            ("success", "success", "FAILED_CLOSED", False),
-            ("success", "success", "PASS_RESEARCH_ONLY", True),
+        for download, upload, receipt_status, tamper, should_pass in (
+            ("success", "failure", "PASS_RESEARCH_ONLY", None, False),
+            ("failure", "success", "PASS_RESEARCH_ONLY", None, False),
+            ("success", "success", "FAILED_CLOSED", None, False),
+            ("success", "success", "PASS_RESEARCH_ONLY", "artifact_id", False),
+            ("success", "success", "PASS_RESEARCH_ONLY", "row_count", False),
+            ("success", "success", "PASS_RESEARCH_ONLY", "trade_action", False),
+            ("success", "success", "PASS_RESEARCH_ONLY", "automatic_order", False),
+            ("success", "success", "PASS_RESEARCH_ONLY", None, True),
         ):
-            with self.subTest(download=download, upload=upload, receipt=receipt_status):
+            with self.subTest(download=download, upload=upload, receipt=receipt_status,
+                              tamper=tamper):
                 with tempfile.TemporaryDirectory() as tmp:
                     root = Path(tmp)
                     (root / "output/chat_bridge").mkdir(parents=True)
@@ -108,6 +113,14 @@ class ChatScanBridgeTests(unittest.TestCase):
                                "artifact_id": "123", "row_count": 1986,
                                "trade_action": "禁止交易",
                                "production_eligible": False, "automatic_order": False}
+                    if tamper == "artifact_id":
+                        receipt["artifact_id"] = "wrong"
+                    elif tamper == "row_count":
+                        receipt["row_count"] = 1985
+                    elif tamper == "trade_action":
+                        receipt["trade_action"] = "買進"
+                    elif tamper == "automatic_order":
+                        receipt["automatic_order"] = True
                     (root / "output/chat_bridge/latest.json").write_text(
                         json.dumps(status), encoding="utf-8")
                     (root / "output/chat_bridge_readback/external_receipt.json").write_text(
