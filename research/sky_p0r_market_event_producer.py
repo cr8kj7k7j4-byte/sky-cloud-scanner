@@ -255,6 +255,12 @@ def signal_import_status_verified(status, binding):
                 "artifact_uploaded_at", "effective_published_at"):
         if not proof.get(key) or str(proof[key]) != str(bound.get(key)):
             return False
+    # GitHub provenance alone is insufficient: the result of this *specific*
+    # signal/bar join must refer to the same two independently sourced runs.
+    if (str(status.get("signal_source_run_id")) != str(bound.get("signal_run_id"))
+            or str(status.get("bar_source_run_id")) != str(binding.get("market_run_id"))
+            or not bound.get("signal_run_id") or not binding.get("market_run_id")):
+        return False
     return True
 
 
