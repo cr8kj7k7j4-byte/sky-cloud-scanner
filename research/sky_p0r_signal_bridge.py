@@ -35,7 +35,7 @@ def _hold(reason, *, source_run_id=None, signal_run_id=None):
             "automatic_order": False, "trade_action": "禁止交易"}
 
 
-def join(verified_bars, signal_receipt=None):
+def join(verified_bars, signal_receipt=None, *, external_signal_provenance_verified=False):
     """Convert only an explicitly precommitted signal into input for existing simulator.
 
     Caller is responsible for independently downloading and verifying the signal
@@ -75,6 +75,9 @@ def join(verified_bars, signal_receipt=None):
                      source_run_id=source_run, signal_run_id=signal_receipt["signal_run_id"]), None
     if signal_receipt["signal_run_id"] == source_run:
         raise ValueError("SIGNAL_AND_BAR_RUN_NOT_INDEPENDENT")
+    if external_signal_provenance_verified is not True:
+        return _hold("SIGNAL_ARTIFACT_NOT_INDEPENDENTLY_VERIFIED",
+                     source_run_id=source_run, signal_run_id=signal_receipt["signal_run_id"]), None
     symbol = signal.get("symbol")
     sources = verified_bars.get("bar_sources")
     if not isinstance(sources, dict) or symbol not in sources:
