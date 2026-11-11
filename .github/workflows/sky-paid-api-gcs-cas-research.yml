@@ -1,8 +1,8 @@
 name: Sky GCS CAS Two-Runner Research Acceptance (NO FUGLE)
 on:
-  # A single explicit research request is required. No cron or paid scan trigger.
+  # Main-trusted identity only, one explicit no-Fugle request; no cron.
   push:
-    branches: [research/w0-repair-progress-existing-watchdog-20261110]
+    branches: [main]
     paths:
       - 'research/sky_paid_api_gcs_cas_probe_request.json'
 permissions:
@@ -15,6 +15,7 @@ concurrency:
 jobs:
   contender:
     name: GCS contender ${{ matrix.slot }} (independent runner)
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     strategy:
