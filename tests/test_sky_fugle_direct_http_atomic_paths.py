@@ -33,6 +33,58 @@ class DirectFugleAtomicGateTests(unittest.TestCase):
         self.assertEqual(gate.call_count, 1)
         self.assertEqual(http.call_count, 2)
 
+    def test_expanded_historical_duplicate_blocks_before_http(self):
+        from research.download_expanded import _request_chunk
+        http = Mock()
+        with patch("research.download_expanded.guard_fugle_request",
+                   side_effect=RuntimeError("DUPLICATE_PAID_FUGLE_ENDPOINT_BLOCKED")):
+            with self.assertRaisesRegex(RuntimeError, "DUPLICATE_PAID"):
+                _request_chunk("2330", date(2026, 11, 2), date(2026, 11, 3),
+                               request_get=http, sleep_fn=lambda _: None)
+        http.assert_not_called()
+
+    def test_expanded_429_retry_shares_one_claim(self):
+        from research.download_expanded import _request_chunk
+        rejected = Mock(status_code=429, headers={"Retry-After": "0"})
+        ok = Mock(status_code=200, headers={})
+        ok.json.return_value = {"data": [{"date": "2026-11-02"}]}
+        http = Mock(side_effect=[rejected, ok])
+        with patch("research.download_expanded.guard_fugle_request") as gate:
+            with patch("research.download_expanded.headers",
+                       return_value={"X-API-KEY": "MOCK_ONLY"}):
+                bars = _request_chunk("2330", date(2026, 11, 2),
+                                      date(2026, 11, 3),
+                                      request_get=http, sleep_fn=lambda _: None)
+        self.assertEqual(len(bars), 1)
+        self.assertEqual(gate.call_count, 1)
+        self.assertEqual(http.call_count, 2)
+
+    def test_legacy_intraday_duplicate_blocks_before_http(self):
+        from research.download_intraday import get_hist
+        with patch("research.download_intraday.guard_fugle_request",
+                   side_effect=RuntimeError("DUPLICATE_PAID_FUGLE_ENDPOINT_BLOCKED")):
+            with patch("research.download_intraday.requests.get") as http:
+                with self.assertRaisesRegex(RuntimeError, "DUPLICATE_PAID"):
+                    get_hist("2330", "2026-11-02", "2026-11-03")
+        http.assert_not_called()
+
+    def test_legacy_intraday_429_retry_shares_one_claim(self):
+        from research.download_intraday import get_hist
+        rejected = Mock(status_code=429)
+        ok = Mock(status_code=200)
+        ok.json.return_value = {"data": [{"date": "2026-11-02"}]}
+        with patch("research.download_intraday.guard_fugle_request") as gate:
+            with patch("research.download_intraday.requests.get",
+                       side_effect=[rejected, ok]) as http:
+                with patch("research.download_intraday.headers",
+                           return_value={"X-API-KEY": "MOCK_ONLY"}):
+                    with patch("research.download_intraday.time.sleep",
+                               return_value=None):
+                        bars = get_hist("2330", "2026-11-02", "2026-11-03")
+        self.assertEqual(len(bars), 1)
+        self.assertEqual(gate.call_count, 1)
+        self.assertEqual(http.call_count, 2)
+
     def test_stage2_duplicate_never_calls_http(self):
         from src.sky_fugle_stage2_probe import run
         mock_http = Mock()
