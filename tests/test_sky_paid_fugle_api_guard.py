@@ -5,6 +5,7 @@ from tempfile import TemporaryDirectory
 
 from research.sky_paid_fugle_api_guard import (
     artifact_name, check_reservation, prepare, slots, workflow_request_scope,
+    verify_uploaded_reservation,
 )
 
 
@@ -68,6 +69,30 @@ class FugleGuardTests(unittest.TestCase):
             workflow_request_scope("", {"inputs": {}})
         with self.assertRaises(ValueError):
             workflow_request_scope("Sky", {"inputs": "not a mapping"})
+
+    def test_artifact_zip_must_match_unique_nonce_not_only_run_id(self):
+        with TemporaryDirectory() as td:
+            _, name, local = prepare("sky:mock:same", self.now, lambda n: [],
+                                      "424242", Path(td))
+            artifact = {"id": 91, "workflow_run": {"id": 424242}, "expired": False}
+            def lookup(candidate):
+                self.assertEqual(candidate, name)
+                return [artifact]
+            self.assertEqual(verify_uploaded_reservation(
+                "sky:mock:same", "424242", self.now, local, lookup,
+                lambda aid: dict(local)), name)
+            wrong_nonce = dict(local, claim_nonce="0" * 32)
+            with self.assertRaisesRegex(RuntimeError, "ARTIFACT_CLAIM_CONTENT_MISMATCH_claim_nonce"):
+                verify_uploaded_reservation(
+                    "sky:mock:same", "424242", self.now, local, lookup,
+                    lambda aid: wrong_nonce)
+            with self.assertRaisesRegex(RuntimeError, "CLAIM_SCOPE_MISMATCH"):
+                verify_uploaded_reservation(
+                    "sky:mock:other", "424242", self.now, local, lambda n: [], lambda aid: {})
+            with self.assertRaisesRegex(RuntimeError, "CLAIM_EXPIRED_OR_FUTURE"):
+                verify_uploaded_reservation(
+                    "sky:mock:same", "424242", self.now + timedelta(seconds=301),
+                    local, lookup, lambda aid: dict(local))
 
     def test_receipt_without_secrets_or_market_data(self):
         with TemporaryDirectory() as td:
