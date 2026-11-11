@@ -131,3 +131,53 @@ jobs:
           path: output/sky_alert_external_readback/
           if-no-files-found: warn
           retention-days: 30
+
+  # Proves a second job can independently download and interpret the artifact
+  # produced by the first job, at this same PR HEAD and Actions run.
+  # This is a research-only pipeline contract test, NOT a paid live scan.
+  same-run-receipt-consumer:
+    needs: historical-readback-test
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    timeout-minutes: 5
+    steps:
+      - name: Download previous job's real report receipts from this run
+        uses: actions/download-artifact@v4
+        with:
+          name: sky-alert-historical-readback-${{ github.run_id }}
+          path: downloaded-receipts
+      - name: Validate downloaded receipts and exact PR head provenance
+        shell: bash
+        env:
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=Path("downloaded-receipts")
+          verdict=json.loads((p/"test_verdict.json").read_text(encoding="utf-8"))
+          historic=json.loads((p/"reader_receipt.json").read_text(encoding="utf-8"))
+          bridge=json.loads((p/"bridge_reader_receipt.json").read_text(encoding="utf-8"))
+          missing=json.loads((p/"missing_artifact_receipt.json").read_text(encoding="utf-8"))
+          assert verdict["test_head_sha"] == os.environ["EXPECTED_HEAD_SHA"], "WRONG_PR_SHA"
+          assert verdict["source_run_id"] == 42643956587
+          assert verdict["source_is_historical"] is True
+          assert verdict["real_current_scan_verified"] is False
+          assert verdict["mobile_command_verified"] is False
+          assert verdict["result"] == "PASS_HISTORICAL_FAIL_CLOSED_ONLY"
+          for receipt in (historic, bridge):
+              assert receipt["schema"] == "SKY_ALERT_READ_RECEIPT_V1"
+              assert receipt["freshness_status"] == "STALE_SOURCE"
+              assert receipt["fresh_executed_count_at_read"] == 0
+              assert receipt["production_eligible"] is False
+              assert receipt["action"] == "禁止交易"
+          assert missing["freshness_status"] == "DATA_BLOCKED"
+          assert missing["production_eligible"] is False
+          print("PASS_SAME_RUN_EXTERNAL_RECEIPT_CONSUMER", os.environ["EXPECTED_RUN_ID"], os.environ["EXPECTED_HEAD_SHA"])
+          PY
