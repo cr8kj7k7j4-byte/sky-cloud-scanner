@@ -21,10 +21,15 @@ def dispatch_code():
         r"        run: \|\n"
         r"          python - <<'PY'\n"
         r"(.*?)\n          PY\n"
-        r"      - name: Run read-only paid Fugle", workflow, re.S
+        r"(?=      - name: )", workflow, re.S
     )
     if match is None:
         raise AssertionError("DISPATCH_PRE_BRIDGE_STEP_MISSING")
+    # A required paid reservation can appear between safe request routing and
+    # the existing bridge. Ensure aliases cannot bypass that reservation.
+    assert workflow.index("Apply safe optional dispatch alias") < workflow.index("Reserve shared Fugle paid API slot")
+    assert workflow.index("Verify reservation ZIP content independently") < workflow.index("Run read-only paid Fugle observations")
+    assert "steps.verify_claim.outcome == 'success'" in workflow
     return "\n".join(line[10:] if line.startswith("          ") else line
                      for line in match.group(1).splitlines())
 
