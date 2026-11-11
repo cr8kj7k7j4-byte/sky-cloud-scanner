@@ -11,6 +11,7 @@ from pathlib import Path
 
 WORKFLOW_DIR = Path(".github/workflows")
 SHARED_GROUP = "group: sky-fugle-paid-global-research-v1"
+CONFIG_ONLY_EXEMPTIONS = {"three-model-cloud-auth-preflight.yml"}
 
 
 def triggers(source: str) -> dict:
@@ -55,25 +56,35 @@ def audit(root: Path = WORKFLOW_DIR) -> dict:
             "references_paid_fugle_secret": True,
             "shared_group": SHARED_GROUP in source,
             "preflight_present": "python -m research.sky_paid_fugle_api_guard" in source,
-            "receipt_readback": bool(re.search(r"sky_paid_fugle_api_guard[^\\n]*--verify", source)),
+            "receipt_readback": bool(re.search(r"sky_paid_fugle_api_guard[^\n]*--verify", source)),
             "triggers": flags,
             "static_cohort": cohort(path.name),
             "manual_or_event_trigger_available": any(flags.values()),
             "live_run_observed": None,
             "actual_paid_api_invocations": None,
             "owner_review_required": True,
+            "configuration_only_exemption": path.name in CONFIG_ONLY_EXEMPTIONS,
+            "central_reservation_job": "  sky_paid_reservation:" in source,
+            "paid_job_dependencies": source.count("needs: sky_paid_reservation") + source.count(", sky_paid_reservation]"),
+            "central_fail_closed_final_gate": "Fail job when claim is rejected or not verified" in source,
         }
         row["candidate_guarded"] = all([
             row["shared_group"], row["preflight_present"], row["receipt_readback"],
+            (not row["central_reservation_job"] or
+             (row["central_fail_closed_final_gate"] and row["paid_job_dependencies"] > 0)),
         ])
         rows.append(row)
-    uncovered = [r["workflow"] for r in rows if not r["candidate_guarded"]]
+    uncovered = [r["workflow"] for r in rows
+                 if not r["candidate_guarded"] and not r["configuration_only_exemption"]]
+    exempt = [r["workflow"] for r in rows if r["configuration_only_exemption"]]
     return {
         "schema": "SKY_PAID_FUGLE_STATIC_ENTRYPOINT_AUDIT_V2",
         "secret_referencing_workflow_count": len(rows),
         "guard_candidate_count": sum(r["candidate_guarded"] for r in rows),
         "unguarded_candidate_count": len(uncovered),
         "unguarded_workflows": uncovered,
+        "verified_configuration_only_exemptions": exempt,
+        "exemption_count": len(exempt),
         "unguarded_schedule_enabled_count": sum(r["triggers"]["schedule"] for r in rows if not r["candidate_guarded"]),
         "unguarded_manual_or_event_count": sum(r["manual_or_event_trigger_available"] for r in rows if not r["candidate_guarded"]),
         "cohort_counts": {k: sum(r["static_cohort"] == k for r in rows) for k in sorted({r["static_cohort"] for r in rows})},
@@ -81,7 +92,7 @@ def audit(root: Path = WORKFLOW_DIR) -> dict:
         "no_market_calls": True,
         "request_dedup_e2e_verified": False,
         "repository_wide_acceptance": "HOLD" if uncovered else "REQUIRES_RUNTIME_VERIFICATION",
-        "note": "Filename grouping is triage only. Inspect every paid call path, authorization, and runtime; zero cron does not mean inactive.",
+        "note": "Static source inspection only; zero uncovered does NOT prove endpoint-level cross-workflow de-duplication. Runtime and post-merge E2E remain mandatory.",
     }
 
 
