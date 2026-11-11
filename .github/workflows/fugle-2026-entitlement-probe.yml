@@ -20,7 +20,7 @@ on:
 permissions:
   contents: write
 concurrency:
-  group: sky-fugle-paid-global-research-v1
+  group: ${{ github.event_name == 'pull_request' && format('sky-fugle-pr-{0}-{1}', github.workflow, github.event.pull_request.number) || 'sky-fugle-paid-global-research-v1' }}
   cancel-in-progress: false
 jobs:
   sky_paid_reservation:
