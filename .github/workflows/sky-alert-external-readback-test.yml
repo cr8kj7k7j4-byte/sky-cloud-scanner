@@ -304,6 +304,7 @@ jobs:
             'schema':'SKY_ALERT_EXTERNAL_READBACK_PROVENANCE_V1',
             'source_repo':'cr8kj7k7j4-byte/sky-cloud-scanner',
             'source_run_id':os.environ['GITHUB_RUN_ID'],
+            'source_run_attempt':os.environ['GITHUB_RUN_ATTEMPT'],
             'source_head_sha':os.environ['EXPECTED_HEAD_SHA'],
             'source_artifact':'sky-scan-'+os.environ['GITHUB_RUN_ID'],
             'download_outcome':'success',
