@@ -53,6 +53,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 jobs:
   contract-tests:
     runs-on: ubuntu-latest
@@ -83,4 +84,54 @@ jobs:
           if p.exists():
               expected = "SKY_GOVERNED_SMOKE_FIXED_V1\\n"
               assert p.read_text(encoding="utf-8") == expected, "ISOLATED_SMOKE_FIXTURE_REQUIRES_APPROVED_PATCH"
+          PY
+      - name: Prepare synthetic research-only Artifact transport probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p output/sky_artifact_transport_probe
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          proof = {
+              "schema": "SKY_SYNTHETIC_ARTIFACT_TRANSPORT_PROBE_V1",
+              "synthetic": True,
+              "not_market_data": True,
+              "run_id": os.environ["GITHUB_RUN_ID"],
+              "head_sha": os.environ["GITHUB_SHA"],
+              "production_eligible": False,
+              "automatic_order": False,
+          }
+          Path("output/sky_artifact_transport_probe/probe.json").write_text(
+              json.dumps(proof, sort_keys=True) + "\n", encoding="utf-8")
+          PY
+      - name: Upload synthetic Artifact transport probe (no market data)
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-synthetic-transport-${{ github.run_id }}
+          path: output/sky_artifact_transport_probe/probe.json
+          if-no-files-found: error
+          retention-days: 3
+      - name: Verify same-run synthetic Artifact transport independently
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/sky-synthetic-transport
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "sky-synthetic-transport-$GITHUB_RUN_ID" --dir /tmp/sky-synthetic-transport
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          expected = Path("output/sky_artifact_transport_probe/probe.json")
+          downloaded = Path("/tmp/sky-synthetic-transport/probe.json")
+          assert downloaded.read_bytes() == expected.read_bytes(), "SYNTHETIC_ARTIFACT_CONTENT_MISMATCH"
+          data = json.loads(downloaded.read_text(encoding="utf-8"))
+          assert data["schema"] == "SKY_SYNTHETIC_ARTIFACT_TRANSPORT_PROBE_V1"
+          assert data["synthetic"] is True and data["not_market_data"] is True
+          assert data["run_id"] == os.environ["GITHUB_RUN_ID"]
+          assert data["head_sha"] == os.environ["GITHUB_SHA"]
+          assert data["production_eligible"] is False
+          assert data["automatic_order"] is False
+          print("SYNTHETIC_ARTIFACT_UPLOAD_AND_EXTERNAL_DOWNLOAD_PASS")
           PY
