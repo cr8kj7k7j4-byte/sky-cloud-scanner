@@ -1,6 +1,6 @@
 {
   "command": "Sky 快掃",
-  "request_id": "chat-20261110-1317-fullchain-recheck",
+  "request_id": "chat-20261111-0902-intraday-verify",
   "read_only_no_orders": true,
-  "reason": "User explicitly authorized immediate traceable full-market quote, bounded 5m causal evidence, VWAP/cost PAPER_ONLY research validation; do not duplicate W3A W3B W6 PR work or enable live orders."
+  "reason": "2026-11-11 intraday user-authorized one-shot paid Fugle full-market observation; verify TSE/OTC Snapshot, bounded candidate Quote, causal 5m, artifacts, freshness; preserve paused cron, NO_TRADE, no Production change."
 }
