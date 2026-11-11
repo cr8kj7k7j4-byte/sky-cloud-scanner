@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'research/sky_paid_fugle_api_guard.py'
+      - 'research/sky_paid_fugle_api_inventory.py'
       - 'tests/test_sky_paid_fugle_api_guard.py'
       - '.github/workflows/sky-paid-fugle-api-guard-tests.yml'
       - '.github/workflows/sky-chat-bridge.yml'
@@ -71,3 +72,13 @@ jobs:
           python -m research.sky_paid_fugle_api_guard --scope ci-smoke-${{ github.run_id }}
           grep -qx 'allowed=false' "$GITHUB_OUTPUT"
           echo 'SECOND_PAID_REQUEST_BLOCKED_WITHOUT_FUGLE_API'
+      - name: Inventory other Fugle paid entrypoints without paid calls
+        run: python -m research.sky_paid_fugle_api_inventory
+      - name: Publish explicit inventory and remaining blockers
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-fugle-api-guard-inventory-${{ github.run_id }}
+          path: output/fugle_api_guard/static_inventory.json
+          if-no-files-found: warn
+          retention-days: 30
