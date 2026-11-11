@@ -132,31 +132,15 @@ jobs:
           path: output/sky_artifact_transport_probe/probe.json
           if-no-files-found: error
           retention-days: 3
-      - name: Verify same-run synthetic Artifact transport independently
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Fetch freshly uploaded synthetic Artifact from GitHub Artifact storage
+        uses: actions/download-artifact@v4
+        with:
+          name: sky-synthetic-transport-${{ github.run_id }}
+          path: /tmp/sky-synthetic-transport
+      - name: Verify downloaded same-run synthetic Artifact content
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p /tmp/sky-synthetic-transport
-          # Newly uploaded GitHub Artifact ZIPs can briefly return 404 after listing.
-          # Retry only bounded read-back (no market requests, no duplicate uploads).
-          downloaded=0
-          for attempt in 1 2 3 4 5; do
-            if gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "sky-synthetic-transport-$GITHUB_RUN_ID" --dir /tmp/sky-synthetic-transport 2> /tmp/sky-artifact-download.err; then
-              downloaded=1
-              break
-            fi
-            cat /tmp/sky-artifact-download.err >&2
-            # Auth and quota errors are not transient 404 propagation: fail closed immediately.
-            if grep -Eqi 'HTTP (401|403|422)|rate limit exceeded|Resource not accessible' /tmp/sky-artifact-download.err; then
-              echo "ARTIFACT_READBACK_ACCESS_OR_RATE_LIMIT_BLOCKED" >&2
-              exit 1
-            fi
-            echo "Synthetic Artifact readback not ready (attempt $attempt/5)" >&2
-            sleep 3
-          done
-          test "$downloaded" = 1 || { echo "SYNTHETIC_ARTIFACT_EXTERNAL_READBACK_FAILED"; exit 1; }
           python - <<'PY'
           import json, os
           from pathlib import Path
@@ -176,5 +160,5 @@ jobs:
           assert data["head_sha"] == os.environ["GITHUB_SHA"]
           assert data["production_eligible"] is False
           assert data["automatic_order"] is False
-          print("SYNTHETIC_ARTIFACT_UPLOAD_AND_EXTERNAL_DOWNLOAD_PASS")
+          print("SYNTHETIC_ARTIFACT_STORAGE_DOWNLOAD_PASS")
           PY
