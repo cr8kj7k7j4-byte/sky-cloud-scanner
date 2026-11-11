@@ -26,7 +26,7 @@ RECEIPT={
 }
 META={
     "id":12345,"status":"completed","conclusion":"success",
-    "head_sha":SHA,"repository":{"full_name":"owner/repo"}
+    "head_sha":SHA,"workflow_id":77,"repository":{"full_name":"owner/repo"}
 }
 LISTING={"artifacts":[{
     "id":67890,"name":"sky-precommitted-paper-signal-12345",
@@ -41,6 +41,30 @@ def fake_download(directory):
 
 
 class ExternalSignalVerificationTests(unittest.TestCase):
+    def setUp(self):
+        self._approved_workflow = patch.dict(
+            "os.environ", {"SKY_P0R_APPROVED_SIGNAL_WORKFLOW_ID": "77"})
+        self._approved_workflow.start()
+        self.addCleanup(self._approved_workflow.stop)
+
+    def test_unapproved_or_unconfigured_workflow_never_issues_signal_receipt(self):
+        def fetch(endpoint):
+            return META if endpoint.endswith("/runs/12345") else LISTING
+        with patch.dict("os.environ",
+                        {"SKY_P0R_APPROVED_SIGNAL_WORKFLOW_ID": ""}):
+            with self.assertRaisesRegex(
+                    ValueError, "SIGNAL_WORKFLOW_NOT_GOVERNANCE_APPROVED"):
+                _receipt_from_github(
+                    "owner/repo", RUN, fetch=fetch, downloader=fake_download)
+        def different_workflow(endpoint):
+            if endpoint.endswith("/runs/12345"):
+                return {**META, "workflow_id": 78}
+            return LISTING
+        with self.assertRaisesRegex(
+                ValueError, "SIGNAL_WORKFLOW_NOT_GOVERNANCE_APPROVED"):
+            _receipt_from_github(
+                "owner/repo", RUN, fetch=different_workflow,
+                downloader=fake_download)
     def test_server_upload_time_not_claimed_signal_time_controls(self):
         def fetch(endpoint):
             return META if endpoint.endswith("/runs/12345") else LISTING
