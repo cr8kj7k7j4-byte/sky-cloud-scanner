@@ -77,29 +77,15 @@ jobs:
           python -m src.trading_calendar --out output/trading_calendar_status.json
           SHOULD_SCAN="$(python - <<'PY'
           import json
-          from datetime import datetime
           from pathlib import Path
-          from zoneinfo import ZoneInfo
+          from src.trading_calendar import scan_session_gate
           x=json.loads(Path("output/trading_calendar_status.json").read_text(encoding="utf-8"))
+          gate=scan_session_gate(x)
+          Path("output/scan_session_gate.json").write_text(
+              json.dumps(gate,ensure_ascii=False,indent=2)+"\\n",encoding="utf-8")
           if x.get("source_status") != "PASS":
               raise SystemExit("Official trading calendar unavailable; scan withheld.")
-          now=datetime.now(ZoneInfo("Asia/Taipei"))
-          minute=now.hour*60+now.minute
-          in_regular_session=(now.weekday()<5 and 9*60<=minute<13*60+30)
-          same_date=(x.get("date")==now.date().isoformat())
-          allowed=(x.get("should_scan") is True and same_date and in_regular_session)
-          Path("output/scan_session_gate.json").write_text(json.dumps({
-              "schema":"SKY_SCAN_TPE_REGULAR_SESSION_GATE_V1",
-              "checked_at_tpe":now.isoformat(),
-              "official_trading_date":x.get("date"),
-              "official_calendar_status":x.get("source_status"),
-              "is_regular_session":in_regular_session,
-              "calendar_date_matches":same_date,
-              "should_scan":allowed,
-              "reason":"APPROVED_IN_SESSION" if allowed else "OUTSIDE_SESSION_OR_CALENDAR_BLOCKED",
-              "automatic_order":False,
-          },ensure_ascii=False,indent=2)+"\n",encoding="utf-8"))
-          print("true" if allowed else "false")
+          print("true" if gate["should_scan"] else "false")
           PY
           )"
           echo "should_scan=$SHOULD_SCAN" >> "$GITHUB_OUTPUT"
