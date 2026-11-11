@@ -40,6 +40,35 @@ def atomic_wired_candidate(workflow: str, source: str, *, repository_root: Path)
 
 
 
+def isolated_atomic_broker_candidate(workflow: str, source: str, *, repository_root: Path) -> bool:
+    """Report isolated research preflight wiring only, not paid runtime proof."""
+    if workflow != "sky-selected-quote-view.yml":
+        return False
+    parts = source.split("\n  quote:\n", 1)
+    if len(parts) != 2:
+        return False
+    claim_job, paid_job = parts
+    requirements = (
+        "  atomic_quote_claim:",
+        "contents: write",
+        "sky_fugle_selected_quote_atomic_claim",
+        "actions/upload-artifact@v4",
+    )
+    if not all(mark in claim_job for mark in requirements):
+        return False
+    paid_required = (
+        "needs: atomic_quote_claim",
+        "needs.atomic_quote_claim.result == 'success'",
+        "contents: read",
+        "actions/download-artifact@v4",
+        "sky_fugle_selected_quote_atomic_claim --verify",
+    )
+    if not all(mark in paid_job for mark in paid_required) or "contents: write" in paid_job:
+        return False
+    script = repository_root / "research/sky_fugle_selected_quote_atomic_claim.py"
+    return script.is_file() and "verify_remote_claims(" in script.read_text(encoding="utf-8")
+
+
 def triggers(source: str) -> dict:
     # Only uncommented lines with a top-level on: nested YAML indentation.
     lines = source.splitlines()
@@ -95,6 +124,8 @@ def audit(root: Path = WORKFLOW_DIR) -> dict:
             "configuration_only_exemption": path.name in CONFIG_ONLY_EXEMPTIONS,
             "atomic_endpoint_code_wired_candidate": atomic_wired_candidate(
                 path.name, source, repository_root=Path(__file__).resolve().parents[1]),
+            "atomic_endpoint_isolated_broker_candidate": isolated_atomic_broker_candidate(
+                path.name, source, repository_root=Path(__file__).resolve().parents[1]),
             "central_reservation_job": "  sky_paid_reservation:" in source,
             "paid_job_dependencies": source.count("needs: sky_paid_reservation") + source.count(", sky_paid_reservation]"),
             "central_fail_closed_final_gate": "Fail job when claim is rejected or not verified" in source,
@@ -129,6 +160,8 @@ def audit(root: Path = WORKFLOW_DIR) -> dict:
         "workflows": rows,
         "atomic_endpoint_code_wired_candidate_count": sum(
             r["atomic_endpoint_code_wired_candidate"] for r in rows),
+        "atomic_endpoint_isolated_broker_candidate_count": sum(
+            r["atomic_endpoint_isolated_broker_candidate"] for r in rows),
         "atomic_endpoint_enforced_workflow_count": sum(r["atomic_endpoint_claim_enforced"] for r in rows),
         "atomic_endpoint_acceptance": "REQUIRES_RUNTIME_VERIFICATION",
         "no_market_calls": True,
