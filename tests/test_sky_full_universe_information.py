@@ -134,7 +134,7 @@ def test_snapshot_integrity_distinguishes_missing_duplicates_and_no_trades():
     assert twse["snapshot_time_is_execution_time"] is False
     assert tpex["official_symbols_missing_from_snapshot"] == 1
     assert tpex["missing_official_symbols"] == [{"symbol": "2002", "name": "C", "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT", "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"}]
-    assert report["all_symbols"][1]["data_status"] == "MISSING_EXECUTED_PRICE"
+    assert report["all_symbols"][1]["data_status"] == "ZERO_REPORTED_VOLUME_NO_PRICE"
     assert report["all_symbols"][1]["source"] == "Fugle paid bulk snapshot"
     assert report["snapshot_api_calls_expected_per_scan"] == 2
     assert report["fresh_executed_count"] == 0
@@ -148,6 +148,45 @@ def test_missing_snapshot_market_does_not_look_like_success():
     assert report["snapshot_integrity"]["TPEx"]["api_response_valid"] is False
     assert report["snapshot_integrity"]["TPEx"]["official_symbols_missing_from_snapshot"] == 2
     assert report["snapshot_errors"]["OTC"] == "HTTP_ERROR"
+
+
+
+def test_missing_price_zero_volume_is_separate_from_provider_miss_and_keeps_protection():
+    payload = {
+        "TSE": {"date": NOW.date().isoformat(), "data": [
+            {"symbol": "1001", "tradeVolume": 0, "lastTrade": {}},
+        ]},
+        "OTC": {"date": NOW.date().isoformat(), "data": [
+            {"symbol": "2001", "tradeVolume": 200},
+            {"symbol": "2002", "tradeVolume": 0, "lastPrice": 0},
+        ]},
+    }
+    report = build(U, payload, NOW)
+    assert report["missing_price_count"] == 3
+    assert report["zero_reported_volume_no_price_count"] == 2
+    assert report["observed_price_count"] == 0
+    rows = {r["symbol"]: r for r in report["all_symbols"]}
+    assert rows["1001"]["data_status"] == "ZERO_REPORTED_VOLUME_NO_PRICE"
+    assert rows["2001"]["data_status"] == "MISSING_EXECUTED_PRICE"
+    assert rows["2002"]["data_status"] == "ZERO_REPORTED_VOLUME_NO_PRICE"
+    assert all(r["last_price"] is None for r in rows.values())
+    assert report["snapshot_integrity"]["TWSE"]["official_symbol_coverage_pct"] == 100
+    assert report["snapshot_integrity"]["TPEx"]["official_symbol_coverage_pct"] == 100
+    assert all(d["official_trading_status"] == "UNVERIFIED"
+               for d in report["missing_price_diagnostics"])
+    assert report["missing_price_official_status_certified"] is False
+    assert report["fresh_executed_count"] == 0
+    assert report["trade_decision"].startswith("🔴")
+    assert report["no_order_or_production_promotion"] is True
+
+
+def test_zero_volume_with_valid_observation_is_not_reclassified_as_missing_price():
+    row = record(U[0], {"lastPrice": 42, "tradeVolume": 0},
+                 NOW.date().isoformat(), NOW)
+    assert row["last_price"] == 42
+    assert row["data_status"] == "UNVERIFIED_EXECUTION_TIME"
+
+
 
 
 # Actual GitHub Actions unittest discovery (not only pytest-style plain functions).
