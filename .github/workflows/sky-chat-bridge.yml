@@ -161,12 +161,13 @@ jobs:
           p.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
           PY
       - name: Upload independent readback receipt
+        id: external_receipt_upload
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: sky-chat-external-readback-${{ github.run_id }}
           path: output/chat_bridge_readback/external_receipt.json
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14
       - name: Publish sanitized summary for ChatGPT GitHub connector
         # Research-branch dispatches only upload artifacts; never overwrite main status.
@@ -174,6 +175,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           EXTERNAL_READBACK_OUTCOME: ${{ steps.external_readback.outcome }}
+          EXTERNAL_RECEIPT_UPLOAD_OUTCOME: ${{ steps.external_receipt_upload.outcome }}
         run: |
           python - <<'PY'
           import json
@@ -196,6 +198,7 @@ jobs:
               receipt = {}
           valid_external = (
               os.environ.get("EXTERNAL_READBACK_OUTCOME") == "success"
+              and os.environ.get("EXTERNAL_RECEIPT_UPLOAD_OUTCOME") == "success"
               and isinstance(receipt, dict)
               and receipt.get("status") == "PASS_RESEARCH_ONLY"
               and str(receipt.get("run_id")) == os.environ.get("GITHUB_RUN_ID")
