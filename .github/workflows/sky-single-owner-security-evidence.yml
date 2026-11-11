@@ -43,10 +43,26 @@ jobs:
             if (!prNumber) {
               record.findings.push({severity:'info', code:'MANUAL_NO_PR', detail:'No pull request; cannot attest PR diff'});
             } else {
-              const files = await github.paginate(github.rest.pulls.listFiles, {
-                owner, repo, pull_number: prNumber, per_page: 100
-              });
-              record.changed_files = files.length;
+              let files = [];
+              let filesApiUnavailable = false;
+              try {
+                files = await github.paginate(github.rest.pulls.listFiles, {
+                  owner, repo, pull_number: prNumber, per_page: 100
+                });
+              } catch (error) {
+                filesApiUnavailable = true;
+                const statusCode = Number(error.status || 0);
+                const isRateLimited = statusCode === 403 &&
+                  (Number(error.response?.headers?.['x-ratelimit-remaining']) === 0 ||
+                   /rate limit/i.test(String(error.message || '')));
+                record.findings.push({
+                  severity: 'blocker',
+                  code: isRateLimited ? 'GITHUB_API_RATE_LIMIT' : 'PR_FILES_API_UNAVAILABLE',
+                  http_status: statusCode || null
+                });
+                record.status = 'HOLD';
+              }
+              record.changed_files = filesApiUnavailable ? null : files.length;
               for (const file of files) {
                 const path = file.filename;
                 const patch = file.patch;
@@ -73,6 +89,9 @@ jobs:
             // This is an observable safety preflight, not a language-model review or governance approval.
             // Missing independent AI review and Artifact readback always remain HOLD.
             fs.writeFileSync(process.env.EVIDENCE_FILE, JSON.stringify(record, null, 2) + '\n');
+            if (record.findings.some(item => item.severity === 'blocker')) {
+              core.setFailed('PR diff could not be inspected; HOLD evidence artifact preserved.');
+            }
             await core.summary
               .addHeading('Sky Single Owner Security Evidence')
               .addRaw('PR SHA: ' + sha + '\n\n')
