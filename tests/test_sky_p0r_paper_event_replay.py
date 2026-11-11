@@ -68,8 +68,17 @@ class PaperEventReplayTest(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     replay([{**B, **patch}, BF], **CTX)
 
+    def test_cost_profile_mismatch_blocks_false_zero_cost(self):
+        for mutated in ({**BF, "fee_twd": 0},
+                        {**SF, "sale_tax_twd": 0},
+                        {**SF, "fee_twd": 0}):
+            with self.subTest(mutated=mutated):
+                events = [B, mutated] if mutated["order_id"] == "one" else [B, BF, S, mutated]
+                with self.assertRaises(ValueError):
+                    replay(events, **CTX)
+
     def test_stop_event_updates_counter(self):
-        snap, _ = replay([B, BF, S, {**SF, "reason": "STOP", "price": 24}], **CTX)
+        snap, _ = replay([B, BF, S, {**SF, "reason": "STOP", "price": 24, "fee_twd": 8.0, "sale_tax_twd": 36.0}], **CTX)
         self.assertEqual(snap["consecutive_stops"], 1)
 
 if __name__ == "__main__":
