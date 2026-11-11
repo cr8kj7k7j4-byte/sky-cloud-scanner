@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from research.sky_fugle_atomic_ref_claim import claim_ref, github_create_ref, try_claim
@@ -62,6 +63,25 @@ def verify_selected_receipt(payload: dict, *, raw: str, sha: str, slot: int) -> 
             raise RuntimeError("INVALID_SELECTED_ATOMIC_CLAIM")
 
 
+def verify_remote_claims(payload: dict, *, git=subprocess.run) -> None:
+    """Read-only remote-ref readback: a JSON receipt alone is not proof."""
+    rows = payload.get("claims") if isinstance(payload, dict) else None
+    sha = payload.get("head_sha") if isinstance(payload, dict) else None
+    if not isinstance(rows, list) or not rows or not isinstance(sha, str):
+        raise RuntimeError("INVALID_REMOTE_ATOMIC_RECEIPT")
+    refs = [row["claim_ref"] for row in rows]
+    result = git(["git", "ls-remote", "--refs", "origin", *refs],
+                 capture_output=True, text=True, check=True, timeout=30)
+    actual = {}
+    for line in result.stdout.splitlines():
+        fields = line.split()
+        if len(fields) != 2 or fields[1] in actual:
+            raise RuntimeError("MALFORMED_REMOTE_ATOMIC_REF")
+        actual[fields[1]] = fields[0]
+    if actual != {ref: sha for ref in refs}:
+        raise RuntimeError("REMOTE_ATOMIC_CLAIM_READBACK_MISMATCH")
+
+
 def main() -> None:
     import sys
     raw = os.environ.get("SKY_SELECTED_SYMBOLS", "")
@@ -69,8 +89,9 @@ def main() -> None:
     slot = int(datetime.now(timezone.utc).timestamp()) // 300
     output = Path("output/fugle_api_guard/selected_quote_atomic.json")
     if "--verify" in sys.argv[1:]:
-        verify_selected_receipt(json.loads(output.read_text(encoding="utf-8")),
-                                raw=raw, sha=sha, slot=slot)
+        receipt = json.loads(output.read_text(encoding="utf-8"))
+        verify_selected_receipt(receipt, raw=raw, sha=sha, slot=slot)
+        verify_remote_claims(receipt)
         print("SELECTED_QUOTE_ATOMIC_RECEIPT_VERIFIED")
         return
     create = github_create_ref(os.environ.get("GITHUB_REPOSITORY", ""),
