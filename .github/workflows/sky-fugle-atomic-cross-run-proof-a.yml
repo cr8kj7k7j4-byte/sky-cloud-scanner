@@ -79,11 +79,53 @@ jobs:
           (out / 'receipt.json').write_text(json.dumps(receipt, indent=2) + '\n')
           print('ATOMIC_CROSS_RUN_PROOF:', receipt['outcome'], receipt['run_id'])
           PY
+      - name: Prove actual Fugle HTTP boundary is atomic (mock transport only)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from unittest.mock import patch
+          from src import fugle
+
+          os.environ["SKY_PAID_ATOMIC_ENFORCE"] = "1"
+          # Both independent runs share the exact same controlled slot.
+          # This is NOT the actual provider clock; it is a no-paid fixture.
+          slot = int(os.environ["GITHUB_SHA"][:12], 16)
+          outcome = None
+          with patch("src.fugle._headers", return_value={"X-API-KEY": "NOT_SENT"}), \
+               patch("src.fugle.datetime") as clock, \
+               patch("src.fugle.requests.get") as http:
+              clock.now.return_value.timestamp.return_value = slot * 300
+              http.return_value.json.return_value = {"status": "MOCK_ONLY"}
+              try:
+                  response = fugle.get_quote("2317")
+                  assert response == {"status": "MOCK_ONLY"}
+                  outcome = "ATOMIC_WINNER"
+                  assert http.call_count == 1
+              except RuntimeError as exc:
+                  if str(exc) != "DUPLICATE_PAID_FUGLE_ENDPOINT_BLOCKED":
+                      raise
+                  outcome = "DUPLICATE_BLOCKED"
+                  assert http.call_count == 0
+          receipt = {"schema": "SKY_FUGLE_ATOMIC_HTTP_BOUNDARY_PROOF_V1",
+                     "outcome": outcome, "run_id": os.environ["GITHUB_RUN_ID"],
+                     "head_sha": os.environ["GITHUB_SHA"],
+                     "mock_http_call_count": 1 if outcome == "ATOMIC_WINNER" else 0,
+                     "real_fugle_call_count": 0,
+                     "no_market_credentials": True, "research_only": True}
+          out = Path("output/fugle_atomic_cross_run")
+          out.mkdir(parents=True, exist_ok=True)
+          (out / "http_boundary.json").write_text(
+              json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+          print("FUGLE_ATOMIC_HTTP_BOUNDARY:", outcome, receipt["run_id"])
+          PY
       - name: Upload scrubbed proof artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: sky-fugle-atomic-cross-run-a-${{ github.run_id }}
-          path: output/fugle_atomic_cross_run/receipt.json
+          path: output/fugle_atomic_cross_run/
           if-no-files-found: error
           retention-days: 14
