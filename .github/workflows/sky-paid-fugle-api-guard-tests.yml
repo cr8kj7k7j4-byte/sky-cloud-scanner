@@ -92,6 +92,25 @@ jobs:
                   assert "Fail job when claim is rejected or not verified" in text, p
           print("STATIC_PAID_WORKFLOW_DEPENDENCY_AUDIT_PASS:", result["guard_candidate_count"])
           PY
+      - name: Prevent merge-triggered paid research on legacy workflows
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import yaml
+          from research.sky_paid_fugle_api_inventory import audit
+          r = audit()
+          central = 0
+          for item in r["workflows"]:
+              if not item["central_reservation_job"]:
+                  continue
+              path = Path(".github/workflows") / item["workflow"]
+              doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+              job = doc["jobs"]["sky_paid_reservation"]
+              assert job.get("if") == "github.event_name == 'workflow_dispatch'", path
+              central += 1
+          assert central == 33, ("CENTRAL_RESERVATION_COUNT_DRIFT", central)
+          print("MERGE_PUSH_PAID_BLOCKED_WORKFLOWS:", central)
+          PY
       - name: Reserve mock-only unique GitHub Artifact slot
         id: reserve
         env:
