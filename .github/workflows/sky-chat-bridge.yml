@@ -7,8 +7,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: write
+  actions: read
 concurrency:
-  group: sky-chat-scan
+  group: sky-fugle-paid-global-research-v1
   cancel-in-progress: false
 jobs:
   scan:
@@ -20,7 +21,30 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install -r requirements.txt
+      - name: Verify guard unit contracts (no paid data)
+        run: python -m unittest tests.test_sky_paid_fugle_api_guard -v
+      - name: Reserve shared Fugle paid API slot (fail closed)
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_paid_fugle_api_guard
+      - name: Publish global reservation before any paid call
+        id: claim
+        if: steps.guard.outputs.allowed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.guard.outputs.claim_name }}
+          path: output/fugle_api_guard/claim.json
+          if-no-files-found: error
+          retention-days: 2
+      - name: Verify GitHub reservation readback (fail closed)
+        id: verify_claim
+        if: steps.guard.outputs.allowed == 'true' && steps.claim.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_paid_fugle_api_guard --verify
       - name: Run read-only paid Fugle observations (market or after-market)
+        if: steps.guard.outputs.allowed == 'true' && steps.verify_claim.outcome == 'success'
         id: bridge
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
