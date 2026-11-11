@@ -48,9 +48,11 @@ jobs:
               for symbol in symbols:
                   scope = canonical_fugle_request("GET", "/intraday/quote/" + symbol)
                   ref = claim_ref(scope, int(sha[:12], 16))
-                  endpoint = base + "/git/refs/" + quote(ref.removeprefix("refs/"), safe="/")
+                  ref_name = quote(ref.removeprefix("refs/"), safe="/")
+                  get_endpoint = base + "/git/ref/" + ref_name
+                  delete_endpoint = base + "/git/refs/" + ref_name
                   try:
-                      with urlopen(Request(endpoint, headers=headers), timeout=12) as resp:
+                      with urlopen(Request(get_endpoint, headers=headers), timeout=12) as resp:
                           obj = json.load(resp)
                   except HTTPError as exc:
                       if exc.code == 404:
@@ -59,7 +61,7 @@ jobs:
                       raise
                   if obj.get("ref") != ref or obj.get("object", {}).get("sha") != sha:
                       raise RuntimeError("UNEXPECTED_TAG_OWNERSHIP_DO_NOT_DELETE")
-                  req = Request(endpoint, headers=headers, method="DELETE")
+                  req = Request(delete_endpoint, headers=headers, method="DELETE")
                   with urlopen(req, timeout=12) as resp:
                       if resp.status != 204:
                           raise RuntimeError("TAG_CLEANUP_NOT_CONFIRMED")
