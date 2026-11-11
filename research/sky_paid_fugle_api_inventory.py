@@ -42,7 +42,11 @@ def atomic_wired_candidate(workflow: str, source: str, *, repository_root: Path)
 
 def isolated_atomic_broker_candidate(workflow: str, source: str, *, repository_root: Path) -> bool:
     """Report isolated research preflight wiring only, not paid runtime proof."""
-    if workflow != "sky-selected-quote-view.yml":
+    if workflow not in {"sky-selected-quote-view.yml", "sky-single-stock-realtime.yml"}:
+        return False
+    if workflow == "sky-single-stock-realtime.yml" and (
+            "if: github.event_name == 'workflow_dispatch'" not in source
+            or "github.event_name == 'workflow_dispatch' && needs.atomic_quote_claim.result == 'success'" not in source):
         return False
     parts = source.split("\n  quote:\n", 1)
     if len(parts) != 2:
