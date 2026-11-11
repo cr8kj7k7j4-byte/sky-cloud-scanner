@@ -95,10 +95,19 @@ jobs:
           import json, os
           from pathlib import Path
           from src.sky_chat_bridge import validate_request
-          from src.sky_scan_readback import canonical_command
+          from src.sky_scan_readback import canonical_command, COMMANDS
           request = json.loads(Path("scan_requests/chat/latest.json").read_text(encoding="utf-8"))
           validate_request(request)
+          # One GitHub-hosted run checks the full alias contract without market API.
+          alias_matrix = {}
+          for alias in sorted(COMMANDS):
+              probe_request = {"command": alias, "request_id": request["request_id"],
+                               "read_only_no_orders": True}
+              assert validate_request(probe_request) == request["request_id"]
+              alias_matrix[alias] = canonical_command(alias)
+          assert len(alias_matrix) == 5, "RESEARCH_ALIAS_MATRIX_INCOMPLETE"
           proof = {
+              "validated_aliases": alias_matrix,
               "request_id": request["request_id"],
               "command": request["command"],
               "canonical_command": canonical_command(request["command"]),
@@ -141,6 +150,8 @@ jobs:
           assert data["schema"] == "SKY_SYNTHETIC_ARTIFACT_TRANSPORT_PROBE_V1"
           assert data["synthetic"] is True and data["not_market_data"] is True
           assert data["read_only_no_orders"] is True
+          assert len(data["validated_aliases"]) == 5
+          assert set(data["validated_aliases"].values()) == {"Sky 快掃"}
           assert data["trigger_event"] in ("push", "pull_request", "workflow_dispatch")
           from src.sky_chat_bridge import validate_request
           assert validate_request({"command":data["command"],"request_id":data["request_id"],"read_only_no_orders":True}) == data["request_id"]
