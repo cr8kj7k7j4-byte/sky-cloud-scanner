@@ -13,6 +13,7 @@ import io
 import json
 import os
 import secrets
+import time
 import zipfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -227,14 +228,25 @@ def main():
             repo = os.getenv("GITHUB_REPOSITORY", "")
             token = os.getenv("GH_TOKEN", "")
             local = json.loads((CLAIM_DIR / "claim.json").read_text(encoding="utf-8"))
-            name = verify_uploaded_reservation(
-                args.scope, os.getenv("GITHUB_RUN_ID", ""), now, local,
-                github_lookup(repo, token),
-                lambda artifact_id: download_claim_archive(repo, token, artifact_id))
-            print("FUGLE_RESERVATION_ZIP_CONTENT_READBACK_VERIFIED:" + name)
-            return
+            lookup = github_lookup(repo, token)
+            download = lambda artifact_id: download_claim_archive(repo, token, artifact_id)
+            # Artifact indexing may lag the completed upload. Retry only the
+            # specific missing-own-claim state; never retry a mismatched nonce.
+            for attempt in range(4):
+                try:
+                    name = verify_uploaded_reservation(
+                        args.scope, os.getenv("GITHUB_RUN_ID", ""),
+                        datetime.now(timezone.utc), local, lookup, download)
+                    print("FUGLE_RESERVATION_ZIP_CONTENT_READBACK_VERIFIED:" + name)
+                    return
+                except RuntimeError as exc:
+                    if str(exc) != "OWN_RESERVATION_NOT_VISIBLE" or attempt == 3:
+                        raise
+                    time.sleep(2)
+
         except (ValueError, RuntimeError, HTTPError, URLError, TimeoutError, OSError, zipfile.BadZipFile) as exc:
-            print("FUGLE_RESERVATION_READBACK_BLOCKED:" + type(exc).__name__)
+            code = str(exc) if type(exc) is RuntimeError and str(exc).isupper() and len(str(exc)) < 90 else type(exc).__name__
+            print("FUGLE_RESERVATION_READBACK_BLOCKED:" + code)
             raise SystemExit(2) from None
     # No error or uncertain GitHub result may authorize paid queries.
     try:
