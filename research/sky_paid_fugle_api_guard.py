@@ -21,6 +21,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlparse
 from urllib.request import Request, urlopen, HTTPRedirectHandler, build_opener
 
+from research.sky_fugle_request_identity import canonical_fugle_request
+
 WINDOW_SECONDS = 300
 CLAIM_DIR = Path("output/fugle_api_guard")
 DEFAULT_SCOPE = "paid-fugle-global-research"
@@ -208,10 +210,20 @@ def workflow_request_scope(workflow: str, event: dict) -> str:
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--scope", default=DEFAULT_SCOPE)
+    p.add_argument("--endpoint-url")
     p.add_argument("--workflow-scope", action="store_true")
     p.add_argument("--verify", action="store_true")
     args = p.parse_args()
     now = datetime.now(timezone.utc)
+    if args.endpoint_url and args.workflow_scope:
+        print("FUGLE_SCOPE_MODE_CONFLICT")
+        raise SystemExit(2)
+    if args.endpoint_url:
+        try:
+            args.scope = canonical_fugle_request("GET", args.endpoint_url)
+        except ValueError as exc:
+            print("FUGLE_CANONICAL_SCOPE_REJECTED:" + str(exc))
+            raise SystemExit(2) from None
     if args.workflow_scope:
         try:
             event_file = Path(os.environ["GITHUB_EVENT_PATH"])
