@@ -30,6 +30,7 @@ def payload():
     row.update({"股票代碼": "1101", "現在動作": "等待", "正式交易資格": False})
     report = {"schema": "SKY_DAYTRADE_13COL_RESEARCH_V2",
               "rows": [row], "row_count": 1, "universe_count": 1,
+              "checked_at_tpe": status["data_timestamp"],
               "production_eligible": False}
     return status, report
 
@@ -69,6 +70,15 @@ class ArtifactReadbackTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "STALE_SNAPSHOT_CAPTURE"):
             self.check(lambda status, report: status.update(
                 data_timestamp=(NOW - timedelta(hours=1)).isoformat()))
+
+    def test_mixed_report_capture_time_rejected(self):
+        with self.assertRaisesRegex(ValueError, "REPORT_CAPTURE_TIMESTAMP_MISMATCH"):
+            self.check(lambda status, report: report.update(
+                checked_at_tpe=(NOW - timedelta(minutes=3)).isoformat()))
+
+    def test_missing_report_capture_time_rejected(self):
+        with self.assertRaisesRegex(ValueError, "REPORT_CAPTURE_TIMESTAMP_MISMATCH"):
+            self.check(lambda status, report: report.pop("checked_at_tpe"))
 
     def test_missing_column_rejected(self):
         with self.assertRaisesRegex(ValueError, "REPORT_MISSING_13_COLUMNS"):
