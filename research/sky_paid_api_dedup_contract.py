@@ -92,7 +92,19 @@ def reserve(store: AtomicStore, key: str, owner_run_id: str,
     if existing is None:
         return "BLOCK_INCONSISTENT_STORE"
     current, _ = existing
+    if current.key != key:
+        return "BLOCK_INCONSISTENT_STORE"
     if current.state == "READY":
+        # Cached READY is not proof that the underlying bytes still exist.
+        # A missing verifier, missing object or changed digest must fail closed.
+        verifier = getattr(store, "verify_durable_result", None)
+        if not (current.result_uri and current.result_sha256 and callable(verifier)):
+            return "BLOCK_READY_RESULT_NOT_VERIFIED"
+        try:
+            if verifier(current.result_uri, current.result_sha256) is not True:
+                return "BLOCK_READY_RESULT_NOT_VERIFIED"
+        except (OSError, ValueError, TypeError):
+            return "BLOCK_READY_RESULT_NOT_VERIFIED"
         return "REUSE_READY"
     if current.state == "IN_FLIGHT":
         return "BLOCK_IN_FLIGHT"
