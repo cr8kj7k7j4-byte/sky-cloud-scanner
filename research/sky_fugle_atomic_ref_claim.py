@@ -9,6 +9,10 @@ from __future__ import annotations
 
 import hashlib
 import re
+import json
+from urllib.error import HTTPError
+from urllib.parse import quote
+from urllib.request import Request, urlopen
 from datetime import datetime
 
 PREFIX = "refs/tags/sky-research-fugle-claim/"
@@ -41,3 +45,37 @@ def try_claim(ref: str, sha: str, create_ref) -> bool:
     if result.get("status") == 422 and result.get("existing") is True:
         return False
     raise RuntimeError("ATOMIC_CLAIM_UNVERIFIED")
+
+def github_create_ref(repo: str, token: str):
+    """Return an atomic GitHub create-ref transport. 403/timeout fail closed."""
+    if not token or len(repo.split("/")) != 2:
+        raise RuntimeError("MISSING_ATOMIC_GITHUB_WRITE_ACCESS")
+    base = "https://api.github.com/repos/" + repo
+    headers = {
+        "Authorization": "Bearer " + token,
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "Sky-Research-Atomic-Claim",
+    }
+    def create(ref: str, sha: str):
+        body = json.dumps({"ref": ref, "sha": sha}).encode("utf-8")
+        request = Request(base + "/git/refs", headers=headers, data=body, method="POST")
+        try:
+            with urlopen(request, timeout=12) as response:
+                result = json.load(response)
+                return {"status": response.status, "ref": result.get("ref")}
+        except HTTPError as error:
+            if error.code != 422:
+                raise
+            # A generic HTTP 422 is NOT evidence of an existing ref.
+            # Only a verified exact-name GitHub ref may block as duplicate.
+            name = quote(ref.removeprefix("refs/"), safe="/")
+            with urlopen(Request(base + "/git/ref/" + name, headers=headers),
+                         timeout=12) as response:
+                existing = json.load(response)
+            valid = (existing.get("ref") == ref
+                     and existing.get("object", {}).get("type") in ("commit", "tag")
+                     and bool(re.fullmatch(r"[0-9a-f]{40}",
+                                           existing.get("object", {}).get("sha", ""))))
+            return {"status": 422, "existing": valid}
+    return create
