@@ -5,6 +5,7 @@ from pathlib import Path
 import json
 import math
 from research.sky_paper_trade_trace import evaluate_paper_journal
+from research.sky_p0r_order_gate import evaluate_paper_order
 
 def _at(value):
     if not isinstance(value, str):
@@ -63,10 +64,18 @@ def replay(events, *, run_id, scan_id, observed_at, source_artifact,
             symbol, signal = event.get("symbol"), event.get("signal_id")
             if not isinstance(symbol, str) or not symbol or not isinstance(signal, str) or not signal:
                 raise ValueError("ORDER_PROVENANCE_REQUIRED")
-            deny = (event["side"] == "BUY" and event.get("risk_status") != "ALLOW") or (
+            gate = (evaluate_paper_order(event, cash=cash,
+                    equity=cash+sum(p["entry_price"]*p["shares"] for p in positions.values()),
+                    positions=positions, realized_net=realized_net,
+                    consecutive_stops=stops, observed_at=at.isoformat())
+                    if event["side"] == "BUY" else None)
+            deny = (event["side"] == "BUY" and (
+                event.get("risk_status") != "ALLOW" or gate.get("status") != "ALLOW")) or (
                 event["side"] == "SELL" and symbol not in positions)
             orders[order_id] = {"side": event["side"], "symbol": symbol,
-                                "signal_id": signal, "status": "REJECTED" if deny else "OPEN"}
+                                "signal_id": signal, "status": "REJECTED" if deny else "OPEN",
+                                "approved_shares": gate.get("recommended_shares", 0) if gate else None,
+                                "candidate": event.get("candidate") if gate else None}
             if deny:
                 rejections.append({"order_id": order_id, "reason": "RISK_OR_POSITION_BLOCKED"})
         elif kind == "REJECT":
@@ -93,6 +102,10 @@ def replay(events, *, run_id, scan_id, observed_at, source_artifact,
                 data_time = _at(event.get("market_data_time"))
                 if stop >= price or data_time > at:
                     raise ValueError("INVALID_STOP_OR_FUTURE_DATA")
+                plan = order.get("candidate")
+                if (not isinstance(plan, dict) or price != plan.get("entry")
+                    or stop != plan.get("stop") or shares > order["approved_shares"]):
+                    raise ValueError("FILL_DIFFERS_FROM_CANONICAL_P0R_AUTHORIZATION")
                 risk = (price - stop) * shares
                 heat = sum((p["entry_price"]-p["original_stop"])*p["shares"]
                            for p in positions.values())
