@@ -91,6 +91,40 @@ class DispatchAliasContractTests(unittest.TestCase):
             self.assertNotEqual(executed.returncode, 0)
             self.assertFalse((tmp / "scan_requests/chat/latest.json").exists())
 
+    def test_paid_reservation_denial_is_reported_as_fail_closed(self):
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        segment = workflow.split("      - name: Verify status and preserve a failed-run diagnostic", 1)[1]
+        segment = segment.split("      - name: Upload complete 13-column report and status", 1)[0]
+        match = re.search(r"          python - <<'PY'\\n(.*?)\\n          PY", segment, re.S)
+        self.assertIsNotNone(match)
+        code = "\\n".join(line[10:] if line.startswith("          ") else line
+                         for line in match.group(1).splitlines())
+        scenarios = [
+            ({"GUARD_OUTCOME": "success", "GUARD_ALLOWED": "false"},
+             "DATA_BLOCKED_PAID_API_RESERVATION", "PAID_API_RESERVATION_DENIED"),
+            ({"GUARD_OUTCOME": "failure"},
+             "DATA_BLOCKED_PAID_API_GUARD", "PAID_API_GUARD_ERROR"),
+            ({"GUARD_OUTCOME": "success", "GUARD_ALLOWED": "true", "CLAIM_OUTCOME": "failure"},
+             "DATA_BLOCKED_PAID_API_RESERVATION", "PAID_API_RESERVATION_UPLOAD_FAILED"),
+            ({"GUARD_OUTCOME": "success", "GUARD_ALLOWED": "true",
+              "CLAIM_OUTCOME": "success", "VERIFY_CLAIM_OUTCOME": "failure"},
+             "DATA_BLOCKED_PAID_API_RESERVATION", "PAID_API_RESERVATION_READBACK_FAILED"),
+        ]
+        for overrides, expected_status, expected_reason in scenarios:
+            with self.subTest(expected_reason=expected_reason), tempfile.TemporaryDirectory() as td:
+                env = dict(os.environ, GITHUB_RUN_ID="987654324", BRIDGE_OUTCOME="skipped",
+                           GUARD_OUTCOME="skipped", GUARD_ALLOWED="",
+                           CLAIM_OUTCOME="skipped", VERIFY_CLAIM_OUTCOME="skipped")
+                env.update(overrides)
+                proc = subprocess.run([sys.executable, "-c", code], cwd=td,
+                                      env=env, capture_output=True, text=True)
+                self.assertNotEqual(proc.returncode, 0)
+                status = json.loads((Path(td) / "output/chat_bridge/latest.json").read_text(encoding="utf-8"))
+                self.assertEqual(status["status"], expected_status)
+                self.assertEqual(status["block_reason"], expected_reason)
+                self.assertIs(status["production_eligible"], False)
+                self.assertIs(status["automatic_order"], False)
+
 
 if __name__ == "__main__":
     unittest.main()
