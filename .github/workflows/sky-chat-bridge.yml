@@ -96,6 +96,10 @@ jobs:
         if: always()
         env:
           BRIDGE_OUTCOME: ${{ steps.bridge.outcome }}
+          GUARD_OUTCOME: ${{ steps.guard.outcome }}
+          GUARD_ALLOWED: ${{ steps.guard.outputs.allowed }}
+          CLAIM_OUTCOME: ${{ steps.claim.outcome }}
+          VERIFY_CLAIM_OUTCOME: ${{ steps.verify_claim.outcome }}
         run: |
           python - <<'PY'
           import json
@@ -104,16 +108,29 @@ jobs:
 
           p = Path("output/chat_bridge/latest.json")
           bridge_outcome = os.getenv("BRIDGE_OUTCOME", "unknown")
+          guard_outcome = os.getenv("GUARD_OUTCOME", "unknown")
+          guard_allowed = os.getenv("GUARD_ALLOWED", "")
+          claim_outcome = os.getenv("CLAIM_OUTCOME", "unknown")
+          verify_claim_outcome = os.getenv("VERIFY_CLAIM_OUTCOME", "unknown")
+          status, reason = "FAILED_NO_VALID_STATUS", "BRIDGE_STATUS_MISSING_OR_INVALID"
+          if bridge_outcome == "cancelled":
+              status, reason = "DATA_BLOCKED_BRIDGE_CANCELLED", "BRIDGE_JOB_CANCELLED"
+          elif bridge_outcome != "success" and guard_outcome == "failure":
+              status, reason = "DATA_BLOCKED_PAID_API_GUARD", "PAID_API_GUARD_ERROR"
+          elif bridge_outcome != "success" and guard_outcome == "success" and guard_allowed != "true":
+              status, reason = "DATA_BLOCKED_PAID_API_RESERVATION", "PAID_API_RESERVATION_DENIED"
+          elif bridge_outcome != "success" and claim_outcome == "failure":
+              status, reason = "DATA_BLOCKED_PAID_API_RESERVATION", "PAID_API_RESERVATION_UPLOAD_FAILED"
+          elif bridge_outcome != "success" and verify_claim_outcome == "failure":
+              status, reason = "DATA_BLOCKED_PAID_API_RESERVATION", "PAID_API_RESERVATION_READBACK_FAILED"
           failure = {
               "schema": "SKY_CHAT_SCAN_STATUS_V1",
-              "status": ("DATA_BLOCKED_BRIDGE_CANCELLED" if bridge_outcome == "cancelled"
-                         else "FAILED_NO_VALID_STATUS"),
+              "status": status,
               "scan_id": os.getenv("GITHUB_RUN_ID"),
               "bridge_step_outcome": bridge_outcome,
               "production_eligible": False,
               "automatic_order": False,
-              "block_reason": ("BRIDGE_JOB_CANCELLED" if bridge_outcome == "cancelled"
-                               else "BRIDGE_STATUS_MISSING_OR_INVALID"),
+              "block_reason": reason,
           }
           valid = False
           if p.exists():
