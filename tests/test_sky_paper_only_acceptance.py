@@ -109,6 +109,15 @@ class PaperOnlyAcceptanceTest(unittest.TestCase):
                 self.assertFalse(bad["paper_after_cost_performance_verified"])
                 self.assertEqual(bad["paper_performance_verdict"], "INSUFFICIENT_DATA")
 
+    def test_failed_scan_does_not_become_a_paper_signal(self):
+        result = audit_status({"status": "FAILED_NO_STATUS"})
+        self.assertEqual(result["source_scan_status"], "FAILED_NO_STATUS")
+        self.assertFalse(result["scan_status_proves_tradable_signal"])
+        self.assertFalse(result["precommitted_paper_signal_provided"])
+        self.assertFalse(result["market_source_independently_verified"])
+        self.assertEqual(result["paper_performance_verdict"], "INSUFFICIENT_DATA")
+        self.assertFalse(result["production_eligible"])
+
     def test_invalid_timestamp_keeps_unverified(self):
         self.assertFalse(audit_status({"data_timestamp": "not-a-time"})["market_data_timestamp_valid"])
 
