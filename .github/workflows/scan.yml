@@ -361,6 +361,11 @@ jobs:
               "production_eligible": False,
               "external_mobile_command_verified": False,
           }
+          # Seal the exact JSON report the external command will later read.
+          # Not a signature: independent provenance/Artifact identity is still required.
+          if isinstance(receipt.get("report"), dict):
+              from research.sky_alert_reader import receipt_report_sha256
+              origin["receipt_report_sha256"] = receipt_report_sha256(receipt["report"])
           receipt["provenance"] = origin
           receipt["production_eligible"] = False
           receipt["action"] = "禁止交易"
