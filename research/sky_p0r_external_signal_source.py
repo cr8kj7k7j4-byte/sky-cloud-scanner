@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
+import hashlib
 import json
 import os
 import subprocess
@@ -114,6 +115,25 @@ def main():
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_text(
                     json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+                    encoding="utf-8")
+                # Durable same-run source binding for downstream paper replay.
+                # This receipt is NOT proof of real executions or live trading.
+                canonical = json.dumps(
+                    payload, ensure_ascii=False, sort_keys=True,
+                    separators=(",", ":")).encode("utf-8")
+                source_receipt = {
+                    "schema": "SKY_P0R_PAPER_SOURCE_BINDING_V1",
+                    "paper_input_sha256": hashlib.sha256(canonical).hexdigest(),
+                    "market_run_id": bars["source_run_id"],
+                    "market_sha": bars["source_sha"],
+                    "market_artifact_id": bars["source_artifact_id"],
+                    "market_observed_at": bars["observed_at"],
+                    "signal_provenance": provenance,
+                    "production_eligible": False,
+                    "automatic_order": False,
+                }
+                (target.parent / "source_binding.json").write_text(
+                    json.dumps(source_receipt, ensure_ascii=False, indent=2) + "\n",
                     encoding="utf-8")
         except (ValueError, KeyError, TypeError, OSError,
                 subprocess.CalledProcessError, subprocess.TimeoutExpired,
