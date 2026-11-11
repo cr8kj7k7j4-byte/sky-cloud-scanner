@@ -39,7 +39,7 @@ jobs:
           python-version: '3.12'
       - run: pip install -r requirements.txt
       - name: Apply safe optional dispatch alias to existing request (no repository write)
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.command != 'use_saved_request' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.command != '' && inputs.command != 'use_saved_request' }}
         env:
           SKY_DISPATCH_COMMAND: ${{ inputs.command }}
           SKY_DISPATCH_REQUEST_ID: ${{ inputs.request_id }}
