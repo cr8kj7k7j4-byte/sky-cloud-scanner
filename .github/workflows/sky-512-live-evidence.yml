@@ -1,0 +1,72 @@
+name: Sky #512 One-shot Live 5m Evidence (NO_TRADE)
+on:
+  push:
+    branches:
+      - research/w3b-five-minute-pit-rebase-20261110
+    paths:
+      - .github/workflows/sky-512-live-evidence.yml
+permissions:
+  contents: read
+concurrency:
+  group: sky-512-live-evidence-singleton
+  cancel-in-progress: false
+jobs:
+  bounded-live-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    env:
+      SKY_RESEARCH_NO_TRADE: '1'
+      FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+    steps:
+      - name: Checkout exact triggering head
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install existing Fugle client dependency
+        run: python -m pip install requests
+      - name: Bounded TWSE and TPEx candles; never Stage2 certified
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from datetime import datetime
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+          from src.sky_v14_ticker_candles_probe import run
+          now=datetime.now(ZoneInfo("Asia/Taipei"))
+          out=Path("output/sky_512_live")
+          out.mkdir(parents=True,exist_ok=True)
+          # Fail closed outside TW cash-market session or without credential.
+          if now.weekday() >= 5 or not (9 <= now.hour < 13 or
+              (now.hour == 13 and now.minute < 25)):
+              raise SystemExit("NO_LIVE_SESSION: no paid API requests attempted")
+          if not os.environ.get("FUGLE_API_KEY"):
+              raise SystemExit("NO_FUGLE_CREDENTIAL: no API requests attempted")
+          # Fixed two-market probe: two ticker and two 5m-candle requests MAX.
+          # Not a quote-verified Stage2 candidate list; cannot approve trades.
+          data=run(None,now=now,evidence_candidates=[
+              {"symbol":"2409","exchange":"TWSE"},
+              {"symbol":"5202","exchange":"TPEx"},
+          ])
+          (out/"v14_ticker_5m_evidence.json").write_text(
+              json.dumps(data,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+          print(json.dumps({"sha":data.get("head_sha"),"run_id":data.get("run_id"),
+              "api_requests":data.get("attempted_api_requests"),
+              "statuses":[x.get("status") for x in data.get("samples",[])],
+              "production_eligible":False},ensure_ascii=False))
+          PY
+      - name: Validate exact SHA run ID and raw 5m candle counts
+        if: success()
+        run: python -m research.sky_512_artifact_validate output/sky_512_live/v14_ticker_5m_evidence.json --sha "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID"
+      - name: Upload bounded evidence JSON for independent download and readback
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-512-5m-evidence-${{ github.run_id }}
+          path: output/sky_512_live/v14_ticker_5m_evidence.json
+          if-no-files-found: warn
+          retention-days: 14
