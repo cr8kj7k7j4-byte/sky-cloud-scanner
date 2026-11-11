@@ -53,3 +53,46 @@ jobs:
               expected = "SKY_GOVERNED_SMOKE_FIXED_V1\n"
               assert p.read_text(encoding="utf-8") == expected, "ISOLATED_SMOKE_FIXTURE_REQUIRES_APPROVED_PATCH"
           PY
+      - name: Write isolated bridge CI acceptance receipt
+        if: always()
+        env:
+          SKY_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          SKY_EVENT_NAME: ${{ github.event_name }}
+          SKY_RUN_ID: ${{ github.run_id }}
+          SKY_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          fixture = Path("research/sky_governed_auto_repair_smoke_fixture.txt")
+          fixture_state = "ABSENT"
+          if fixture.exists():
+              fixture_state = "FIXED" if fixture.read_text(encoding="utf-8") == "SKY_GOVERNED_SMOKE_FIXED_V1\\n" else "UNVERIFIED"
+          receipt = {
+              "schema": "SKY_BRIDGE_CI_EVIDENCE_V1",
+              "head_sha": os.environ["SKY_HEAD_SHA"],
+              "run_id": os.environ["SKY_RUN_ID"],
+              "run_attempt": os.environ["SKY_RUN_ATTEMPT"],
+              "event": os.environ["SKY_EVENT_NAME"],
+              "fixture_state": fixture_state,
+              "ci_conclusion": "VERIFY_GITHUB_RUN_API",
+              "research_only": True,
+              "production_eligible": False,
+              "automatic_order": False,
+              "automatic_merge": False,
+              "paid_api_calls": 0,
+          }
+          output = Path("output/sky_bridge_ci_receipt.json")
+          output.parent.mkdir(parents=True, exist_ok=True)
+          output.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\\n", encoding="utf-8")
+          print(json.dumps(receipt))
+          PY
+      - name: Publish isolated bridge CI receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-bridge-ci-receipt-${{ github.run_id }}
+          path: output/sky_bridge_ci_receipt.json
+          if-no-files-found: error
+          retention-days: 21
