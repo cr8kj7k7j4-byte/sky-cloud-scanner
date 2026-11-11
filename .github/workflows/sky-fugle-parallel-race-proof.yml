@@ -10,6 +10,9 @@ permissions:
   actions: read
 jobs:
   competing-claim:
+    concurrency:
+      group: sky-fugle-race-${{ github.run_id }}
+      cancel-in-progress: false
     strategy:
       fail-fast: false
       matrix:
