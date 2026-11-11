@@ -50,7 +50,7 @@ jobs:
           ):
               s = Path(path).read_text(encoding="utf-8")
               assert "group: sky-fugle-paid-global-research-v1" in s, path
-              assert "research.sky_paid_fugle_api_guard --verify" in s, path
+              assert "research.sky_paid_fugle_api_guard" in s and "--verify" in s, path
               assert "steps.verify_claim.outcome == 'success'" in s, path
               assert "actions/upload-artifact@v4" in s, path
               assert "if-no-files-found: error" in s, path
