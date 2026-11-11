@@ -125,7 +125,7 @@ jobs:
                        "github_artifact_created_at": artifact.get("created_at")}
               out = Path("output/sky_p0r_paper_ledger_readback/future_bar_github_receipt.json")
               out.parent.mkdir(parents=True, exist_ok=True)
-              out.write_text(json.dumps(proof, indent=2) + "\\n", encoding="utf-8")
+              out.write_text(json.dumps(proof, indent=2), encoding="utf-8")
               command.extend(["--verified-future-source", str(out)])
           subprocess.run(command, check=True, timeout=40)
           PY
