@@ -286,3 +286,43 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: PYTHONPATH=. python research/intraday_scan_failure_alert.py
+
+
+  # External readback: run only AFTER the scan job has uploaded its ZIP.
+  # This is distinct from reading a local file before upload.
+  alert-artifact-readback:
+    needs: scan
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Download uploaded scan artifact from this same run
+        uses: actions/download-artifact@v4
+        with:
+          name: sky-scan-${{ github.run_id }}
+          path: readback
+      - name: Verify externally downloaded Sky alert input and regenerate receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest tests.test_sky_alert_reader -v
+          test -s readback/output/sky_quickscan_information/full_universe.json
+          python -m research.sky_alert_reader \
+            --input readback/output/sky_quickscan_information/full_universe.json \
+            --json-output readback-verification/reader_receipt.json \
+            --markdown-output readback-verification/latest.md
+      - name: Upload external readback verdict (including blocked state)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-alert-readback-${{ github.run_id }}
+          path: readback-verification/
+          if-no-files-found: warn
+          retention-days: 90
