@@ -18,6 +18,22 @@ class ChatScanBridgeTests(unittest.TestCase):
                 "read_only_no_orders": False,
             })
 
+    def test_all_five_aliases_use_existing_read_only_runner(self):
+        from src.sky_scan_readback import COMMANDS, canonical_command
+        self.assertEqual(len(COMMANDS), 5)
+        for command in COMMANDS:
+            with self.subTest(command=command):
+                self.assertEqual(canonical_command(command), "Sky 快掃")
+                self.assertEqual(validate_request({
+                    "command": command, "request_id": "chat-five-alias-001",
+                    "read_only_no_orders": True,
+                }), "chat-five-alias-001")
+                with self.assertRaisesRegex(ValueError, "ORDER_POLICY_REQUIRED"):
+                    validate_request({
+                        "command": command, "request_id": "chat-five-alias-001",
+                        "read_only_no_orders": False,
+                    })
+
     def test_request_denies_order(self):
         with self.assertRaisesRegex(ValueError,"ORDER_POLICY_REQUIRED"):
             validate_request({"command":"Sky 當沖現在掃一次","request_id":"chat-20261109-a","read_only_no_orders":False})
