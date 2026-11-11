@@ -47,6 +47,15 @@ def join(verified_bars, signal_receipt=None, *, external_signal_provenance_verif
             or verified_bars.get("automatic_order") is not False
             or verified_bars.get("market_bars_available") is not True):
         raise ValueError("UNTRUSTED_MARKET_BARS")
+    # The accepted market input is pinned to an independently downloaded #512
+    # source. A bare caller-provided "verified" flag must never replace it.
+    from research.sky_p0r_512_source_adapter import (
+        ACCEPTED_RUN, ACCEPTED_SHA, ACCEPTED_ARTIFACT,
+    )
+    if (str(verified_bars.get("source_run_id")) != ACCEPTED_RUN
+            or verified_bars.get("source_sha") != ACCEPTED_SHA
+            or str(verified_bars.get("source_artifact_id")) != ACCEPTED_ARTIFACT):
+        raise ValueError("BAR_SOURCE_PROVENANCE_MISMATCH")
     source_run = verified_bars.get("source_run_id")
     observation = _at(verified_bars.get("observed_at"))
     if signal_receipt is None:
@@ -88,7 +97,11 @@ def join(verified_bars, signal_receipt=None, *, external_signal_provenance_verif
         raise ValueError("COMPLETED_BARS_REQUIRED")
     if any(_at(b["completed_at"]) > observation for b in bars):
         raise ValueError("FUTURE_OR_INCOMPLETE_BARS")
-    if any(b.get("source_type") != "MARKET_OBSERVATION" for b in bars):
+    if any(b.get("source_type") != "MARKET_OBSERVATION"
+           or b.get("symbol") != symbol
+           or b.get("source_artifact") !=
+               f"sky-512-5m-evidence-{ACCEPTED_RUN}:{ACCEPTED_ARTIFACT}"
+           for b in bars):
         raise ValueError("BAR_SOURCE_MISMATCH")
     if not any(_at(b["started_at"]) > published for b in bars):
         return _hold("NO_CANDLE_START_AFTER_SIGNAL_PUBLICATION",
