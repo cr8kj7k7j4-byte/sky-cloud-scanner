@@ -31,9 +31,19 @@ def selected(stage2):
     return picked
 
 
-def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sleep, now=None):
+def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sleep, now=None, evidence_candidates=None):
     now=now or datetime.now(TPE)
-    selected_rows=selected(stage2)
+    if evidence_candidates is None:
+        selected_rows=selected(stage2)
+    else:
+        # Isolated evidence-only path: never misrepresent these as Stage2
+        # quote-verified candidates, nor use them to approve model features.
+        if (not isinstance(evidence_candidates, list) or len(evidence_candidates)!=2
+                or {x.get("exchange") for x in evidence_candidates if isinstance(x,dict)}!={"TWSE","TPEx"}
+                or any(not isinstance(x.get("symbol"),str) or not x["symbol"].isdigit()
+                       for x in evidence_candidates)):
+            raise ValueError("BAD_EVIDENCE_SAMPLE_SET")
+        selected_rows=evidence_candidates
     output=[]
     attempts=0
     hit429=False
@@ -149,7 +159,7 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                 }
                 # Do not expose potentially contaminated model features from
                 # invalid bar order, future bars, or mismatched source dates.
-                preview_safe = (source_identity_matches and len(valid)>=2 and not invalid_bar_sequence
+                preview_safe = (evidence_candidates is None and source_identity_matches and len(valid)>=2 and not invalid_bar_sequence
                                 and rejected_future_bars==0 and actual_tf=="5"
                                 and tdate==day and cdate==day)
                 features=build_features(snapshot,valid).to_dict() if preview_safe else None
@@ -176,7 +186,7 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                     "avg_price_is_certified_vwap":False,
                     "official_bar_volume_unit":"整股張數（Fugle 官方 Intraday Candles 文件）",
                 })
-                ready=(source_identity_matches and tdate==day and cdate==day
+                ready=(evidence_candidates is None and source_identity_matches and tdate==day and cdate==day
                        and actual_tf=="5" and len(valid)>=6
                        and not invalid_bar_sequence and rejected_future_bars==0
                        and eligible and not is_limit and ticker.get("securityStatus")=="NORMAL"
@@ -184,7 +194,9 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                        and ticker.get("isAttention") is False
                        and ticker.get("isSpecificAbnormally") is False
                        and boardlot is not None and float(boardlot)>0)
-                result["status"]="CANDLE_TICKER_RESEARCH_READY_NOT_TRADE" if ready else "INCOMPLETE_TICKER_OR_5M_EVIDENCE"
+                result["status"]=("RAW_5M_RESEARCH_SAMPLE_NO_STAGE2" if evidence_candidates is not None
+                                  else "CANDLE_TICKER_RESEARCH_READY_NOT_TRADE" if ready
+                                  else "INCOMPLETE_TICKER_OR_5M_EVIDENCE")
         except requests.HTTPError as exc:
             status=exc.response.status_code if exc.response is not None else None
             result["status"]="RATE_LIMITED" if status==429 else "HTTP_ERROR"
@@ -199,6 +211,7 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
         sleep_fn(1.0)
     return {
         "schema":"SKY_V14_TICKER_5M_RESEARCH_PROVENANCE_V1",
+        "stage2_quote_verified":evidence_candidates is None,
         "head_sha":os.environ.get("GITHUB_SHA"),
         "run_id":os.environ.get("GITHUB_RUN_ID"),
         "data_receipt_kind":"LIVE_ONLY_IF_PROVIDER_CONFIRMED",
