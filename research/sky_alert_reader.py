@@ -11,7 +11,6 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from research.sky_full_universe_information import summary
 
 TZ = ZoneInfo("Asia/Taipei")
 SCHEMA = "SKY_ALERT_READ_RECEIPT_V1"
@@ -137,7 +136,15 @@ def main():
     md += f"讀取狀態：{receipt['freshness_status']}；讀取時間：{receipt['read_at_tpe']}\n\n"
     if receipt.get("report"):
         md += f"來源時間：{receipt['source_checked_at_tpe']}；距今秒數：{receipt['source_age_seconds']}\n\n"
-        md += summary(receipt["report"])
+        # Historical artifacts can predate fields required by the newer
+        # full-universe presentation. A missing presentation field must never
+        # prevent writing a fail-closed external readback receipt.
+        report = receipt["report"]
+        md += (
+            f"觀察檔數：{len(report['all_symbols'])}；"
+            f"讀取時有效逐筆成交檔數：{receipt['fresh_executed_count_at_read']}\\n\\n"
+        )
+        md += "歷史資料只能作為研究觀察，不代表即時行情或交易訊號。\\n"
     else:
         md += f"資料讀取失敗：{receipt.get('block_reason', 'UNKNOWN')}\n"
     md += "\n**🔴 禁止新進場、未驗證通過；不得將過期觀察價視為即時成交價。**\n"
