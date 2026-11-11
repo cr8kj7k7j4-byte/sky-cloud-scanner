@@ -1,4 +1,8 @@
 import unittest
+import json
+import tempfile
+from pathlib import Path
+from unittest.mock import patch
 from research.sky_p0r_paper_event_replay import replay
 from research.sky_p0r_paper_ledger_readback import audit_paper_ledger
 
@@ -24,6 +28,26 @@ SF = {"kind": "FILL", "event_id": "sf", "order_id": "two", "price": 25.5, "share
       "fill_assumption": "NEXT_BAR_OPEN_ESTIMATE", "reason": "TARGET"}
 
 class PaperEventReplayTest(unittest.TestCase):
+    def test_retained_events_without_current_provenance_cannot_replay(self):
+        from research.sky_p0r_paper_event_replay import main
+        with tempfile.TemporaryDirectory() as temp:
+            with patch("pathlib.Path.cwd", return_value=Path(temp)):
+                pass
+            import os
+            previous = os.getcwd()
+            try:
+                os.chdir(temp)
+                directory = Path("output/sky_paper_runtime")
+                directory.mkdir(parents=True)
+                (directory / "events.json").write_text(
+                    json.dumps({"events": [B, BF, S, SF], "context": CTX}),
+                    encoding="utf-8")
+                self.assertEqual(main(), 0)
+                self.assertFalse((directory / "snapshot.json").exists())
+                self.assertFalse((directory / "closed_fills.json").exists())
+            finally:
+                os.chdir(previous)
+
     def test_closed_event_chain_reconciles_but_is_not_source_verified(self):
         snap, fills = replay([B, BF, S, SF], **CTX)
         self.assertEqual(snap["open_positions"], 0)
