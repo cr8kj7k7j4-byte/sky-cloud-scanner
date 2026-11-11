@@ -92,6 +92,41 @@ class ContractTests(unittest.TestCase):
         self.assertFalse(finalize_ready(store, key(), "run1", "a1", "gs://test/result", digest))
         self.assertEqual(reserve(store, key(), "run2", "a2"), "BLOCK_IN_FLIGHT")
 
+    def test_ready_reuse_rechecks_result_integrity(self):
+        store = SharedMockStore()
+        k = key()
+        uri = "gs://test/result"
+        original = b"verified result"
+        digest = hashlib.sha256(original).hexdigest()
+        self.assertEqual(reserve(store, k, "run1", "a1"), "CALL_ONCE")
+        store.write_result(uri, original)
+        self.assertTrue(finalize_ready(store, k, "run1", "a1", uri, digest))
+        self.assertEqual(reserve(store, k, "run2", "a2"), "REUSE_READY")
+        store.write_result(uri, b"altered result")
+        self.assertEqual(reserve(store, k, "run3", "a3"),
+                         "BLOCK_READY_RESULT_NOT_VERIFIED")
+        del store.persisted_results[uri]
+        self.assertEqual(reserve(store, k, "run4", "a4"),
+                         "BLOCK_READY_RESULT_NOT_VERIFIED")
+        store.verify_durable_result = None
+        self.assertEqual(reserve(store, k, "run5", "a5"),
+                         "BLOCK_READY_RESULT_NOT_VERIFIED")
+
+    def test_ready_reuse_verifier_exception_blocks(self):
+        store = SharedMockStore()
+        k = key()
+        uri = "gs://test/result"
+        original = b"verified"
+        digest = hashlib.sha256(original).hexdigest()
+        reserve(store, k, "run1", "a1")
+        store.write_result(uri, original)
+        self.assertTrue(finalize_ready(store, k, "run1", "a1", uri, digest))
+        def fail(*_args):
+            raise OSError("remote result unavailable")
+        store.verify_durable_result = fail
+        self.assertEqual(reserve(store, k, "run2", "a2"),
+                         "BLOCK_READY_RESULT_NOT_VERIFIED")
+
     def test_timeout_uncertain_prevents_retry_and_other_owner(self):
         store = SharedMockStore()
         self.assertEqual(reserve(store, key(), "run1", "a1"), "CALL_ONCE")
