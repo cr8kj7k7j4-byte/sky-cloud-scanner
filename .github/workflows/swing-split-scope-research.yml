@@ -81,6 +81,8 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
   sky_paid_reservation:
+    # Fail closed on repository merge and PR; explicit manual permission for paid research only.
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

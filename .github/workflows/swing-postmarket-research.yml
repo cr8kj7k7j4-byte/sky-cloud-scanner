@@ -18,7 +18,8 @@ concurrency:
 
 jobs:
   sky_paid_reservation:
-    if: github.event_name != 'pull_request'
+    # Fail closed on repository merge and PR; explicit manual permission for paid research only.
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
