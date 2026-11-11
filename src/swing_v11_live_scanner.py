@@ -328,6 +328,12 @@ def run(history_dir: str, top_n: int = 20):
             current_action = "等待" if session_status == "PREOPEN_WAIT" else "禁止交易"
             overlay_note = session_text
 
+        # Challenger V1.1 is research-only: execution conditions may be
+        # observed, but must never be published as an authorized buy action.
+        if current_action == "買進":
+            current_action = "觀察"
+            overlay_note += " V1.1 尚未通過正式治理驗證，僅供研究觀察，禁止新進場。"
+
         item = {
             **sig,
             "name": q.get("name"),
