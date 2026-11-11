@@ -14,6 +14,10 @@ on:
         type: string
 permissions:
   contents: read
+  actions: read
+concurrency:
+  group: sky-fugle-paid-global-research-v1
+  cancel-in-progress: false
 jobs:
   quote:
     runs-on: ubuntu-latest
@@ -27,7 +31,28 @@ jobs:
         run: pip install -r requirements.txt
       - name: Test realtime gating without remote API
         run: python -m unittest tests.test_sky_single_stock_realtime -v
+      - name: Reserve shared Fugle paid API window
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_paid_fugle_api_guard
+      - name: Upload paid reservation before provider call
+        id: claim
+        if: steps.guard.outputs.allowed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.guard.outputs.claim_name }}
+          path: output/fugle_api_guard/claim.json
+          if-no-files-found: error
+          retention-days: 2
+      - name: Verify reservation via GitHub API
+        id: verify_claim
+        if: steps.guard.outputs.allowed == 'true' && steps.claim.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_paid_fugle_api_guard --verify
       - name: Collect Fugle quote (reference permitted; execution marked separately)
+        if: steps.guard.outputs.allowed == 'true' && steps.verify_claim.outcome == 'success'
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
           SYMBOL: ${{ inputs.symbol || '1569' }}
