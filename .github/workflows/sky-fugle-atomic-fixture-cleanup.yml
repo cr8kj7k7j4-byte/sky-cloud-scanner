@@ -107,7 +107,7 @@ jobs:
                   "research_only": True,
                   "production_eligible": False,
               }
-              dest.write_text(json.dumps(receipt, indent=2) + "\\n", encoding="utf-8")
+              dest.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
               print("ATOMIC_FIXTURE_CLEANUP_HOLD_RECEIPT_WRITTEN")
           PY
       - name: Publish sanitized cleanup receipt
