@@ -9,7 +9,10 @@ class ChatScanBridgeTests(unittest.TestCase):
         validator = (Path(__file__).resolve().parents[1] /
                      "scripts/sky_chat_artifact_readback.py").read_text(encoding="utf-8")
         self.assertEqual(workflow.count("  actions: read"), 1)
-        self.assertEqual(workflow.count('gh run download "$GITHUB_RUN_ID"'), 1)
+        self.assertEqual(workflow.count("uses: actions/download-artifact@v4"), 1)
+        self.assertIn("steps.main_artifact_upload.outputs.artifact-id", workflow)
+        self.assertIn("steps.same_run_download.outcome == 'success'", workflow)
+        self.assertNotIn('gh run download "$GITHUB_RUN_ID"', workflow)
         self.assertIn('--head-sha "$HEAD_SHA" --expected-sha "$GITHUB_SHA"', workflow)
         self.assertIn("sky-chat-external-readback-", workflow)
         self.assertIn('root / "chat_bridge/latest.json"', validator)
