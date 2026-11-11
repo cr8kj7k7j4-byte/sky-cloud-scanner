@@ -20,6 +20,8 @@ permissions:
 
 jobs:
   scan:
+    outputs:
+      should_scan: ${{ steps.calendar.outputs.should_scan }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -292,7 +294,8 @@ jobs:
   # This is distinct from reading a local file before upload.
   alert-artifact-readback:
     needs: scan
-    if: always()
+    # An intentionally skipped trading day must not generate a missing-artifact alarm.
+    if: always() && needs.scan.outputs.should_scan == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -320,7 +323,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p readback-verification
-          python -m unittest tests.test_sky_alert_reader -v
+          # Reader is the runtime acceptance gate; unit tests run in PR CI.
+          # A test harness failure must never suppress its fail-closed receipt.
           # Even a GitHub download error must yield a fail-closed receipt.
           if [ "$ARTIFACT_DOWNLOAD_OUTCOME" != "success" ]; then
             INPUT="readback/NO_DOWNLOADED_ARTIFACT.json"
