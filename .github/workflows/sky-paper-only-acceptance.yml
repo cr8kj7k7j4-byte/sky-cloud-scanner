@@ -12,6 +12,8 @@ on:
       - "research/sky_p0r_order_gate.py"
       - "research/sky_p0r_market_event_producer.py"
       - "research/sky_p0r_512_source_adapter.py"
+      - "research/sky_p0r_signal_bridge.py"
+      - "tests/test_sky_p0r_signal_bridge.py"
       - "tests/test_sky_p0r_512_source_adapter.py"
       - "tests/test_sky_p0r_market_event_producer.py"
       - "tests/test_sky_p0r_paper_event_replay.py"
@@ -65,6 +67,14 @@ jobs:
           mkdir -p /tmp/sky-512-pr508-source
           gh run download "$RUN" --repo "$GITHUB_REPOSITORY" --name "sky-512-5m-evidence-$RUN" --dir /tmp/sky-512-pr508-source
           python -m research.sky_p0r_512_source_adapter             --input /tmp/sky-512-pr508-source/v14_ticker_5m_evidence.json             --run-id "$RUN" --head-sha "$ACTUAL_SHA" --artifact-id "$ACTUAL_ARTIFACT"             --output output/sky_p0r_paper_ledger_readback/verified_512_completed_bars.json
+      - name: Validate precommitted signal versus accepted market candles (no manufactured fills)
+        run: python -m unittest tests.test_sky_p0r_signal_bridge -v
+      - name: Join source bars with pre-existing approved signal or explicit HOLD
+        run: |
+          python -m research.sky_p0r_signal_bridge \
+            --bars output/sky_p0r_paper_ledger_readback/verified_512_completed_bars.json \
+            --signal output/sky_paper_runtime/precommitted_signal.json \
+            --status output/sky_p0r_paper_ledger_readback/signal_to_paper_status.json
       - name: Generate paper-only events only when completed market evidence exists
         run: python -m research.sky_p0r_market_event_producer
       - name: Replay real simulator events if available, otherwise explicit HOLD
