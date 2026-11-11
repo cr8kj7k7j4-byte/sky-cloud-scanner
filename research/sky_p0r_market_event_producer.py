@@ -79,6 +79,9 @@ def produce(payload):
         if not isinstance(bar, dict) or bar.get("symbol") != symbol or bar.get("source_type") != "MARKET_OBSERVATION":
             raise ValueError("UNSUPPORTED_BAR_PROVENANCE")
         t = _time(bar.get("completed_at"))
+        opened_at = _time(bar.get("started_at"))
+        if opened_at >= t or (previous is not None and opened_at < previous):
+            raise ValueError("OVERLAPPING_OR_NONCAUSAL_BAR")
         if t in seen or (previous is not None and t <= previous):
             raise ValueError("DUPLICATE_OR_OUT_OF_ORDER_BARS")
         seen.add(t)
@@ -88,9 +91,9 @@ def produce(payload):
         o,h,l,c = (_price(bar.get(k)) for k in ("open", "high", "low", "close"))
         if l > min(o,c) or h < max(o,c) or l > h:
             raise ValueError("INVALID_OHLC")
-        normalized.append((t,o,h,l,c))
+        normalized.append((opened_at,t,o,h,l,c))
     # A completed bar after signal is needed for the first estimated entry.
-    eligible = [i for i,(t,_,_,_,_) in enumerate(normalized) if t > signal_at]
+    eligible = [i for i,(start_at,_,_,_,_,_) in enumerate(normalized) if start_at > signal_at]
     if len(eligible) < 3:
         return {"verdict": "INSUFFICIENT_FUTURE_COMPLETED_BARS", "events": [],
                 "snapshot": None, "closed_fills": [],
@@ -99,7 +102,7 @@ def produce(payload):
     if start + 2 >= len(normalized):
         raise ValueError("NEXT_OPEN_EXIT_NOT_OBSERVED")
     # Bar is completed; its OPEN is only a retrospective simulated fill estimate.
-    entry_t, opened, _, _, _ = normalized[start]
+    entry_t, _, opened, _, _, _ = normalized[start]
     # Entry price must match the precommitted risk decision; never silently chase.
     if abs(opened-entry) > 1e-8:
         return {"verdict": "ENTRY_PRICE_NOT_EXECUTABLE_AS_PLANNED",
@@ -108,7 +111,7 @@ def produce(payload):
     # Only a later *completed* bar may trigger exit. Do not use entry candle extremes.
     trigger = None
     for i in range(start+1, len(normalized)-1):
-        _,_,high,low,_ = normalized[i]
+        _,_,_,high,low,_ = normalized[i]
         if low <= stop:
             trigger = (i, "STOP")
             break
@@ -120,7 +123,7 @@ def produce(payload):
                 "events": [], "snapshot": None, "closed_fills": [],
                 "production_eligible": False, "market_source_independently_verified": False}
     exit_i, reason = trigger
-    exit_t, exit_price,_,_,_ = normalized[exit_i+1]
+    exit_t, _, exit_price,_,_,_ = normalized[exit_i+1]
     p = USER_CASH_DAYTRADE_20261022
     shares = signal.get("shares")
     if not isinstance(shares,int) or isinstance(shares,bool) or shares<=0:
@@ -157,7 +160,7 @@ def produce(payload):
          "original_stop":stop,"market_data_time":signal_at.isoformat(),
          "fill_assumption":"NEXT_BAR_OPEN_ESTIMATE"},
         {"kind":"ORDER","event_id":"exit-order","order_id":"paper-exit","side":"SELL",
-         "event_time":normalized[exit_i][0].isoformat(),
+         "event_time":normalized[exit_i][1].isoformat(),
          "market_scan_id":context["scan_id"],"symbol":symbol,"signal_id":signal_id},
         {"kind":"FILL","event_id":"exit-fill","order_id":"paper-exit",
          "event_time":exit_t.isoformat(),"market_scan_id":context["scan_id"],
