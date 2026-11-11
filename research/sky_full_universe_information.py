@@ -199,6 +199,17 @@ def build(universe, snapshots, checked_at, errors=None):
             "innovation_board_missing_count": len(expected_tib - (tib_symbols | tse_symbols)) if exchange == "TWSE" else 0,
             "innovation_board_missing_from_tib_endpoint_count": len(missing_tib_endpoint) if exchange == "TWSE" else 0,
             "innovation_board_found_in_tse_not_tib": sorted(found_in_tse_not_tib) if exchange == "TWSE" else [],
+            "innovation_board_source_by_symbol": [
+                {
+                    "symbol": symbol,
+                    "in_tse_snapshot": symbol in tse_symbols,
+                    "in_tib_snapshot": symbol in tib_symbols,
+                    "effective_source": (
+                        "TIB" if symbol in tib_symbols else "TSE" if symbol in tse_symbols else "NOT_RETURNED"
+                    ),
+                }
+                for symbol in sorted(expected_tib)
+            ] if exchange == "TWSE" else [],
             "missing_official_symbols": [
                 {"symbol": str(meta["symbol"]), "name": str(meta.get("name") or ""),
                  "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
