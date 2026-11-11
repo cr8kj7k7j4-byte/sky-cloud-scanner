@@ -6,7 +6,10 @@ CTX = {"run_id": "UNIT-TEST", "scan_id": "scan-test", "observed_at": "2026-11-11
        "source_artifact": "UNIT_TEST_FIXTURE", "simulator_version": "UNIT_TEST"}
 B = {"kind": "ORDER", "event_id": "b", "order_id": "one", "side": "BUY",
      "event_time": "2026-11-11T09:06:00+08:00", "market_scan_id": "scan-test",
-     "symbol": "2409", "signal_id": "s", "risk_status": "ALLOW"}
+     "symbol": "2409", "signal_id": "s", "risk_status": "ALLOW",
+     "candidate": {"entry": 25, "stop": 24, "target": 28, "grade": "A+"},
+     "execution_assumptions": {"entry_slippage_bps": 5, "exit_slippage_bps": 5,
+         "spread_bps": 5, "liquidity_penalty_bps": 5, "fill_probability": 0.8}}
 BF = {"kind": "FILL", "event_id": "bf", "order_id": "one", "price": 25, "shares": 1000,
       "event_time": "2026-11-11T09:10:00+08:00", "market_scan_id": "scan-test",
       "fee_twd": 8.3, "original_stop": 24,
@@ -53,6 +56,17 @@ class PaperEventReplayTest(unittest.TestCase):
             with self.subTest(events=events):
                 with self.assertRaises(ValueError):
                     replay(events, **CTX)
+
+    def test_claimed_allow_cannot_bypass_canonical_cost_gate(self):
+        for patch in ({"execution_assumptions": None},
+                      {"candidate": {"entry": 25, "stop": 24, "target": 25.1}},
+                      {"candidate": {"entry": 25, "stop": 24, "target": 28},
+                       "execution_assumptions": {"entry_slippage_bps": None}}):
+            with self.subTest(patch=patch):
+                snap, _ = replay([{**B, **patch}], **CTX)
+                self.assertEqual(len(snap["rejected_orders"]), 1)
+                with self.assertRaises(ValueError):
+                    replay([{**B, **patch}, BF], **CTX)
 
     def test_stop_event_updates_counter(self):
         snap, _ = replay([B, BF, S, {**SF, "reason": "STOP", "price": 24}], **CTX)
