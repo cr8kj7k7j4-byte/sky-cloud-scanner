@@ -97,6 +97,7 @@ class SkyAlertReaderTest(unittest.TestCase):
             "schema": "SKY_ALERT_EXTERNAL_READBACK_PROVENANCE_V1",
             "source_repo": "cr8kj7k7j4-byte/sky-cloud-scanner",
             "source_run_id": "42912345678",
+            "source_run_attempt": "1",
             "source_head_sha": "a" * 40,
             "source_artifact": "sky-scan-42912345678",
             "download_outcome": "success",
@@ -120,6 +121,7 @@ class SkyAlertReaderTest(unittest.TestCase):
             "schema": "SKY_ALERT_EXTERNAL_READBACK_PROVENANCE_V1",
             "source_repo": "cr8kj7k7j4-byte/sky-cloud-scanner",
             "source_run_id": "42912345678",
+            "source_run_attempt": "1",
             "source_head_sha": "a" * 40,
             "source_artifact": "sky-scan-42912345678",
             "download_outcome": "success",
@@ -138,6 +140,16 @@ class SkyAlertReaderTest(unittest.TestCase):
             consume_uploaded_receipt(original, expected_run_id="42912345678",
                                      expected_head_sha="a" * 40, now=self.now)
         original["provenance"]["receipt_report_sha256"] = receipt_report_sha256(original["report"])
+        original["provenance"]["input_sha256"] = "bogus"
+        with self.assertRaisesRegex(ValueError, "UPLOADED_DOWNLOAD_NOT_VERIFIED"):
+            consume_uploaded_receipt(original, expected_run_id="42912345678",
+                                     expected_head_sha="a" * 40, now=self.now)
+        original["provenance"]["input_sha256"] = "b" * 64
+        original["provenance"].pop("source_run_attempt")
+        with self.assertRaisesRegex(ValueError, "UPLOADED_RUN_ATTEMPT_MISSING"):
+            consume_uploaded_receipt(original, expected_run_id="42912345678",
+                                     expected_head_sha="a" * 40, now=self.now)
+        original["provenance"]["source_run_attempt"] = "1"
         original["provenance"]["download_outcome"] = "failure"
         with self.assertRaisesRegex(ValueError, "UPLOADED_DOWNLOAD_NOT_VERIFIED"):
             consume_uploaded_receipt(original, expected_run_id="42912345678",
