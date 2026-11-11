@@ -6,7 +6,7 @@ permissions:
   actions: read
   id-token: write
 concurrency:
-  group: sky-fugle-paid-global-research-v1
+  group: sky-fugle-paid-global-research-v1-live-wholemarket
   cancel-in-progress: false
 jobs:
   private-snapshot:

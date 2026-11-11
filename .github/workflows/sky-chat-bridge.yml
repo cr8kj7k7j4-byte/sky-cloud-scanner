@@ -9,7 +9,7 @@ permissions:
   contents: write
   actions: read
 concurrency:
-  group: sky-fugle-paid-global-research-v1
+  group: sky-fugle-paid-global-research-v1-live-wholemarket
   cancel-in-progress: false
 jobs:
   scan:

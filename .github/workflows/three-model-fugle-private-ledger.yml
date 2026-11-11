@@ -17,7 +17,7 @@ permissions:
   actions: read
   id-token: write
 concurrency:
-  group: sky-fugle-paid-global-research-v1
+  group: sky-fugle-paid-global-research-v1-history-three-model-${{ inputs.symbols || 'default' }}-${{ inputs.end_date || 'latest' }}
   cancel-in-progress: false
 jobs:
   research:

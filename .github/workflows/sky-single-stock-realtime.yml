@@ -16,7 +16,7 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: sky-fugle-paid-global-research-v1
+  group: sky-fugle-paid-global-research-v1-quote-${{ inputs.symbol || 'default' }}
   cancel-in-progress: false
 jobs:
   quote:
