@@ -60,9 +60,16 @@ def _receipt_from_github(repo, run_id, fetch=_gh_api, downloader=None):
         receipt = json.loads(receipt_file.read_text(encoding="utf-8"))
     if (receipt.get("schema") != "SKY_PRECOMMITTED_PAPER_SIGNAL_V1"
             or str(receipt.get("signal_run_id")) != str(run_id)
-            or receipt.get("signal_sha") != run["head_sha"]
-            or str(receipt.get("signal_artifact_id")) != str(artifact["id"])):
+            or receipt.get("signal_sha") != run["head_sha"]):
         raise ValueError("SIGNAL_RECEIPT_GITHUB_METADATA_MISMATCH")
+    # GitHub assigns the Artifact ID *after* uploading its contents.
+    # A precommitted receipt cannot truthfully contain that future ID.
+    # If explicitly provided, verify it; otherwise attach only the ID
+    # independently returned by GitHub after the successful upload.
+    claimed_id = receipt.get("signal_artifact_id")
+    if claimed_id is not None and str(claimed_id) != str(artifact["id"]):
+        raise ValueError("SIGNAL_RECEIPT_GITHUB_METADATA_MISMATCH")
+    receipt["signal_artifact_id"] = str(artifact["id"])
     original_published = _at(receipt.get("published_at"))
     signal_time = _at((receipt.get("signal") or {}).get("signal_time"))
     if original_published < signal_time:
