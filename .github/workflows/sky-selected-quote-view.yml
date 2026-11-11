@@ -9,6 +9,10 @@ on:
         type: string
 permissions:
   contents: read
+  actions: read
+concurrency:
+  group: sky-fugle-paid-global-research-v1
+  cancel-in-progress: false
 jobs:
   quote:
     runs-on: ubuntu-latest
@@ -22,7 +26,28 @@ jobs:
         run: |
           pip install -r requirements.txt
           python -m unittest tests.test_sky_market_quote_view -v
+      - name: Reserve cross-workflow paid API slot
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_paid_fugle_api_guard
+      - name: Publish reservation before paid request
+        id: claim
+        if: steps.guard.outputs.allowed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.guard.outputs.claim_name }}
+          path: output/fugle_api_guard/claim.json
+          if-no-files-found: error
+          retention-days: 2
+      - name: Read back own paid API reservation
+        id: verify_claim
+        if: steps.guard.outputs.allowed == 'true' && steps.claim.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_paid_fugle_api_guard --verify
       - name: Retrieve selected executed trade quotes (no orders)
+        if: steps.guard.outputs.allowed == 'true' && steps.verify_claim.outcome == 'success'
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
           INPUT_SYMBOLS: ${{ inputs.symbols }}
