@@ -2,6 +2,19 @@ import unittest
 from src.sky_chat_bridge import COLUMNS, make_status, validate_report, validate_request
 
 class ChatScanBridgeTests(unittest.TestCase):
+    def test_external_artifact_readback_requires_downloaded_evidence(self):
+        from pathlib import Path
+        workflow = (Path(__file__).resolve().parents[1] /
+                    ".github/workflows/sky-chat-bridge.yml").read_text(encoding="utf-8")
+        self.assertIn("actions: read", workflow)
+        self.assertIn('gh run download "$GITHUB_RUN_ID"', workflow)
+        self.assertIn("ARTIFACT_RUN_SHA_MISMATCH", workflow)
+        self.assertIn('root / "chat_bridge/latest.json"', workflow)
+        self.assertIn('root / "sky_quickscan_information/latest_13col.json"', workflow)
+        self.assertIn("ARTIFACT_DUPLICATE_SYMBOLS", workflow)
+        self.assertIn("sky-chat-readback-", workflow)
+        self.assertIn("steps.readback.outcome == 'success'", workflow)
+
     def test_research_branch_scan_cannot_publish_main_status(self):
         from pathlib import Path
         workflow = (Path(__file__).resolve().parents[1] /
