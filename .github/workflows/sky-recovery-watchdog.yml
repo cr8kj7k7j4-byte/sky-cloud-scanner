@@ -92,7 +92,7 @@ jobs:
                   'cross_workflow_runtime_lease_verified':False,
                   'paid_provider_requests':0,
                   'production_eligible':False
-              }, indent=2)+'\\n', encoding='utf-8')
+              }, indent=2)+'\n', encoding='utf-8')
           PY
       - name: Collect W0 cross-Workflow paid entrypoint audit (no provider calls)
         if: always()
