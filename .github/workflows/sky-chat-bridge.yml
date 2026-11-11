@@ -132,17 +132,46 @@ jobs:
         if: ${{ always() && github.ref == 'refs/heads/main' }}
         env:
           GH_TOKEN: ${{ github.token }}
+          EXTERNAL_READBACK_OUTCOME: ${{ steps.external_readback.outcome }}
         run: |
           python - <<'PY'
           import json
+          import os
           from pathlib import Path
           p = Path("output/chat_bridge/latest.json")
+          receipt_path = Path("output/chat_bridge_readback/external_receipt.json")
           if p.exists():
-              data = json.loads(p.read_text(encoding="utf-8"))
+              try:
+                  data = json.loads(p.read_text(encoding="utf-8"))
+              except (OSError, ValueError, TypeError):
+                  data = {}
           else:
-              data = {"schema":"SKY_CHAT_SCAN_STATUS_V1","status":"FAILED_NO_STATUS",
-                      "scan_id":__import__("os").environ.get("GITHUB_RUN_ID"),
-                      "production_eligible":False,"automatic_order":False}
+              data = {}
+          if not isinstance(data, dict):
+              data = {}
+          try:
+              receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+          except (OSError, ValueError, TypeError):
+              receipt = {}
+          valid_external = (
+              os.environ.get("EXTERNAL_READBACK_OUTCOME") == "success"
+              and isinstance(receipt, dict)
+              and receipt.get("status") == "PASS_RESEARCH_ONLY"
+              and str(receipt.get("run_id")) == os.environ.get("GITHUB_RUN_ID")
+              and receipt.get("head_sha") == os.environ.get("GITHUB_SHA")
+              and receipt.get("request_id") == data.get("request_id")
+              and data.get("status") == "REPORT_READY_RESEARCH_ONLY"
+          )
+          data["external_readback_verified"] = bool(valid_external)
+          if not valid_external:
+              data["status"] = "DATA_BLOCKED_EXTERNAL_READBACK"
+              data["block_reason"] = "EXTERNAL_ARTIFACT_READBACK_NOT_VERIFIED"
+              data["readback"] = {"status": "HOLD", "trade_action": "禁止交易",
+                                  "production_eligible": False, "automatic_order": False}
+          data["production_eligible"] = False
+          data["automatic_order"] = False
+          data.setdefault("schema", "SKY_CHAT_SCAN_STATUS_V1")
+          data.setdefault("scan_id", os.getenv("GITHUB_RUN_ID"))
           Path("/tmp/sky-chat-status.json").write_text(
               json.dumps(data,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
           PY
