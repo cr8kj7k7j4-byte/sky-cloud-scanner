@@ -98,8 +98,24 @@ def prepare(scope: str, now: datetime, lookup, run_id: str, outdir: Path):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--scope", default=DEFAULT_SCOPE)
+    p.add_argument("--verify", action="store_true")
     args = p.parse_args()
     now = datetime.now(timezone.utc)
+    # A paid step must verify its own uploaded reservation is visible in GitHub.
+    if args.verify:
+        try:
+            name = artifact_name(args.scope, slots(now)[0])
+            own = [a for a in github_lookup(os.getenv("GITHUB_REPOSITORY", ""),
+                                            os.getenv("GH_TOKEN", ""))(name)
+                   if str(a.get("workflow_run", {}).get("id")) == os.getenv("GITHUB_RUN_ID")
+                   and not a.get("expired", False)]
+            if len(own) != 1:
+                raise RuntimeError("OWN_RESERVATION_NOT_VISIBLE")
+            print("FUGLE_RESERVATION_READBACK_VERIFIED:" + name)
+            return
+        except (ValueError, RuntimeError, HTTPError, URLError, TimeoutError, OSError) as exc:
+            print("FUGLE_RESERVATION_READBACK_BLOCKED:" + type(exc).__name__)
+            raise SystemExit(2) from None
     # No error or uncertain GitHub result may authorize paid queries.
     try:
         allowed, name, receipt = prepare(
