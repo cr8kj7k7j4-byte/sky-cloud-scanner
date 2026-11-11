@@ -1,0 +1,87 @@
+name: Sky Snapshot Integrity Research Acceptance
+# MANUAL_ACCEPTANCE_ONESHOT_20261110_PAUSE_CRON: one limited research run; no scheduled trigger.
+on:
+  # Manual-only, bounded Snapshot acceptance; previous live TIB research run verified.
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: sky-snapshot-integrity-research
+  cancel-in-progress: false
+jobs:
+  snapshot-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install HTTP dependency only
+        run: python -m pip install requests
+      - name: Verify research contracts without credentials
+        run: python -m unittest tests.test_sky_full_universe_information tests.test_sky_chat_bridge -q
+      - name: Observe bounded paid Snapshot TSE OTC and innovation-board TIB once each
+        id: snapshot
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+          SKY_FUGLE_ONLY_MARKETDATA: '1'
+        run: |
+          test -n "$FUGLE_API_KEY" || { echo "Missing existing FUGLE_API_KEY secret"; exit 1; }
+          python -m research.sky_full_universe_information
+      - name: Generate SHA-pinned research receipt (artifact only; no PR-head mutation)
+        if: always()
+        run: |
+          python - <<'PY'
+          import json, os
+          from datetime import datetime, timezone
+          from pathlib import Path
+          raw = Path("output/sky_quickscan_information/full_universe.json")
+          status = {
+              "schema": "SKY_SNAPSHOT_INTEGRITY_RESEARCH_RECEIPT_V1",
+              "run_id": os.environ.get("GITHUB_RUN_ID"),
+              "head_sha": os.environ.get("GITHUB_SHA"),
+              "run_url": "https://github.com/" + os.environ.get("GITHUB_REPOSITORY", "") + "/actions/runs/" + os.environ.get("GITHUB_RUN_ID", ""),
+              "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+              "research_only": True,
+              "production_eligible": False,
+              "automatic_order": False,
+              "snapshot_calls_budget": 3,  # TSE + OTC + TIB once each; no repeat or per-symbol polling
+              "individual_quote_calls_budget": 0,
+              "status": "DATA_BLOCKED_NO_REPORT",
+          }
+          if raw.exists():
+              data = json.loads(raw.read_text(encoding="utf-8"))
+              status.update({
+                  "status": "OBSERVATION_READY" if all(data.get("snapshot_status",{}).get(m) == "RETURNED" for m in ("TWSE","TPEx")) else "DATA_BLOCKED_SNAPSHOT_SOURCE",
+                  "checked_at_tpe": data.get("checked_at_tpe"),
+                  "universe_count": data.get("universe_count"),
+                  "observed_price_count": data.get("observed_price_count"),
+                  "snapshot_reference_coverage_pct": data.get("snapshot_reference_coverage_pct"),
+                  "snapshot_reference_coverage_denominator": data.get("snapshot_reference_coverage_denominator"),
+                  "quote_execution_sample_size": data.get("quote_execution_sample_size", 0),
+                  "quote_execution_certified_count": data.get("quote_execution_certified_count", 0),
+                  "quote_execution_certification_pct": data.get("quote_execution_certification_pct"),
+                  "quote_execution_certification_status": data.get("quote_execution_certification_status", "NOT_SAMPLED_IN_SNAPSHOT_STAGE"),
+                  "fresh_executed_count": data.get("fresh_executed_count"),
+                  "snapshot_integrity": data.get("snapshot_integrity", {}),
+                  "twse_missing_official_symbols": (data.get("snapshot_integrity", {}).get("TWSE", {}).get("missing_official_symbols") or []),
+                  "missing_symbol_classification_verified": False,
+                  "snapshot_status": data.get("snapshot_status", {}),
+                  "snapshot_error_categories": {k: str(v)[:60] for k,v in (data.get("snapshot_errors") or {}).items()},
+                  "by_exchange": data.get("by_exchange", {}),
+                  "official_universe_warning_count": len(data.get("official_universe_warnings") or []),
+              })
+          output = Path("output/snapshot_integrity_research")
+          output.mkdir(parents=True, exist_ok=True)
+          (output/"receipt.json").write_text(json.dumps(status, ensure_ascii=False, indent=2)+"\n", encoding="utf-8")
+          print(json.dumps({k:status.get(k) for k in ("status","universe_count","observed_price_count","fresh_executed_count","snapshot_integrity")}, ensure_ascii=False))
+          PY
+      - name: Upload sanitized receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-snapshot-integrity-${{ github.run_id }}
+          path: output/snapshot_integrity_research/receipt.json
+          if-no-files-found: error
+          retention-days: 14

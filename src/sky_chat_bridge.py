@@ -14,6 +14,7 @@ from research.sky_snapshot_candidates import screen as screen_stage1
 from src.sky_stage2_candidate_quotes import verify as verify_stage2
 from src.sky_v14_ticker_candles_probe import run as probe_v14_candles
 from research.sky_candidate_e2e_chain import write as write_candidate_chain
+from src.sky_scan_readback import canonical_command, validate_scan_readback
 
 REQUEST = Path("scan_requests/chat/latest.json")
 OUTPUT = Path("output/chat_bridge")
@@ -23,8 +24,9 @@ COLUMNS = ("股票代碼", "股票名稱", "即時價", "分類", "方向", "多
 
 
 def validate_request(payload):
-    if not isinstance(payload, dict) or payload.get("command") not in ("Sky 當沖現在掃一次", "Sky 快掃"):
+    if not isinstance(payload, dict):
         raise ValueError("UNSUPPORTED_COMMAND")
+    canonical_command(payload.get("command"))
     request_id = payload.get("request_id")
     if not isinstance(request_id, str) or not (8 <= len(request_id) <= 80):
         raise ValueError("INVALID_REQUEST_ID")
@@ -96,6 +98,7 @@ def make_status(request_id, report=None, error=None, observation=None, stage1=No
     return {
         "schema": "SKY_CHAT_SCAN_STATUS_V1",
         "request_id": request_id, "scan_id": run_id,
+        "head_sha": os.getenv("GITHUB_SHA"),
         "run_url": f"https://github.com/{repo}/actions/runs/{run_id}" if repo else None,
         "completed_at_utc": datetime.now(timezone.utc).isoformat(),
         "status": report_status if report is not None else "FAILED",
@@ -109,6 +112,15 @@ def make_status(request_id, report=None, error=None, observation=None, stage1=No
         "stage1_candidate_count": stage1.get("candidate_count", 0),
         "stage2_attempted_count": stage2.get("attempted_count", 0),
         "stage2_verified_executed_count": stage2.get("verified_executed_count", 0),
+        "snapshot_reference_coverage_pct": observation.get("snapshot_reference_coverage_pct"),
+        "snapshot_reference_coverage_denominator": observation.get("snapshot_reference_coverage_denominator", len(rows)),
+        "quote_execution_sample_size": stage2.get("attempted_count", 0),
+        "quote_execution_certified_count": stage2.get("verified_executed_count", 0),
+        "quote_execution_certification_pct": (
+            round(100 * stage2.get("verified_executed_count", 0) / stage2["attempted_count"], 2)
+            if isinstance(stage2.get("attempted_count"), int) and stage2["attempted_count"] > 0 else None
+        ),
+        "quote_certification_is_full_market": False,
         "stage2_rate_limited_count": stage2.get("rate_limited_count", 0),
         "stage2_bounded_operational_probe_pass": stage2.get("operational_bounded_probe_pass", False),
         "stage2_elapsed_seconds": stage2.get("elapsed_seconds"),
@@ -135,6 +147,9 @@ def make_status(request_id, report=None, error=None, observation=None, stage1=No
         "stage1_candidate_preview": (stage1.get("candidates") or [])[:20],
         "stage1_candidate_artifact": "output/sky_quickscan_information/stage1_candidates.json" if stage1 else None,
         "snapshot_errors": snapshot_errors,
+        "snapshot_integrity": observation.get("snapshot_integrity") or {},
+        "snapshot_reference_coverage_is_trade_coverage": False,
+        "stage2_quote_sample_is_whole_market_certification": False,
         "observed_price_coverage_pct": round(100 * observed_count / len(rows), 2) if rows else 0.0,
         "fresh_executed_coverage_pct": round(
             100 * observation.get("fresh_executed_count", 0) / len(rows), 2) if rows else 0.0,
@@ -192,9 +207,24 @@ def main():
         error = str(exc)[:160]
         report = None
     status = make_status(request_id, report, error, observation, stage1, stage2, stage3, stage4)
+    # #531 shared command readback; never issue another paid market-data request.
+    if status["status"] == "REPORT_READY_RESEARCH_ONLY":
+        try:
+            status["readback"] = validate_scan_readback(
+                status,
+                expected_run_id=str(os.getenv("GITHUB_RUN_ID") or ""),
+                expected_request_id=request_id,
+            )
+        except ValueError as exc:
+            status["status"] = "DATA_BLOCKED_READBACK_INVALID"
+            status["block_reason"] = f"READBACK:{str(exc)[:100]}"
+    if status["status"] != "REPORT_READY_RESEARCH_ONLY":
+        status["readback"] = {"status": "HOLD", "trade_action": "禁止交易",
+                              "production_eligible": False, "automatic_order": False}
     (OUTPUT / "latest.json").write_text(json.dumps(status, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({k: v for k, v in status.items() if k != "preview"}, ensure_ascii=False))
-    if report is None:
+    # Preserve #510/#511 fail-closed nonready exit after status persisted.
+    if status["status"] != "REPORT_READY_RESEARCH_ONLY":
         raise SystemExit(1)
 
 

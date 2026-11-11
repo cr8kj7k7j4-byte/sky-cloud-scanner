@@ -5,6 +5,23 @@ on:
     paths:
       - 'scan_requests/chat/latest.json'
   workflow_dispatch:
+    inputs:
+      command:
+        description: 'Read-only Sky command; use_saved_request keeps the checked-in request'
+        required: false
+        default: 'use_saved_request'
+        type: choice
+        options:
+          - 'use_saved_request'
+          - 'Sky 快掃'
+          - 'Sky 快掃更新'
+          - 'Sky 當沖現在掃一次'
+          - 'Sky 當沖快掃'
+          - 'Sky v1.4 Dynamic Capital Rotation 掃一下'
+      request_id:
+        description: 'Optional unique request ID; blank generates chat-dispatch-RUN_ID'
+        required: false
+        type: string
 permissions:
   contents: write
   actions: read
@@ -21,14 +38,39 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install -r requirements.txt
-      - name: Verify guard unit contracts (no paid data)
+      - name: Apply safe optional dispatch alias to existing request (no repository write)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.command != '' && inputs.command != 'use_saved_request' }}
+        env:
+          SKY_DISPATCH_COMMAND: ${{ inputs.command }}
+          SKY_DISPATCH_REQUEST_ID: ${{ inputs.request_id }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from src.sky_chat_bridge import validate_request
+          request_id = os.getenv("SKY_DISPATCH_REQUEST_ID") or ("chat-dispatch-" + os.environ["GITHUB_RUN_ID"])
+          payload = {
+              "command": os.environ["SKY_DISPATCH_COMMAND"],
+              "request_id": request_id,
+              "read_only_no_orders": True,
+              "reason": "Explicit workflow_dispatch request; research only, no orders",
+          }
+          validate_request(payload)
+          Path("scan_requests/chat/latest.json").write_text(
+              json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+          )
+          print(json.dumps({"request_id": request_id, "command": payload["command"],
+                            "read_only_no_orders": True}, ensure_ascii=False))
+          PY
+      - name: Verify paid API guard safety contracts (offline)
         run: python -m unittest tests.test_sky_paid_fugle_api_guard -v
       - name: Reserve shared Fugle paid API slot (fail closed)
         id: guard
         env:
           GH_TOKEN: ${{ github.token }}
         run: python -m research.sky_paid_fugle_api_guard --scope 'sky:live:wholemarket'
-      - name: Publish global reservation before any paid call
+      - name: Publish reservation before any paid call
         id: claim
         if: steps.guard.outputs.allowed == 'true'
         uses: actions/upload-artifact@v4
@@ -37,7 +79,7 @@ jobs:
           path: output/fugle_api_guard/claim.json
           if-no-files-found: error
           retention-days: 2
-      - name: Verify GitHub reservation readback (fail closed)
+      - name: Verify reservation ZIP content independently (fail closed)
         id: verify_claim
         if: steps.guard.outputs.allowed == 'true' && steps.claim.outcome == 'success'
         env:
@@ -50,6 +92,69 @@ jobs:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
           SKY_FUGLE_ONLY_MARKETDATA: '1'
         run: python -m src.sky_chat_bridge
+      - name: Verify status and preserve a failed-run diagnostic
+        if: always()
+        env:
+          BRIDGE_OUTCOME: ${{ steps.bridge.outcome }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p = Path("output/chat_bridge/latest.json")
+          bridge_outcome = os.getenv("BRIDGE_OUTCOME", "unknown")
+          failure = {
+              "schema": "SKY_CHAT_SCAN_STATUS_V1",
+              "status": ("DATA_BLOCKED_BRIDGE_CANCELLED" if bridge_outcome == "cancelled"
+                         else "FAILED_NO_VALID_STATUS"),
+              "scan_id": os.getenv("GITHUB_RUN_ID"),
+              "bridge_step_outcome": bridge_outcome,
+              "production_eligible": False,
+              "automatic_order": False,
+              "block_reason": ("BRIDGE_JOB_CANCELLED" if bridge_outcome == "cancelled"
+                               else "BRIDGE_STATUS_MISSING_OR_INVALID"),
+          }
+          valid = False
+          if p.exists():
+              try:
+                  data = json.loads(p.read_text(encoding="utf-8"))
+                  valid = (
+                      isinstance(data, dict)
+                      and data.get("schema") == "SKY_CHAT_SCAN_STATUS_V1"
+                      and data.get("scan_id") == os.getenv("GITHUB_RUN_ID")
+                      and data.get("production_eligible") is False
+                      and data.get("automatic_order") is False
+                      and data.get("status") == "REPORT_READY_RESEARCH_ONLY"
+                      and isinstance(data.get("row_count"), int)
+                      and data["row_count"] > 0
+                      and isinstance(data.get("observed_price_count"), int)
+                      and data["observed_price_count"] > 0
+                      and isinstance(data.get("data_timestamp"), str)
+                      and bool(data.get("data_timestamp"))
+                      and data.get("source") == "FUGLE_PAID_SNAPSHOT"
+                  )
+              except (OSError, ValueError, TypeError):
+                  data = failure
+              if not isinstance(data, dict):
+                  data = failure
+          else:
+              data = failure
+          if not valid or bridge_outcome != "success":
+              # A cancelled bridge must not reuse a partial/old success status.
+              # Even if the runner executes always() cleanup, report NO_TRADE.
+              if bridge_outcome == "cancelled":
+                  data = failure
+              elif isinstance(data, dict) and data.get("status") == "REPORT_READY_RESEARCH_ONLY":
+                  data = failure
+              data["bridge_step_outcome"] = bridge_outcome
+              data["production_eligible"] = False
+              data["automatic_order"] = False
+              p.parent.mkdir(parents=True, exist_ok=True)
+              p.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          if not valid or os.getenv("BRIDGE_OUTCOME") != "success":
+              raise SystemExit("SCAN_VALIDATION_FAILED")
+          PY
       - name: Upload complete 13-column report and status
         if: always()
         uses: actions/upload-artifact@v4
@@ -65,23 +170,117 @@ jobs:
             output/sky_quickscan_information/v14_ticker_5m_evidence.json
             output/sky_quickscan_information/candidate_e2e_chain.json
             output/sky_quickscan_information/candidate_e2e_chain.md
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14
-      - name: Publish sanitized summary for ChatGPT GitHub connector
-        if: always()
+      - name: Download the same-run Artifact and independently verify its contents
+        id: external_readback
+        if: ${{ steps.bridge.outcome == 'success' }}
         env:
           GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/sky-chat-downloaded output/chat_bridge_readback
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "sky-chat-$GITHUB_RUN_ID" --dir /tmp/sky-chat-downloaded
+          HEAD_SHA=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --jq '.head_sha')
+          ARTIFACT_ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" | python -c 'import json,os,sys; a=json.load(sys.stdin)["artifacts"]; n="sky-chat-"+os.environ["GITHUB_RUN_ID"]; print(next((x["id"] for x in a if x["name"]==n), ""))')
+          REQUEST_ID=$(python -c 'import json;print(json.load(open("scan_requests/chat/latest.json", encoding="utf-8"))["request_id"])')
+          python -m scripts.sky_chat_artifact_readback \
+            --directory /tmp/sky-chat-downloaded \
+            --run-id "$GITHUB_RUN_ID" --request-id "$REQUEST_ID" \
+            --head-sha "$HEAD_SHA" --expected-sha "$GITHUB_SHA" \
+            --artifact-id "$ARTIFACT_ID" \
+            --receipt output/chat_bridge_readback/external_receipt.json
+      - name: Ensure external readback failure always has a diagnostic receipt
+        if: ${{ always() }}
+        env:
+          EXTERNAL_READBACK_OUTCOME: ${{ steps.external_readback.outcome }}
         run: |
           python - <<'PY'
           import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+          p = Path("output/chat_bridge_readback/external_receipt.json")
+          p.parent.mkdir(parents=True, exist_ok=True)
+          try:
+              data = json.loads(p.read_text(encoding="utf-8"))
+          except (OSError, ValueError, TypeError):
+              data = {}
+          if not isinstance(data, dict):
+              data = {}
+          if os.environ.get("EXTERNAL_READBACK_OUTCOME") != "success":
+              data = {
+                  "schema": "SKY_CHAT_EXTERNAL_ARTIFACT_READBACK_V1",
+                  "status": "FAILED_CLOSED",
+                  "reason": "EXTERNAL_DOWNLOAD_OR_VERIFY_NOT_SUCCESSFUL",
+                  "external_readback_step_outcome": os.environ.get("EXTERNAL_READBACK_OUTCOME"),
+                  "run_id": os.getenv("GITHUB_RUN_ID"),
+                  "head_sha": os.getenv("GITHUB_SHA"),
+                  "request_id": None,
+                  "verified_at_utc": datetime.now(timezone.utc).isoformat(),
+                  "production_eligible": False,
+                  "automatic_order": False,
+                  "trade_action": "禁止交易",
+              }
+          p.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          PY
+      - name: Upload independent readback receipt
+        id: external_receipt_upload
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-chat-external-readback-${{ github.run_id }}
+          path: output/chat_bridge_readback/external_receipt.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Publish sanitized summary for ChatGPT GitHub connector
+        # Research-branch dispatches only upload artifacts; never overwrite main status.
+        if: ${{ always() && github.ref == 'refs/heads/main' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXTERNAL_READBACK_OUTCOME: ${{ steps.external_readback.outcome }}
+          EXTERNAL_RECEIPT_UPLOAD_OUTCOME: ${{ steps.external_receipt_upload.outcome }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
           from pathlib import Path
           p = Path("output/chat_bridge/latest.json")
+          receipt_path = Path("output/chat_bridge_readback/external_receipt.json")
           if p.exists():
-              data = json.loads(p.read_text(encoding="utf-8"))
+              try:
+                  data = json.loads(p.read_text(encoding="utf-8"))
+              except (OSError, ValueError, TypeError):
+                  data = {}
           else:
-              data = {"schema":"SKY_CHAT_SCAN_STATUS_V1","status":"FAILED_NO_STATUS",
-                      "scan_id":__import__("os").environ.get("GITHUB_RUN_ID"),
-                      "production_eligible":False,"automatic_order":False}
+              data = {}
+          if not isinstance(data, dict):
+              data = {}
+          try:
+              receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+          except (OSError, ValueError, TypeError):
+              receipt = {}
+          valid_external = (
+              os.environ.get("EXTERNAL_READBACK_OUTCOME") == "success"
+              and os.environ.get("EXTERNAL_RECEIPT_UPLOAD_OUTCOME") == "success"
+              and isinstance(receipt, dict)
+              and receipt.get("status") == "PASS_RESEARCH_ONLY"
+              and str(receipt.get("run_id")) == os.environ.get("GITHUB_RUN_ID")
+              and receipt.get("head_sha") == os.environ.get("GITHUB_SHA")
+              and receipt.get("request_id") == data.get("request_id")
+              and data.get("status") == "REPORT_READY_RESEARCH_ONLY"
+          )
+          data["external_readback_verified"] = bool(valid_external)
+          if not valid_external:
+              data["status"] = "DATA_BLOCKED_EXTERNAL_READBACK"
+              data["block_reason"] = "EXTERNAL_ARTIFACT_READBACK_NOT_VERIFIED"
+              data["readback"] = {"status": "HOLD", "trade_action": "禁止交易",
+                                  "production_eligible": False, "automatic_order": False}
+          data["production_eligible"] = False
+          data["automatic_order"] = False
+          data.setdefault("schema", "SKY_CHAT_SCAN_STATUS_V1")
+          data.setdefault("scan_id", os.getenv("GITHUB_RUN_ID"))
           Path("/tmp/sky-chat-status.json").write_text(
               json.dumps(data,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
           PY
