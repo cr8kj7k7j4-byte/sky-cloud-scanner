@@ -82,6 +82,15 @@ class SkyAlertReaderTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "EXCHANGE_COVERAGE_MISMATCH"):
             consume(self.report, now=self.now)
 
+    def test_recent_snapshot_without_verified_execution_is_not_current(self):
+        self.report["all_symbols"][0]["data_status"] = "SNAPSHOT_REFERENCE"
+        result = consume(self.report, now=self.now + timedelta(seconds=30))
+        self.assertEqual(result["freshness_status"], "NO_VERIFIED_EXECUTIONS")
+        self.assertEqual(result["fresh_executed_count_at_read"], 0)
+        self.assertTrue(result["observation_available"])
+        self.assertFalse(result["production_eligible"])
+        self.assertEqual(result["action"], "禁止交易")
+
     def test_invalid_schema_is_rejected(self):
         with self.assertRaises(ValueError):
             consume({}, now=self.now)
