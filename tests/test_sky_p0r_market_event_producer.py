@@ -3,7 +3,7 @@ import hashlib
 import json
 import unittest
 
-from research.sky_p0r_market_event_producer import produce, source_binding_verified
+from research.sky_p0r_market_event_producer import produce, source_binding_verified, signal_import_status_verified
 
 def bar(start, finish, open_price, high, low, close):
     return {"symbol":"2409", "source_type":"MARKET_OBSERVATION",
@@ -31,6 +31,27 @@ SOURCE={
 }
 
 class MarketEventProducerTest(unittest.TestCase):
+    def test_current_signal_import_status_must_match_source_binding(self):
+        proof={"github_metadata_verified":True,
+               "signal_run_id":"999", "signal_sha":"s"*40,
+               "signal_artifact_id":"888",
+               "artifact_uploaded_at":"2026-11-11T09:05:00+08:00",
+               "effective_published_at":"2026-11-11T09:05:00+08:00"}
+        binding={"signal_provenance":copy.deepcopy(proof)}
+        good={"reconciled":True,"production_eligible":False,
+              "automatic_order":False,"verified_github_provenance":copy.deepcopy(proof)}
+        self.assertTrue(signal_import_status_verified(good,binding))
+        for bad in (
+            None, {}, {**good,"reconciled":False},
+            {**good,"production_eligible":True},
+            {**good,"verified_github_provenance":{}},
+            {**good,"verified_github_provenance":{**proof,"signal_run_id":"OLD"}},
+            {**good,"verified_github_provenance":{**proof,"github_metadata_verified":False}},
+        ):
+            with self.subTest(bad=bad):
+                self.assertFalse(signal_import_status_verified(bad,binding))
+        self.assertFalse(signal_import_status_verified(good,None))
+
     def test_paper_source_binding_rejects_unproven_and_mutated_payload(self):
         payload=copy.deepcopy(SOURCE)
         payload["context"]["run_id"]="12345"
