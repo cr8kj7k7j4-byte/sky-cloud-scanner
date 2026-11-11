@@ -113,6 +113,9 @@ jobs:
           if-no-files-found: error
           retention-days: 3
       - name: Verify same-run synthetic Artifact transport independently
+        # Avoid installation-token rate-limit storms on every PR update.
+        # Authorized research push and manual runs retain real ZIP readback.
+        if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
