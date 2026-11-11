@@ -28,6 +28,8 @@ on:
       - 'tests/test_sky_w0_dedup_inventory.py'
       - 'research/sky_paid_api_dedup_contract.py'
       - 'tests/test_sky_paid_api_dedup_contract.py'
+      - 'research/sky_paid_api_gcs_store.py'
+      - 'tests/test_sky_paid_api_gcs_store.py'
       - '.github/workflows/sky-recovery-watchdog.yml'
 
 permissions:
@@ -83,7 +85,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python -m unittest tests.test_sky_paid_api_dedup_contract -v
+          python -m unittest tests.test_sky_paid_api_dedup_contract tests.test_sky_paid_api_gcs_store -v
           mkdir -p output/w0_repo_dedup
           python - <<'PY'
           import json, os
