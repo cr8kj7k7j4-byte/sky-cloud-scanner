@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
+import hashlib
 import json
 import math
 
@@ -182,6 +183,61 @@ def produce(payload):
             "simulated_fill_origin_independently_verified":False}
 
 
+def source_binding_verified(payload, binding, verified_bars):
+    """Check GitHub-backed, same-payload market/signal provenance; no fills implied."""
+    if not all(isinstance(x, dict) for x in (payload, binding, verified_bars)):
+        return False
+    if (binding.get("schema") != "SKY_P0R_PAPER_SOURCE_BINDING_V1"
+            or binding.get("production_eligible") is not False
+            or binding.get("automatic_order") is not False
+            or verified_bars.get("schema") != "SKY_P0R_VERIFIED_SOURCE_BARS_V1"
+            or verified_bars.get("production_eligible") is not False
+            or verified_bars.get("automatic_order") is not False):
+        return False
+    proof = binding.get("signal_provenance")
+    if (not isinstance(proof, dict)
+            or proof.get("github_metadata_verified") is not True
+            or not proof.get("signal_run_id")
+            or not proof.get("signal_sha")
+            or not proof.get("signal_artifact_id")
+            or not proof.get("artifact_uploaded_at")):
+        return False
+    for key, expected in (
+        ("market_run_id", "source_run_id"),
+        ("market_sha", "source_sha"),
+        ("market_artifact_id", "source_artifact_id"),
+        ("market_observed_at", "observed_at"),
+    ):
+        if str(binding.get(key)) != str(verified_bars.get(expected)):
+            return False
+    context, signal = payload.get("context"), payload.get("signal")
+    if not isinstance(context, dict) or not isinstance(signal, dict):
+        return False
+    symbol = signal.get("symbol")
+    sources = verified_bars.get("bar_sources")
+    if not isinstance(sources, dict) or symbol not in sources:
+        return False
+    expected_artifact = (f"sky-512-5m-evidence-{binding['market_run_id']}:"
+                         f"{binding['market_artifact_id']}")
+    if (str(context.get("run_id")) != str(binding["market_run_id"])
+            or context.get("source_artifact") != expected_artifact
+            or context.get("observed_at") != binding["market_observed_at"]
+            or payload.get("completed_bars") != sources[symbol].get("completed_bars")):
+        return False
+    try:
+        published = _time(proof["effective_published_at"])
+        signal_at = _time(signal["signal_time"])
+        observed = _time(context["observed_at"])
+    except (ValueError, KeyError, TypeError):
+        return False
+    if published != signal_at or not published < observed:
+        return False
+    digest = hashlib.sha256(json.dumps(
+        payload, ensure_ascii=False, sort_keys=True,
+        separators=(",", ":")).encode("utf-8")).hexdigest()
+    return binding.get("paper_input_sha256") == digest
+
+
 def main():
     base=Path("output/sky_paper_runtime")
     source=base/"completed_market_evidence.json"
@@ -199,7 +255,20 @@ def main():
             json.dumps(status,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
         print(json.dumps(status))
         return 0
-    report=produce(json.loads(source.read_text(encoding="utf-8")))
+    payload=json.loads(source.read_text(encoding="utf-8"))
+    binding_file=base/"source_binding.json"
+    verified_file=Path("output/sky_p0r_paper_ledger_readback/verified_512_completed_bars.json")
+    try:
+        binding=json.loads(binding_file.read_text(encoding="utf-8"))
+        verified=json.loads(verified_file.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        binding,verified=None,None
+    provenance_verified=source_binding_verified(payload,binding,verified)
+    if not provenance_verified:
+        report={"verdict":"INDEPENDENT_MARKET_SIGNAL_SOURCE_BINDING_MISSING",
+                "events":[],"snapshot":None}
+    else:
+        report=produce(payload)
     if report["snapshot"] is not None:
         # never generate events from test fixtures in CI; only an explicit
         # market evidence file may activate the source adapter.
@@ -210,7 +279,7 @@ def main():
                 "run_id","scan_id","observed_at","source_artifact","simulator_version")}
         },ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     status={"schema":"SKY_P0R_PAPER_MARKET_SOURCE_STATUS_V1",
-            "verdict":report["verdict"], "source_artifact_verified":False,
+            "verdict":report["verdict"], "source_artifact_verified":provenance_verified,
             "paper_events_produced":len(report["events"]),
             "production_eligible":False}
     output=Path("output/sky_p0r_paper_ledger_readback")
