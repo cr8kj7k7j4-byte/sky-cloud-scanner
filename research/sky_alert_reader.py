@@ -180,8 +180,17 @@ def consume_uploaded_receipt(payload, *, expected_run_id, expected_head_sha, now
         raise ValueError("UPLOADED_REPOSITORY_MISMATCH")
     if provenance.get("source_artifact") != "sky-scan-" + expected_run_id:
         raise ValueError("UPLOADED_ARTIFACT_MISMATCH")
-    if provenance.get("download_outcome") != "success" or not provenance.get("input_sha256"):
+    source_digest = provenance.get("input_sha256")
+    if (provenance.get("download_outcome") != "success"
+            or not isinstance(source_digest, str)
+            or len(source_digest) != 64
+            or any(c not in "0123456789abcdef" for c in source_digest)):
         raise ValueError("UPLOADED_DOWNLOAD_NOT_VERIFIED")
+    # A job attempt is part of the GitHub source identity. A receipt without
+    # this provenance is not sufficient to certify an uploaded scanner run.
+    attempt = provenance.get("source_run_attempt")
+    if not isinstance(attempt, (int, str)) or not str(attempt).isdigit() or int(attempt) < 1:
+        raise ValueError("UPLOADED_RUN_ATTEMPT_MISSING")
     if provenance.get("production_eligible") is not False or payload.get("production_eligible") is not False:
         raise ValueError("UPLOADED_RESEARCH_GUARD_FAILED")
     source_report = payload.get("report")
