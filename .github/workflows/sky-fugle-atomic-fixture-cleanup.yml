@@ -6,6 +6,10 @@ on:
       - 'research/w0-fugle-api-dedup-guard-20261111'
     paths:
       - '.github/workflows/sky-fugle-atomic-fixture-cleanup.yml'
+  schedule:
+    # 05:30 Asia/Taipei; active on default branch only after research approval.
+    - cron: '30 21 * * *'
+  workflow_dispatch:
 permissions:
   contents: write
 jobs:
@@ -122,4 +126,28 @@ jobs:
           name: sky-atomic-fixture-cleanup-${{ github.run_id }}
           path: output/fugle_api_guard/fixture_cleanup.json
           if-no-files-found: error
+          retention-days: 30
+
+  prune-expired-research-claims:
+    # Never run a cleanup schedule on research PRs; only approved default main.
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Offline TTL safety contracts (NO FUGLE)
+        run: python -m unittest tests.test_sky_fugle_atomic_ref_ttl_cleanup -v
+      - name: Delete only expired research-ref claims with remote readback
+        id: expiry
+        run: python -m research.sky_fugle_atomic_ref_ttl_cleanup
+      - name: Publish TTL cleanup result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-atomic-ttl-cleanup-${{ github.run_id }}
+          path: output/fugle_api_guard/ttl_cleanup.json
+          if-no-files-found: warn
           retention-days: 30

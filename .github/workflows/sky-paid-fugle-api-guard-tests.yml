@@ -5,6 +5,8 @@ on:
       - 'research/sky_paid_fugle_api_guard.py'
       - 'research/sky_fugle_request_identity.py'
       - 'research/sky_fugle_atomic_ref_claim.py'
+      - 'research/sky_fugle_atomic_ref_ttl_cleanup.py'
+      - 'tests/test_sky_fugle_atomic_ref_ttl_cleanup.py'
       - 'tests/test_sky_fugle_atomic_ref_claim.py'
       - 'src/fugle.py'
       - 'research/download_pit_universe_intraday.py'
@@ -49,7 +51,7 @@ jobs:
         run: |
           python -m pip install pyyaml requests
           python -m py_compile research/sky_paid_fugle_api_guard.py
-          python -m unittest tests.test_sky_paid_fugle_api_guard tests.test_sky_paid_fugle_api_inventory tests.test_sky_fugle_request_identity tests.test_sky_fugle_atomic_ref_claim tests.test_sky_fugle_paid_http_atomic_boundary tests.test_sky_fugle_direct_http_atomic_paths -v
+          python -m unittest tests.test_sky_paid_fugle_api_guard tests.test_sky_paid_fugle_api_inventory tests.test_sky_fugle_request_identity tests.test_sky_fugle_atomic_ref_claim tests.test_sky_fugle_paid_http_atomic_boundary tests.test_sky_fugle_direct_http_atomic_paths tests.test_sky_fugle_atomic_ref_ttl_cleanup -v
       - name: Verify nine paid entrypoints share a guard and refuse unverified claims
         run: |
           python - <<'PY'
