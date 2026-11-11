@@ -40,6 +40,15 @@ class RecoveryWatchdogTests(unittest.TestCase):
 class PaidRequestSafetyBridgeTests(unittest.TestCase):
     """No-paid-provider regression visible to the canonical main watchdog PR gate."""
 
+    def test_workflow_mock_receipt_distinguishes_pr_head_from_checkout(self):
+        from pathlib import Path
+        workflow = (Path(__file__).resolve().parents[1] /
+                    ".github/workflows/sky-recovery-watchdog.yml").read_text(encoding="utf-8")
+        self.assertIn("SKY_PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}", workflow)
+        self.assertIn("'pull_request_head_sha':os.getenv('SKY_PR_HEAD_SHA')", workflow)
+        self.assertIn("'workflow_checkout_sha':os.getenv('GITHUB_SHA')", workflow)
+        self.assertIn("PR_MERGE_CHECKOUT_NOT_HEAD", workflow)
+
     def test_atomic_contract_requires_real_shared_store_not_bool_flag(self):
         from research.sky_paid_api_dedup_contract import (
             canonical_request_key, reserve, finalize_ready,
