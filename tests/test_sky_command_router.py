@@ -76,3 +76,11 @@ def test_full_market_research_visibility_routes_are_explicit():
         assert route.realtime_required is True
         assert route.whole_market_required is True
         assert "research_visibility" in route.execution_target
+
+
+def test_alert_uses_freshness_reader_not_paused_schedule():
+    route = route_command("Sky 警戒")
+    assert route.command_family == "SKY_ALERT_WHOLE_MARKET_OBSERVATION"
+    assert "sky_alert_reader" in route.execution_target
+    assert "scan.yml:" not in route.execution_target
+    assert route.realtime_required and route.whole_market_required
