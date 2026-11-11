@@ -9,13 +9,16 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import io
 import json
 import os
+import secrets
+import zipfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote
-from urllib.request import Request, urlopen
+from urllib.parse import quote, urlparse
+from urllib.request import Request, urlopen, HTTPRedirectHandler, build_opener
 
 WINDOW_SECONDS = 300
 CLAIM_DIR = Path("output/fugle_api_guard")
@@ -89,10 +92,94 @@ def prepare(scope: str, now: datetime, lookup, run_id: str, outdir: Path):
            "status": "CLAIM_REQUIRED_BEFORE_PAID_API" if allowed else "DUPLICATE_BLOCKED",
            "reason": reason, "scope_hash": hashlib.sha256(scope.encode()).hexdigest()[:16],
            "slot": slots(now)[0], "run_id": run_id, "checked_at_utc": now.isoformat(),
+           "claim_nonce": secrets.token_hex(16),
            "production_eligible": False, "automatic_order": False}
     outdir.mkdir(parents=True, exist_ok=True)
     (outdir / "claim.json").write_text(json.dumps(out, indent=2) + "\n", encoding="utf-8")
     return allowed, artifact_name(scope, slots(now)[0]), out
+
+
+class _NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def download_claim_archive(repo: str, token: str, artifact_id: int) -> dict:
+    """Read actual GitHub Artifact ZIP, without forwarding GitHub credentials to storage."""
+    if not repo or not token or type(artifact_id) is not int or artifact_id <= 0:
+        raise RuntimeError("INVALID_ARTIFACT_DOWNLOAD_ARGUMENTS")
+    api = f"https://api.github.com/repos/{repo}/actions/artifacts/{artifact_id}/zip"
+    req = Request(api, headers={
+        "Authorization": "Bearer " + token,
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "Sky-Fugle-Dedup-Guard",
+    })
+    try:
+        with build_opener(_NoRedirect).open(req, timeout=15):
+            raise RuntimeError("EXPECTED_ARTIFACT_ZIP_REDIRECT")
+    except HTTPError as exc:
+        if exc.code not in (302, 307):
+            raise
+        location = exc.headers.get("Location", "")
+    url = urlparse(location)
+    allowed_hosts = (".blob.core.windows.net", ".actions.githubusercontent.com",
+                     ".githubusercontent.com")
+    if url.scheme != "https" or not any(
+        url.hostname and url.hostname.endswith(suffix) for suffix in allowed_hosts
+    ):
+        raise RuntimeError("UNTRUSTED_ARTIFACT_DOWNLOAD_REDIRECT")
+    # This request intentionally has NO GitHub authorization header.
+    with urlopen(Request(location, headers={"User-Agent": "Sky-Fugle-Dedup-Guard"}),
+                 timeout=15) as resp:
+        raw = resp.read(262145)
+    if len(raw) > 262144:
+        raise RuntimeError("OVERSIZED_CLAIM_ARCHIVE")
+    try:
+        with zipfile.ZipFile(io.BytesIO(raw)) as zf:
+            names = zf.namelist()
+            if names != ["claim.json"]:
+                raise RuntimeError("UNEXPECTED_ARTIFACT_ARCHIVE_CONTENTS")
+            with zf.open("claim.json") as member:
+                value = json.loads(member.read(16385))
+    except (zipfile.BadZipFile, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise RuntimeError("INVALID_CLAIM_ARCHIVE") from exc
+    if not isinstance(value, dict):
+        raise RuntimeError("INVALID_CLAIM_DOCUMENT")
+    return value
+
+
+def verify_uploaded_reservation(scope: str, run_id: str, now: datetime,
+                                local: dict, lookup, download) -> str:
+    """Never accept another Job's Artifact merely because its run_id is equal."""
+    if not isinstance(local, dict) or local.get("schema") != "SKY_PAID_FUGLE_RESERVATION_V1":
+        raise RuntimeError("INVALID_LOCAL_CLAIM")
+    if local.get("status") != "CLAIM_REQUIRED_BEFORE_PAID_API":
+        raise RuntimeError("LOCAL_RESERVATION_NOT_ALLOWED")
+    if local.get("run_id") != run_id or not run_id:
+        raise RuntimeError("CLAIM_RUN_MISMATCH")
+    if not isinstance(local.get("claim_nonce"), str) or len(local["claim_nonce"]) != 32:
+        raise RuntimeError("INVALID_LOCAL_NONCE")
+    ts = datetime.fromisoformat(str(local.get("checked_at_utc", "")).replace("Z", "+00:00"))
+    age = (now - ts).total_seconds()
+    if ts.tzinfo is None or not (-30 <= age < WINDOW_SECONDS):
+        raise RuntimeError("CLAIM_EXPIRED_OR_FUTURE")
+    slot = slots(ts)[0]
+    if local.get("slot") != slot:
+        raise RuntimeError("CLAIM_SLOT_MISMATCH")
+    if local.get("scope_hash") != hashlib.sha256(scope.encode()).hexdigest()[:16]:
+        raise RuntimeError("CLAIM_SCOPE_MISMATCH")
+    name = artifact_name(scope, slot)
+    own = [a for a in lookup(name)
+           if str((a.get("workflow_run") or {}).get("id")) == run_id
+           and not a.get("expired", False)]
+    if len(own) != 1:
+        raise RuntimeError("OWN_RESERVATION_NOT_VISIBLE")
+    artifact_id = own[0].get("id")
+    remote = download(artifact_id)
+    for key in ("schema", "status", "claim_nonce", "scope_hash", "slot", "run_id"):
+        if remote.get(key) != local.get(key):
+            raise RuntimeError("ARTIFACT_CLAIM_CONTENT_MISMATCH_" + key)
+    return name
 
 
 def workflow_request_scope(workflow: str, event: dict) -> str:
@@ -137,16 +224,16 @@ def main():
     # A paid step must verify its own uploaded reservation is visible in GitHub.
     if args.verify:
         try:
-            name = artifact_name(args.scope, slots(now)[0])
-            own = [a for a in github_lookup(os.getenv("GITHUB_REPOSITORY", ""),
-                                            os.getenv("GH_TOKEN", ""))(name)
-                   if str(a.get("workflow_run", {}).get("id")) == os.getenv("GITHUB_RUN_ID")
-                   and not a.get("expired", False)]
-            if len(own) != 1:
-                raise RuntimeError("OWN_RESERVATION_NOT_VISIBLE")
-            print("FUGLE_RESERVATION_READBACK_VERIFIED:" + name)
+            repo = os.getenv("GITHUB_REPOSITORY", "")
+            token = os.getenv("GH_TOKEN", "")
+            local = json.loads((CLAIM_DIR / "claim.json").read_text(encoding="utf-8"))
+            name = verify_uploaded_reservation(
+                args.scope, os.getenv("GITHUB_RUN_ID", ""), now, local,
+                github_lookup(repo, token),
+                lambda artifact_id: download_claim_archive(repo, token, artifact_id))
+            print("FUGLE_RESERVATION_ZIP_CONTENT_READBACK_VERIFIED:" + name)
             return
-        except (ValueError, RuntimeError, HTTPError, URLError, TimeoutError, OSError) as exc:
+        except (ValueError, RuntimeError, HTTPError, URLError, TimeoutError, OSError, zipfile.BadZipFile) as exc:
             print("FUGLE_RESERVATION_READBACK_BLOCKED:" + type(exc).__name__)
             raise SystemExit(2) from None
     # No error or uncertain GitHub result may authorize paid queries.
