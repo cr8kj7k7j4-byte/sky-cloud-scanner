@@ -220,6 +220,17 @@ class InnovationBoardSnapshotContracts(unittest.TestCase):
         self.assertEqual(row["data_status"], "UNVERIFIED_EXECUTION_TIME")
         self.assertFalse(row["production_eligible"])
 
+    def test_innovation_board_per_symbol_source_receipt(self):
+        from research.sky_full_universe_information import build
+        # Existing market fixtures: TSE contains ordinary rows, TIB contains the one innovation listing.
+        report = build(self.universe, {"TSE": self.tse, "OTC": self.otc, "TIB": self.tib}, NOW)
+        details = report["snapshot_integrity"]["TWSE"]["innovation_board_source_by_symbol"]
+        self.assertEqual(len(details), 1)
+        self.assertEqual(details[0]["symbol"], "2237")
+        self.assertEqual(details[0]["effective_source"], "TIB")
+        self.assertTrue(details[0]["in_tib_snapshot"])
+        self.assertFalse(details[0]["in_tse_snapshot"])
+
     def test_tib_unexpected_symbols_remain_diagnostic_not_entries(self):
         tib = {"date": NOW.date().isoformat(), "data": [
             {"symbol": "2237", "lastPrice": 55},
