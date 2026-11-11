@@ -101,16 +101,20 @@ class ChatScanBridgeTests(unittest.TestCase):
                     status = {"schema": "SKY_CHAT_SCAN_STATUS_V1",
                               "status": "REPORT_READY_RESEARCH_ONLY",
                               "scan_id": "123456", "request_id": "req-123",
+                              "row_count": 1986,
                               "production_eligible": False, "automatic_order": False}
                     receipt = {"status": receipt_status, "run_id": "123456",
                                "head_sha": "a" * 40, "request_id": "req-123",
+                               "artifact_id": "123", "row_count": 1986,
+                               "trade_action": "禁止交易",
                                "production_eligible": False, "automatic_order": False}
                     (root / "output/chat_bridge/latest.json").write_text(
                         json.dumps(status), encoding="utf-8")
                     (root / "output/chat_bridge_readback/external_receipt.json").write_text(
                         json.dumps(receipt), encoding="utf-8")
                     env = dict(os.environ, GITHUB_RUN_ID="123456",
-                               GITHUB_SHA="a" * 40, EXTERNAL_READBACK_OUTCOME=download,
+                               GITHUB_SHA="a" * 40, EXPECTED_ARTIFACT_ID="123",
+                               EXTERNAL_READBACK_OUTCOME=download,
                                EXTERNAL_RECEIPT_UPLOAD_OUTCOME=upload)
                     result = subprocess.run([sys.executable, "-c", guard],
                                             cwd=tmp, env=env, capture_output=True, text=True)
