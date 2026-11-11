@@ -53,3 +53,57 @@ jobs:
               expected = "SKY_GOVERNED_SMOKE_FIXED_V1\n"
               assert p.read_text(encoding="utf-8") == expected, "ISOLATED_SMOKE_FIXTURE_REQUIRES_APPROVED_PATCH"
           PY
+
+      - name: Generate isolated #534 same-head research evidence receipt
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 534
+        env:
+          REPAIR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          ACTION_RUN_ID: ${{ github.run_id }}
+          ACTION_RUN_ATTEMPT: ${{ github.run_attempt }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          expected = "SKY_GOVERNED_SMOKE_FIXED_V1\n"
+          assert Path("research/sky_governed_auto_repair_smoke_fixture.txt").read_text(encoding="utf-8") == expected
+          receipt = {
+              "schema": "SKY_GOVERNED_REPAIR_PR534_CI_RECEIPT_V1",
+              "scope": "ISOLATED_RESEARCH_FIXTURE_ONLY",
+              "source_failure_run_id": 42941970391,
+              "source_sha": "498c5cbd0b6a85258ed24b601f2a5562d246ebe3",
+              "controller_run_id": 42942007304,
+              "controller_artifact_id": 13820404560,
+              "controller_sha": "3f084c2d20bf17edfaa6ca1d3f91931b77fe19dd",
+              "repair_pr_number": 534,
+              "original_auto_repair_sha": "d8a6e1ad038fb5065124843f6f70f254047d8f40",
+              "head_sha_under_test": os.environ["REPAIR_HEAD_SHA"],
+              "previous_downstream_ci_run_id": 42942033824,
+              "previous_native_pr_ci_run_id": 42942037713,
+              "current_native_pr_ci_run_id": int(os.environ["ACTION_RUN_ID"]),
+              "current_native_pr_ci_attempt": int(os.environ["ACTION_RUN_ATTEMPT"]),
+              "current_native_pr_ci_conclusion": "RUNNING_AT_RECEIPT_GENERATION",
+              "fixture_contract": "PASSED_BEFORE_RECEIPT_STEP",
+              "artifact_readback_verified": False,
+              "artifact_readback_status": "MUST_VERIFY_AFTER_UPLOAD",
+              "paid_api_calls": 0,
+              "research_only": True,
+              "production_eligible": False,
+              "automatic_order": False,
+              "automatic_merge": False,
+              "self_review_is_rule_based_not_llm": True
+          }
+          dest=Path("output/sky_534_evidence/latest.json")
+          dest.parent.mkdir(parents=True, exist_ok=True)
+          dest.write_text(json.dumps(receipt, ensure_ascii=False, indent=2)+"\n", encoding="utf-8")
+          print(json.dumps(receipt, ensure_ascii=False))
+          PY
+      - name: Upload isolated #534 evidence receipt for independent readback
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 534
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-pr534-repair-head-receipt-${{ github.run_id }}
+          path: output/sky_534_evidence/latest.json
+          if-no-files-found: error
+          retention-days: 21
