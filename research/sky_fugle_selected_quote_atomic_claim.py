@@ -38,20 +38,44 @@ def claim_selected_quotes(raw: str, *, sha: str, slot: int, create_ref) -> dict:
             raise RuntimeError("DUPLICATE_SELECTED_QUOTE_REF_BLOCKED")
         entries.append({"symbol": symbol, "claim_ref": ref, "outcome": "ATOMIC_WINNER"})
     return {"schema": "SKY_SELECTED_QUOTE_ATOMIC_CLAIM_V1",
-            "symbols": symbols, "claims": entries, "slot": slot,
+            "symbols": symbols, "claims": entries, "slot": slot, "head_sha": sha,
             "claims_verified": len(entries) == len(symbols),
             "no_paid_api": True, "no_orders": True,
             "research_only": True, "production_eligible": False}
 
 
+def verify_selected_receipt(payload: dict, *, raw: str, sha: str, slot: int) -> None:
+    """Consumer job must read the exact claim job's artifact before paid calls."""
+    symbols = validate_symbols(raw)
+    if not isinstance(payload, dict) or payload.get("schema") != "SKY_SELECTED_QUOTE_ATOMIC_CLAIM_V1":
+        raise RuntimeError("INVALID_SELECTED_ATOMIC_RECEIPT_SCHEMA")
+    if payload.get("head_sha") != sha or payload.get("slot") != slot:
+        raise RuntimeError("STALE_SELECTED_ATOMIC_RECEIPT")
+    if payload.get("symbols") != symbols or payload.get("claims_verified") is not True:
+        raise RuntimeError("SELECTED_ATOMIC_RECEIPT_MISMATCH")
+    rows = payload.get("claims")
+    if not isinstance(rows, list) or len(rows) != len(symbols):
+        raise RuntimeError("SELECTED_ATOMIC_CLAIM_COUNT_MISMATCH")
+    for symbol, row in zip(symbols, rows):
+        expected = claim_ref(canonical_fugle_request("GET", "/intraday/quote/" + symbol), slot)
+        if row != {"symbol": symbol, "claim_ref": expected, "outcome": "ATOMIC_WINNER"}:
+            raise RuntimeError("INVALID_SELECTED_ATOMIC_CLAIM")
+
+
 def main() -> None:
+    import sys
     raw = os.environ.get("SKY_SELECTED_SYMBOLS", "")
     sha = os.environ.get("GITHUB_SHA", "")
     slot = int(datetime.now(timezone.utc).timestamp()) // 300
+    output = Path("output/fugle_api_guard/selected_quote_atomic.json")
+    if "--verify" in sys.argv[1:]:
+        verify_selected_receipt(json.loads(output.read_text(encoding="utf-8")),
+                                raw=raw, sha=sha, slot=slot)
+        print("SELECTED_QUOTE_ATOMIC_RECEIPT_VERIFIED")
+        return
     create = github_create_ref(os.environ.get("GITHUB_REPOSITORY", ""),
                                os.environ.get("GH_TOKEN", ""))
     receipt = claim_selected_quotes(raw, sha=sha, slot=slot, create_ref=create)
-    output = Path("output/fugle_api_guard/selected_quote_atomic.json")
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
     print("SELECTED_QUOTE_ATOMIC_REFS_PASS", len(receipt["claims"]))
