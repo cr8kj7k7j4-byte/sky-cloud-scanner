@@ -1,5 +1,26 @@
 name: Sky Chat Bridge Unit Checks
 on:
+  # Research-only free contract CI, no cron and no paid Fugle calls.
+  # Run after integrating latest main into #511; checks use no Fugle credentials.
+  push:
+    branches: [research/fugle-snapshot-diagnostics-20261110]
+    paths:
+      - 'scan_requests/chat/latest.json'
+      - 'research/sky_full_universe_information.py'
+      - 'src/sky_chat_bridge.py'
+      - 'src/sky_scan_readback.py'
+      - 'tests/test_sky_scan_readback.py'
+      - 'tests/test_sky_chat_bridge.py'
+      - 'tests/test_sky_chat_alias_end_to_end.py'
+      - 'tests/test_sky_chat_dispatch_alias.py'
+      - 'scripts/sky_chat_artifact_readback.py'
+      - 'tests/test_sky_chat_artifact_readback.py'
+      - 'tests/test_sky_full_universe_information.py'
+      - '.github/workflows/sky-chat-bridge-tests.yml'
+      - '.github/workflows/sky-chat-bridge.yml'
+      - 'scripts/sky_governed_auto_repair.py'
+      - 'research/sky_governed_auto_repair_smoke_fixture.txt'
+      - 'tests/test_sky_governed_auto_repair.py'
   pull_request:
     paths:
       - 'src/sky_chat_bridge.py'
@@ -17,8 +38,13 @@ on:
       - 'tests/test_sky_stage2_candidate_quotes.py'
       - 'src/sky_mcp_contract.py'
       - 'tests/test_sky_chat_bridge.py'
+      - 'tests/test_sky_chat_alias_end_to_end.py'
+      - 'tests/test_sky_chat_dispatch_alias.py'
+      - 'scripts/sky_chat_artifact_readback.py'
+      - 'tests/test_sky_chat_artifact_readback.py'
       - 'research/sky_snapshot_candidates.py'
       - 'research/sky_full_universe_information.py'
+      - 'tests/test_sky_full_universe_information.py'
       - 'tests/test_sky_snapshot_candidates.py'
       - 'tests/test_sky_mcp_contract.py'
       - 'scripts/sky_governed_auto_repair.py'
@@ -28,6 +54,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 jobs:
   contract-tests:
     runs-on: ubuntu-latest
@@ -40,16 +67,109 @@ jobs:
       - name: Install tested runtime HTTP dependency
         run: pip install requests
       - name: Syntax-check bridge files
-        run: python -m py_compile src/sky_chat_bridge.py src/sky_mcp_contract.py research/sky_snapshot_candidates.py src/sky_stage2_candidate_quotes.py src/sky_stage2_deep_quality.py src/sky_v14_ticker_candles_probe.py research/sky_candidate_e2e_chain.py research/sky_stage5_vwap_cost_evidence.py research/sky_stage5_breakout_antichase_evidence.py
+        run: python -m py_compile scripts/sky_chat_artifact_readback.py src/sky_scan_readback.py research/sky_full_universe_information.py src/sky_chat_bridge.py src/sky_mcp_contract.py research/sky_snapshot_candidates.py src/sky_stage2_candidate_quotes.py src/sky_stage2_deep_quality.py src/sky_v14_ticker_candles_probe.py research/sky_candidate_e2e_chain.py research/sky_stage5_vwap_cost_evidence.py research/sky_stage5_breakout_antichase_evidence.py
       - name: Run isolated contracts without paid credentials
-        run: python -m unittest tests.test_sky_chat_bridge tests.test_sky_mcp_contract tests.test_sky_snapshot_candidates tests.test_sky_stage2_candidate_quotes tests.test_sky_stage2_deep_quality tests.test_sky_v14_ticker_candles_probe tests.test_sky_candidate_e2e_chain tests.test_sky_stage5_vwap_cost_evidence tests.test_sky_stage5_breakout_antichase_evidence tests.test_sky_governed_auto_repair -v
-      - name: Check isolated no-market repair smoke fixture when present
+        run: python -m unittest tests.test_sky_chat_dispatch_alias tests.test_sky_chat_alias_end_to_end tests.test_sky_chat_artifact_readback tests.test_sky_scan_readback tests.test_sky_full_universe_information tests.test_sky_chat_bridge tests.test_sky_mcp_contract tests.test_sky_snapshot_candidates tests.test_sky_stage2_candidate_quotes tests.test_sky_stage2_deep_quality tests.test_sky_v14_ticker_candles_probe tests.test_sky_candidate_e2e_chain tests.test_sky_stage5_vwap_cost_evidence tests.test_sky_stage5_breakout_antichase_evidence -v
+      - name: Preserve main governed auto-repair no-market contracts where available
+        shell: bash
+        run: |
+          if test -f tests/test_sky_governed_auto_repair.py; then
+            python -m unittest tests.test_sky_governed_auto_repair -v
+          fi
+      - name: Preserve main isolated no-market repair smoke fixture check
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
           p = Path("research/sky_governed_auto_repair_smoke_fixture.txt")
           if p.exists():
-              expected = "SKY_GOVERNED_SMOKE_FIXED_V1\n"
+              expected = "SKY_GOVERNED_SMOKE_FIXED_V1\\n"
               assert p.read_text(encoding="utf-8") == expected, "ISOLATED_SMOKE_FIXTURE_REQUIRES_APPROVED_PATCH"
+          PY
+      - name: Prepare synthetic research-only Artifact transport probe
+        env:
+          SKY_PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p output/sky_artifact_transport_probe
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from src.sky_chat_bridge import validate_request
+          from src.sky_scan_readback import canonical_command, COMMANDS
+          request = json.loads(Path("scan_requests/chat/latest.json").read_text(encoding="utf-8"))
+          validate_request(request)
+          # One GitHub-hosted run checks the full alias contract without market API.
+          alias_matrix = {}
+          for alias in sorted(COMMANDS):
+              probe_request = {"command": alias, "request_id": request["request_id"],
+                               "read_only_no_orders": True}
+              assert validate_request(probe_request) == request["request_id"]
+              alias_matrix[alias] = canonical_command(alias)
+          assert len(alias_matrix) == 5, "RESEARCH_ALIAS_MATRIX_INCOMPLETE"
+          proof = {
+              "validated_aliases": alias_matrix,
+              "request_id": request["request_id"],
+              "command": request["command"],
+              "canonical_command": canonical_command(request["command"]),
+              "trigger_event": os.environ["GITHUB_EVENT_NAME"],
+              "trigger_ref": os.environ["GITHUB_REF"],
+              "read_only_no_orders": True,
+              "schema": "SKY_SYNTHETIC_ARTIFACT_TRANSPORT_PROBE_V1",
+              "synthetic": True,
+              "not_market_data": True,
+              "run_id": os.environ["GITHUB_RUN_ID"],
+              "head_sha": os.environ["GITHUB_SHA"],
+              "workflow_checkout_sha": os.environ["GITHUB_SHA"],
+              "pull_request_head_sha": os.environ["SKY_PR_HEAD_SHA"],
+              "sha_scope": "PR_MERGE_CHECKOUT_NOT_HEAD" if os.environ["GITHUB_EVENT_NAME"] == "pull_request" else "CHECKOUT_SHA",
+              "production_eligible": False,
+              "automatic_order": False,
+          }
+          Path("output/sky_artifact_transport_probe/probe.json").write_text(
+              json.dumps(proof, sort_keys=True) + "\n", encoding="utf-8")
+          PY
+      - name: Upload synthetic Artifact transport probe (no market data)
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-synthetic-transport-${{ github.run_id }}
+          path: output/sky_artifact_transport_probe/probe.json
+          if-no-files-found: error
+          retention-days: 3
+      - name: Fetch freshly uploaded synthetic Artifact from GitHub Artifact storage
+        uses: actions/download-artifact@v4
+        with:
+          name: sky-synthetic-transport-${{ github.run_id }}
+          path: /tmp/sky-synthetic-transport
+      - name: Verify downloaded same-run synthetic Artifact content
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          expected = Path("output/sky_artifact_transport_probe/probe.json")
+          downloaded = Path("/tmp/sky-synthetic-transport/probe.json")
+          assert downloaded.read_bytes() == expected.read_bytes(), "SYNTHETIC_ARTIFACT_CONTENT_MISMATCH"
+          data = json.loads(downloaded.read_text(encoding="utf-8"))
+          assert data["schema"] == "SKY_SYNTHETIC_ARTIFACT_TRANSPORT_PROBE_V1"
+          assert data["synthetic"] is True and data["not_market_data"] is True
+          assert data["read_only_no_orders"] is True
+          assert len(data["validated_aliases"]) == 5
+          assert set(data["validated_aliases"].values()) == {"Sky 快掃"}
+          assert data["trigger_event"] in ("push", "pull_request", "workflow_dispatch")
+          from src.sky_chat_bridge import validate_request
+          assert validate_request({"command":data["command"],"request_id":data["request_id"],"read_only_no_orders":True}) == data["request_id"]
+          assert data["run_id"] == os.environ["GITHUB_RUN_ID"]
+          assert data["head_sha"] == os.environ["GITHUB_SHA"]
+          assert data["workflow_checkout_sha"] == os.environ["GITHUB_SHA"]
+          assert len(data["pull_request_head_sha"]) == 40
+          assert all(c in "0123456789abcdef" for c in data["pull_request_head_sha"])
+          assert data["sha_scope"] == ("PR_MERGE_CHECKOUT_NOT_HEAD" if os.environ["GITHUB_EVENT_NAME"] == "pull_request" else "CHECKOUT_SHA")
+          if os.environ["GITHUB_EVENT_NAME"] != "pull_request":
+              assert data["pull_request_head_sha"] == data["workflow_checkout_sha"]
+          assert data["production_eligible"] is False
+          assert data["automatic_order"] is False
+          print("SYNTHETIC_ARTIFACT_STORAGE_DOWNLOAD_PASS")
           PY

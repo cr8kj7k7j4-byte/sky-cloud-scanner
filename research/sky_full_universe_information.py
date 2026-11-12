@@ -18,6 +18,20 @@ from src.realtime_quote_evidence import timestamp_tpe
 TZ = ZoneInfo("Asia/Taipei")
 OUTPUT_DIR = Path("output/sky_quickscan_information")
 MARKET = {"TWSE": "TSE", "TPEx": "OTC"}
+# Fugle explicitly separates Taiwan Innovation Board (TIB) from TSE.
+# TWSE STOCK_DAY_ALL still includes 创-board securities in the TWSE universe.
+INNOVATION_BOARD = "TIB"
+
+
+def expected_snapshot_market(meta):
+    """Official TWSE suffix is discovery evidence, NOT an execution permit."""
+    if meta.get("exchange") == "TWSE" and (
+        meta.get("market") == INNOVATION_BOARD
+        or str(meta.get("name") or "").endswith("創")
+    ):
+        return INNOVATION_BOARD
+    return MARKET[meta["exchange"]]
+
 
 
 def numeric(value):
@@ -34,7 +48,7 @@ def record(meta, payload, source_date, checked_at):
     """No price fabrication, no unverified executions promoted to fresh."""
     result = {
         "symbol": str(meta["symbol"]), "name": meta.get("name", ""),
-        "exchange": meta["exchange"], "market": MARKET[meta["exchange"]],
+        "exchange": meta["exchange"], "market": expected_snapshot_market(meta),
         "source": "Fugle paid bulk snapshot" if payload is not None else "NO_SNAPSHOT_ROW",
         "data_status": "MISSING_QUOTE", "last_price": None,
         "change_pct": None, "volume": None, "last_trade_time": None,
@@ -74,7 +88,12 @@ def record(meta, payload, source_date, checked_at):
     if source_date != checked_at.date().isoformat():
         result["data_status"] = "SNAPSHOT_DATE_NOT_TODAY"
     elif price is None:
-        result["data_status"] = "MISSING_EXECUTED_PRICE"
+        # A returned Snapshot row with explicitly zero reported volume is not
+        # a missing symbol. Never infer suspension or invent a closing price.
+        result["data_status"] = (
+            "ZERO_REPORTED_VOLUME_NO_PRICE" if result["volume"] == 0
+            else "MISSING_EXECUTED_PRICE"
+        )
     elif ts is None:
         result["data_status"] = "UNVERIFIED_EXECUTION_TIME"
     elif ts.date() != checked_at.date() or result["time_age_seconds"] > 180:
@@ -123,22 +142,98 @@ def project_required_fields(row):
 def build(universe, snapshots, checked_at, errors=None):
     by_exchange = {"TWSE": {}, "TPEx": {}}
     statuses = {"TWSE": "MISSING", "TPEx": "MISSING"}
+    expected_tib = {
+        str(meta["symbol"]) for meta in universe
+        if meta.get("exchange") == "TWSE" and expected_snapshot_market(meta) == INNOVATION_BOARD
+    }
+    tib_payload = snapshots.get(INNOVATION_BOARD)
+    tib_valid = isinstance(tib_payload, dict) and isinstance(tib_payload.get("data"), list)
     for exchange, market in MARKET.items():
         data = snapshots.get(market)
         if isinstance(data, dict) and isinstance(data.get("data"), list):
             statuses[exchange] = "RETURNED"
-            for q in data["data"]:
-                if isinstance(q, dict):
-                    code = str(q.get("symbol") or "")
-                    if code:
-                        by_exchange[exchange][code] = (q, str(data.get("date") or ""))
+        # TIB must be fetched independently; do not treat its absence as TSE success.
+        for source_market in ((market, INNOVATION_BOARD) if exchange == "TWSE" and expected_tib else (market,)):
+            source = snapshots.get(source_market)
+            if isinstance(source, dict) and isinstance(source.get("data"), list):
+                for q in source["data"]:
+                    if isinstance(q, dict):
+                        code = str(q.get("symbol") or "")
+                        if code and (source_market != INNOVATION_BOARD or code in expected_tib):
+                            by_exchange[exchange][code] = (q, str(source.get("date") or ""), source_market)
+    if expected_tib and not tib_valid:
+        statuses["TWSE"] = "PARTIAL_TIB_MISSING" if statuses["TWSE"] == "RETURNED" else "MISSING_TSE_AND_TIB"
+    # Snapshot diagnostics are informational; never certify executed-trade coverage.
+    official_sets = {
+        exchange: {str(meta["symbol"]) for meta in universe
+                   if meta.get("exchange") == exchange}
+        for exchange in MARKET
+    }
+    snapshot_integrity = {}
+    for exchange, market in MARKET.items():
+        payload = snapshots.get(market)
+        raw = payload.get("data") if isinstance(payload, dict) else None
+        raw = list(raw) if isinstance(raw, list) else []
+        if exchange == "TWSE" and expected_tib and tib_valid:
+            # Keep raw duplicate/unknown diagnostics; TSE and TIB have distinct markets.
+            raw.extend(tib_payload["data"])
+        symbols = [str(q.get("symbol") or "") for q in raw if isinstance(q, dict)]
+        present = set(symbols) & official_sets[exchange]
+        tib_symbols = {str(q.get("symbol") or "") for q in (tib_payload.get("data") or []) if isinstance(q, dict)} if tib_valid else set()
+        tse_data = snapshots.get("TSE") if exchange == "TWSE" else None
+        tse_symbols = {str(q.get("symbol") or "") for q in (tse_data.get("data") or []) if isinstance(q, dict)} if isinstance(tse_data, dict) else set()
+        missing_tib_endpoint = expected_tib - tib_symbols
+        found_in_tse_not_tib = missing_tib_endpoint & tse_symbols
+        snapshot_integrity[exchange] = {
+            "api_response_valid": statuses[exchange] == "RETURNED",
+            "raw_rows": len(raw),
+            "unique_returned_symbols": len(set(symbols) - {""}),
+            "duplicate_symbol_rows": len(symbols) - len(set(symbols) - {""})
+                - symbols.count(""),
+            "blank_symbol_rows": symbols.count(""),
+            "unexpected_symbols": len(set(symbols) - {""} - official_sets[exchange]),
+            "official_symbols_missing_from_snapshot": len(official_sets[exchange] - present),
+            "official_symbol_coverage_pct": round(
+                100 * len(present) / len(official_sets[exchange]), 2
+            ) if official_sets[exchange] else 0.0,
+            "snapshot_date": payload.get("date") if isinstance(payload, dict) else None,
+            "snapshot_time_is_execution_time": False,
+            "innovation_board_market": INNOVATION_BOARD if exchange == "TWSE" else None,
+            "innovation_board_official_count": len(expected_tib) if exchange == "TWSE" else 0,
+            "innovation_board_api_response_valid": tib_valid if exchange == "TWSE" and expected_tib else None,
+            "innovation_board_missing_count": len(expected_tib - (tib_symbols | tse_symbols)) if exchange == "TWSE" else 0,
+            "innovation_board_missing_from_tib_endpoint_count": len(missing_tib_endpoint) if exchange == "TWSE" else 0,
+            "innovation_board_found_in_tse_not_tib": sorted(found_in_tse_not_tib) if exchange == "TWSE" else [],
+            "innovation_board_source_by_symbol": [
+                {
+                    "symbol": symbol,
+                    "in_tse_snapshot": symbol in tse_symbols,
+                    "in_tib_snapshot": symbol in tib_symbols,
+                    "effective_source": (
+                        "TIB" if symbol in tib_symbols else "TSE" if symbol in tse_symbols else "NOT_RETURNED"
+                    ),
+                }
+                for symbol in sorted(expected_tib)
+            ] if exchange == "TWSE" else [],
+            "missing_official_symbols": [
+                {"symbol": str(meta["symbol"]), "name": str(meta.get("name") or ""),
+                 "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
+                 "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"}
+                for meta in universe
+                if meta.get("exchange") == exchange
+                and str(meta["symbol"]) not in present
+            ],
+        }
     rows = []
     for meta in universe:
         exchange = meta.get("exchange")
         if exchange not in MARKET:
             continue
-        q, date = by_exchange[exchange].get(str(meta["symbol"]), (None, ""))
+        q, date, source_market = by_exchange[exchange].get(str(meta["symbol"]), (None, "", None))
         row = record(meta, q, date, checked_at)
+        row["snapshot_market_source"] = source_market
+        if source_market:
+            row["market"] = source_market
         row["required_fields"] = project_required_fields(row)
         rows.append(row)
     eligible = [x for x in rows if x["last_price"] is not None and x["last_price"] <= 100]
@@ -161,13 +256,46 @@ def build(universe, snapshots, checked_at, errors=None):
         }
         by_market[exchange]["fresh_executed_pct"] = round(
             100 * by_market[exchange]["fresh_executed"] / len(subset), 1) if subset else 0.0
+    # Separate provider coverage from missing execution prices and no-trade observations.
+    # Keep every official symbol in the denominator; these diagnostics never
+    # certify a quote, trading suspension, or an executable order.
+    missing_price_rows = [x for x in rows if x["last_price"] is None]
+    missing_price_diagnostics = [
+        {
+            "symbol": x["symbol"],
+            "name": x["name"],
+            "exchange": x["exchange"],
+            "snapshot_market_source": x.get("snapshot_market_source"),
+            "reported_volume": x.get("volume"),
+            "data_status": x["data_status"],
+            "official_trading_status": "UNVERIFIED",
+        }
+        for x in missing_price_rows
+    ]
     verified = sum(x["data_status"] == "FRESH_EXECUTED_TRADE" for x in rows)
     report = {
         "schema": "SKY_INFORMATION_FIRST_FULL_UNIVERSE_V1",
         "checked_at_tpe": checked_at.isoformat(),
         "universe_count": len(rows), "snapshot_status": statuses,
         "snapshot_errors": errors or {}, "by_exchange": by_market,
+        "snapshot_integrity": snapshot_integrity,
+        "snapshot_api_calls_expected_per_scan": 3 if expected_tib else 2,
+        "individual_quote_calls_are_bounded_separately": True,
         "observed_price_count": sum(x["last_price"] is not None for x in rows),
+        "missing_price_count": len(missing_price_rows),
+        "zero_reported_volume_no_price_count": sum(
+            x["data_status"] == "ZERO_REPORTED_VOLUME_NO_PRICE" for x in missing_price_rows),
+        "missing_price_diagnostics": missing_price_diagnostics,
+        "missing_price_official_status_certified": False,
+        # A valid Snapshot observation is NOT an individual Quote execution certification.
+        "snapshot_reference_coverage_pct": round(
+            100 * sum(x["last_price"] is not None for x in rows) / len(rows), 2
+        ) if rows else 0.0,
+        "snapshot_reference_coverage_denominator": len(rows),
+        "quote_execution_sample_size": 0,
+        "quote_execution_certified_count": 0,
+        "quote_execution_certification_pct": None,
+        "quote_execution_certification_status": "NOT_SAMPLED_IN_SNAPSHOT_STAGE",
         "snapshot_reference_requires_last_trade_time": False,
         "snapshot_reference_without_trade_time_count": sum(
             x["last_price"] is not None and x["last_trade_time"] is None
@@ -263,7 +391,8 @@ def main():
     universe, status = load_official_universe()
     snapshots = {}
     errors = {}
-    for market in MARKET.values():
+    innovation_count = sum(expected_snapshot_market(meta) == INNOVATION_BOARD for meta in universe)
+    for market in list(MARKET.values()) + ([INNOVATION_BOARD] if innovation_count else []):
         try:
             snapshots[market] = snapshot_quotes(market)
         except Exception as exc:
