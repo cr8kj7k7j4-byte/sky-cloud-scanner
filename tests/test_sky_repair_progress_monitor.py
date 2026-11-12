@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from research.sky_repair_progress_monitor import (
-    collect, http_get_json, summarize, write_report, TARGET_PRS,
+    collect, http_get_json, summarize, write_report, route_work_items, TARGET_PRS,
 )
 
 SHA = "a" * 40
@@ -71,6 +71,40 @@ class RepairProgressTests(unittest.TestCase):
         obj = collect(fake)
         self.assertEqual(obj["health"], "BLOCKED_NEEDS_HUMAN_ENGINEERING")
         self.assertEqual(obj["fetch_errors"][0]["pr"], 508)
+
+
+    def test_operator_blocker_does_not_stop_unrelated_off_market_repairs(self):
+        details = [summarize(pr(n), [run()]) for n in TARGET_PRS]
+        now = datetime(2026, 11, 12, 14, 0, tzinfo=timezone.utc)
+        work = route_work_items(details, now, {
+            508: {"action": "Owner must approve external source permission",
+                  "url": "https://github.com/example/repo/settings"}})
+        states = {x["pr"]: x["routing_state"] for x in work["queue"]}
+        self.assertEqual(states[508], "WAIT_USER")
+        self.assertEqual(states[511], "WAIT_MARKET")
+        self.assertEqual(states[531], "READY_FOR_ENGINEERING")
+        self.assertEqual(states[536], "READY_FOR_ENGINEERING")
+        self.assertNotIn(508, work["next_off_market_engineering_prs"])
+        self.assertIn(531, work["next_off_market_engineering_prs"])
+        self.assertEqual(work["operator_notifications"][0]["pr"], 508)
+        self.assertFalse(work["official_trading_day_confirmed"])
+
+    def test_market_clock_is_not_official_market_authorization(self):
+        details = [summarize(pr(511), [run()]),
+                   summarize(pr(536), [run()])]
+        work = route_work_items(details,
+                               datetime(2026, 11, 13, 1, 5, tzinfo=timezone.utc))
+        self.assertTrue(work["session_clock_only"])
+        self.assertEqual(work["queue"][0]["routing_state"],
+                         "WAIT_OFFICIAL_MARKET_CONFIRMATION")
+        self.assertEqual(work["queue"][1]["routing_state"], "DEFER_TO_OFF_MARKET")
+        self.assertFalse(work["official_trading_day_confirmed"])
+
+    def test_operator_blocker_needs_explicit_action_and_url(self):
+        details = [summarize(pr(508), [run()])]
+        with self.assertRaises(ValueError):
+            route_work_items(details, datetime.now(timezone.utc),
+                             {508: {"action": "needs owner"}})
 
     def test_transient_get_retries_only_get_and_caps_at_three_attempts(self):
         count = [0]
