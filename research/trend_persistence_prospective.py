@@ -565,7 +565,35 @@ def main():
     ap.add_argument("--previous-state")
     ap.add_argument("--out", default="output/trend_persistence_prospective")
     args = ap.parse_args()
-    run(args.history_dir, args.previous_state, args.out)
+    try:
+        run(args.history_dir, args.previous_state, args.out)
+    except Exception as exc:
+        # Do not publish or rewrite state when an upstream source fails. The
+        # workflow must remain failed, but retain a safe, actionable artifact.
+        reason = ("FUGLE_ONLY_LEGACY_MIS_BLOCKED"
+                  if isinstance(exc, PermissionError)
+                  and str(exc) == "FREE_MIS_MARKETDATA_DISABLED_BY_USER_POLICY"
+                  else "PROSPECTIVE_UPDATE_FAILED")
+        out = Path(args.out)
+        out.mkdir(parents=True, exist_ok=True)
+        diagnostic = {
+            "schema": "TREND_PERSISTENCE_FAILURE_V1",
+            "generated_at": datetime.now(TZ).isoformat(),
+            "status": "DATA_BLOCKED",
+            "reason": reason,
+            "exception_type": type(exc).__name__,
+            "state_updated": False,
+            "production_change": False,
+            "trade_eligible": False,
+        }
+        (out / "failure.json").write_text(
+            json.dumps(diagnostic, ensure_ascii=False, indent=2), encoding="utf-8")
+        (out / "latest.md").write_text(
+            "# Trend Persistence V1.1 — DATA_BLOCKED\\n"
+            f"- Reason: {reason}\\n"
+            "- No new prospective state or trading signal was produced.\\n",
+            encoding="utf-8")
+        raise
 
 
 if __name__ == "__main__":
