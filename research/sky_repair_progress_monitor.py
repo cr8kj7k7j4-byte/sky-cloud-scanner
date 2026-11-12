@@ -12,6 +12,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
 TARGET_PRS = (508, 511, 512, 531, 536)
@@ -82,7 +83,53 @@ def summarize(pr, runs):
     }
 
 
-def collect(fetch, now=None):
+
+def route_work_items(details, now, user_blockers=None):
+    """Independent fail-closed work routing. This prepares work, never executes it.
+
+    user_blockers map PR numbers to operator action dicts, created only from
+    verified external errors. No guessed missing permissions.
+    """
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        raise ValueError("AWARE_CLOCK_REQUIRED")
+    taipei = now.astimezone(ZoneInfo("Asia/Taipei"))
+    hhmm = taipei.hour * 100 + taipei.minute
+    time_window_only = taipei.isoweekday() <= 5 and 900 <= hhmm < 1330
+    blockers = user_blockers or {}
+    routed, actionable, notify = [], [], []
+    for item in details:
+        number = item["number"]
+        info = blockers.get(number)
+        if info:
+            if not isinstance(info, dict) or not info.get("action") or not info.get("url"):
+                raise ValueError("INVALID_OPERATOR_REQUEST")
+            state = "WAIT_USER"
+            notify.append({"pr": number, "action": info["action"], "url": info["url"]})
+        elif item["status"] == "CLOSED_VERIFY_GOVERNANCE":
+            state = "REVIEW_CLOSED_EVIDENCE"
+        elif item["ci_pending"] > 0:
+            state = "WAIT_CI"
+        elif item["work_window"] == "MARKET_SESSION":
+            # An exchange calendar / real quote remains a separate hard gate.
+            state = "WAIT_OFFICIAL_MARKET_CONFIRMATION" if time_window_only else "WAIT_MARKET"
+        elif time_window_only:
+            state = "DEFER_TO_OFF_MARKET"
+        else:
+            state = "READY_FOR_ENGINEERING"
+            actionable.append(number)
+        routed.append({"pr": number, "routing_state": state,
+                       "next_action": item["next_action"],
+                       "work_window": item["work_window"],
+                       "head_sha": item["head_sha"]})
+    return {"session_clock_only": time_window_only,
+            "operator_notifications": notify,
+            "next_off_market_engineering_prs": actionable,
+            "queue": routed,
+            "ready_is_not_repaired": True,
+            "official_trading_day_confirmed": False}
+
+def collect(fetch, now=None, user_blockers=None):
     now = now or datetime.now(timezone.utc)
     details, errors = [], []
     for number in TARGET_PRS:
@@ -101,8 +148,10 @@ def collect(fetch, now=None):
             errors.append({"pr": number, "reason": type(exc).__name__})
     failed = sum(x["ci_failure"] > 0 for x in details)
     waiting = sum(x["ci_pending"] > 0 for x in details)
+    routing = route_work_items(details, now, user_blockers)
     return {
         "schema": "SKY_W0_REPAIR_PROGRESS_V1",
+        "routing": routing,
         "checked_at_utc": now.astimezone(timezone.utc).isoformat(),
         "run_id": os.getenv("GITHUB_RUN_ID"),
         "watchdog_cadence": "10_MINUTES_BEST_EFFORT_GITHUB_ACTIONS",
@@ -143,6 +192,13 @@ def write_report(report, output=OUTPUT):
     ]
     for p in report["details"]:
         lines.append(f"| #{p['number']} | {p['work_window']} | {p['next_action']} | {p['status']} | {p['ci_success']} | {p['ci_failure']} | {p['ci_pending']} |")
+    lines += ["", "## Work routing (no autonomous code edits)"]
+    for item in report["routing"]["queue"]:
+        lines.append("- PR #{}: {} — {}".format(item["pr"], item["routing_state"], item["next_action"]))
+    if report["routing"]["operator_notifications"]:
+        lines += ["", "## Operator actions — do not block independent repairs"]
+        for item in report["routing"]["operator_notifications"]:
+            lines.append("- PR #{}: {} — {}".format(item["pr"], item["action"], item["url"]))
     lines += ["", "## Unverified gates"] + ["- " + x for x in report["unverified_gates"]]
     if report["fetch_errors"]:
         lines += ["", "## GitHub read errors"] + [
