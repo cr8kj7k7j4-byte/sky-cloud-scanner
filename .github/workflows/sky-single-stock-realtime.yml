@@ -14,8 +14,42 @@ on:
         type: string
 permissions:
   contents: read
+  actions: read
+concurrency:
+  group: sky-fugle-paid-global-research-v1-quote-${{ inputs.symbol || 'default' }}
+  cancel-in-progress: false
 jobs:
+  atomic_quote_claim:
+    # Git ref writes are scoped to a credential-free manual preflight job.
+    if: github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Atomically claim exact stock quote endpoint (NO FUGLE)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SKY_SELECTED_SYMBOLS: ${{ inputs.symbol || '1569' }}
+        run: python -m research.sky_fugle_selected_quote_atomic_claim
+      - name: Publish SHA-pinned stock quote atomic preflight receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-single-atomic-${{ github.run_id }}
+          path: output/fugle_api_guard/selected_quote_atomic.json
+          if-no-files-found: error
+          retention-days: 14
+
   quote:
+    needs: atomic_quote_claim
+    if: github.event_name == 'workflow_dispatch' && needs.atomic_quote_claim.result == 'success'
+    permissions:
+      contents: read
+      actions: read
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -25,9 +59,41 @@ jobs:
           python-version: "3.12"
       - name: Install dependencies
         run: pip install -r requirements.txt
+      - name: Download independent stock quote claim from isolated write job
+        uses: actions/download-artifact@v4
+        with:
+          name: sky-single-atomic-${{ github.run_id }}
+          path: output/fugle_api_guard/
+      - name: Verify SHA, current 5m claim slot and Git remote Ref
+        env:
+          SKY_SELECTED_SYMBOLS: ${{ inputs.symbol || '1569' }}
+        run: python -m research.sky_fugle_selected_quote_atomic_claim --verify
       - name: Test realtime gating without remote API
         run: python -m unittest tests.test_sky_single_stock_realtime -v
+      - name: Reserve shared Fugle paid API window
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SKY_PAID_SCOPE: "sky:quote:${{ inputs.symbol || '1569' }}"
+        run: python -m research.sky_paid_fugle_api_guard --scope "$SKY_PAID_SCOPE"
+      - name: Upload paid reservation before provider call
+        id: claim
+        if: steps.guard.outputs.allowed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.guard.outputs.claim_name }}
+          path: output/fugle_api_guard/claim.json
+          if-no-files-found: error
+          retention-days: 2
+      - name: Verify reservation via GitHub API
+        id: verify_claim
+        if: steps.guard.outputs.allowed == 'true' && steps.claim.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SKY_PAID_SCOPE: "sky:quote:${{ inputs.symbol || '1569' }}"
+        run: python -m research.sky_paid_fugle_api_guard --scope "$SKY_PAID_SCOPE" --verify
       - name: Collect Fugle quote (reference permitted; execution marked separately)
+        if: steps.guard.outputs.allowed == 'true' && steps.verify_claim.outcome == 'success'
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
           SYMBOL: ${{ inputs.symbol || '1569' }}

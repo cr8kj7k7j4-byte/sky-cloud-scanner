@@ -4,6 +4,7 @@ import argparse, json, os, time
 from datetime import date
 from pathlib import Path
 import requests
+from research.sky_fugle_atomic_ref_claim import guard_fugle_request
 
 BASE = "https://api.fugle.tw/marketdata/v1.0/stock"
 UA = "SkyCloudScanner-Research/0.5"
@@ -24,6 +25,8 @@ def get_hist(symbol: str, start: str, end: str, timeframe: str = "5"):
         "fields": "open,high,low,close,volume,average",
         "sort": "asc",
     }
+    # One atomic claim per logical historical query, reused for a 429 retry.
+    guard_fugle_request(url, params)
     r = requests.get(url, params=params, headers=headers(), timeout=30)
     if r.status_code == 404:
         return []

@@ -10,6 +10,8 @@ from pathlib import Path
 
 import requests
 
+from research.sky_fugle_atomic_ref_claim import guard_fugle_request
+
 BASE = "https://api.fugle.tw/marketdata/v1.0/stock"
 UA = "Sky-W3A-PIT-Coverage-Probe/1.0"
 
@@ -149,6 +151,8 @@ def request_one(symbol: str, start: str, end: str, *, max_retries: int = 6):
         "sort": "asc",
     }
     backoff = [5, 10, 20, 30, 45, 60]
+    # Preflight once; 429 retries are not independent data requests.
+    guard_fugle_request(url, params)
     for attempt in range(max_retries + 1):
         r = requests.get(url, params=params, headers=headers(), timeout=30)
         if r.status_code == 404:

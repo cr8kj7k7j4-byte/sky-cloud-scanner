@@ -21,6 +21,9 @@ on:
 permissions:
   contents: write
   actions: read
+concurrency:
+  group: sky-fugle-paid-global-research-v1-live-wholemarket
+  cancel-in-progress: false
 jobs:
   unified:
     runs-on: ubuntu-latest
@@ -32,7 +35,28 @@ jobs:
           python-version: "3.12"
       - name: Install dependencies
         run: pip install -r requirements.txt pytest PyYAML
+      - name: Reserve shared Fugle paid API window
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:live:wholemarket'
+      - name: Upload paid reservation before provider call
+        id: claim
+        if: steps.guard.outputs.allowed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.guard.outputs.claim_name }}
+          path: output/fugle_api_guard/claim.json
+          if-no-files-found: error
+          retention-days: 2
+      - name: Verify reservation via GitHub API
+        id: verify_claim
+        if: steps.guard.outputs.allowed == 'true' && steps.claim.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:live:wholemarket' --verify
       - name: Execute unified mode
+        if: steps.guard.outputs.allowed == 'true' && steps.verify_claim.outcome == 'success'
         id: scan
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}

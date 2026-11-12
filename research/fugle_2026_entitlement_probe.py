@@ -13,6 +13,8 @@ from pathlib import Path
 from research.historical_5m_quality import inspect_history
 
 START, END = "2026-01-01", "2026-11-07"
+from research.sky_fugle_atomic_ref_claim import guard_fugle_request
+
 BASE = "https://api.fugle.tw/marketdata/v1.0/stock"
 SYMBOLS = ("1101", "8088")
 
@@ -45,6 +47,9 @@ def run_probe(api_key, symbols=SYMBOLS, get=None):
             result.update({"status": "MISSING_CREDENTIAL", "permission_verified": False})
         else:
             try:
+                guard_fugle_request(f"{BASE}/historical/candles/{symbol}",
+                    {"from": START, "to": END, "timeframe": "5",
+                     "fields": "open,high,low,close,volume,average", "sort": "asc"})
                 response = get(
                     f"{BASE}/historical/candles/{symbol}",
                     params={"from": START, "to": END, "timeframe": "5",

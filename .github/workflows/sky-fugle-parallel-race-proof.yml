@@ -1,0 +1,78 @@
+name: Sky Fugle Paid Claim Parallel Race Proof (NO PAID)
+on:
+  # PR tokens may be restricted to the point that the GitHub Artifact lookup
+  # receives HTTP 403, which is a correct fail-closed result, not a race proof.
+  # Use an explicitly authorized, no-paid dispatch for the live Artifact test.
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  competing-claim:
+    concurrency:
+      group: sky-fugle-race-${{ github.run_id }}
+      cancel-in-progress: false
+    strategy:
+      fail-fast: false
+      matrix:
+        contender: [alpha, beta]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check matching scope without paid data
+        id: preflight
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_paid_fugle_api_guard --scope ci-race-${{ github.run_id }}
+      - name: Compete for unique GitHub artifact name
+        id: claim
+        if: steps.preflight.outputs.allowed == 'true'
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.preflight.outputs.claim_name }}
+          path: output/fugle_api_guard/claim.json
+          if-no-files-found: error
+          retention-days: 2
+      - name: Only the winning uploaded claim may verify
+        if: steps.preflight.outputs.allowed == 'true' && steps.claim.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_paid_fugle_api_guard --scope ci-race-${{ github.run_id }} --verify
+      - name: Confirm non-winning contender has no paid execution path
+        if: always()
+        shell: bash
+        run: |
+          echo "CONTENDER=${{ matrix.contender }} PREFLIGHT=${{ steps.preflight.outputs.allowed }} CLAIM=${{ steps.claim.outcome }}"
+          echo 'NO_FUGLE_SECRET_EXPOSED_OR_API_CALLED'
+  race-collector:
+    needs: competing-claim
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Require exactly one winner artifact, no paid calls
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          from datetime import datetime, timezone
+          from research.sky_paid_fugle_api_guard import artifact_name, github_lookup, slots
+          scope = "ci-race-" + os.environ["GITHUB_RUN_ID"]
+          name = artifact_name(scope, slots(datetime.now(timezone.utc))[0])
+          matches = github_lookup(os.environ["GITHUB_REPOSITORY"], os.environ["GH_TOKEN"])(name)
+          mine = [a for a in matches if str((a.get("workflow_run") or {}).get("id")) == os.environ["GITHUB_RUN_ID"]]
+          assert len(mine) == 1, ("PARALLEL_RACE_NOT_SINGLE_WINNER", len(mine))
+          print("PARALLEL_SINGLE_WINNER_VERIFIED", name, "ARTIFACT_ID", mine[0]["id"])
+          print("NO_FUGLE_MARKET_REQUESTS")
+          PY

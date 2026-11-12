@@ -17,6 +17,8 @@ from urllib.request import Request, urlopen
 
 from research.three_model_research_signals import generate, verify_bars
 
+from research.sky_fugle_atomic_ref_claim import guard_fugle_request
+
 TPE = timezone(timedelta(hours=8))
 BASE = "https://api.fugle.tw/marketdata/v1.0/stock/historical/candles/"
 
@@ -65,6 +67,10 @@ def read_fugle(symbol, timeframe, start, end, key, get=None):
               "fields":"open,high,low,close,volume","sort":"asc"}
     req = Request(BASE + symbol + "?" + urlencode(params),
                   headers={"X-API-KEY":key,"User-Agent":"Sky-Three-Model-Research/1.0"})
+    # Each historical interval is claimed once, even if HTTP 429 requires retry.
+    # Injected transport remains safe for deterministic offline tests.
+    if get is None:
+        guard_fugle_request(req.full_url)
     for attempt in range(2):
         try:
             if get is None:

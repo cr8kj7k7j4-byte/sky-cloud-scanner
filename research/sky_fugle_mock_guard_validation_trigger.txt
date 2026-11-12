@@ -1,0 +1,3 @@
+Research-only no-paid API guard acceptance trigger.
+Single-use marker for #536 with code and Artifact readback.
+No Fugle secret, no trading, no Production promotion.

@@ -1,0 +1,231 @@
+name: Sky Paid Fugle API Dedup Guard Unit Checks
+on:
+  pull_request:
+    paths:
+      - 'research/sky_paid_fugle_api_guard.py'
+      - 'research/sky_fugle_request_identity.py'
+      - 'research/sky_fugle_atomic_ref_claim.py'
+      - 'research/sky_fugle_atomic_ref_ttl_cleanup.py'
+      - 'tests/test_sky_fugle_atomic_ref_ttl_cleanup.py'
+      - 'tests/test_sky_fugle_atomic_workflow_wiring.py'
+      - 'research/sky_fugle_selected_quote_atomic_claim.py'
+      - 'tests/test_sky_fugle_selected_quote_atomic_claim.py'
+      - '.github/workflows/fugle-2026-entitlement-probe.yml'
+      - 'tests/test_sky_fugle_atomic_ref_claim.py'
+      - 'src/fugle.py'
+      - 'research/download_pit_universe_intraday.py'
+      - 'research/download_intraday.py'
+      - 'research/download_expanded.py'
+      - 'research/probe_fugle_pit_intraday_coverage.py'
+      - 'research/three_model_fugle_pipeline.py'
+      - 'research/fugle_2026_entitlement_probe.py'
+      - 'research/fugle_market_quality_audit.py'
+      - 'src/sky_fugle_stage2_probe.py'
+      - 'tests/test_sky_fugle_paid_http_atomic_boundary.py'
+      - 'tests/test_sky_fugle_direct_http_atomic_paths.py'
+      - 'tests/test_sky_fugle_request_identity.py'
+      - 'research/sky_paid_fugle_api_inventory.py'
+      - 'tests/test_sky_paid_fugle_api_inventory.py'
+      - 'tests/test_sky_paid_fugle_api_guard.py'
+      - '.github/workflows/sky-paid-fugle-api-guard-tests.yml'
+      - '.github/workflows/sky-chat-bridge.yml'
+      - '.github/workflows/sky-fugle-stage2-probe.yml'
+      - '.github/workflows/sky-full-market-private.yml'
+      - '.github/workflows/sky-selected-quote-view.yml'
+      - '.github/workflows/three-model-fugle-private-ledger.yml'
+      - '.github/workflows/sky-unified-commands.yml'
+      - '.github/workflows/sky-single-stock-realtime.yml'
+      - '.github/workflows/swing-live-scan.yml'
+      - '.github/workflows/scan.yml'
+      - '.github/workflows/*.yml'
+  push:
+    branches:
+      - 'research/w0-fugle-api-dedup-guard-20261111'
+    paths:
+      # One explicit research-only mock trigger; never runs on main push.
+      - 'research/sky_fugle_mock_guard_validation_trigger.txt'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  deterministic-guard-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax and isolated guard contract tests (NO FUGLE SECRET)
+        run: |
+          python -m pip install pyyaml requests
+          python -m py_compile research/sky_paid_fugle_api_guard.py
+          python -m unittest tests.test_sky_paid_fugle_api_guard tests.test_sky_paid_fugle_api_inventory tests.test_sky_fugle_request_identity tests.test_sky_fugle_atomic_ref_claim tests.test_sky_fugle_paid_http_atomic_boundary tests.test_sky_fugle_direct_http_atomic_paths tests.test_sky_fugle_atomic_ref_ttl_cleanup tests.test_sky_fugle_atomic_workflow_wiring tests.test_sky_fugle_selected_quote_atomic_claim -v
+      - name: Verify nine paid entrypoints share a guard and refuse unverified claims
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          for path in (
+              ".github/workflows/scan.yml",
+              ".github/workflows/sky-chat-bridge.yml",
+              ".github/workflows/sky-fugle-stage2-probe.yml",
+              ".github/workflows/sky-full-market-private.yml",
+              ".github/workflows/sky-selected-quote-view.yml",
+              ".github/workflows/three-model-fugle-private-ledger.yml",
+              ".github/workflows/sky-unified-commands.yml",
+              ".github/workflows/sky-single-stock-realtime.yml",
+              ".github/workflows/swing-live-scan.yml",
+          ):
+              s = Path(path).read_text(encoding="utf-8")
+              assert "group: sky-fugle-paid-global-research-v1" in s, path
+              assert "research.sky_paid_fugle_api_guard" in s and "--verify" in s, path
+              assert "steps.verify_claim.outcome == 'success'" in s, path
+              assert "actions/upload-artifact@v4" in s, path
+              assert "if-no-files-found: error" in s, path
+              print("GUARDED:", path)
+          PY
+      - name: Verify paid-job fail-closed dependencies across the entire repository
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import yaml
+          from research.sky_paid_fugle_api_inventory import audit
+          result = audit()
+          assert result["unguarded_candidate_count"] == 0, result["unguarded_workflows"]
+          assert result["exemption_count"] == 1, result["verified_configuration_only_exemptions"]
+          for item in result["workflows"]:
+              if item["configuration_only_exemption"]:
+                  continue
+              p = Path(".github/workflows") / item["workflow"]
+              workflow = yaml.safe_load(p.read_text(encoding="utf-8"))
+              jobs = workflow.get("jobs", {})
+              assert item["candidate_guarded"], p
+              if item["central_reservation_job"]:
+                  assert "sky_paid_reservation" in jobs, p
+                  for name, job in jobs.items():
+                      if name == "sky_paid_reservation":
+                          continue
+                      text = p.read_text(encoding="utf-8")
+                      # Only jobs containing the paid secret must depend on the gate.
+                      import re
+                      sections = re.split(r"(?=^  [A-Za-z][\w-]*:\s*$)", text.split("jobs:", 1)[1], flags=re.M)
+                      affected = any(re.search(r"^  " + re.escape(name) + r":\s*$", section, flags=re.M)
+                                     and "secrets.FUGLE_API_KEY" in section for section in sections)
+                      if affected:
+                          needs = job.get("needs", [])
+                          if isinstance(needs, str): needs = [needs]
+                          assert "sky_paid_reservation" in needs, (p, name, needs)
+                  assert "Fail job when claim is rejected or not verified" in text, p
+          print("STATIC_PAID_WORKFLOW_DEPENDENCY_AUDIT_PASS:", result["guard_candidate_count"])
+          PY
+      - name: Prevent merge-triggered paid research on legacy workflows
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import yaml
+          from research.sky_paid_fugle_api_inventory import audit
+          r = audit()
+          central = 0
+          for item in r["workflows"]:
+              if not item["central_reservation_job"]:
+                  continue
+              path = Path(".github/workflows") / item["workflow"]
+              doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+              job = doc["jobs"]["sky_paid_reservation"]
+              assert job.get("if") == "github.event_name == 'workflow_dispatch'", path
+              central += 1
+          assert central == 33, ("CENTRAL_RESERVATION_COUNT_DRIFT", central)
+          print("MERGE_PUSH_PAID_BLOCKED_WORKFLOWS:", central)
+          PY
+      - name: Reject duplicate YAML keys in every paid-gated workflow
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import yaml
+
+          class UniqueKeyLoader(yaml.SafeLoader):
+              pass
+
+          def unique_mapping(loader, node):
+              loader.flatten_mapping(node)
+              result = {}
+              for key_node, value_node in node.value:
+                  key = loader.construct_object(key_node, deep=True)
+                  if key in result:
+                      raise ValueError(f"DUPLICATE_YAML_KEY:{key}")
+                  result[key] = loader.construct_object(value_node, deep=True)
+              return result
+
+          UniqueKeyLoader.add_constructor(
+              yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, unique_mapping)
+          checked = 0
+          for path in sorted(Path(".github/workflows").glob("*.yml")):
+              source = path.read_text(encoding="utf-8")
+              if "research.sky_paid_fugle_api_guard" not in source:
+                  continue
+              with path.open(encoding="utf-8") as handle:
+                  yaml.load(handle, Loader=UniqueKeyLoader)
+              checked += 1
+          assert checked >= 42, ("EXPECTED_GUARDED_WORKFLOWS", checked)
+          print("STRICT_YAML_UNIQUE_KEY_VALIDATED:", checked)
+          PY
+      - name: Reserve mock-only unique GitHub Artifact slot
+        if: github.event_name != 'pull_request'
+        id: reserve
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_paid_fugle_api_guard --scope ci-smoke-${{ github.run_id }}
+      - name: Upload mock-only reservation (NO PAID API)
+        if: github.event_name != 'pull_request' && steps.reserve.outputs.allowed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.reserve.outputs.claim_name }}
+          path: output/fugle_api_guard/claim.json
+          if-no-files-found: error
+          retention-days: 2
+      - name: Independent GitHub API receipt readback
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_paid_fugle_api_guard --verify --scope ci-smoke-${{ github.run_id }}
+      - name: Verify second same-scope request is rejected without Fugle
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          export GITHUB_OUTPUT="$(mktemp)"
+          python -m research.sky_paid_fugle_api_guard --scope ci-smoke-${{ github.run_id }}
+          grep -qx 'allowed=false' "$GITHUB_OUTPUT"
+          echo 'SECOND_PAID_REQUEST_BLOCKED_WITHOUT_FUGLE_API'
+      - name: Reserve different mock request without being falsely blocked
+        if: github.event_name != 'pull_request'
+        id: distinct
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_paid_fugle_api_guard --scope ci-distinct-${{ github.run_id }}
+      - name: Upload different mock request's reservation
+        if: github.event_name != 'pull_request' && steps.distinct.outputs.allowed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.distinct.outputs.claim_name }}
+          path: output/fugle_api_guard/claim.json
+          if-no-files-found: error
+          retention-days: 2
+      - name: Independently read back distinct mock reservation
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_paid_fugle_api_guard --scope ci-distinct-${{ github.run_id }} --verify
+      - name: Inventory other Fugle paid entrypoints without paid calls
+        run: python -m research.sky_paid_fugle_api_inventory
+      - name: Publish explicit inventory and remaining blockers
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-fugle-api-guard-inventory-${{ github.run_id }}
+          path: output/fugle_api_guard/static_inventory.json
+          if-no-files-found: warn
+          retention-days: 30

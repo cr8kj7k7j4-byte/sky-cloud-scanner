@@ -1,5 +1,25 @@
 name: Sky Chat Bridge Unit Checks
 on:
+  # Research-only free contract CI, no cron and no paid Fugle calls.
+  # Run after integrating latest main into #511; checks use no Fugle credentials.
+  push:
+    branches: [research/fugle-snapshot-diagnostics-20261110]
+    paths:
+      - 'research/sky_full_universe_information.py'
+      - 'src/sky_chat_bridge.py'
+      - 'src/sky_scan_readback.py'
+      - 'tests/test_sky_scan_readback.py'
+      - 'tests/test_sky_chat_bridge.py'
+      - 'tests/test_sky_chat_alias_end_to_end.py'
+      - 'tests/test_sky_chat_dispatch_alias.py'
+      - 'scripts/sky_chat_artifact_readback.py'
+      - 'tests/test_sky_chat_artifact_readback.py'
+      - 'tests/test_sky_full_universe_information.py'
+      - '.github/workflows/sky-chat-bridge-tests.yml'
+      - '.github/workflows/sky-chat-bridge.yml'
+      - 'scripts/sky_governed_auto_repair.py'
+      - 'research/sky_governed_auto_repair_smoke_fixture.txt'
+      - 'tests/test_sky_governed_auto_repair.py'
   pull_request:
     paths:
       - 'src/sky_chat_bridge.py'
@@ -17,8 +37,13 @@ on:
       - 'tests/test_sky_stage2_candidate_quotes.py'
       - 'src/sky_mcp_contract.py'
       - 'tests/test_sky_chat_bridge.py'
+      - 'tests/test_sky_chat_alias_end_to_end.py'
+      - 'tests/test_sky_chat_dispatch_alias.py'
+      - 'scripts/sky_chat_artifact_readback.py'
+      - 'tests/test_sky_chat_artifact_readback.py'
       - 'research/sky_snapshot_candidates.py'
       - 'research/sky_full_universe_information.py'
+      - 'tests/test_sky_full_universe_information.py'
       - 'tests/test_sky_snapshot_candidates.py'
       - 'tests/test_sky_mcp_contract.py'
       - 'scripts/sky_governed_auto_repair.py'
@@ -28,6 +53,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 jobs:
   contract-tests:
     runs-on: ubuntu-latest
@@ -40,16 +66,86 @@ jobs:
       - name: Install tested runtime HTTP dependency
         run: pip install requests
       - name: Syntax-check bridge files
-        run: python -m py_compile src/sky_chat_bridge.py src/sky_mcp_contract.py research/sky_snapshot_candidates.py src/sky_stage2_candidate_quotes.py src/sky_stage2_deep_quality.py src/sky_v14_ticker_candles_probe.py research/sky_candidate_e2e_chain.py research/sky_stage5_vwap_cost_evidence.py research/sky_stage5_breakout_antichase_evidence.py
+        run: python -m py_compile scripts/sky_chat_artifact_readback.py src/sky_scan_readback.py research/sky_full_universe_information.py src/sky_chat_bridge.py src/sky_mcp_contract.py research/sky_snapshot_candidates.py src/sky_stage2_candidate_quotes.py src/sky_stage2_deep_quality.py src/sky_v14_ticker_candles_probe.py research/sky_candidate_e2e_chain.py research/sky_stage5_vwap_cost_evidence.py research/sky_stage5_breakout_antichase_evidence.py
       - name: Run isolated contracts without paid credentials
-        run: python -m unittest tests.test_sky_chat_bridge tests.test_sky_mcp_contract tests.test_sky_snapshot_candidates tests.test_sky_stage2_candidate_quotes tests.test_sky_stage2_deep_quality tests.test_sky_v14_ticker_candles_probe tests.test_sky_candidate_e2e_chain tests.test_sky_stage5_vwap_cost_evidence tests.test_sky_stage5_breakout_antichase_evidence tests.test_sky_governed_auto_repair -v
-      - name: Check isolated no-market repair smoke fixture when present
+        run: python -m unittest tests.test_sky_chat_dispatch_alias tests.test_sky_chat_alias_end_to_end tests.test_sky_chat_artifact_readback tests.test_sky_scan_readback tests.test_sky_full_universe_information tests.test_sky_chat_bridge tests.test_sky_mcp_contract tests.test_sky_snapshot_candidates tests.test_sky_stage2_candidate_quotes tests.test_sky_stage2_deep_quality tests.test_sky_v14_ticker_candles_probe tests.test_sky_candidate_e2e_chain tests.test_sky_stage5_vwap_cost_evidence tests.test_sky_stage5_breakout_antichase_evidence -v
+      - name: Preserve main governed auto-repair no-market contracts where available
+        shell: bash
+        run: |
+          if test -f tests/test_sky_governed_auto_repair.py; then
+            python -m unittest tests.test_sky_governed_auto_repair -v
+          fi
+      - name: Preserve main isolated no-market repair smoke fixture check
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
           p = Path("research/sky_governed_auto_repair_smoke_fixture.txt")
           if p.exists():
-              expected = "SKY_GOVERNED_SMOKE_FIXED_V1\n"
+              expected = "SKY_GOVERNED_SMOKE_FIXED_V1\\n"
               assert p.read_text(encoding="utf-8") == expected, "ISOLATED_SMOKE_FIXTURE_REQUIRES_APPROVED_PATCH"
+          PY
+      - name: Prepare synthetic research-only Artifact transport probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p output/sky_artifact_transport_probe
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          proof = {
+              "schema": "SKY_SYNTHETIC_ARTIFACT_TRANSPORT_PROBE_V1",
+              "synthetic": True,
+              "not_market_data": True,
+              "run_id": os.environ["GITHUB_RUN_ID"],
+              "head_sha": os.environ["GITHUB_SHA"],
+              "production_eligible": False,
+              "automatic_order": False,
+          }
+          Path("output/sky_artifact_transport_probe/probe.json").write_text(
+              json.dumps(proof, sort_keys=True) + "\n", encoding="utf-8")
+          PY
+      - name: Upload synthetic Artifact transport probe (no market data)
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-synthetic-transport-${{ github.run_id }}
+          path: output/sky_artifact_transport_probe/probe.json
+          if-no-files-found: error
+          retention-days: 3
+      - name: Verify same-run synthetic Artifact transport independently
+        # Avoid installation-token rate-limit storms on every PR update.
+        # Authorized research push and manual runs retain real ZIP readback.
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/sky-synthetic-transport
+          # GitHub's freshly uploaded Artifact can temporarily return HTTP 404.
+          # Retry only this non-market readback, bounded; all other errors fail closed.
+          for ATTEMPT in 1 2 3 4 5 6 7 8 9 10; do
+            if gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "sky-synthetic-transport-$GITHUB_RUN_ID" --dir /tmp/sky-synthetic-transport 2>/tmp/sky-synthetic-download-error; then
+              break
+            fi
+            if ! grep -q 'HTTP 404: Not Found' /tmp/sky-synthetic-download-error || [ "$ATTEMPT" -eq 10 ]; then
+              cat /tmp/sky-synthetic-download-error >&2
+              exit 1
+            fi
+            sleep 3
+          done
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          expected = Path("output/sky_artifact_transport_probe/probe.json")
+          downloaded = Path("/tmp/sky-synthetic-transport/probe.json")
+          assert downloaded.read_bytes() == expected.read_bytes(), "SYNTHETIC_ARTIFACT_CONTENT_MISMATCH"
+          data = json.loads(downloaded.read_text(encoding="utf-8"))
+          assert data["schema"] == "SKY_SYNTHETIC_ARTIFACT_TRANSPORT_PROBE_V1"
+          assert data["synthetic"] is True and data["not_market_data"] is True
+          assert data["run_id"] == os.environ["GITHUB_RUN_ID"]
+          assert data["head_sha"] == os.environ["GITHUB_SHA"]
+          assert data["production_eligible"] is False
+          assert data["automatic_order"] is False
+          print("SYNTHETIC_ARTIFACT_UPLOAD_AND_EXTERNAL_DOWNLOAD_PASS")
           PY

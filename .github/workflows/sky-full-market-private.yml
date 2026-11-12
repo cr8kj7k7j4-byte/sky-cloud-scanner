@@ -3,7 +3,11 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
   id-token: write
+concurrency:
+  group: sky-fugle-paid-global-research-v1-live-wholemarket
+  cancel-in-progress: false
 jobs:
   private-snapshot:
     if: github.ref == 'refs/heads/main'
@@ -36,7 +40,30 @@ jobs:
         with:
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      - name: Verify guard unit contracts (no paid data)
+        run: python -m unittest tests.test_sky_paid_fugle_api_guard -v
+      - name: Reserve shared Fugle paid API slot (fail closed)
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:live:wholemarket'
+      - name: Publish global reservation before any paid call
+        id: claim
+        if: steps.guard.outputs.allowed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.guard.outputs.claim_name }}
+          path: output/fugle_api_guard/claim.json
+          if-no-files-found: error
+          retention-days: 2
+      - name: Verify GitHub reservation readback (fail closed)
+        id: verify_claim
+        if: steps.guard.outputs.allowed == 'true' && steps.claim.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:live:wholemarket' --verify
       - name: Run paid Fugle market snapshots into private immutable GCS
+        if: steps.guard.outputs.allowed == 'true' && steps.verify_claim.outcome == 'success'
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
           SKY_RESEARCH_GCS_BUCKET: ${{ vars.SKY_RESEARCH_GCS_BUCKET }}

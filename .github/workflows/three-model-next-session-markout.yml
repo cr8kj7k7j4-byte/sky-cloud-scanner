@@ -19,10 +19,49 @@ permissions:
   contents: read
   id-token: write
 concurrency:
-  group: three-model-next-session-markout
+  group: sky-fugle-paid-global-research-v1-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref_name }}-${{ inputs.symbol || inputs.symbols || 'all' }}-${{ inputs.from_date || inputs.start_date || 'start' }}-${{ inputs.end_date || inputs.to_date || 'end' }}
   cancel-in-progress: false
 jobs:
+  sky_paid_reservation:
+    # Fail closed on repository merge and PR; explicit manual permission for paid research only.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Reserve paid API request safely
+        id: reservation
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_paid_fugle_api_guard --workflow-scope
+      - name: Upload sanitized reservation before paid access
+        if: steps.reservation.outputs.allowed == 'true'
+        id: claim
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.reservation.outputs.claim_name }}
+          path: output/fugle_api_guard/claim.json
+          if-no-files-found: error
+          retention-days: 2
+      - name: Independent reservation readback, fail closed
+        if: steps.reservation.outputs.allowed == 'true' && steps.claim.outcome == 'success'
+        id: verify_claim
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_paid_fugle_api_guard --workflow-scope --verify
+      - name: Fail job when claim is rejected or not verified
+        run: |
+          test "${{ steps.reservation.outputs.allowed }}" = "true"
+          test "${{ steps.claim.outcome }}" = "success"
+          test "${{ steps.verify_claim.outcome }}" = "success"
   validate:
+    needs: sky_paid_reservation
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

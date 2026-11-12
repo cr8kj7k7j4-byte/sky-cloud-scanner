@@ -14,9 +14,10 @@ on:
         default: '2026-11-06'
 permissions:
   contents: read
+  actions: read
   id-token: write
 concurrency:
-  group: three-model-fugle-private-ledger
+  group: sky-fugle-paid-global-research-v1-history-three-model-${{ inputs.symbols || 'default' }}-${{ inputs.end_date || 'latest' }}
   cancel-in-progress: false
 jobs:
   research:
@@ -52,7 +53,30 @@ jobs:
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
       - name: Install private GCS client
         run: python -m pip install google-cloud-storage
+      - name: Reserve cross-workflow paid API slot
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SKY_PAID_SCOPE: "sky:history:three-model:${{ inputs.symbols || '1101,8088' }}:${{ inputs.end_date || 'latest' }}"
+        run: python -m research.sky_paid_fugle_api_guard --scope "$SKY_PAID_SCOPE"
+      - name: Publish reservation before paid request
+        id: claim
+        if: steps.guard.outputs.allowed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.guard.outputs.claim_name }}
+          path: output/fugle_api_guard/claim.json
+          if-no-files-found: error
+          retention-days: 2
+      - name: Read back own paid API reservation
+        id: verify_claim
+        if: steps.guard.outputs.allowed == 'true' && steps.claim.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SKY_PAID_SCOPE: "sky:history:three-model:${{ inputs.symbols || '1101,8088' }}:${{ inputs.end_date || 'latest' }}"
+        run: python -m research.sky_paid_fugle_api_guard --scope "$SKY_PAID_SCOPE" --verify
       - name: Query actual paid Fugle candles and write create-only private ledger
+        if: steps.guard.outputs.allowed == 'true' && steps.verify_claim.outcome == 'success'
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
           SKY_RESEARCH_GCS_BUCKET: ${{ vars.SKY_RESEARCH_GCS_BUCKET }}

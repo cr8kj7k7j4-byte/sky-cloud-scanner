@@ -1,0 +1,153 @@
+name: Sky Fugle Atomic Research Fixture Cleanup (NO PAID)
+# One-shot research cleanup; only exact owned test SHA/tag pairs are eligible.
+on:
+  push:
+    branches:
+      - 'research/w0-fugle-api-dedup-guard-20261111'
+    paths:
+      - '.github/workflows/sky-fugle-atomic-fixture-cleanup.yml'
+  schedule:
+    # 05:30 Asia/Taipei; active on default branch only after research approval.
+    - cron: '30 21 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  remove-only-pinned-probe-refs:
+    if: github.ref == 'refs/heads/research/w0-fugle-api-dedup-guard-20261111'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Safely remove exclusively pinned test-owned tags (no market data)
+        id: cleanup
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json, os, subprocess
+          from pathlib import Path
+          from research.sky_fugle_atomic_ref_claim import claim_ref
+          from research.sky_fugle_request_identity import canonical_fugle_request
+
+          # Only these historical mock-run SHAs and their canonical endpoint
+          # refs are eligible; no glob deletes or production tags.
+          targets = {
+              "7e74a8ee9c946419e856ef1aabd4610385eb0b26": ("2330",),
+              "2db4df8c01a548deed45d43bbefde2e6e6673fd9": ("2330",),
+              "feb7ec020d11f065a58a57780fe726a6cfd4bd65": ("2330", "2317"),
+          }
+
+          def remote_target(ref):
+              # git ls-remote uses Git smart transport, not the rate-limited
+              # GitHub Actions REST artifact API.
+              result = subprocess.run(
+                  ["git", "ls-remote", "--refs", "origin", ref],
+                  text=True, capture_output=True, check=True, timeout=20)
+              lines = [line for line in result.stdout.splitlines() if line.strip()]
+              if not lines:
+                  return None
+              if len(lines) != 1:
+                  raise RuntimeError("AMBIGUOUS_REMOTE_TEST_REF")
+              parts = lines[0].split()
+              if len(parts) != 2 or parts[1] != ref:
+                  raise RuntimeError("UNEXPECTED_REMOTE_TEST_REF")
+              return parts[0]
+
+          rows = []
+          for sha, symbols in targets.items():
+              for symbol in symbols:
+                  scope = canonical_fugle_request("GET", "/intraday/quote/" + symbol)
+                  ref = claim_ref(scope, int(sha[:12], 16))
+                  current = remote_target(ref)
+                  if current is None:
+                      rows.append({"status": "ALREADY_ABSENT", "ref": ref})
+                      continue
+                  if current != sha:
+                      raise RuntimeError("UNEXPECTED_TAG_OWNERSHIP_DO_NOT_DELETE")
+                  subprocess.run(["git", "push", "origin", ":" + ref],
+                                 text=True, capture_output=True, check=True,
+                                 timeout=30)
+                  if remote_target(ref) is not None:
+                      raise RuntimeError("TEST_TAG_DELETE_READBACK_FAILED")
+                  rows.append({"status": "DELETED_EXACT_TEST_TAG", "ref": ref})
+          assert len(rows) == 4
+          p = Path("output/fugle_api_guard/fixture_cleanup.json")
+          p.parent.mkdir(parents=True, exist_ok=True)
+          p.write_text(json.dumps({
+              "schema": "SKY_ATOMIC_TEST_FIXTURE_CLEANUP_V1",
+              "run_id": os.environ["GITHUB_RUN_ID"],
+              "head_sha": os.environ["GITHUB_SHA"],
+              "rows": rows,
+              "tag_deletions_verified": True,
+              "fugle_api_requests": 0,
+              "no_orders": True, "research_only": True,
+              "production_eligible": False,
+          }, indent=2) + "\n")
+          print("ATOMIC_TEST_FIXTURE_CLEANUP_PASS", len(rows))
+          PY
+      - name: Preserve a fail-closed cleanup diagnostic on API failure
+        if: always()
+        env:
+          CLEANUP_STEP_OUTCOME: ${{ steps.cleanup.outcome }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          dest = Path("output/fugle_api_guard/fixture_cleanup.json")
+          dest.parent.mkdir(parents=True, exist_ok=True)
+          if not dest.is_file():
+              receipt = {
+                  "schema": "SKY_ATOMIC_TEST_FIXTURE_CLEANUP_V1",
+                  "run_id": os.getenv("GITHUB_RUN_ID"),
+                  "head_sha": os.getenv("GITHUB_SHA"),
+                  "cleanup_verdict": "HOLD_UNVERIFIED",
+                  "reason": "CLEANUP_FAILED_BEFORE_RECEIPT",
+                  "source_step_outcome": os.getenv("CLEANUP_STEP_OUTCOME"),
+                  "rows": [],
+                  "tag_deletions_verified": False,
+                  "fugle_api_requests": 0,
+                  "no_orders": True,
+                  "research_only": True,
+                  "production_eligible": False,
+              }
+              dest.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+              print("ATOMIC_FIXTURE_CLEANUP_HOLD_RECEIPT_WRITTEN")
+          PY
+      - name: Publish sanitized cleanup receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-atomic-fixture-cleanup-${{ github.run_id }}
+          path: output/fugle_api_guard/fixture_cleanup.json
+          if-no-files-found: error
+          retention-days: 30
+
+  prune-expired-research-claims:
+    # Never run a cleanup schedule on research PRs; only approved default main.
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Offline TTL safety contracts (NO FUGLE)
+        run: python -m unittest tests.test_sky_fugle_atomic_ref_ttl_cleanup -v
+      - name: Delete only expired research-ref claims with remote readback
+        id: expiry
+        run: python -m research.sky_fugle_atomic_ref_ttl_cleanup
+      - name: Publish TTL cleanup result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-atomic-ttl-cleanup-${{ github.run_id }}
+          path: output/fugle_api_guard/ttl_cleanup.json
+          if-no-files-found: warn
+          retention-days: 30

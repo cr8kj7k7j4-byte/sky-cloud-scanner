@@ -7,8 +7,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: write
+  actions: read
 concurrency:
-  group: sky-fugle-stage2-probe
+  group: sky-fugle-paid-global-research-v1-stage2-probe
   cancel-in-progress: false
 jobs:
   probe:
@@ -22,9 +23,34 @@ jobs:
       - run: pip install requests
       - name: Run isolated safety tests
         run: python -m unittest tests.test_sky_fugle_stage2_probe -v
+      - name: Verify guard unit contracts (no paid data)
+        run: python -m unittest tests.test_sky_paid_fugle_api_guard -v
+      - name: Reserve shared Fugle paid API slot (fail closed)
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:probe:stage2'
+      - name: Publish global reservation before any paid call
+        id: claim
+        if: steps.guard.outputs.allowed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.guard.outputs.claim_name }}
+          path: output/fugle_api_guard/claim.json
+          if-no-files-found: error
+          retention-days: 2
+      - name: Verify GitHub reservation readback (fail closed)
+        id: verify_claim
+        if: steps.guard.outputs.allowed == 'true' && steps.claim.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:probe:stage2' --verify
       - name: Probe 2 market snapshots and 2 individual quotes
+        if: steps.guard.outputs.allowed == 'true' && steps.verify_claim.outcome == 'success'
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+          SKY_PAID_ATOMIC_ENFORCE: '1'
+          GH_TOKEN: ${{ github.token }}
         run: python -m src.sky_fugle_stage2_probe
       - name: Upload sanitized non-order evidence
         if: always()

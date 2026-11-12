@@ -17,6 +17,10 @@ on:
   # 
 permissions:
   contents: write
+  actions: read
+concurrency:
+  group: sky-fugle-paid-global-research-v1-live-wholemarket
+  cancel-in-progress: false
 
 jobs:
   scan:
@@ -84,15 +88,39 @@ jobs:
           )"
           echo "should_scan=$SHOULD_SCAN" >> "$GITHUB_OUTPUT"
 
-      - name: Diagnose data sources
+      - name: Test paid API reservation guard without market calls
         if: steps.calendar.outputs.should_scan == 'true'
+        run: python -m unittest tests.test_sky_paid_fugle_api_guard -v
+      - name: Reserve shared paid API slot (fail closed)
+        if: steps.calendar.outputs.should_scan == 'true'
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:live:wholemarket'
+      - name: Upload reservation before any paid call
+        if: steps.guard.outputs.allowed == 'true'
+        id: claim
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.guard.outputs.claim_name }}
+          path: output/fugle_api_guard/claim.json
+          if-no-files-found: error
+          retention-days: 2
+      - name: Independently read back own reservation
+        if: steps.guard.outputs.allowed == 'true' && steps.claim.outcome == 'success'
+        id: verify_claim
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:live:wholemarket' --verify
+      - name: Diagnose data sources
+        if: steps.calendar.outputs.should_scan == 'true' && steps.guard.outputs.allowed == 'true' && steps.verify_claim.outcome == 'success'
         env:
           SKY_FUGLE_ONLY_MARKETDATA: "1"
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
         run: python -m src.diagnose_sources | tee source-diagnostics.json
         continue-on-error: true
       - name: Run scanner
-        if: steps.calendar.outputs.should_scan == 'true'
+        if: steps.calendar.outputs.should_scan == 'true' && steps.guard.outputs.allowed == 'true' && steps.verify_claim.outcome == 'success'
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
           MAX_PRICE: "100"
@@ -131,7 +159,7 @@ jobs:
           python -m unittest tests.test_mcr_observation_report -v
           python -m research.mcr_observation_report
       - name: Always publish all-market informational observations (non-trading)
-        if: always() && steps.calendar.outputs.should_scan == 'true'
+        if: always() && steps.calendar.outputs.should_scan == 'true' && steps.guard.outputs.allowed == 'true' && steps.verify_claim.outcome == 'success'
         continue-on-error: true
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
@@ -139,7 +167,7 @@ jobs:
           python -m research.sky_full_universe_information
           cat output/sky_quickscan_information/latest.md >> "$GITHUB_STEP_SUMMARY"
       - name: Verify bounded paid Fugle individual last-trades (research-only)
-        if: always() && steps.calendar.outputs.should_scan == 'true'
+        if: always() && steps.calendar.outputs.should_scan == 'true' && steps.guard.outputs.allowed == 'true' && steps.verify_claim.outcome == 'success'
         continue-on-error: true
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}

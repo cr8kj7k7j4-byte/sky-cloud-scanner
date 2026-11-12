@@ -1,0 +1,60 @@
+name: Sky Atomic Quote Broker Two-Job E2E (NO PAID)
+# Research-branch one-shot proof. Never accesses provider credentials.
+on:
+  push:
+    branches:
+      - 'research/w0-fugle-api-dedup-guard-20261111'
+    paths:
+      - '.github/workflows/sky-atomic-quote-broker-no-paid-proof.yml'
+permissions:
+  contents: read
+jobs:
+  atomic_write_only:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Establish two actual atomic quote Ref claims without Fugle
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SKY_SELECTED_SYMBOLS: '2330,6488'
+        run: python -m research.sky_fugle_selected_quote_atomic_claim
+      - name: Publish same-SHA atomic claim evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-atomic-quote-no-paid-${{ github.run_id }}
+          path: output/fugle_api_guard/selected_quote_atomic.json
+          if-no-files-found: error
+          retention-days: 14
+  verify_read_only:
+    needs: atomic_write_only
+    if: needs.atomic_write_only.result == 'success'
+    permissions:
+      contents: read
+      actions: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Independently download claim artifact in read-only consumer
+        uses: actions/download-artifact@v4
+        with:
+          name: sky-atomic-quote-no-paid-${{ github.run_id }}
+          path: output/fugle_api_guard/
+      - name: Verify current SHA and slot and remote refs without Fugle
+        env:
+          SKY_SELECTED_SYMBOLS: '2330,6488'
+        run: python -m research.sky_fugle_selected_quote_atomic_claim --verify
+      - name: Emit explicit never-paid proof
+        run: |
+          echo 'SKY_ATOMIC_BROKER_2JOB_NO_PAID_E2E_PASS'
+          echo 'FUGLE_API_REQUESTS=0'
+          echo 'NO_ORDERS=true'

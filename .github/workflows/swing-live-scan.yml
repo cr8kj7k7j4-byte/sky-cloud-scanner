@@ -26,9 +26,10 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 concurrency:
-  group: swing-live-${{ github.ref }}-${{ github.event_name }}
+  group: sky-fugle-paid-global-research-v1-live-wholemarket
   cancel-in-progress: false
 
 jobs:
@@ -52,7 +53,28 @@ jobs:
         run: pip install -r requirements.txt pytest
       - name: Test MIS coverage recovery
         run: python -m pytest -q tests/test_official_mis_coverage.py tests/test_swing5d_publish_status.py
+      - name: Reserve shared Fugle paid API window
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:live:wholemarket'
+      - name: Upload paid reservation before provider call
+        id: claim
+        if: steps.guard.outputs.allowed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.guard.outputs.claim_name }}
+          path: output/fugle_api_guard/claim.json
+          if-no-files-found: error
+          retention-days: 2
+      - name: Verify reservation via GitHub API
+        id: verify_claim
+        if: steps.guard.outputs.allowed == 'true' && steps.claim.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:live:wholemarket' --verify
       - name: Run whole-market live swing scan
+        if: steps.guard.outputs.allowed == 'true' && steps.verify_claim.outcome == 'success'
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
           MAX_PRICE: "100"

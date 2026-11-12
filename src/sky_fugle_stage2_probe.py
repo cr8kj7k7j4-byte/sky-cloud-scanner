@@ -17,6 +17,8 @@ import requests
 from src.realtime_quote_evidence import fugle_executed_trade
 
 TPE = ZoneInfo("Asia/Taipei")
+from research.sky_fugle_atomic_ref_claim import guard_fugle_request
+
 BASE = "https://api.fugle.tw/marketdata/v1.0/stock"
 OUTPUT = Path("output/fugle_stage2_probe/latest.json")
 
@@ -71,6 +73,7 @@ def run(request=None, sleeper=time.sleep):
     start = time.monotonic()
     for label, path, params, is_quote in targets:
         try:
+            guard_fugle_request(BASE + path, params)
             response = request(BASE + path, params=params, headers=headers, timeout=20)
             results.append(check(response, label, quote=is_quote))
         except requests.RequestException as exc:
