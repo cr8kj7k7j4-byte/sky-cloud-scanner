@@ -150,7 +150,7 @@ _PATTERNS = [
         CommandRoute(
             "SKY_ALERT_WHOLE_MARKET_OBSERVATION",
             "WHOLE_MARKET_REALTIME_OBSERVATION", True, True, False,
-            "scan.yml: output/sky_quickscan_information/full_universe.json",
+            "research.sky_alert_reader --receipt <downloaded reader_receipt.json> --expected-run-id <GitHub Run ID> --expected-head-sha <GitHub HEAD SHA> (read-only; no scan)",
             "Read-only information-first full TWSE+TPEx universe report, including "
             "unverified or missing quote labels; trade eligibility remains blocked "
             "until independent production gates pass. No automatic orders."

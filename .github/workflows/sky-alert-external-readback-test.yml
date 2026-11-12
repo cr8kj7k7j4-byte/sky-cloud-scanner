@@ -1,0 +1,404 @@
+name: Sky Alert External Artifact Readback (No Market API)
+on:
+  pull_request:
+    paths:
+      - 'research/sky_alert_reader.py'
+      - 'tests/test_sky_alert_reader.py'
+      - '.github/workflows/sky-alert-external-readback-test.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  historical-readback-test:
+    # Remote historical downloads are a bounded manual audit; repeated PR
+    # updates must not exhaust the installation's GitHub Artifact API quota.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install declared dependencies
+        run: pip install -r requirements.txt
+      - name: Download an existing historical scan artifact from GitHub
+        id: historical_download
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: sky-scan-42643956587
+          run-id: 42643956587
+          github-token: ${{ github.token }}
+          path: historical-artifact
+      - name: Re-evaluate at read time; historical data MUST fail closed
+        if: steps.historical_download.outcome == 'success'
+        shell: bash
+        env:
+          TEST_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p output/sky_alert_external_readback
+          set +e
+          python -m research.sky_alert_reader \
+            --input historical-artifact/output/sky_quickscan_information/full_universe.json \
+            --json-output output/sky_alert_external_readback/reader_receipt.json \
+            --markdown-output output/sky_alert_external_readback/latest.md
+          code=$?
+          set -e
+          python - "$code" <<'PY'
+          import json, os, sys
+          from pathlib import Path
+          receipt=json.loads(Path('output/sky_alert_external_readback/reader_receipt.json').read_text(encoding='utf-8'))
+          assert int(sys.argv[1]) == 2, 'historical artifact cannot be current'
+          assert receipt['freshness_status'] in ('STALE_SOURCE', 'DATA_BLOCKED', 'MISSING_SOURCE_TIME')
+          assert receipt['production_eligible'] is False
+          assert receipt['action'] == '禁止交易'
+          report=receipt.get('report')
+          if report:
+              assert report['fresh_executed_count'] == 0
+              assert all(x.get('production_eligible') is False for x in report['all_symbols'])
+          evidence={
+              'schema':'SKY_ALERT_EXTERNAL_HISTORICAL_READBACK_V1',
+              'test_head_sha':os.getenv('TEST_HEAD_SHA'),
+              'source_run_id':42643956587,
+              'source_artifact':'sky-scan-42643956587',
+              'source_is_historical':True,
+              'freshness_status':receipt['freshness_status'],
+              'production_eligible':False,
+              'real_current_scan_verified':False,
+              'mobile_command_verified':False,
+              'result':'PASS_HISTORICAL_FAIL_CLOSED_ONLY',
+          }
+          Path('output/sky_alert_external_readback/test_verdict.json').write_text(json.dumps(evidence,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps(evidence,ensure_ascii=False))
+          PY
+      - name: Verify missing external artifact fails closed with a downloadable receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          python -m research.sky_alert_reader \
+            --input historical-artifact/NO_DOWNLOADED_ARTIFACT.json \
+            --json-output output/sky_alert_external_readback/missing_artifact_receipt.json \
+            --markdown-output output/sky_alert_external_readback/missing_artifact.md
+          code=$?
+          set -e
+          python - "$code" <<'PY'
+          import json, sys
+          from pathlib import Path
+          x=json.loads(Path('output/sky_alert_external_readback/missing_artifact_receipt.json').read_text(encoding='utf-8'))
+          assert int(sys.argv[1]) == 2
+          assert x['freshness_status'] == 'DATA_BLOCKED'
+          assert x['production_eligible'] is False
+          assert x['action'] == '禁止交易'
+          assert x['report'] is None
+          PY
+      - name: Download existing real Chat Bridge full-universe artifact (no new scan)
+        if: steps.historical_download.outcome == 'success'
+        id: bridge_download
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: sky-chat-42967413280
+          run-id: 42967413280
+          github-token: ${{ github.token }}
+          path: historical-chat-bridge
+      - name: Independently read current-day-but-now-stale real bridge report
+        if: steps.historical_download.outcome == 'success' && steps.bridge_download.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          python -m research.sky_alert_reader \
+            --input historical-chat-bridge/sky_quickscan_information/full_universe.json \
+            --json-output output/sky_alert_external_readback/bridge_reader_receipt.json \
+            --markdown-output output/sky_alert_external_readback/bridge_reader.md
+          status=$?
+          set -e
+          python - "$status" <<'PY'
+          import json, sys
+          from pathlib import Path
+          source=json.loads(Path('historical-chat-bridge/sky_quickscan_information/full_universe.json').read_text(encoding='utf-8'))
+          receipt=json.loads(Path('output/sky_alert_external_readback/bridge_reader_receipt.json').read_text(encoding='utf-8'))
+          assert int(sys.argv[1]) == 2, 'expired observed snapshot must not be current'
+          assert source['schema'] == 'SKY_INFORMATION_FIRST_FULL_UNIVERSE_V1'
+          assert source['universe_count'] == len(source['all_symbols']) > 0
+          assert receipt['freshness_status'] == 'STALE_SOURCE'
+          assert receipt['fresh_executed_count_at_read'] == 0
+          assert receipt['production_eligible'] is False
+          assert receipt['action'] == '禁止交易'
+          print('PASS_BRIDGE_ARTIFACT_EXTERNAL_READBACK_FAIL_CLOSED',len(source['all_symbols']))
+          PY
+      - name: Preserve rate-limited or unavailable GitHub artifact diagnostics
+        if: always()
+        shell: bash
+        env:
+          HISTORICAL_OUTCOME: ${{ steps.historical_download.outcome }}
+          BRIDGE_OUTCOME: ${{ steps.bridge_download.outcome }}
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          mkdir -p output/sky_alert_external_readback
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          good=os.environ.get('HISTORICAL_OUTCOME')=='success' and os.environ.get('BRIDGE_OUTCOME')=='success'
+          receipt={
+            'schema':'SKY_ALERT_EXTERNAL_READBACK_DEPENDENCY_V1',
+            'head_sha':os.environ['EXPECTED_HEAD_SHA'],
+            'github_run_id':os.environ['GITHUB_RUN_ID'],
+            'historical_artifact_download':os.environ.get('HISTORICAL_OUTCOME'),
+            'bridge_artifact_download':os.environ.get('BRIDGE_OUTCOME'),
+            'acceptance':'REQUIRES_ARTIFACT_READBACK' if not good else 'SEE_INDEPENDENT_READER_VERDICTS',
+            'rate_limit_or_network_blocker':'CHECK_DOWNLOAD_LOGS' if not good else None,
+            'production_eligible':False,
+            'mobile_command_verified':False,
+          }
+          Path('output/sky_alert_external_readback/dependency_receipt.json').write_text(json.dumps(receipt,indent=2)+'\\n')
+          print(json.dumps(receipt))
+          PY
+      - name: Upload readback evidence even if test fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-alert-historical-readback-${{ github.run_id }}
+          path: output/sky_alert_external_readback/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Reject missing dependency after diagnostic evidence upload
+        if: always()
+        shell: bash
+        env:
+          HISTORICAL_OUTCOME: ${{ steps.historical_download.outcome }}
+          BRIDGE_OUTCOME: ${{ steps.bridge_download.outcome }}
+        run: |
+          if [ "$HISTORICAL_OUTCOME" != "success" ] || [ "$BRIDGE_OUTCOME" != "success" ]; then
+            echo "::error::BLOCKED_DEPENDENCY: GitHub Artifact API unavailable/rate limited. Diagnostic receipt uploaded; no acceptance."
+            exit 1
+          fi
+
+  # Proves a second job can independently download and interpret the artifact
+  # produced by the first job, at this same PR HEAD and Actions run.
+  # This is a research-only pipeline contract test, NOT a paid live scan.
+  same-run-receipt-consumer:
+    needs: historical-readback-test
+    if: github.event_name == 'workflow_dispatch' && needs.historical-readback-test.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    timeout-minutes: 5
+    steps:
+      - name: Download previous job's real report receipts from this run
+        uses: actions/download-artifact@v4
+        with:
+          name: sky-alert-historical-readback-${{ github.run_id }}
+          path: downloaded-receipts
+      - name: Validate downloaded receipts and exact PR head provenance
+        shell: bash
+        env:
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=Path("downloaded-receipts")
+          verdict=json.loads((p/"test_verdict.json").read_text(encoding="utf-8"))
+          historic=json.loads((p/"reader_receipt.json").read_text(encoding="utf-8"))
+          bridge=json.loads((p/"bridge_reader_receipt.json").read_text(encoding="utf-8"))
+          missing=json.loads((p/"missing_artifact_receipt.json").read_text(encoding="utf-8"))
+          assert verdict["test_head_sha"] == os.environ["EXPECTED_HEAD_SHA"], "WRONG_PR_SHA"
+          assert verdict["source_run_id"] == 42643956587
+          assert verdict["source_is_historical"] is True
+          assert verdict["real_current_scan_verified"] is False
+          assert verdict["mobile_command_verified"] is False
+          assert verdict["result"] == "PASS_HISTORICAL_FAIL_CLOSED_ONLY"
+          for receipt in (historic, bridge):
+              assert receipt["schema"] == "SKY_ALERT_READ_RECEIPT_V1"
+              assert receipt["freshness_status"] == "STALE_SOURCE"
+              assert receipt["fresh_executed_count_at_read"] == 0
+              assert receipt["production_eligible"] is False
+              assert receipt["action"] == "禁止交易"
+          assert missing["freshness_status"] == "DATA_BLOCKED"
+          assert missing["production_eligible"] is False
+          print("PASS_SAME_RUN_EXTERNAL_RECEIPT_CONSUMER", os.environ["EXPECTED_RUN_ID"], os.environ["EXPECTED_HEAD_SHA"])
+          PY
+
+  # Always-on PR smoke test: confirms actual cross-job ZIP upload/download
+  # without querying old runs or calling any market-data service. This does
+  # NOT certify the current market or real mobile command integration.
+  same-run-fixture-producer:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run offline alert, routing and Taiwan scan session safety tests
+        shell: bash
+        run: |
+          python -m pip install --disable-pip-version-check pytest requests
+          python -m pytest -q tests/test_sky_alert_reader.py tests/test_sky_command_router.py tests/test_trading_calendar.py
+      - name: Produce synthetic stale-report fail-closed receipt
+        env:
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p output/synthetic_alert_receipt
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          rows=[
+            {'exchange':'TWSE','symbol':'0001','last_price':10,'last_trade_time':'2020-01-01T09:00:00+08:00','data_status':'FRESH_EXECUTED_TRADE'},
+            {'exchange':'TPEx','symbol':'0002','last_price':20,'last_trade_time':'2020-01-01T09:00:00+08:00','data_status':'FRESH_EXECUTED_TRADE'},
+          ]
+          report={
+            'schema':'SKY_INFORMATION_FIRST_FULL_UNIVERSE_V1',
+            'checked_at_tpe':'2020-01-01T09:00:00+08:00',
+            'universe_count':len(rows),
+            'by_exchange':{'TWSE':{'universe':1},'TPEx':{'universe':1}},
+            'all_symbols':rows,
+            'ranked_observations':rows,
+            'observation_mode':'SYNTHETIC_TEST_FIXTURE_NOT_REAL_MARKET',
+          }
+          Path('output/synthetic_alert_receipt/source_fixture.json').write_text(json.dumps(report,ensure_ascii=False)+'\n',encoding='utf-8')
+          PY
+          set +e
+          python -m research.sky_alert_reader \
+            --input output/synthetic_alert_receipt/source_fixture.json \
+            --json-output output/synthetic_alert_receipt/reader_receipt.json \
+            --markdown-output output/synthetic_alert_receipt/latest.md
+          status=$?
+          set -e
+          python - "$status" <<'PY'
+          import json,os,sys
+          from pathlib import Path
+          p=Path('output/synthetic_alert_receipt')
+          r=json.loads((p/'reader_receipt.json').read_text(encoding='utf-8'))
+          assert int(sys.argv[1]) == 2
+          assert r['freshness_status'] == 'STALE_SOURCE'
+          assert r['fresh_executed_count_at_read'] == 0
+          assert r['production_eligible'] is False
+          assert r['action'] == '禁止交易'
+          meta={
+            'schema':'SKY_ALERT_SAME_RUN_MECHANICAL_TEST_V1',
+            'pr_head_sha':os.environ['EXPECTED_HEAD_SHA'],
+            'run_id':os.environ['GITHUB_RUN_ID'],
+            'source_is_synthetic':True,
+            'live_market_verified':False,
+            'mobile_command_verified':False,
+            'result':'PASS_SYNTHETIC_FAIL_CLOSED_ONLY',
+          }
+          (p/'test_verdict.json').write_text(json.dumps(meta,indent=2)+'\n',encoding='utf-8')
+          import hashlib
+          r['provenance']={
+            'schema':'SKY_ALERT_EXTERNAL_READBACK_PROVENANCE_V1',
+            'source_repo':'cr8kj7k7j4-byte/sky-cloud-scanner',
+            'source_run_id':os.environ['GITHUB_RUN_ID'],
+            'source_run_attempt':os.environ['GITHUB_RUN_ATTEMPT'],
+            'source_head_sha':os.environ['EXPECTED_HEAD_SHA'],
+            'source_artifact':'sky-scan-'+os.environ['GITHUB_RUN_ID'],
+            'download_outcome':'success',
+            'input_sha256':hashlib.sha256((p/'source_fixture.json').read_bytes()).hexdigest(),
+            'receipt_report_sha256':hashlib.sha256(json.dumps(
+              r['report'],ensure_ascii=False,sort_keys=True,separators=(',',':'),
+              allow_nan=False).encode('utf-8')).hexdigest(),
+            'production_eligible':False,
+          }
+          (p/'reader_receipt.json').write_text(json.dumps(r,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          PY
+      - name: Upload synthetic test evidence for an independent job
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-alert-mechanical-${{ github.run_id }}
+          path: output/synthetic_alert_receipt/
+          if-no-files-found: error
+          retention-days: 7
+
+  same-run-fixture-consumer:
+    needs: same-run-fixture-producer
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Download artifact uploaded in another job in this run
+        uses: actions/download-artifact@v4
+        with:
+          name: sky-alert-mechanical-${{ github.run_id }}
+          path: downloaded-fixture
+      - name: Independently inspect receipt and run/SHA provenance
+        shell: bash
+        env:
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          root=Path('downloaded-fixture')
+          meta=json.loads((root/'test_verdict.json').read_text(encoding='utf-8'))
+          receipt=json.loads((root/'reader_receipt.json').read_text(encoding='utf-8'))
+          assert meta['pr_head_sha']==os.environ['EXPECTED_HEAD_SHA']
+          assert meta['run_id']==os.environ['EXPECTED_RUN_ID']
+          assert meta['source_is_synthetic'] is True
+          assert meta['live_market_verified'] is False
+          assert meta['mobile_command_verified'] is False
+          assert meta['result']=='PASS_SYNTHETIC_FAIL_CLOSED_ONLY'
+          assert receipt['freshness_status']=='STALE_SOURCE'
+          assert receipt['production_eligible'] is False
+          assert receipt['fresh_executed_count_at_read']==0
+          assert receipt['action']=='禁止交易'
+          print('PASS_SAME_RUN_MECHANICAL_ARTIFACT_READBACK_NO_MARKET_API',os.environ['EXPECTED_RUN_ID'],os.environ['EXPECTED_HEAD_SHA'])
+          PY
+      - name: Invoke read-only Sky 警戒 CLI against downloaded receipt
+        env:
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_RUN_ID: ${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          python -m research.sky_alert_reader \
+            --receipt downloaded-fixture/reader_receipt.json \
+            --expected-run-id "$EXPECTED_RUN_ID" \
+            --expected-head-sha "$EXPECTED_HEAD_SHA" \
+            --json-output verified-mobile-contract/receipt.json \
+            --markdown-output verified-mobile-contract/latest.md
+          status=$?
+          set -e
+          python - "$status" <<'PY'
+          import json,sys
+          from pathlib import Path
+          x=json.loads(Path('verified-mobile-contract/receipt.json').read_text(encoding='utf-8'))
+          assert int(sys.argv[1])==2, 'stale external receipt must not return current'
+          assert x['freshness_status']=='STALE_SOURCE'
+          assert x['provenance_validated_at_read'] is True
+          assert x['external_mobile_command_verified'] is False
+          assert x['production_eligible'] is False
+          assert x['action']=='禁止交易'
+          print('PASS_SKY_ALERT_RECEIPT_CLI_OFFLINE_FAIL_CLOSED')
+          PY

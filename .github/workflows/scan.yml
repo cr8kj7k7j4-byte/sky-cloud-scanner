@@ -20,6 +20,8 @@ permissions:
 
 jobs:
   scan:
+    outputs:
+      should_scan: ${{ steps.calendar.outputs.should_scan }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -76,10 +78,14 @@ jobs:
           SHOULD_SCAN="$(python - <<'PY'
           import json
           from pathlib import Path
+          from src.trading_calendar import scan_session_gate
           x=json.loads(Path("output/trading_calendar_status.json").read_text(encoding="utf-8"))
+          gate=scan_session_gate(x)
+          Path("output/scan_session_gate.json").write_text(
+              json.dumps(gate,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
           if x.get("source_status") != "PASS":
               raise SystemExit("Official trading calendar unavailable; scan withheld.")
-          print("true" if x.get("should_scan") is True else "false")
+          print("true" if gate["should_scan"] else "false")
           PY
           )"
           echo "should_scan=$SHOULD_SCAN" >> "$GITHUB_OUTPUT"
@@ -258,6 +264,16 @@ jobs:
         with:
           path: output/monitor_state.json
           key: sky-monitor-state-${{ github.run_id }}
+      - name: Validate Sky alert artifact freshness (read only, no rescan)
+        if: always() && steps.calendar.outputs.should_scan == 'true'
+        shell: bash
+        run: |
+          # Unit tests belong in PR CI. Never prevent the runtime reader
+          # from producing its fail-closed audit receipt first.
+          python -m research.sky_alert_reader \
+            --input output/sky_quickscan_information/full_universe.json \
+            --json-output output/sky_alert/reader_receipt.json \
+            --markdown-output output/sky_alert/latest.md
       - name: Upload scan report
         if: always()
         uses: actions/upload-artifact@v4
@@ -277,3 +293,99 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: PYTHONPATH=. python research/intraday_scan_failure_alert.py
+
+
+  # External readback: run only AFTER the scan job has uploaded its ZIP.
+  # This is distinct from reading a local file before upload.
+  alert-artifact-readback:
+    needs: scan
+    # An intentionally skipped trading day must not generate a missing-artifact alarm.
+    if: always() && needs.scan.outputs.should_scan == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install readback dependencies
+        run: pip install -r requirements.txt
+      - name: Download uploaded scan artifact from this same run
+        id: artifact_download
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: sky-scan-${{ github.run_id }}
+          path: readback
+      - name: Verify externally downloaded Sky alert input and regenerate receipt
+        if: always()
+        shell: bash
+        env:
+          ARTIFACT_DOWNLOAD_OUTCOME: ${{ steps.artifact_download.outcome }}
+        run: |
+          set -euo pipefail
+          mkdir -p readback-verification
+          # Reader is the runtime acceptance gate; unit tests run in PR CI.
+          # A test harness failure must never suppress its fail-closed receipt.
+          # Even a GitHub download error must yield a fail-closed receipt.
+          if [ "$ARTIFACT_DOWNLOAD_OUTCOME" != "success" ]; then
+            INPUT="readback/NO_DOWNLOADED_ARTIFACT.json"
+          else
+            INPUT="readback/output/sky_quickscan_information/full_universe.json"
+          fi
+          set +e
+          python -m research.sky_alert_reader \
+            --input "$INPUT" \
+            --json-output readback-verification/reader_receipt.json \
+            --markdown-output readback-verification/latest.md
+          READER_EXIT=$?
+          set -e
+          # Seal provenance AFTER the downloaded file has been read, even if
+          # the source was stale or blocked. This is an audit trail, not PASS.
+          INPUT_PATH="$INPUT" READER_EXIT="$READER_EXIT" python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          path = Path(os.environ["INPUT_PATH"])
+          receipt_path = Path("readback-verification/reader_receipt.json")
+          receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+          origin = {
+              "schema": "SKY_ALERT_EXTERNAL_READBACK_PROVENANCE_V1",
+              "source_repo": os.environ["GITHUB_REPOSITORY"],
+              "source_run_id": os.environ["GITHUB_RUN_ID"],
+              "source_run_attempt": os.environ["GITHUB_RUN_ATTEMPT"],
+              "source_head_sha": os.environ["GITHUB_SHA"],
+              "source_artifact": "sky-scan-" + os.environ["GITHUB_RUN_ID"],
+              "download_outcome": os.environ["ARTIFACT_DOWNLOAD_OUTCOME"],
+              "input_sha256": hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None,
+              "reader_exit_code": int(os.environ["READER_EXIT"]),
+              "production_eligible": False,
+              "external_mobile_command_verified": False,
+          }
+          # Seal the exact JSON report the external command will later read.
+          # Not a signature: independent provenance/Artifact identity is still required.
+          if isinstance(receipt.get("report"), dict):
+              from research.sky_alert_reader import receipt_report_sha256
+              origin["receipt_report_sha256"] = receipt_report_sha256(receipt["report"])
+          receipt["provenance"] = origin
+          receipt["production_eligible"] = False
+          receipt["action"] = "禁止交易"
+          receipt_path.write_text(json.dumps(receipt, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          Path("readback-verification/provenance.json").write_text(
+              json.dumps(origin, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+          )
+          print(json.dumps(origin, ensure_ascii=False))
+          PY
+          exit "$READER_EXIT"
+      - name: Upload external readback verdict (including blocked state)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-alert-readback-${{ github.run_id }}
+          path: readback-verification/
+          if-no-files-found: warn
+          retention-days: 90
