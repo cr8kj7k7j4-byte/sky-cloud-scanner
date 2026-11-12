@@ -14,7 +14,15 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
-TARGET_PRS = (506, 508, 510, 511, 512)
+TARGET_PRS = (508, 511, 512, 531, 536)
+NEXT_ACTIONS = {
+    508: ("OFF_MARKET", "WIRE_PAPER_LEDGER_EVENT_SOURCE_AND_VALIDATE_COSTS"),
+    511: ("MARKET_SESSION", "CERTIFY_TWSE_TPEX_EXECUTED_TIMESTAMPS"),
+    512: ("MARKET_SESSION", "VERIFY_CANDLE_CAUSALITY_AND_INTEGRATION"),
+    531: ("OFF_MARKET", "WIRE_REAL_BRIDGE_ARTIFACT_READBACK"),
+    536: ("OFF_MARKET", "VERIFY_CROSS_WORKFLOW_API_RESERVATION"),
+}
+
 OUTPUT = Path("output/sky_repair_progress")
 
 
@@ -60,7 +68,10 @@ def summarize(pr, runs):
         state = "CI_GREEN_DRAFT_REQUIRES_ACCEPTANCE"
     else:
         state = "CI_GREEN_REVIEW_REQUIRED"
+    window, next_action = NEXT_ACTIONS.get(pr.get("number"), ("OFF_MARKET", "REVIEW_BLOCKER"))
     return {
+        "work_window": window, "next_action": next_action,
+        "repair_performed": False, "end_to_end_accepted": False,
         "number": pr.get("number"), "title": pr.get("title"), "url": pr.get("html_url"),
         "head_sha": head, "draft": pr.get("draft"), "state": pr.get("state"),
         "updated_at": pr.get("updated_at"), "status": state,
@@ -94,8 +105,8 @@ def collect(fetch, now=None):
         "schema": "SKY_W0_REPAIR_PROGRESS_V1",
         "checked_at_utc": now.astimezone(timezone.utc).isoformat(),
         "run_id": os.getenv("GITHUB_RUN_ID"),
-        "watchdog_cadence": "5_MINUTES_BEST_EFFORT_GITHUB_ACTIONS",
-        "mode": "READ_ONLY_NO_AUTONOMOUS_CODE_EDITS",
+        "watchdog_cadence": "10_MINUTES_BEST_EFFORT_GITHUB_ACTIONS",
+        "mode": "READ_ONLY_REPAIR_BACKLOG_NO_AUTONOMOUS_CODE_EDITS",
         "monitored_prs": list(TARGET_PRS),
         "details": details, "monitored_count": len(details),
         "ci_failed_pr_count": failed, "ci_active_pr_count": waiting,
@@ -127,11 +138,11 @@ def write_report(report, output=OUTPUT):
         "Checked UTC: " + report["checked_at_utc"],
         "Health: " + report["health"],
         "No Production promotion, no autonomous edits, no orders.", "",
-        "| PR | Status | CI pass | CI fail | CI pending |",
-        "|---|---|---:|---:|---:|",
+        "| PR | Work window | Next action | Status | CI pass | CI fail | CI pending |",
+        "|---|---|---|---|---:|---:|---:|",
     ]
     for p in report["details"]:
-        lines.append(f"| #{p['number']} | {p['status']} | {p['ci_success']} | {p['ci_failure']} | {p['ci_pending']} |")
+        lines.append(f"| #{p['number']} | {p['work_window']} | {p['next_action']} | {p['status']} | {p['ci_success']} | {p['ci_failure']} | {p['ci_pending']} |")
     lines += ["", "## Unverified gates"] + ["- " + x for x in report["unverified_gates"]]
     if report["fetch_errors"]:
         lines += ["", "## GitHub read errors"] + [

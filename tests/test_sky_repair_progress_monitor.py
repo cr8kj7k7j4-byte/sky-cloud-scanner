@@ -50,6 +50,10 @@ class RepairProgressTests(unittest.TestCase):
         obj = collect(fake, datetime(2026, 11, 10, tzinfo=timezone.utc))
         self.assertEqual(len(calls), len(TARGET_PRS) * 2)
         self.assertEqual(obj["health"], "CI_FINISHED_ACCEPTANCE_PENDING")
+        self.assertEqual(obj["watchdog_cadence"], "10_MINUTES_BEST_EFFORT_GITHUB_ACTIONS")
+        self.assertEqual(obj["monitored_prs"], [508, 511, 512, 531, 536])
+        self.assertEqual(obj["details"][1]["work_window"], "MARKET_SESSION")
+        self.assertFalse(obj["details"][0]["repair_performed"])
         self.assertFalse(obj["production_eligible"])
         with tempfile.TemporaryDirectory() as folder:
             write_report(obj, Path(folder))
@@ -59,14 +63,14 @@ class RepairProgressTests(unittest.TestCase):
 
     def test_read_failure_is_not_silent(self):
         def fake(path):
-            if path == "pulls/506":
+            if path == "pulls/508":
                 raise urllib.error.HTTPError("url", 403, "forbidden", {}, None)
             if path.startswith("pulls/"):
                 return pr(int(path.split("/")[1]))
             return {"workflow_runs": [run()]}
         obj = collect(fake)
         self.assertEqual(obj["health"], "BLOCKED_NEEDS_HUMAN_ENGINEERING")
-        self.assertEqual(obj["fetch_errors"][0]["pr"], 506)
+        self.assertEqual(obj["fetch_errors"][0]["pr"], 508)
 
     def test_transient_get_retries_only_get_and_caps_at_three_attempts(self):
         count = [0]
