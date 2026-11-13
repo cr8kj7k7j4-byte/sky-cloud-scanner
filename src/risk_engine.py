@@ -1,4 +1,4 @@
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, replace
 import math
 
 from .execution_engine import ExecutionCostPolicy, evaluate_execution_rr, execution_gate
@@ -6,8 +6,8 @@ from .execution_engine import ExecutionCostPolicy, evaluate_execution_rr, execut
 
 @dataclass(frozen=True)
 class RiskPolicy:
-    risk_per_trade_pct: float = 0.005
-    daily_loss_limit_pct: float = 0.015
+    risk_per_trade_pct: float = 0.01
+    daily_loss_limit_pct: float = 0.02
     max_portfolio_heat_pct: float = 0.03
     max_position_pct: float = 0.20
     correlation_limit_pct: float = 0.02
@@ -134,6 +134,10 @@ def evaluate_trade(
     if reward <= 0:
         reasons.append("Long 模式 Target 必須高於 Entry")
 
+    if int(consecutive_losses or 0) >= 2:
+        reasons.append("連續兩筆停損，禁止新進場")
+    if stop >= entry:
+        reasons.append("做多停損必須低於進場價")
     if state == "LOCKDOWN":
         reasons.append("回撤達 LOCKDOWN 門檻，禁止新開倉")
     if state == "DEFENSIVE" and grade not in (None, "A+"):
@@ -221,6 +225,43 @@ def evaluate_candidate(candidate, portfolio_context, policy=None):
     policy = policy or RiskPolicy()
     candidate = candidate or {}
     portfolio_context = portfolio_context or {}
+    # Brokerage account is NOT needed to evaluate research / PAPER_ONLY risk.
+    # Ledger evidence must instead come from the paper simulator, never a fabricated
+    # "no holdings" assumption. LIVE authorization is out of scope.
+    required_portfolio = ("account_equity", "daily_pnl", "open_risk", "concurrent_positions", "consecutive_losses", "execution_policy")
+    missing = [key for key in required_portfolio if portfolio_context.get(key) is None]
+    if portfolio_context.get("mode") == "PAPER_ONLY":
+        ledger = portfolio_context.get("paper_ledger")
+        if not isinstance(ledger, dict) or ledger.get("mode") != "PAPER_ONLY":
+            missing.append("paper_ledger")
+        else:
+            for key in ("daily_realized_net_pnl_twd", "consecutive_stops", "open_positions", "open_stop_risk_twd"):
+                if ledger.get(key) is None:
+                    missing.append("paper_ledger." + key)
+            if not missing:
+                # Reject mismatched / stale caller counters rather than silently
+                # treating fabricated zero positions as verified.
+                mapping = (("daily_pnl", "daily_realized_net_pnl_twd"),
+                           ("consecutive_losses", "consecutive_stops"),
+                           ("concurrent_positions", "open_positions"),
+                           ("open_risk", "open_stop_risk_twd"))
+                for caller, source in mapping:
+                    if portfolio_context[caller] != ledger[source]:
+                        missing.append("paper_ledger_mismatch." + caller)
+    elif portfolio_context.get("positions_verified") is not True:
+        # Legacy synthetic fixture compatibility, not a broker requirement.
+        missing.append("portfolio_state_evidence")
+    if missing:
+        return {"status": "RISK_INPUT_REQUIRED", "portfolio_allowed": False, "recommended_shares": 0, "required_inputs": sorted(set(missing)), "reasons": ["模擬帳本、損益或成交成本證據不足，禁止推算紙上交易股數"]}
+    # Candidate decisions may not bypass the minimum cost-after-RR gate, even
+    # when a legacy diagnostic policy disabled enforcement.
+    execution_policy = portfolio_context["execution_policy"]
+    if not isinstance(execution_policy, ExecutionCostPolicy):
+        return {"status": "RISK_INPUT_REQUIRED", "portfolio_allowed": False,
+                "recommended_shares": 0, "required_inputs": ["execution_policy"],
+                "reasons": ["缺少有效成本政策，不得建立新進場訊號"]}
+    execution_policy = replace(execution_policy, enforce_gate=True,
+                               min_execution_rr=max(1.5, execution_policy.min_execution_rr))
     return evaluate_trade(
         entry=candidate.get("entry", candidate.get("last")),
         stop=candidate.get("stop"),
@@ -234,5 +275,5 @@ def evaluate_candidate(candidate, portfolio_context, policy=None):
         consecutive_losses=portfolio_context.get("consecutive_losses", 0),
         grade=candidate.get("grade"),
         policy=policy,
-        execution_policy=portfolio_context.get("execution_policy"),
+        execution_policy=execution_policy,
     )

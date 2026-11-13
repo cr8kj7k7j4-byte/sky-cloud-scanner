@@ -76,7 +76,7 @@ def cadence_slots():
             for m in range(0, 60, 5) if (h < 13 or m <= 30)]
 
 
-def audit_status(status):
+def audit_status(status, *, paper_readback=None, signal_source=None, market_source=None):
     """Read actual Sky metadata; never infer scheduled cadence from on-demand run."""
     if not isinstance(status, dict):
         status = {}
@@ -86,22 +86,68 @@ def audit_status(status):
         valid_time = parsed.tzinfo is not None
     except (ValueError, TypeError, AttributeError):
         valid_time = False
+    ledger = paper_readback if isinstance(paper_readback, dict) else {}
+    signal = signal_source if isinstance(signal_source, dict) else {}
+    market = market_source if isinstance(market_source, dict) else {}
+    proof = signal.get("verified_github_provenance")
+    if not isinstance(proof, dict):
+        proof = {}
+    fill_count = ledger.get("paper_fill_count")
+    journal_present = (isinstance(fill_count, int)
+                       and not isinstance(fill_count, bool) and fill_count > 0
+                       and ledger.get("reconciled") is True)
+    signal_verified = (
+        signal.get("reconciled") is True
+        and proof.get("github_metadata_verified") is True
+        and isinstance(signal.get("signal_source_run_id"), str)
+        and bool(signal["signal_source_run_id"])
+        and str(proof.get("signal_run_id")) == signal["signal_source_run_id"]
+        and bool(proof.get("signal_sha"))
+        and bool(proof.get("signal_artifact_id"))
+        and bool(proof.get("artifact_uploaded_at"))
+        and isinstance(signal.get("bar_source_run_id"), str)
+        and bool(signal["bar_source_run_id"])
+    )
+    market_events = market.get("paper_events_produced")
+    market_verified = (
+        market.get("source_artifact_verified") is True
+        and market.get("verdict") == "PAPER_EVENT_CHAIN_RECONCILED_ORIGIN_UNVERIFIED"
+        and isinstance(market_events, int)
+        and not isinstance(market_events, bool)
+        and market_events >= 4
+    )
+    matching_runs = (
+        signal.get("bar_source_run_id") == ledger.get("snapshot_run_id")
+        and bool(ledger.get("snapshot_run_id"))
+        and isinstance(ledger.get("source_artifact"), str)
+        and ledger["source_artifact"].startswith(
+            f"sky-512-5m-evidence-{signal.get('bar_source_run_id')}:")
+        and signal.get("paper_fill_count") == fill_count
+        and signal.get("paper_events_produced") == market_events
+    )
+    cost_verified = ledger.get("paper_cost_arithmetic_reconciled") is True
+    evidence_verified = bool(journal_present and signal_verified
+                             and market_verified and matching_runs and cost_verified)
     return {
         "schema": "SKY_PAPER_ONLY_ACCEPTANCE_V1",
         "mode": "PAPER_ONLY",
         "broker_account_required_for_research": False,
         "broker_account_required_for_future_live_trading": True,
         "source_scan_run": status.get("run_url"),
+        "source_scan_status": status.get("status") or "UNKNOWN",
+        "scan_status_proves_tradable_signal": False,
+        "precommitted_paper_signal_provided": signal_verified,
+        "market_source_independently_verified": market_verified,
         "scan_id": status.get("scan_id"),
         "market_data_timestamp_valid": valid_time,
         "market_data_source": status.get("source"),
         "verified_quote_count": status.get("stage2_verified_executed_count"),
         "vwap_certified_count": status.get("candidate_chain_vwap_certified"),
-        "live_ledger_verified": False,
-        "paper_ledger_provided": False,
-        "paper_fills_provided": False,
-        "paper_after_cost_performance_verified": False,
-        "paper_performance_verdict": "INSUFFICIENT_DATA",
+        "live_ledger_verified": False,  # Not a PAPER_ONLY admission requirement
+        "paper_ledger_provided": ledger.get("reconciled") is True,
+        "paper_fills_provided": journal_present,
+        "paper_after_cost_performance_verified": evidence_verified,
+        "paper_performance_verdict": "VERIFIED_PAPER_ESTIMATE_RESEARCH_ONLY" if evidence_verified else "INSUFFICIENT_DATA",
         "expected_five_minute_slots": len(cadence_slots()),
         "scheduled_slot_evidence_provided": False,
         "schedule_reliability_verdict": "INSUFFICIENT_DATA",
@@ -116,7 +162,19 @@ def audit_status(status):
 def main():
     status_file = Path("docs/SKY_CHAT_LATEST_STATUS.json")
     status = json.loads(status_file.read_text(encoding="utf-8")) if status_file.exists() else {}
-    report = audit_status(status)
+    def read_report(path):
+        try:
+            payload = json.loads(Path(path).read_text(encoding="utf-8"))
+            return payload if isinstance(payload, dict) else {}
+        except (OSError, ValueError):
+            return {}
+    evidence_root = Path("output/sky_p0r_paper_ledger_readback")
+    report = audit_status(
+        status,
+        paper_readback=read_report(evidence_root / "latest.json"),
+        signal_source=read_report(evidence_root / "external_signal_source_status.json"),
+        market_source=read_report(evidence_root / "market_source_status.json"),
+    )
     out = Path("output/sky_paper_only_acceptance")
     out.mkdir(parents=True, exist_ok=True)
     (out / "latest.json").write_text(json.dumps(report, ensure_ascii=False, indent=2)+"\n", encoding="utf-8")

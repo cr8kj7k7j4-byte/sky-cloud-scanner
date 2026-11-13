@@ -82,6 +82,68 @@ class PaperOnlyAcceptanceTest(unittest.TestCase):
         self.assertEqual(result["schedule_reliability_verdict"], "INSUFFICIENT_DATA")
         self.assertFalse(result["production_eligible"])
 
+    def test_paper_performance_needs_ledger_cost_and_independent_sources(self):
+        ledger = {
+            "reconciled": True, "paper_fill_count": 1,
+            "paper_cost_arithmetic_reconciled": True,
+            "snapshot_run_id": "market-run",
+            "source_artifact": "sky-512-5m-evidence-market-run:artifact-10",
+        }
+        signal = {
+            "reconciled": True, "signal_source_run_id": "signal-run",
+            "bar_source_run_id": "market-run", "paper_fill_count": 1,
+            "paper_events_produced": 4,
+            "verified_github_provenance": {
+                "github_metadata_verified": True,
+                "signal_run_id": "signal-run", "signal_sha": "a" * 40,
+                "signal_artifact_id": "artifact-9",
+                "artifact_uploaded_at": "2026-11-11T09:05:00+08:00",
+            },
+        }
+        market = {
+            "source_artifact_verified": True,
+            "verdict": "PAPER_EVENT_CHAIN_RECONCILED_ORIGIN_UNVERIFIED",
+            "paper_events_produced": 4,
+        }
+        result = audit_status({}, paper_readback=ledger,
+                              signal_source=signal, market_source=market)
+        self.assertTrue(result["paper_fills_provided"])
+        self.assertTrue(result["paper_after_cost_performance_verified"])
+        self.assertEqual(result["paper_performance_verdict"],
+                         "VERIFIED_PAPER_ESTIMATE_RESEARCH_ONLY")
+        self.assertFalse(result["production_eligible"])
+        for bad_signal, bad_market, bad_ledger in (
+            ({}, market, ledger),
+            (signal, {}, ledger),
+            (signal, market, {**ledger, "paper_cost_arithmetic_reconciled": False}),
+            (signal, market, {**ledger, "reconciled": False}),
+            (signal, market, {**ledger, "paper_fill_count": 0}),
+            ({**signal, "reconciled": False}, market, ledger),
+            ({**signal, "bar_source_run_id": "other-market"}, market, ledger),
+            ({**signal, "signal_source_run_id": "other-signal"}, market, ledger),
+            ({**signal, "paper_fill_count": 2}, market, ledger),
+            ({**signal, "paper_events_produced": 5}, market, ledger),
+            (signal, {**market, "source_artifact_verified": False}, ledger),
+            (signal, {**market, "paper_events_produced": 5}, ledger),
+            (signal, {**market, "verdict": "INSUFFICIENT_DATA"}, ledger),
+            (signal, market, {**ledger, "source_artifact": "unrelated-source"}),
+            (signal, market, {**ledger, "snapshot_run_id": "other-market"}),
+        ):
+            with self.subTest(signal=bad_signal, market=bad_market, ledger=bad_ledger):
+                bad = audit_status({}, paper_readback=bad_ledger,
+                                   signal_source=bad_signal, market_source=bad_market)
+                self.assertFalse(bad["paper_after_cost_performance_verified"])
+                self.assertEqual(bad["paper_performance_verdict"], "INSUFFICIENT_DATA")
+
+    def test_failed_scan_does_not_become_a_paper_signal(self):
+        result = audit_status({"status": "FAILED_NO_STATUS"})
+        self.assertEqual(result["source_scan_status"], "FAILED_NO_STATUS")
+        self.assertFalse(result["scan_status_proves_tradable_signal"])
+        self.assertFalse(result["precommitted_paper_signal_provided"])
+        self.assertFalse(result["market_source_independently_verified"])
+        self.assertEqual(result["paper_performance_verdict"], "INSUFFICIENT_DATA")
+        self.assertFalse(result["production_eligible"])
+
     def test_invalid_timestamp_keeps_unverified(self):
         self.assertFalse(audit_status({"data_timestamp": "not-a-time"})["market_data_timestamp_valid"])
 

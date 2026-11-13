@@ -14,7 +14,8 @@ class RuntimeDriftTest(unittest.TestCase):
                          by["missing_execution_inputs_block"]["observed"]["risk"] == "BLOCK"
                          and by["missing_execution_inputs_block"]["observed"]["execution"] == "EXECUTION_INPUT_REQUIRED")
         self.assertFalse(r["risk_production_eligible"])
-        self.assertFalse(r["current_portfolio_ledger_verified"])
+        self.assertFalse(r["paper_ledger_verified"])
+        self.assertFalse(r["broker_account_required_for_research"])
 
     def test_two_loss_safety_requires_real_engine_block_not_config_label(self):
         from src import config
@@ -37,7 +38,7 @@ class RuntimeDriftTest(unittest.TestCase):
         self.assertFalse(r["real_slippage_and_fill_verified"])
         self.assertFalse(r["automatic_order"])
         self.assertEqual(r["trade_action"],"禁止交易")
-        self.assertIn(r["verdict"],("CONFIG_AND_EVIDENCE_BLOCKED","LIVE_LEDGER_AND_EXECUTION_EVIDENCE_REQUIRED"))
+        self.assertIn(r["verdict"],("CONFIG_AND_EVIDENCE_BLOCKED","PAPER_LEDGER_AND_EXECUTION_EVIDENCE_REQUIRED"))
 
 if __name__=="__main__":
     unittest.main()
