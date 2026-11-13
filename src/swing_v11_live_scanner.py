@@ -189,6 +189,13 @@ def intraday_execution_decision(current_price: float | None, entry_open: float |
     return "WAIT_PULLBACK", "等待", "現價高於 D+1 開盤參考價；等待回到開盤價或以下，不追價。"
 
 
+def research_only_action(action: str, note: str) -> tuple[str, str]:
+    """Keep model trigger evidence without presenting research as trade approval."""
+    if action == "買進":
+        return "觀察", note + " V1.1 尚未通過正式治理驗證，僅供研究觀察，禁止新進場。"
+    return action, note
+
+
 def fetch_candidate_live_quotes(frozen_pass: list[dict], universe: list[dict], now=None):
     """Fetch live quotes only for already-frozen V1.1 candidates.
 
@@ -327,6 +334,9 @@ def run(history_dir: str, top_n: int = 20):
             overlay_status = session_status
             current_action = "等待" if session_status == "PREOPEN_WAIT" else "禁止交易"
             overlay_note = session_text
+
+        # Keep trigger evidence, but never publish an authorized buy action.
+        current_action, overlay_note = research_only_action(current_action, overlay_note)
 
         item = {
             **sig,
