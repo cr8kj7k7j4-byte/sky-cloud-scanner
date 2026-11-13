@@ -1,7 +1,12 @@
+import json
+import os
+import tempfile
 import unittest
+from pathlib import Path
+from unittest.mock import patch
 from datetime import datetime, timedelta, timezone
 
-from research.sky_w3b_repair_monitor import decide
+from research.sky_w3b_repair_monitor import decide, monitor
 
 NOW = datetime(2026, 11, 10, 13, 0, tzinfo=timezone.utc)
 SHA = "a" * 40
@@ -52,6 +57,26 @@ class W3BRepairMonitorTests(unittest.TestCase):
         result = decide(pr(state="closed", merged=True), [run()], NOW)
         self.assertEqual(result["action"], "review_required")
         self.assertFalse(result["w0_p0g_approved"])
+
+
+    def test_closed_unmerged_monitor_records_blocker_without_failing_watchdog(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "w3b_repair_monitor.json"
+            def fake_api(method, url, token):
+                if "/pulls/512" in url:
+                    return pr(state="closed")
+                if "/actions/runs?" in url:
+                    return {"workflow_runs": [run(conclusion="failure")]}
+                self.fail("Unexpected request: " + method + " " + url)
+            with patch("research.sky_w3b_repair_monitor.api", side_effect=fake_api), \
+                 patch("research.sky_w3b_repair_monitor.OUTPUT", path), \
+                 patch.dict(os.environ, {"GH_TOKEN":"test", "GITHUB_REPOSITORY":"example/repo", "SKY_W3B_SAFE_CI_RETRY":"true"}):
+                monitor()
+            report = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(report["reason"], "PR_CLOSED_UNMERGED")
+            self.assertEqual(report["action"], "blocked")
+            self.assertFalse(report["production_eligible"])
+            self.assertFalse(report["real_market_5m_certified"])
 
 
 if __name__ == "__main__":
