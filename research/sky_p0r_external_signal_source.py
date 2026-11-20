@@ -80,6 +80,8 @@ def _receipt_from_github(repo, run_id, fetch=_gh_api, downloader=None):
     receipt["signal_artifact_id"] = str(artifact["id"])
     original_published = _at(receipt.get("published_at"))
     signal_time = _at((receipt.get("signal") or {}).get("signal_time"))
+    if original_published is None or signal_time is None:
+        raise ValueError("SIGNAL_TIMESTAMPS_UNAVAILABLE")
     if original_published < signal_time:
         raise ValueError("SIGNAL_PUBLISHED_BEFORE_CREATION")
     # Local receipt timestamps are not proof of precommitment.
@@ -107,6 +109,9 @@ def main():
     if not run_id:
         status = _hold("NO_EXTERNAL_PRECOMMITTED_SIGNAL_RUN_CONFIGURED",
                        source_run_id=source_run)
+    elif not os.getenv("SKY_P0R_APPROVED_SIGNAL_WORKFLOW_ID", "").strip().isdigit():
+        status = _hold("APPROVED_SIGNAL_WORKFLOW_ID_NOT_CONFIGURED",
+                       source_run_id=source_run, signal_run_id=run_id)
     elif bars is None:
         status = _hold("VERIFIED_MARKET_BARS_MISSING",
                        source_run_id=source_run, signal_run_id=run_id)
