@@ -67,6 +67,14 @@ class ReadbackContracts(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     check(x)
 
+    def test_verified_count_cannot_exceed_observed_prices(self):
+        for invalid in (1958, 1986, -1, True):
+            with self.subTest(verified=invalid):
+                x = good()
+                x["stage2_verified_executed_count"] = invalid
+                with self.assertRaisesRegex(ValueError, "INVALID_COVERAGE_COUNTS"):
+                    check(x)
+
     def test_invalid_timestamps_are_rejected(self):
         for key in ("completed_at_utc", "data_timestamp"):
             for val in (None, "bad", "2026-11-11T09:10:00"):
