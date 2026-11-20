@@ -30,6 +30,11 @@ concurrency:
   cancel-in-progress: false
 jobs:
   scan:
+    # The integration branch can only use an explicitly selected command.
+    if: >-
+      ${{ github.ref != 'refs/heads/research/sky-536-531-guard-readback' ||
+          (github.event_name == 'workflow_dispatch' &&
+           inputs.command != '' && inputs.command != 'use_saved_request') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
