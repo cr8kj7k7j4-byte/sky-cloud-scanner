@@ -1,7 +1,7 @@
 name: Sky Chat On-Demand Scan Bridge
 on:
   push:
-    branches: [main]
+    branches: [main, research/sky-mobile-paper-integration]
     paths:
       - 'scan_requests/chat/latest.json'
   workflow_dispatch:
@@ -30,6 +30,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   scan:
+    if: github.event_name != 'push' || github.ref == 'refs/heads/main' || github.event.head_commit.message == 'test(research): run one bounded TIB bridge acceptance'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
