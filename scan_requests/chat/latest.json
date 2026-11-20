@@ -1,6 +1,6 @@
 {
   "command": "Sky 快掃",
-  "request_id": "chat-20261111-0904-live-intraday",
+  "request_id": "chat-research-tib-acceptance-20261121",
   "read_only_no_orders": true,
-  "reason": "One-time authorized live market data validation; market snapshot + limited Quote + 5-minute bars; no schedules resumed; NO_TRADE until verified."
+  "reason": "One authorized research-only Fugle bridge acceptance"
 }
