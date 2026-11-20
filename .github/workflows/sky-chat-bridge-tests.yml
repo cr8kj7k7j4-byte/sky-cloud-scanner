@@ -3,7 +3,9 @@ on:
   # Research-only free contract CI, no cron and no paid Fugle calls.
   # Run after integrating latest main into #511; checks use no Fugle credentials.
   push:
-    branches: [research/fugle-snapshot-diagnostics-20261110]
+    branches:
+      - research/fugle-snapshot-diagnostics-20261110
+      - research/sky-536-531-guard-readback
     paths:
       - 'research/sky_full_universe_information.py'
       - 'src/sky_chat_bridge.py'
