@@ -83,7 +83,7 @@ def validate_scan_readback(
     observed = status.get("observed_price_count")
     verified = status.get("stage2_verified_executed_count")
     if (type(observed) is not int or not 0 <= observed <= universe
-            or type(verified) is not int or verified < 0):
+            or type(verified) is not int or not 0 <= verified <= observed):
         raise ValueError("INVALID_COVERAGE_COUNTS")
     captured = _parse_time(status.get("data_timestamp"), "SNAPSHOT_CAPTURE_AT")
     if captured > current + timedelta(seconds=30):
