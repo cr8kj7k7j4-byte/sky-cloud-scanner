@@ -7,6 +7,7 @@ on:
       - research/fugle-snapshot-diagnostics-20261110
       - research/sky-536-531-guard-readback
     paths:
+      - 'research/fixtures/sky_mobile_transport_request.json'
       - 'research/sky_full_universe_information.py'
       - 'src/sky_chat_bridge.py'
       - 'src/sky_scan_readback.py'
@@ -95,6 +96,9 @@ jobs:
           python - <<'PY'
           import json, os
           from pathlib import Path
+          from src.sky_chat_bridge import validate_request
+          from src.sky_scan_readback import canonical_command
+
           proof = {
               "schema": "SKY_SYNTHETIC_ARTIFACT_TRANSPORT_PROBE_V1",
               "synthetic": True,
@@ -104,6 +108,18 @@ jobs:
               "production_eligible": False,
               "automatic_order": False,
           }
+          if (
+              os.environ["GITHUB_EVENT_NAME"] == "push"
+              and os.environ["GITHUB_REF_NAME"] == "research/sky-536-531-guard-readback"
+          ):
+              payload = json.loads(
+                  Path("research/fixtures/sky_mobile_transport_request.json").read_text(encoding="utf-8")
+              )
+              proof.update(
+                  request_id=validate_request(payload),
+                  command=canonical_command(payload["command"]),
+                  trigger_event="push",
+              )
           Path("output/sky_artifact_transport_probe/probe.json").write_text(
               json.dumps(proof, sort_keys=True) + "\n", encoding="utf-8")
           PY
