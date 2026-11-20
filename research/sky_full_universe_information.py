@@ -7,6 +7,7 @@ but cannot count toward verified live coverage or become a trade signal.
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -21,6 +22,11 @@ MARKET = {"TWSE": "TSE", "TPEx": "OTC"}
 # Fugle explicitly separates Taiwan Innovation Board (TIB) from TSE.
 # TWSE STOCK_DAY_ALL still includes 创-board securities in the TWSE universe.
 INNOVATION_BOARD = "TIB"
+# Exact exclusion list verified in #511 for the research bridge.
+RESEARCH_EXCLUDED_SYMBOLS = frozenset(
+    ("2237 2254 2258 2432 3150 4195 4582 4590 6534 6645 6771 6854 6908 6921 "
+     "6924 6949 6951 6955 6969 6988 7610 7631 7730 7740 7803 7812 7823 7827 7835 8162 8487").split()
+)
 
 
 def expected_snapshot_market(meta):
@@ -134,7 +140,7 @@ def project_required_fields(row):
     return fields
 
 
-def build(universe, snapshots, checked_at, errors=None):
+def build(universe, snapshots, checked_at, errors=None, *, tib_required=True):
     by_exchange = {"TWSE": {}, "TPEx": {}}
     statuses = {"TWSE": "MISSING", "TPEx": "MISSING"}
     expected_tib = {
@@ -156,7 +162,7 @@ def build(universe, snapshots, checked_at, errors=None):
                         code = str(q.get("symbol") or "")
                         if code and (source_market != INNOVATION_BOARD or code in expected_tib):
                             by_exchange[exchange][code] = (q, str(source.get("date") or ""), source_market)
-    if expected_tib and not tib_valid:
+    if expected_tib and tib_required and not tib_valid:
         statuses["TWSE"] = "PARTIAL_TIB_MISSING" if statuses["TWSE"] == "RETURNED" else "MISSING_TSE_AND_TIB"
     # Snapshot diagnostics are informational; never certify executed-trade coverage.
     official_sets = {
@@ -258,7 +264,7 @@ def build(universe, snapshots, checked_at, errors=None):
         "universe_count": len(rows), "snapshot_status": statuses,
         "snapshot_errors": errors or {}, "by_exchange": by_market,
         "snapshot_integrity": snapshot_integrity,
-        "snapshot_api_calls_expected_per_scan": 3 if expected_tib else 2,
+        "snapshot_api_calls_expected_per_scan": 3 if expected_tib and tib_required else 2,
         "individual_quote_calls_are_bounded_separately": True,
         "observed_price_count": sum(x["last_price"] is not None for x in rows),
         # A valid Snapshot observation is NOT an individual Quote execution certification.
@@ -366,8 +372,30 @@ def main():
     snapshots = {}
     errors = {}
     http_statuses = {}
-    innovation_count = sum(expected_snapshot_market(meta) == INNOVATION_BOARD for meta in universe)
-    for market in list(MARKET.values()) + ([INNOVATION_BOARD] if innovation_count else []):
+    excluded_symbols = set()
+    research_scope = os.getenv("GITHUB_REF") == "refs/heads/research/sky-mobile-paper-integration"
+    if research_scope:
+        excluded_symbols = {str(meta["symbol"]) for meta in universe} & RESEARCH_EXCLUDED_SYMBOLS
+        universe = [meta for meta in universe if str(meta["symbol"]) not in excluded_symbols]
+    retained_tib = {
+        str(meta["symbol"]) for meta in universe
+        if expected_snapshot_market(meta) == INNOVATION_BOARD
+    }
+
+    markets = list(MARKET.values())
+    if retained_tib:
+        markets.append(INNOVATION_BOARD)
+    tib_required = bool(retained_tib)
+    for market in markets:
+        if market == INNOVATION_BOARD and research_scope:
+            tse_payload = snapshots.get("TSE")
+            tse_rows = tse_payload.get("data") if isinstance(tse_payload, dict) else None
+            tse_symbols = {
+                str(row.get("symbol")) for row in tse_rows if isinstance(row, dict)
+            } if isinstance(tse_rows, list) else set()
+            if retained_tib <= tse_symbols:
+                tib_required = False
+                continue
         try:
             snapshots[market] = snapshot_quotes(market)
         except Exception as exc:
@@ -377,7 +405,9 @@ def main():
             code = getattr(response, "status_code", None)
             if type(code) is int and 400 <= code <= 599:
                 http_statuses[market] = code
-    report = build(universe, snapshots, checked_at, errors)
+    report = build(universe, snapshots, checked_at, errors, tib_required=tib_required)
+    if research_scope:
+        report["excluded_research_symbols"] = sorted(excluded_symbols)
     report["snapshot_http_statuses"] = http_statuses
     report["official_universe_warnings"] = status.get("warnings", [])
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
