@@ -208,7 +208,16 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/sky-chat-downloaded output/chat_bridge_readback
-          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "sky-chat-$GITHUB_RUN_ID" --dir /tmp/sky-chat-downloaded
+          for attempt in {1..10}; do
+            if gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "sky-chat-$GITHUB_RUN_ID" --dir /tmp/sky-chat-downloaded 2>/tmp/sky-chat-download-error; then
+              break
+            fi
+            if [[ "$attempt" == 10 ]] || ! grep -q 'HTTP 404: Not Found' /tmp/sky-chat-download-error; then
+              cat /tmp/sky-chat-download-error >&2
+              exit 1
+            fi
+            sleep 3
+          done
           HEAD_SHA=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --jq '.head_sha')
           ARTIFACT_ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" | python -c 'import json,os,sys; a=json.load(sys.stdin)["artifacts"]; n="sky-chat-"+os.environ["GITHUB_RUN_ID"]; print(next((x["id"] for x in a if x["name"]==n), ""))')
           REQUEST_ID=$(python -c 'import json;print(json.load(open("scan_requests/chat/latest.json", encoding="utf-8"))["request_id"])')
