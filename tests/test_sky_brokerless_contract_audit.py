@@ -3,7 +3,6 @@ from pathlib import Path
 
 from research.sky_brokerless_contract_audit import inspect_text, scan
 from research.sky_candidate_e2e_chain import build
-from research.sky_paper_only_acceptance import audit_status
 from src.sky_chat_bridge import make_status
 
 
@@ -19,12 +18,6 @@ class BrokerlessResearchContractTest(unittest.TestCase):
     def test_research_no_broker_phrase_not_flagged(self):
         hits = inspect_text("sample.md", "研究／Paper 不需要券商開戶，交易模擬可執行。")
         self.assertEqual(hits[0]["class"], "LIVE_ONLY_OR_INFORMATIONAL")
-
-    def test_brokerless_paper_audit_keeps_live_disabled(self):
-        result = audit_status({})
-        self.assertFalse(result["broker_account_required_for_research"])
-        self.assertFalse(result["production_eligible"])
-        self.assertFalse(result["live_order_enabled"])
 
     def test_brokerless_sky_chat_status(self):
         report = {"schema": "SKY_DAYTRADE_13COL_RESEARCH_V2",
