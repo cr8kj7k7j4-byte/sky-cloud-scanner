@@ -59,9 +59,13 @@ class SourceAdapterTests(unittest.TestCase):
                    "artifact_id": new_artifact}
         with self.assertRaisesRegex(ValueError,"PROVENANCE"):
             adapt(payload,actual_run=new_run,actual_sha=new_sha,artifact_id=new_artifact)
+        sample = payload["samples"][0]
+        sample["symbol"] = "2330"
+        sample["raw_five_min_candles"]["symbol"] = "2330"
         out = adapt(payload,actual_run=new_run,actual_sha=new_sha,
                     artifact_id=new_artifact,verified_future_source=receipt)
         self.assertTrue(out["github_bar_source_verified"])
+        self.assertEqual(set(out["bar_sources"]), {"2330", "5202"})
         self.assertEqual(out["source_run_id"],new_run)
         self.assertEqual(out["paper_fill_count"],0)
         self.assertFalse(out["production_eligible"])
