@@ -140,7 +140,10 @@ jobs:
           retention-days: 14
 
   live-research-quote:
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/research/sky-536-531-guard-readback'
+    if: >-
+      github.ref == 'refs/heads/research/sky-536-531-guard-readback' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'push' && github.event.head_commit.message == 'test(research): run one bounded live Fugle A/B proof'))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

@@ -11,11 +11,22 @@ from src import fugle
 
 
 def main():
-    if os.environ["GITHUB_EVENT_NAME"] != "workflow_dispatch" or os.environ["GITHUB_REF"] != (
+    if os.environ["GITHUB_EVENT_NAME"] not in {"workflow_dispatch", "push"} or os.environ["GITHUB_REF"] != (
         "refs/heads/research/sky-536-531-guard-readback"
     ):
-        raise SystemExit("RESEARCH_MANUAL_DISPATCH_REQUIRED")
-    start = int(os.environ["SKY_PROOF_START_EPOCH"])
+        raise SystemExit("RESEARCH_BRANCH_REQUIRED")
+    if os.environ["GITHUB_EVENT_NAME"] == "push":
+        from datetime import datetime
+
+        event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text(encoding="utf-8"))
+        head = event["head_commit"]
+        if head["id"] != os.environ["GITHUB_SHA"] or head["message"].splitlines()[0] != (
+            "test(research): run one bounded live Fugle A/B proof"
+        ):
+            raise SystemExit("LIVE_PROOF_OPT_IN_REQUIRED")
+        start = int(datetime.fromisoformat(head["timestamp"]).timestamp()) + 120
+    else:
+        start = int(os.environ["SKY_PROOF_START_EPOCH"])
     now = time.time()
     if not now - 5 <= start <= now + 180:
         raise SystemExit("RENDEZVOUS_OUTSIDE_ALLOWED_WINDOW")
