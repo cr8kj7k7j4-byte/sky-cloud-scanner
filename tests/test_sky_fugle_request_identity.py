@@ -24,9 +24,17 @@ class CanonicalFugleRequestTests(unittest.TestCase):
             with self.subTest(url=url):
                 self.assertNotEqual(base, key("GET", url))
 
-    def test_tse_otc_snapshot_scope_differs(self):
-        self.assertNotEqual(key("GET", "/snapshot/quotes/TSE?type=COMMONSTOCK"),
-                            key("GET", "/snapshot/quotes/OTC?type=COMMONSTOCK"))
+    def test_snapshot_markets_have_distinct_claims(self):
+        scopes = {
+            market: key("GET", f"/snapshot/quotes/{market}?type=COMMONSTOCK")
+            for market in ("TSE", "OTC", "TIB")
+        }
+        self.assertEqual(len(set(scopes.values())), 3)
+        self.assertEqual(
+            scopes["TIB"],
+            key("GET", "https://api.fugle.tw/marketdata/v1.0/stock/snapshot/quotes/TIB",
+                parameters={"type": "COMMONSTOCK"}),
+        )
 
     def test_unsupported_or_untrusted_fail_closed(self):
         for url in (
