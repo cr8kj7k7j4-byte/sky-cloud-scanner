@@ -90,7 +90,7 @@ jobs:
           PY
       - name: Verify combined PAPER_ONLY provenance and ledger contracts
         if: github.ref == 'refs/heads/research/sky-mobile-paper-integration'
-        run: python -m unittest tests.test_sky_paid_fugle_api_guard tests.test_sky_p0r_512_source_adapter tests.test_sky_p0r_external_signal_source tests.test_sky_p0r_market_event_producer tests.test_sky_p0r_paper_event_replay tests.test_sky_p0r_paper_ledger_readback -v
+        run: python -m unittest tests.test_sky_fugle_request_identity tests.test_sky_fugle_paid_http_atomic_boundary tests.test_sky_paid_fugle_api_guard tests.test_sky_p0r_512_source_adapter tests.test_sky_p0r_external_signal_source tests.test_sky_p0r_market_event_producer tests.test_sky_p0r_paper_event_replay tests.test_sky_p0r_paper_ledger_readback -v
       - name: Prepare synthetic research-only Artifact transport probe
         shell: bash
         run: |
