@@ -1,4 +1,4 @@
-"""Read only previously accepted #512 live candles into #508 provenance ledger.
+"""Read verified #512 live candle evidence into the #508 provenance ledger.
 
 This importer is NOT an order/signal producer and NEVER fabricates paper fills.
 """
@@ -12,6 +12,10 @@ ACCEPTED_RUN = "42950211804"
 ACCEPTED_SHA = "b9e2f57b02b6c22b0f45d3fb7ae21e2a1cca0ac0"
 ACCEPTED_ARTIFACT = "13824108931"
 EXPECTED = {"2409": "TWSE", "5202": "TPEx"}
+
+MARKETS = frozenset(EXPECTED.values())
+TPE = timezone(timedelta(hours=8))
+
 
 def aware(s):
     if not isinstance(s, str):
@@ -51,15 +55,20 @@ def adapt(payload, *, actual_run, actual_sha, artifact_id,
         raise ValueError("UNTRUSTED_MARKET_RECEIPT")
     at = aware(payload.get("time_tpe"))
     samples = payload.get("samples")
-    if not isinstance(samples, list) or len(samples) != len(EXPECTED):
+    if not isinstance(samples, list) or len(samples) != len(MARKETS):
         raise ValueError("SAMPLE_COUNT_MISMATCH")
     output = {}
+    observed_markets = set()
+    trading_date = at.astimezone(TPE).date()
     for item in samples:
         if not isinstance(item, dict):
             raise ValueError("INVALID_SAMPLE")
-        sym,ex = item.get("symbol"), item.get("exchange")
-        if sym not in EXPECTED or EXPECTED[sym] != ex or sym in output:
+        sym, ex = item.get("symbol"), item.get("exchange")
+        if (not isinstance(sym, str) or not sym or sym != sym.strip()
+                or ex not in MARKETS or sym in output or ex in observed_markets
+                or (verified_future_source is None and EXPECTED.get(sym) != ex)):
             raise ValueError("SYMBOL_EXCHANGE_DUPLICATE_OR_MISMATCH")
+        observed_markets.add(ex)
         raw = item.get("raw_five_min_candles")
         if (not isinstance(raw, dict) or raw.get("symbol") != sym
                 or raw.get("exchange") != ex or str(raw.get("timeframe")) != "5"
@@ -76,8 +85,8 @@ def adapt(payload, *, actual_run, actual_sha, artifact_id,
             if previous is not None and start <= previous:
                 raise ValueError("OUT_OF_ORDER_OR_DUPLICATE_CANDLE")
             previous = start
-            tpe = start.astimezone(timezone(timedelta(hours=8)))
-            if tpe.date() != at.astimezone(timezone(timedelta(hours=8))).date() or tpe.minute % 5:
+            tpe = start.astimezone(TPE)
+            if tpe.date() != trading_date or tpe.minute % 5 or tpe.second or tpe.microsecond:
                 raise ValueError("NONCAUSAL_CANDLE_GRID_OR_DATE")
             for key in ("open", "high", "low", "close"):
                 val=q.get(key)
@@ -100,8 +109,6 @@ def adapt(payload, *, actual_run, actual_sha, artifact_id,
             raise ValueError("CANDLE_FILTER_COUNTS_DO_NOT_RECONCILE")
         output[sym]={"exchange":ex, "accepted_count":len(accepted),
             "excluded_not_finished_or_future":rejected, "completed_bars":accepted}
-    if set(output) != set(EXPECTED):
-        raise ValueError("MISSING_EXCHANGE_SAMPLE")
     return {"schema":"SKY_P0R_VERIFIED_SOURCE_BARS_V1",
         "source_run_id":str(actual_run),"source_sha":actual_sha,
         "source_artifact_id":str(artifact_id),"observed_at":at.isoformat(),
