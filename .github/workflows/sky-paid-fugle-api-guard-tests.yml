@@ -41,9 +41,12 @@ on:
   push:
     branches:
       - 'research/w0-fugle-api-dedup-guard-20261111'
+      - 'research/sky-mobile-paper-integration'
     paths:
       # One explicit research-only mock trigger; never runs on main push.
       - 'research/sky_fugle_mock_guard_validation_trigger.txt'
+      - '.github/workflows/sky-paid-fugle-api-guard-tests.yml'
+
   workflow_dispatch:
 permissions:
   contents: read
