@@ -6,7 +6,7 @@ Never creates a trading signal and never submits brokerage orders.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import hashlib
 import json
@@ -95,6 +95,51 @@ def _receipt_from_github(repo, run_id, fetch=_gh_api, downloader=None):
                      "github_metadata_verified": True}
 
 
+def _snapshot_from_github(repo, run_id, bars, fetch=_gh_api):
+    if not run_id.isdigit():
+        raise ValueError("INVALID_SNAPSHOT_RUN_ID")
+    run = fetch(f"repos/{repo}/actions/runs/{run_id}")
+    if (str(run.get("id")) != run_id
+            or run.get("repository", {}).get("full_name") != repo
+            or run.get("path") != ".github/workflows/sky-snapshot-integrity-research-acceptance.yml"
+            or run.get("status") != "completed" or run.get("conclusion") != "success"):
+        raise ValueError("UNTRUSTED_SNAPSHOT_RUN")
+    name = f"sky-snapshot-integrity-{run_id}"
+    listing = fetch(f"repos/{repo}/actions/runs/{run_id}/artifacts?name={name}")
+    matches = [
+        item for item in listing.get("artifacts", [])
+        if item.get("name") == name and item.get("expired") is False
+        and str(item.get("workflow_run", {}).get("id")) == run_id
+    ]
+    if len(matches) != 1:
+        raise ValueError("SNAPSHOT_ARTIFACT_MISSING_OR_AMBIGUOUS")
+    with tempfile.TemporaryDirectory(prefix="sky-p0r-snapshot-") as temp:
+        subprocess.run(
+            ["gh", "run", "download", run_id, "--repo", repo, "--name", name, "--dir", temp],
+            capture_output=True, text=True, check=True, timeout=45,
+        )
+        snapshot = json.loads((Path(temp) / "receipt.json").read_text(encoding="utf-8"))
+    if (snapshot.get("schema") != "SKY_SNAPSHOT_INTEGRITY_RESEARCH_RECEIPT_V1"
+            or snapshot.get("run_id") != run_id or snapshot.get("head_sha") != run.get("head_sha")
+            or snapshot.get("status") != "OBSERVATION_READY"
+            or snapshot.get("research_only") is not True
+            or snapshot.get("production_eligible") is not False
+            or snapshot.get("automatic_order") is not False):
+        raise ValueError("UNTRUSTED_SNAPSHOT_RECEIPT")
+    trading_date = _at(bars["observed_at"]).astimezone(
+        timezone(timedelta(hours=8))).date().isoformat()
+    markets = snapshot["snapshot_integrity"]
+    for exchange in ("TWSE", "TPEx"):
+        market = markets[exchange]
+        if (market.get("api_response_valid") is not True
+                or market.get("snapshot_time_is_execution_time") is not False):
+            raise ValueError("INVALID_SNAPSHOT_MARKET")
+        if market.get("snapshot_date") != trading_date:
+            raise ValueError("SNAPSHOT_BAR_SESSION_MISMATCH")
+    return {"snapshot_run_id": run_id, "snapshot_sha": run["head_sha"],
+            "snapshot_artifact_id": str(matches[0]["id"]), "trading_date_tpe": trading_date}
+
+
 def main():
     bars_file = Path("output/sky_p0r_paper_ledger_readback/verified_512_completed_bars.json")
     output = Path("output/sky_p0r_paper_ledger_readback")
@@ -125,6 +170,22 @@ def main():
                     bars.get("github_bar_source_verified") is True))
             status["verified_github_provenance"] = provenance
             if payload is not None and status.get("reconciled") is True:
+                snapshot_run_id = os.getenv("SKY_P0R_SNAPSHOT_RUN_ID", "").strip()
+                try:
+                    snapshot = _snapshot_from_github(
+                        os.environ.get("GITHUB_REPOSITORY", ""), snapshot_run_id, bars)
+                except (ValueError, KeyError, TypeError, OSError, AttributeError,
+                        subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+                    status = _hold(
+                        "SNAPSHOT_SESSION_EVIDENCE_UNAVAILABLE",
+                        source_run_id=source_run, signal_run_id=run_id)
+                    status["snapshot_reason"] = (
+                        str(exc) if type(exc) is ValueError and str(exc).isupper()
+                        else type(exc).__name__)
+                    payload = None
+                else:
+                    status["verified_snapshot_provenance"] = snapshot
+            if payload is not None and status.get("reconciled") is True:
                 target = Path("output/sky_paper_runtime/completed_market_evidence.json")
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_text(
@@ -143,6 +204,7 @@ def main():
                     "market_artifact_id": bars["source_artifact_id"],
                     "market_observed_at": bars["observed_at"],
                     "signal_provenance": provenance,
+                    "snapshot_provenance": snapshot,
                     "production_eligible": False,
                     "automatic_order": False,
                 }

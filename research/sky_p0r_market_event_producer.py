@@ -6,7 +6,7 @@ until their source Artifact/run/SHA has been independently read back.
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import hashlib
 import json
@@ -264,6 +264,23 @@ def signal_import_status_verified(status, binding):
     return True
 
 
+def snapshot_binding_verified(status, binding, bars):
+    """Require the same Snapshot receipt at import and replay."""
+    if not all(isinstance(item, dict) for item in (status, binding, bars)):
+        return False
+    snapshot = status.get("verified_snapshot_provenance")
+    if not isinstance(snapshot, dict) or snapshot != binding.get("snapshot_provenance"):
+        return False
+    try:
+        date = _time(bars["observed_at"]).astimezone(
+            timezone(timedelta(hours=8))).date().isoformat()
+    except (ValueError, KeyError):
+        return False
+    return (snapshot.get("trading_date_tpe") == date
+            and all(isinstance(snapshot.get(key), str) and snapshot[key]
+                    for key in ("snapshot_run_id", "snapshot_sha", "snapshot_artifact_id")))
+
+
 def main():
     base=Path("output/sky_paper_runtime")
     source=base/"completed_market_evidence.json"
@@ -293,7 +310,8 @@ def main():
     except (OSError, ValueError):
         binding,verified,signal_status=None,None,None
     provenance_verified=(signal_import_status_verified(signal_status,binding)
-                         and source_binding_verified(payload,binding,verified))
+                         and source_binding_verified(payload,binding,verified)
+                         and snapshot_binding_verified(signal_status,binding,verified))
     if not provenance_verified:
         report={"verdict":"INDEPENDENT_MARKET_SIGNAL_SOURCE_BINDING_MISSING",
                 "events":[],"snapshot":None}

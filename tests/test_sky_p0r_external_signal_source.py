@@ -149,5 +149,46 @@ class ExternalSignalVerificationTests(unittest.TestCase):
 
 
 
+class SnapshotSessionTests(unittest.TestCase):
+    def setUp(self):
+        self.receipt = {
+            "schema": "SKY_SNAPSHOT_INTEGRITY_RESEARCH_RECEIPT_V1",
+            "run_id": RUN, "head_sha": SHA, "status": "OBSERVATION_READY",
+            "research_only": True, "production_eligible": False, "automatic_order": False,
+            "snapshot_integrity": {
+                exchange: {"api_response_valid": True, "snapshot_time_is_execution_time": False,
+                           "snapshot_date": "2026-11-11"}
+                for exchange in ("TWSE", "TPEx")
+            },
+        }
+
+    def read_snapshot(self, observed_at):
+        from research.sky_p0r_external_signal_source import _snapshot_from_github
+        from unittest.mock import patch
+
+        name = f"sky-snapshot-integrity-{RUN}"
+        def fetch(endpoint):
+            if "/artifacts?" in endpoint:
+                return {"artifacts": [{"id": ARTIFACT_ID, "name": name, "expired": False,
+                                       "workflow_run": {"id": RUN}}]}
+            return {**META, "path": ".github/workflows/sky-snapshot-integrity-research-acceptance.yml"}
+
+        def download(command, **kwargs):
+            (Path(command[-1]) / "receipt.json").write_text(
+                json.dumps(self.receipt), encoding="utf-8")
+
+        with patch("research.sky_p0r_external_signal_source.subprocess.run", side_effect=download):
+            return _snapshot_from_github("owner/repo", RUN, {"observed_at": observed_at}, fetch)
+
+    def test_snapshot_matches_taipei_session(self):
+        result = self.read_snapshot("2026-11-10T17:11:00+00:00")
+        self.assertEqual(result["trading_date_tpe"], "2026-11-11")
+        self.assertEqual(result["snapshot_artifact_id"], ARTIFACT_ID)
+
+    def test_different_snapshot_session_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "SNAPSHOT_BAR_SESSION_MISMATCH"):
+            self.read_snapshot("2026-11-12T09:11:00+08:00")
+
+
 if __name__=="__main__":
     unittest.main()

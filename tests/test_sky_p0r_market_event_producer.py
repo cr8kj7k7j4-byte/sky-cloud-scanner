@@ -3,7 +3,9 @@ import hashlib
 import json
 import unittest
 
-from research.sky_p0r_market_event_producer import produce, source_binding_verified, signal_import_status_verified
+from research.sky_p0r_market_event_producer import (
+    produce, source_binding_verified, signal_import_status_verified, snapshot_binding_verified,
+)
 
 def bar(start, finish, open_price, high, low, close):
     return {"symbol":"2409", "source_type":"MARKET_OBSERVATION",
@@ -146,6 +148,21 @@ class MarketEventProducerTest(unittest.TestCase):
         d=copy.deepcopy(SOURCE)
         d["signal"]["candidate"]["target"]=25.2
         self.assertEqual(produce(d)["verdict"],"CANONICAL_P0R_P0X_BLOCK")
+
+class SnapshotBindingTests(unittest.TestCase):
+    def test_replay_requires_the_current_same_session_snapshot(self):
+        snapshot = {"snapshot_run_id": "11", "snapshot_sha": "a" * 40,
+                    "snapshot_artifact_id": "22", "trading_date_tpe": "2026-11-11"}
+        status = {"verified_snapshot_provenance": snapshot}
+        binding = {"snapshot_provenance": copy.deepcopy(snapshot)}
+        bars = {"observed_at": "2026-11-11T01:15:00+00:00"}
+        self.assertTrue(snapshot_binding_verified(status, binding, bars))
+        self.assertFalse(snapshot_binding_verified(status, {}, bars))
+        binding["snapshot_provenance"]["snapshot_artifact_id"] = "33"
+        self.assertFalse(snapshot_binding_verified(status, binding, bars))
+        bars["observed_at"] = "2026-11-11T16:15:00+00:00"
+        self.assertFalse(snapshot_binding_verified(status, {"snapshot_provenance": snapshot}, bars))
+
 
 if __name__=="__main__":
     unittest.main()
