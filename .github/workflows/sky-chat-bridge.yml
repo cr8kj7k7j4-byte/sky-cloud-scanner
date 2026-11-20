@@ -125,10 +125,18 @@ jobs:
               status, reason = "DATA_BLOCKED_PAID_API_RESERVATION", "PAID_API_RESERVATION_UPLOAD_FAILED"
           elif bridge_outcome != "success" and verify_claim_outcome == "failure":
               status, reason = "DATA_BLOCKED_PAID_API_RESERVATION", "PAID_API_RESERVATION_READBACK_FAILED"
+          try:
+              request = json.loads(Path("scan_requests/chat/latest.json").read_text(encoding="utf-8"))
+              from src.sky_chat_bridge import validate_request
+              request_id = validate_request(request)
+          except (OSError, ValueError, TypeError, KeyError, SystemExit):
+              request_id = None
           failure = {
               "schema": "SKY_CHAT_SCAN_STATUS_V1",
               "status": status,
               "scan_id": os.getenv("GITHUB_RUN_ID"),
+              "request_id": request_id,
+              "head_sha": os.getenv("GITHUB_SHA"),
               "bridge_step_outcome": bridge_outcome,
               "production_eligible": False,
               "automatic_order": False,
@@ -292,8 +300,15 @@ jobs:
           )
           data["external_readback_verified"] = bool(valid_external)
           if not valid_external:
-              data["status"] = "DATA_BLOCKED_EXTERNAL_READBACK"
-              data["block_reason"] = "EXTERNAL_ARTIFACT_READBACK_NOT_VERIFIED"
+              current_guard_block = (
+                  data.get("status") in {"DATA_BLOCKED_PAID_API_GUARD", "DATA_BLOCKED_PAID_API_RESERVATION"}
+                  and data.get("scan_id") == os.getenv("GITHUB_RUN_ID")
+                  and data.get("head_sha") == os.getenv("GITHUB_SHA")
+                  and bool(data.get("request_id"))
+              )
+              if not current_guard_block:
+                  data["status"] = "DATA_BLOCKED_EXTERNAL_READBACK"
+                  data["block_reason"] = "EXTERNAL_ARTIFACT_READBACK_NOT_VERIFIED"
               data["readback"] = {"status": "HOLD", "trade_action": "禁止交易",
                                   "production_eligible": False, "automatic_order": False}
           data["production_eligible"] = False
