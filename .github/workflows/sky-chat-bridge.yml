@@ -272,6 +272,58 @@ jobs:
           path: output/chat_bridge_readback/external_receipt.json
           if-no-files-found: error
           retention-days: 14
+      - name: Show same-run research result on mobile
+        if: ${{ !cancelled() && github.ref == 'refs/heads/research/sky-mobile-paper-integration' }}
+        env:
+          REPORT_ARTIFACT_URL: ${{ steps.scan_artifact_upload.outputs.artifact-url }}
+          RECEIPT_ARTIFACT_URL: ${{ steps.external_receipt_upload.outputs.artifact-url }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          def load_json(path):
+              try:
+                  data = Path(path).read_text(encoding="utf-8")
+                  value = json.loads(data)
+              except (OSError, ValueError):
+                  return {}
+              return value if isinstance(value, dict) else {}
+
+          status = load_json("output/chat_bridge/latest.json")
+          receipt = load_json("output/chat_bridge_readback/external_receipt.json")
+          run_id = os.environ["GITHUB_RUN_ID"]
+          sha = os.environ["GITHUB_SHA"]
+          request_id = status.get("request_id")
+          report_url = os.environ.get("REPORT_ARTIFACT_URL")
+          receipt_url = os.environ.get("RECEIPT_ARTIFACT_URL")
+          verified = (
+              report_url and receipt_url and request_id
+              and status.get("scan_id") == run_id
+              and status.get("head_sha") == sha
+              and status.get("status") == "REPORT_READY_RESEARCH_ONLY"
+              and receipt.get("status") == "PASS_RESEARCH_ONLY"
+              and receipt.get("run_id") == run_id
+              and receipt.get("head_sha") == sha
+              and receipt.get("request_id") == request_id
+          )
+          result = "研究報告已獨立讀回" if verified else "等待驗收，請查看診斷收據"
+          lines = [
+              "## Sky 手機掃描",
+              "",
+              result,
+              "",
+              f"- Run ID: `{run_id}`",
+              f"- SHA: `{sha}`",
+              "- 交易資格：禁止交易",
+          ]
+          for title, url in (("同次報告／診斷", report_url), ("獨立讀回收據", receipt_url)):
+              if url:
+                  lines.append(f"- [{title}]({url})")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write("\n".join(lines) + "\n")
+          PY
       - name: Publish sanitized summary for ChatGPT GitHub connector
         # Research-branch dispatches only upload artifacts; never overwrite main status.
         if: ${{ always() && github.ref == 'refs/heads/main' }}
