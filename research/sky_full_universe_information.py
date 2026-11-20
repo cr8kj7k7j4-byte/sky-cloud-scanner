@@ -365,13 +365,20 @@ def main():
     universe, status = load_official_universe()
     snapshots = {}
     errors = {}
+    http_statuses = {}
     innovation_count = sum(expected_snapshot_market(meta) == INNOVATION_BOARD for meta in universe)
     for market in list(MARKET.values()) + ([INNOVATION_BOARD] if innovation_count else []):
         try:
             snapshots[market] = snapshot_quotes(market)
         except Exception as exc:
             errors[market] = type(exc).__name__
+            # PermissionError preserves the provider HTTP error as its cause.
+            response = getattr(exc.__cause__ or exc, "response", None)
+            code = getattr(response, "status_code", None)
+            if type(code) is int and 400 <= code <= 599:
+                http_statuses[market] = code
     report = build(universe, snapshots, checked_at, errors)
+    report["snapshot_http_statuses"] = http_statuses
     report["official_universe_warnings"] = status.get("warnings", [])
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     (OUTPUT_DIR / "full_universe.json").write_text(
