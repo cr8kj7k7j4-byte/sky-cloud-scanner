@@ -1,0 +1,80 @@
+name: Sky Redis CAS Two-Runner Research Acceptance (NO FUGLE)
+on:
+  # One explicit main-trusted marker push only. No cron or provider calls.
+  push:
+    branches: [main]
+    paths:
+      - 'research/sky_paid_api_redis_cas_probe_request.json'
+permissions:
+  contents: read
+concurrency:
+  group: sky-redis-cas-research-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  contenders:
+    name: Redis contender ${{ matrix.slot }} (independent runner)
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        slot: [A, B]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check existing Redis secret (never print value)
+        env:
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "$REDIS_URL" ]; then
+            echo "EXISTING_REDIS_URL_NOT_CONFIGURED"
+            exit 1
+          fi
+      - name: Install Redis client only (NO FUGLE)
+        run: python -m pip install 'redis>=5.0.0'
+      - name: Compete for same remote request using atomic Redis SET NX
+        env:
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+          CAS_SLOT: ${{ matrix.slot }}
+        run: python -m research.sky_paid_api_redis_probe --mode contender --slot "$CAS_SLOT"
+      - name: Upload synthetic contender evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-redis-cas-contender-${{ github.run_id }}-${{ matrix.slot }}
+          path: output/redis_paid_api_cas_acceptance/
+          if-no-files-found: warn
+          retention-days: 14
+
+  verify:
+    name: Verify shared Redis READY bytes on third independent runner
+    needs: [contenders]
+    if: ${{ needs.contenders.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Redis client only (NO FUGLE)
+        run: python -m pip install 'redis>=5.0.0'
+      - name: Check both independent receipts and immutable synthetic result
+        env:
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+        run: python -m research.sky_paid_api_redis_probe --mode verify
+      - name: Upload remote CAS verification receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-redis-cas-verification-${{ github.run_id }}
+          path: output/redis_paid_api_cas_acceptance/
+          if-no-files-found: warn
+          retention-days: 14

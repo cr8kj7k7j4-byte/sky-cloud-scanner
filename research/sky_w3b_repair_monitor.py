@@ -122,7 +122,10 @@ def monitor():
     OUTPUT.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n",
                       encoding="utf-8")
     print(json.dumps(report, ensure_ascii=False))
-    if report["action"] == "blocked":
+    # A closed, unmerged target PR is a terminal non-retryable condition,
+    # not an operational failure of this recurring watchdog. Keep BLOCKED
+    # in the auditable artifact while allowing unrelated repair jobs to run.
+    if report["action"] == "blocked" and report["reason"] != "PR_CLOSED_UNMERGED":
         raise RuntimeError(report["reason"])
 
 

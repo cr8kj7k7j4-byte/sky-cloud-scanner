@@ -1,0 +1,13 @@
+{
+  "schema": "SKY_REDIS_CAS_RESEARCH_REQUEST_V1",
+  "one_shot": true,
+  "scope": "RESEARCH_ONLY_SYNTHETIC_CROSS_RUNNER_CAS",
+  "max_contenders": 2,
+  "paid_provider_requests": 0,
+  "fugle_api_calls": 0,
+  "no_orders": true,
+  "production_eligible": false,
+  "redis_persistence_verified": false,
+  "all_paid_entrypoints_wired": false,
+  "purpose": "Validate existing REDIS_URL shared atomic SET_NX and WATCH_CAS without trading or paid market data"
+}

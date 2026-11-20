@@ -50,7 +50,9 @@ def audit():
                "grade": "A+", "policy": policy, "execution_policy": cost}
     two_losses = evaluate_trade(**fixture, consecutive_losses=2)
     daily_limit = evaluate_trade(**fixture, daily_pnl=-EXPECTED["daily_loss_stop_twd"])
-    without_execution = evaluate_trade(**fixture)
+    # Force enforcement for this diagnostic: missing inputs may never be treated as zero.
+    from dataclasses import replace
+    without_execution = evaluate_trade(**{**fixture, "execution_policy": replace(cost, enforce_gate=True)})
     checks = [
         {"name": "capital_500k", "passed": equity == EXPECTED["account_equity_twd"],
          "observed": equity},
@@ -80,6 +82,9 @@ def audit():
              "execution": without_execution.get("execution_status"),
              "enforce_execution_gate": config.EXEC_ENFORCE_GATE,
          }},
+        {"name": "runtime_cost_gate_enabled",
+         "passed": config.EXEC_ENFORCE_GATE is True,
+         "observed": config.EXEC_ENFORCE_GATE},
         {"name": "cost_after_rr_threshold",
          "passed": cost.min_execution_rr >= EXPECTED["min_cost_after_rr"],
          "observed": cost.min_execution_rr},
@@ -88,7 +93,7 @@ def audit():
     return {
         "schema": "SKY_P0R_POLICY_RUNTIME_DRIFT_RESEARCH_V1",
         "checked_at_utc": datetime.now(timezone.utc).isoformat(),
-        "scope": "SYNTHETIC_DIAGNOSTIC_ONLY_NO_LIVE_HOLDINGS",
+        "scope": "PAPER_ONLY_SYNTHETIC_DIAGNOSTIC",
         "source_config": "src/config.py",
         "source_engine": "src/risk_engine.py",
         "source_cost": "src/cost_profiles.py",
@@ -96,13 +101,15 @@ def audit():
         "checks": checks,
         "mismatch_count": len(defects),
         "mismatches": defects,
-        "current_portfolio_ledger_verified": False,
+        "paper_ledger_verified": False,
+        "broker_account_required_for_research": False,
+        "current_portfolio_ledger_verified": False,  # Legacy field: do not use as a research gate
         "realized_daily_pnl_verified": False,
         "real_slippage_and_fill_verified": False,
         "official_v14_full_rule_evidence_verified": False,
         "risk_production_eligible": False,
         "automatic_order": False,
-        "verdict": "CONFIG_AND_EVIDENCE_BLOCKED" if defects else "LIVE_LEDGER_AND_EXECUTION_EVIDENCE_REQUIRED",
+        "verdict": "CONFIG_AND_EVIDENCE_BLOCKED" if defects else "PAPER_LEDGER_AND_EXECUTION_EVIDENCE_REQUIRED",
         "trade_action": "禁止交易",
         "note": "測試使用虛構價格；ALLOW 僅表示風控函式在該模擬輸入下可能放行，絕非真實可交易訊號。",
     }
@@ -115,7 +122,7 @@ def main():
     lines = [
         "# Sky P0-R 正式設定與執行行為差異（只讀驗收）",
         "",
-        "**🔴 禁止新進場，正式部位與成交證據未驗證。**",
+        "**🔴 禁止真實交易；Paper 模擬帳本與成交證據尚待驗證。**",
         "",
         "| 項目 | 檢查 | 實際觀察 |",
         "| --- | --- | --- |",
@@ -123,7 +130,7 @@ def main():
     for item in result["checks"]:
         lines.append(f'| {item["name"]} | {"符合" if item["passed"] else "不符"} | {item["observed"]} |')
     lines += ["", "差異數：" + str(result["mismatch_count"]),
-              "實際持倉、兩筆停損的帳本來源及實際滑價/成交率皆未驗證。",
+              "研究驗收不需要券商開戶；Paper 模擬持倉、停損及成本證據仍待驗證。",
               "不得以模擬通過、測試成功或風控預設值作為正式買進資格。", ""]
     (OUT / "latest.md").write_text("\n".join(lines), encoding="utf-8")
     print("\n".join(lines))
