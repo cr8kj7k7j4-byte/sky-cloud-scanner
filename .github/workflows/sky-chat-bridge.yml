@@ -325,8 +325,8 @@ jobs:
               summary.write("\n".join(lines) + "\n")
           PY
       - name: Publish sanitized summary for ChatGPT GitHub connector
-        # Research-branch dispatches only upload artifacts; never overwrite main status.
-        if: ${{ always() && github.ref == 'refs/heads/main' }}
+        # Publish a run-scoped status in the Actions summary; never write protected main.
+        if: ${{ always() }}
         env:
           GH_TOKEN: ${{ github.token }}
           EXTERNAL_READBACK_OUTCOME: ${{ steps.external_readback.outcome }}
@@ -381,15 +381,10 @@ jobs:
           Path("/tmp/sky-chat-status.json").write_text(
               json.dumps(data,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
           PY
-          TARGET="repos/${GITHUB_REPOSITORY}/contents/docs/SKY_CHAT_LATEST_STATUS.json"
-          CONTENT=$(base64 -w0 /tmp/sky-chat-status.json)
-          for ATTEMPT in 1 2 3; do
-            SHA=$(gh api "$TARGET" --jq '.sha' 2>/dev/null || true)
-            if [ -n "$SHA" ]; then
-              gh api --method PUT "$TARGET" -f message="ops: publish Sky chat scan status [skip ci]" -f content="$CONTENT" -f sha="$SHA" -f branch=main >/dev/null && break
-            else
-              gh api --method PUT "$TARGET" -f message="ops: publish Sky chat scan status [skip ci]" -f content="$CONTENT" -f branch=main >/dev/null && break
-            fi
-            if [ "$ATTEMPT" = 3 ]; then exit 1; fi
-            sleep 2
-          done
+          # Immutable run-scoped evidence is retained by the existing upload-artifact step.
+          # Do not write to protected main via the Contents API.
+          echo "### Sky chat bridge — run-scoped status" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Run: $GITHUB_RUN_ID" >> "$GITHUB_STEP_SUMMARY"
+          echo "- SHA: $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Result: see this run's sky-chat artifact and external readback receipt" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Production: HOLD / NO_TRADE" >> "$GITHUB_STEP_SUMMARY"
