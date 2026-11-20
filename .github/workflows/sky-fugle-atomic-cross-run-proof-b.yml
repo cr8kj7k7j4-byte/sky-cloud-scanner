@@ -4,13 +4,14 @@ on:
   push:
     branches:
       - 'research/w0-fugle-api-dedup-guard-20261111'
+      - 'research/sky-536-531-guard-readback'
     paths:
       - '.github/workflows/sky-fugle-atomic-cross-run-proof-*.yml'
 permissions:
   contents: write
 jobs:
   prove-atomic-ref:
-    if: github.ref == 'refs/heads/research/w0-fugle-api-dedup-guard-20261111'
+    if: github.ref == 'refs/heads/research/w0-fugle-api-dedup-guard-20261111' || github.ref == 'refs/heads/research/sky-536-531-guard-readback'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
