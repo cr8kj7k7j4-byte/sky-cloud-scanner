@@ -188,6 +188,7 @@ jobs:
               raise SystemExit("SCAN_VALIDATION_FAILED")
           PY
       - name: Upload complete 13-column report and status
+        id: scan_artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -206,7 +207,7 @@ jobs:
           retention-days: 14
       - name: Download the same-run Artifact and independently verify its contents
         id: external_readback
-        if: ${{ steps.bridge.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.scan_artifact.outcome == 'success' }}
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
