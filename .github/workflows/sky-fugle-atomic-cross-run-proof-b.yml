@@ -1,6 +1,12 @@
 name: Sky Fugle Atomic Cross-Run Proof B (NO PAID)
 # One-shot research branch proof. No market-data secrets, no orders, no schedule.
 on:
+  workflow_dispatch:
+    inputs:
+      start_epoch:
+        description: 'Shared UTC Unix start time (seconds) for A and B, up to 180 seconds ahead'
+        required: true
+        type: string
   push:
     branches:
       - 'research/w0-fugle-api-dedup-guard-20261111'
@@ -11,7 +17,7 @@ permissions:
   contents: write
 jobs:
   prove-atomic-ref:
-    if: github.ref == 'refs/heads/research/w0-fugle-api-dedup-guard-20261111' || github.ref == 'refs/heads/research/sky-536-531-guard-readback'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/research/w0-fugle-api-dedup-guard-20261111' || github.ref == 'refs/heads/research/sky-536-531-guard-readback')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -130,5 +136,31 @@ jobs:
         with:
           name: sky-fugle-atomic-cross-run-b-${{ github.run_id }}
           path: output/fugle_atomic_cross_run/
+          if-no-files-found: error
+          retention-days: 14
+
+  live-research-quote:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/research/sky-536-531-guard-readback'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install requests
+      - name: Compete for one read-only Fugle quote
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+          SKY_PAID_ATOMIC_ENFORCE: '1'
+          SKY_PROOF_START_EPOCH: ${{ inputs.start_epoch }}
+        run: python -m research.sky_fugle_live_cross_run_proof
+      - name: Upload live attempt receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-fugle-live-cross-run-b-${{ github.run_id }}
+          path: output/fugle_live_cross_run/receipt.json
           if-no-files-found: error
           retention-days: 14
