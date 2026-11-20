@@ -6,6 +6,7 @@ on:
     branches:
       - research/fugle-snapshot-diagnostics-20261110
       - research/sky-536-531-guard-readback
+      - research/sky-mobile-paper-integration
     paths:
       - 'research/sky_full_universe_information.py'
       - 'src/sky_chat_bridge.py'
@@ -87,6 +88,9 @@ jobs:
               expected = "SKY_GOVERNED_SMOKE_FIXED_V1\\n"
               assert p.read_text(encoding="utf-8") == expected, "ISOLATED_SMOKE_FIXTURE_REQUIRES_APPROVED_PATCH"
           PY
+      - name: Verify combined PAPER_ONLY provenance and ledger contracts
+        if: github.ref == 'refs/heads/research/sky-mobile-paper-integration'
+        run: python -m unittest tests.test_sky_paid_fugle_api_guard tests.test_sky_p0r_512_source_adapter tests.test_sky_p0r_external_signal_source tests.test_sky_p0r_market_event_producer tests.test_sky_p0r_paper_event_replay tests.test_sky_p0r_paper_ledger_readback -v
       - name: Prepare synthetic research-only Artifact transport probe
         shell: bash
         run: |
