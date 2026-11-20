@@ -148,6 +148,37 @@ class DispatchAliasContractTests(unittest.TestCase):
                 self.assertIs(mobile["external_readback_verified"], False)
                 self.assertEqual(mobile["readback"]["trade_action"], "禁止交易")
 
+    def test_failed_artifact_readback_preserves_only_the_current_request(self):
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        step = workflow.split("      - name: Ensure external readback failure", 1)[1]
+        match = re.search(r"          python - <<'PY'\n(.*?)\n          PY", step, re.S)
+        self.assertIsNotNone(match)
+        code = "\n".join(line[10:] for line in match.group(1).splitlines())
+
+        for scan_id, sha, expected in [
+            ("12345678", "a" * 40, "sky-request-12345678"),
+            ("87654321", "a" * 40, None),
+            ("12345678", "b" * 40, None),
+        ]:
+            with self.subTest(scan_id=scan_id, sha=sha), tempfile.TemporaryDirectory() as td:
+                status = Path(td) / "output/chat_bridge/latest.json"
+                status.parent.mkdir(parents=True)
+                status.write_text(json.dumps({
+                    "schema": "SKY_CHAT_SCAN_STATUS_V1",
+                    "scan_id": scan_id,
+                    "head_sha": sha,
+                    "request_id": "sky-request-12345678",
+                }), encoding="utf-8")
+                env = dict(os.environ, EXTERNAL_READBACK_OUTCOME="failure",
+                           GITHUB_RUN_ID="12345678", GITHUB_SHA="a" * 40)
+                result = subprocess.run([sys.executable, "-c", code], cwd=td,
+                                        env=env, capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                receipt = Path(td) / "output/chat_bridge_readback/external_receipt.json"
+                data = json.loads(receipt.read_text(encoding="utf-8"))
+                self.assertEqual(data["request_id"], expected)
+                self.assertEqual(data["status"], "FAILED_CLOSED")
+                self.assertIs(data["automatic_order"], False)
 
 
 if __name__ == "__main__":

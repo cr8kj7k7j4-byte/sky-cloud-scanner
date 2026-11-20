@@ -246,6 +246,22 @@ jobs:
           if not isinstance(data, dict):
               data = {}
           if os.environ.get("EXTERNAL_READBACK_OUTCOME") != "success":
+              request_id = None
+              status_path = Path("output/chat_bridge/latest.json")
+              try:
+                  status = json.loads(status_path.read_text(encoding="utf-8"))
+              except (OSError, ValueError):
+                  status = {}
+              run_id = os.getenv("GITHUB_RUN_ID")
+              head_sha = os.getenv("GITHUB_SHA")
+              if (
+                  run_id and head_sha and isinstance(status, dict)
+                  and status.get("schema") == "SKY_CHAT_SCAN_STATUS_V1"
+                  and status.get("scan_id") == run_id
+                  and status.get("head_sha") == head_sha
+                  and isinstance(status.get("request_id"), str)
+              ):
+                  request_id = status["request_id"]
               data = {
                   "schema": "SKY_CHAT_EXTERNAL_ARTIFACT_READBACK_V1",
                   "status": "FAILED_CLOSED",
@@ -253,7 +269,7 @@ jobs:
                   "external_readback_step_outcome": os.environ.get("EXTERNAL_READBACK_OUTCOME"),
                   "run_id": os.getenv("GITHUB_RUN_ID"),
                   "head_sha": os.getenv("GITHUB_SHA"),
-                  "request_id": None,
+                  "request_id": request_id,
                   "verified_at_utc": datetime.now(timezone.utc).isoformat(),
                   "production_eligible": False,
                   "automatic_order": False,
