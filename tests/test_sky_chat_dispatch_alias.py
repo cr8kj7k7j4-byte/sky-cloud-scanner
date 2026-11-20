@@ -99,6 +99,10 @@ class DispatchAliasContractTests(unittest.TestCase):
         self.assertIsNotNone(match)
         code = "\n".join(line[10:] if line.startswith("          ") else line
                          for line in match.group(1).splitlines())
+        publish_segment = workflow.split("      - name: Publish sanitized summary for ChatGPT GitHub connector", 1)[1]
+        publish_match = re.search(r"          python - <<'PY'\n(.*?)\n          PY", publish_segment, re.S)
+        self.assertIsNotNone(publish_match)
+        publish_code = "\n".join(line[10:] for line in publish_match.group(1).splitlines())
         scenarios = [
             ({"GUARD_OUTCOME": "success", "GUARD_ALLOWED": "false"},
              "DATA_BLOCKED_PAID_API_RESERVATION", "PAID_API_RESERVATION_DENIED"),
@@ -112,7 +116,14 @@ class DispatchAliasContractTests(unittest.TestCase):
         ]
         for overrides, expected_status, expected_reason in scenarios:
             with self.subTest(expected_reason=expected_reason), tempfile.TemporaryDirectory() as td:
-                env = dict(os.environ, GITHUB_RUN_ID="987654324", BRIDGE_OUTCOME="skipped",
+                request_path = Path(td) / "scan_requests/chat/latest.json"
+                request_path.parent.mkdir(parents=True)
+                request_path.write_text(json.dumps({
+                    "command": "Sky 快掃", "request_id": "chat-dedup-987654324",
+                    "read_only_no_orders": True,
+                }), encoding="utf-8")
+                env = dict(os.environ, PYTHONPATH=str(ROOT), GITHUB_SHA="a" * 40,
+                           GITHUB_RUN_ID="987654324", BRIDGE_OUTCOME="skipped",
                            GUARD_OUTCOME="skipped", GUARD_ALLOWED="",
                            CLAIM_OUTCOME="skipped", VERIFY_CLAIM_OUTCOME="skipped")
                 env.update(overrides)
@@ -124,6 +135,19 @@ class DispatchAliasContractTests(unittest.TestCase):
                 self.assertEqual(status["block_reason"], expected_reason)
                 self.assertIs(status["production_eligible"], False)
                 self.assertIs(status["automatic_order"], False)
+                self.assertEqual(status["request_id"], "chat-dedup-987654324")
+                self.assertEqual(status["head_sha"], "a" * 40)
+                summary = Path(td) / "published.json"
+                publish_code_local = publish_code.replace("/tmp/sky-chat-status.json", str(summary))
+                published = subprocess.run([sys.executable, "-c", publish_code_local], cwd=td,
+                                           env=env, capture_output=True, text=True)
+                self.assertEqual(published.returncode, 0, published.stderr)
+                mobile = json.loads(summary.read_text(encoding="utf-8"))
+                self.assertEqual(mobile["status"], expected_status)
+                self.assertEqual(mobile["block_reason"], expected_reason)
+                self.assertIs(mobile["external_readback_verified"], False)
+                self.assertEqual(mobile["readback"]["trade_action"], "禁止交易")
+
 
 
 if __name__ == "__main__":
