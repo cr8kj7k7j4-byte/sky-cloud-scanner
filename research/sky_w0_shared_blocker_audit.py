@@ -1,4 +1,4 @@
-"""W0 read-only integration audit: provider observation, PAPER_ONLY risk, scheduled overlap.
+"""W0 read-only integration audit: provider observation and scheduled overlap.
 
 This does not call paid market APIs, does not issue orders, does not modify
 Production, and does not require a brokerage account. Scheduled event evidence
@@ -14,8 +14,6 @@ import os
 import re
 import subprocess
 
-from research.sky_paper_only_acceptance import paper_gate
-from research.sky_paper_trade_trace import evaluate_paper_journal
 
 
 REPO = Path(__file__).resolve().parents[1]
@@ -96,8 +94,7 @@ def _run_summary(runs, name):
     }
 
 
-def audit(status, paper_ledger=None, paper_cost=None, paper_events=None,
-          workflow_source=None, scheduled_runs=None):
+def audit(status, workflow_source=None, scheduled_runs=None):
     """Return an evidence-centric HOLD report; never claim uptime or real fills."""
     if not isinstance(status, dict):
         status = {}
@@ -108,10 +105,6 @@ def audit(status, paper_ledger=None, paper_cost=None, paper_events=None,
     overlapping = bool(crons["scan.yml"] and
                        crons["scan.yml"] == crons["sky-full-market-five-minute-dispatch.yml"])
     market = classify_market(status)
-    paper = paper_gate(paper_ledger, paper_cost)
-    journal = evaluate_paper_journal(paper_events)
-    # A journal can reconcile hypothetical numbers; without independent source
-    # validation it is NOT certified forward Paper performance.
     return {
         "schema": AUDIT_SCHEMA,
         "source_market_run": status.get("run_url"),
@@ -119,11 +112,6 @@ def audit(status, paper_ledger=None, paper_cost=None, paper_events=None,
         "source_market_timestamp_valid": _dt(status.get("data_timestamp")) is not None,
         "broker_account_required_for_research": False,
         "market": market,
-        "paper_admission": paper,
-        "paper_journal_status": journal["paper_journal_status"],
-        "paper_cost_arithmetic_reconciled": journal["paper_cost_arithmetic_reconciled"],
-        "paper_performance_verified": journal["after_cost_paper_performance_verified"],
-        "paper_event_count": journal["trade_count"],
         "schedule": {
             "declared_crons": crons,
             "same_cron_duplicate_dispatch_risk": overlapping,
@@ -137,9 +125,7 @@ def audit(status, paper_ledger=None, paper_cost=None, paper_events=None,
         },
         "blockers": {
             "full_market_executed_quote_time": not market["whole_market_execution_certified"],
-            "p0r_paper_admission": not paper["paper_eligible"],
             "model_5m_vwap_full_rule": status.get("candidate_chain_vwap_certified") in (None, 0),
-            "paper_source_verified_expectancy": not journal["after_cost_paper_performance_verified"],
             "actual_five_minute_schedule": True,
         },
         "research_access": "OBSERVATION_ALLOWED_NO_BROKER",
@@ -147,7 +133,7 @@ def audit(status, paper_ledger=None, paper_cost=None, paper_events=None,
         "production_eligible": False,
         "automatic_order": False,
         "trade_action": "禁止交易",
-        "note": "Formal scanner failure is a valid fail-closed gate result, not evidence provider API failed. The same cron is a possible overlapping expense, not proof two billable API calls happened. Paper input is optional for research observation, mandatory for Paper entry/performance certification.",
+        "note": "Formal scanner failure is a valid fail-closed gate result, not evidence provider API failed. The same cron is a possible overlapping expense, not proof two billable API calls happened.",
     }
 
 
@@ -188,13 +174,11 @@ def main():
              "- 行情掃描：" + str(report["source_market_run"] or "待確認"),
              "- 富果行情時間：" + str(report["source_market_data_timestamp"] or "待確認"),
              "- 全市場有效成交時間：" + report["formal_market_gate"],
-             "- PAPER_ONLY 模擬新進場：" + str(report["paper_admission"]["paper_eligible"]),
-             "- 模擬績效：" + report["paper_journal_status"],
              "- 相同排程表：" + str(report["schedule"]["same_cron_duplicate_dispatch_risk"]),
              "- 重複付費 API 是否已確認：" + str(report["schedule"]["actual_duplicate_paid_requests_confirmed"]),
              "- GitHub 事件樣本：" + evidence_scope,
              "- 正式交易：" + report["trade_action"], "",
-             "此報告沒有真實券商帳戶需求；PAPER_ONLY 的輸入與來源證據仍需補齊。",
+             "研究行情觀察無需券商帳戶。",
              "沒有完成資料時間、完整 K 棒、成本後 RR、55 時段和 W0/P0-G 前，不得自動升 Production。"]
     (out / "latest.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("\n".join(lines))

@@ -1,0 +1,139 @@
+name: Sky Five-Minute Market Evidence Readback
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "research/sky_p0r_512_source_adapter.py"
+      - "tests/test_sky_p0r_512_source_adapter.py"
+      - ".github/workflows/sky-five-minute-market-readback.yml"
+permissions:
+  contents: read
+  actions: read
+jobs:
+  market-readback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify five-minute market evidence validation
+        run: python -m unittest tests.test_sky_p0r_512_source_adapter -v
+      - name: Read GitHub-verified #512 completed bars (historical pin or future run)
+        # Permit independently configured bar readback before a signal is available.
+        if: ${{ vars.SKY_P0R_BAR_RUN_ID != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SKY_P0R_BAR_RUN_ID: ${{ vars.SKY_P0R_BAR_RUN_ID }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
+
+          repo = os.environ["GITHUB_REPOSITORY"]
+          pinned = "42950211804"
+          pinned_sha = "b9e2f57b02b6c22b0f45d3fb7ae21e2a1cca0ac0"
+          pinned_artifact_id = "13824108931"
+          chosen = os.environ.get("SKY_P0R_BAR_RUN_ID", "").strip() or pinned
+          if not chosen.isdigit():
+              raise SystemExit("INVALID_BAR_RUN_ID")
+          class InstallationRateLimit(Exception):
+              pass
+          def api(endpoint):
+              import time
+              for attempt in range(3):
+                  result = subprocess.run(["gh", "api", endpoint],
+                                          capture_output=True,
+                                          text=True, timeout=30)
+                  if result.returncode == 0:
+                      return json.loads(result.stdout)
+                  details = (result.stderr or "").strip().replace(
+                      os.environ.get("GH_TOKEN", "__NO_TOKEN__"), "[redacted]")
+                  if "API rate limit exceeded for installation" in details:
+                      # Do not hammer an exhausted installation token.
+                      raise InstallationRateLimit from None
+                  print(f"GitHub readback attempt {attempt + 1}/3 failed "
+                        f"(exit {result.returncode}): {details[:500]}", flush=True)
+                  if attempt != 2:
+                      time.sleep(attempt + 1)
+              raise SystemExit("GITHUB_BAR_PROVENANCE_API_UNAVAILABLE")
+
+          try:
+              baseline = api(f"repos/{repo}/actions/runs/{pinned}")
+              run = api(f"repos/{repo}/actions/runs/{chosen}")
+              artifacts = api(f"repos/{repo}/actions/runs/{chosen}/artifacts").get("artifacts", [])
+          except InstallationRateLimit:
+              folder = Path("output/sky_five_minute_market_readback")
+              folder.mkdir(parents=True, exist_ok=True)
+              (folder / "market_bar_source_error.json").write_text(
+                  json.dumps({
+                      "schema": "SKY_P0R_GITHUB_SOURCE_ERROR_V1",
+                      "verdict": "INSUFFICIENT_DATA",
+                      "reason": "GITHUB_INSTALLATION_RATE_LIMIT",
+                      "bar_run_id": chosen,
+                      "source_artifact_verified": False,
+                      "paper_fill_count": 0,
+                      "production_eligible": False,
+                      "automatic_order": False
+                  }, indent=2), encoding="utf-8")
+              print("::warning title=GitHub provider source HOLD::"
+                    "Installation API rate limit (HTTP 403); no bars admitted, no simulated fills")
+              raise SystemExit(0)
+          if (str(run.get("id")) != chosen
+                  or run.get("repository", {}).get("full_name") != repo
+                  or run.get("status") != "completed"
+                  or run.get("conclusion") != "success"
+                  or run.get("workflow_id") != baseline.get("workflow_id")
+                  or not isinstance(run.get("head_sha"), str)
+                  or len(run["head_sha"]) != 40):
+              raise SystemExit("UNTRUSTED_FUTURE_BAR_WORKFLOW_RUN")
+          name = f"sky-512-5m-evidence-{chosen}"
+          matches = [a for a in artifacts if a.get("name") == name
+                     and a.get("expired") is False
+                     and str(a.get("workflow_run", {}).get("id")) == chosen]
+          if len(matches) != 1:
+              raise SystemExit("BAR_ARTIFACT_NOT_UNIQUE_OR_MISSING")
+          artifact = matches[0]
+          if chosen == pinned and (
+                  run.get("head_sha") != pinned_sha
+                  or str(artifact.get("id")) != pinned_artifact_id):
+              raise SystemExit("HISTORICAL_BAR_PIN_MISMATCH")
+          path = Path("/tmp/sky-512-pr508-source")
+          path.mkdir(parents=True, exist_ok=True)
+          subprocess.run(["gh", "run", "download", chosen, "--repo", repo,
+                          "--name", name, "--dir", str(path)],
+                         check=True, timeout=60)
+          src = path / "v14_ticker_5m_evidence.json"
+          if not src.is_file():
+              raise SystemExit("BAR_EVIDENCE_MISSING")
+          command = ["python", "-m", "research.sky_p0r_512_source_adapter",
+                     "--input", str(src),
+                     "--run-id", chosen,
+                     "--head-sha", run["head_sha"],
+                     "--artifact-id", str(artifact["id"]),
+                     "--output", "output/sky_five_minute_market_readback/verified_512_completed_bars.json"]
+          if chosen != pinned:
+              # Generated only after independent GitHub API readback.
+              proof = {"github_run_verified": True, "successful_completed_run": True,
+                       "unique_artifact_verified": True,
+                       "source_workflow_matches_accepted": True,
+                       "production_eligible": False,
+                       "run_id": chosen, "head_sha": run["head_sha"],
+                       "artifact_id": str(artifact["id"]),
+                       "github_artifact_created_at": artifact.get("created_at")}
+              out = Path("output/sky_five_minute_market_readback/future_bar_github_receipt.json")
+              out.parent.mkdir(parents=True, exist_ok=True)
+              out.write_text(json.dumps(proof, indent=2), encoding="utf-8")
+              command.extend(["--verified-future-source", str(out)])
+          subprocess.run(command, check=True, timeout=40)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always() && vars.SKY_P0R_BAR_RUN_ID != ''
+        with:
+          name: sky-five-minute-market-readback-${{ github.run_id }}
+          path: output/sky_five_minute_market_readback/
+          if-no-files-found: warn

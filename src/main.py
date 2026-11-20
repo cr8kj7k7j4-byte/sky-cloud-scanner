@@ -17,7 +17,7 @@ from .config import (
     EXEC_ENTRY_SLIPPAGE_BPS, EXEC_EXIT_SLIPPAGE_BPS, EXEC_SPREAD_BPS,
     EXEC_LIQUIDITY_PENALTY_BPS, EXEC_FILL_PROBABILITY,
     EXEC_FINANCING_INTEREST_PER_SHARE, EXEC_COST_PROFILE, EXEC_MIN_RR,
-    EXEC_ENFORCE_GATE, PAPER_TRADING_MODE, P0S_OOS_VERDICT, PAPER_GCS_BUCKET,
+    EXEC_ENFORCE_GATE, P0S_OOS_VERDICT,
     P0S_5M_BREAKOUT_ENABLED,
 )
 from .official import load_official_universe
@@ -52,13 +52,6 @@ from .premarket_state import load_premarket_event_snapshot
 from .structured_log import emit as structured_log
 from .sky_mobile_table import render_mobile_table
 from .research_visibility import build_research_visibility
-from .paper_trading import (
-    evaluate_paper_gate,
-    build_paper_snapshot,
-    write_paper_run_file,
-    upload_paper_run_to_gcs,
-)
-
 TZ = ZoneInfo("Asia/Taipei")
 OUT = Path("output")
 MONITOR_STATE_FILE = OUT / "monitor_state.json"
@@ -165,7 +158,6 @@ def run():
         strategy_version="Sky-V2.1",
         severity="INFO",
     )
-    paper_gate = evaluate_paper_gate(PAPER_TRADING_MODE, P0S_OOS_VERDICT)
 
     state_store = MonitorStateStore(
         MONITOR_STATE_BACKEND,
@@ -220,12 +212,6 @@ def run():
         },
         "knowledge_engine": {"enabled": True, "mode": "EVIDENCE_FIRST", "research_sources": source_health_template()},
         "agent_orchestration": {"enabled": True, "single_agent_can_trade": False},
-        "paper_trading": {
-            **paper_gate.to_dict(),
-            "gcs_bucket_configured": bool(PAPER_GCS_BUCKET),
-            "records": 0,
-            "ledger_upload": None,
-        },
         "execution_engine": {
             "enabled": True,
             "profile_id": EXEC_COST_PROFILE,
@@ -446,7 +432,6 @@ def run():
         rejected = []
         unverified = []
         monitor_decisions = []
-        paper_snapshots = []
         probe_limit = min(len(top), max(DEEP_DIVE_N * 4, DEEP_DIVE_N))
 
         for row in top[:probe_limit]:
@@ -533,14 +518,6 @@ def run():
                 item["evidence_ledger"] = evidence_ledger
                 item["agent_orchestration"] = orchestrate(item, evidence_ledger)
                 item["decision"] = evaluate_decision(item).to_dict()
-                paper_snapshots.append(
-                    build_paper_snapshot(
-                        run_id=run_id,
-                        observed_at=now.isoformat(),
-                        item=item,
-                        gate=paper_gate,
-                    )
-                )
                 deep.append(item)
                 if len(deep) >= DEEP_DIVE_N:
                     break
@@ -567,29 +544,6 @@ def run():
             d.to_dict() for d in monitor_decisions if d.changed
         ]
         state_store.save(monitor_decisions)
-
-        paper_path = OUT / "paper" / f"{run_id}.json"
-        write_paper_run_file(paper_path, paper_snapshots)
-        st["paper_trading"]["records"] = len(paper_snapshots)
-        if PAPER_GCS_BUCKET:
-            try:
-                object_name = (
-                    f"paper/{now:%Y/%m/%d}/{run_id}.json"
-                )
-                st["paper_trading"]["ledger_upload"] = upload_paper_run_to_gcs(
-                    local_path=paper_path,
-                    bucket_name=PAPER_GCS_BUCKET,
-                    object_name=object_name,
-                )
-            except Exception as e:
-                st["paper_trading"]["ledger_upload"] = {
-                    "uploaded": False,
-                    "reason": f"{type(e).__name__}: {e}",
-                }
-                st["warnings"].append(
-                    "Paper Ledger 雲端備份失敗；本次仍保留本機輸出，"
-                    "不影響交易決策 Gate。"
-                )
 
         lines = [
             f"Sky Cloud Scanner v{SCANNER_VERSION}｜{now:%Y-%m-%d %H:%M}",
@@ -621,14 +575,6 @@ def run():
             (
                 f"事件風險：{st['event_risk'].get('level', 'UNKNOWN')}｜"
                 f"動作：{st['event_risk'].get('action', 'VERIFY_BEFORE_TRADE')}"
-            ),
-            "",
-            "【P0-LAB Paper Trading】",
-            (
-                f"模式：{paper_gate.mode}｜"
-                f"OOS：{paper_gate.oos_verdict}｜"
-                f"模擬成交：{'允許' if paper_gate.simulation_allowed else '禁止'}｜"
-                f"本輪紀錄：{len(paper_snapshots)}"
             ),
             "",
             "【P0-A 監控狀態】",

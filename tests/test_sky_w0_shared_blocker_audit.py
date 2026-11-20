@@ -55,16 +55,9 @@ class W0SharedBlockerAuditTest(unittest.TestCase):
         report = audit(STATUS)
         self.assertFalse(report["broker_account_required_for_research"])
         self.assertEqual(report["research_access"], "OBSERVATION_ALLOWED_NO_BROKER")
-        self.assertFalse(report["paper_admission"]["paper_eligible"])
         self.assertFalse(report["production_eligible"])
         self.assertFalse(report["automatic_order"])
         self.assertEqual(report["trade_action"], "禁止交易")
-
-    def test_without_paper_events_do_not_invent_performance(self):
-        report = audit(STATUS)
-        self.assertEqual(report["paper_journal_status"], "INSUFFICIENT_DATA")
-        self.assertFalse(report["paper_performance_verified"])
-        self.assertEqual(report["paper_event_count"], 0)
 
     def test_bad_market_metadata_stays_incomplete(self):
         result = audit({"universe_count": 1986,
@@ -72,27 +65,6 @@ class W0SharedBlockerAuditTest(unittest.TestCase):
         self.assertEqual(result["market"]["classification"], "INPUT_INCOMPLETE")
         self.assertFalse(result["market"]["whole_market_execution_certified"])
         self.assertFalse(result["source_market_timestamp_valid"])
-
-    def test_paper_hard_stops_in_real_research_audit(self):
-        ledger = {"mode": "PAPER_ONLY", "daily_realized_net_pnl_twd": -10000,
-                  "consecutive_stops": 2, "open_positions": 0,
-                  "open_stop_risk_twd": 0, "proposed_entry": 50,
-                  "proposed_stop": 49, "proposed_notional_twd": 50000}
-        cost = {"execution_cost_complete": True,
-                "after_cost_rr_certified": True, "after_cost_rr": 2.0}
-        result = audit(STATUS, paper_ledger=ledger, paper_cost=cost)
-        self.assertFalse(result["paper_admission"]["paper_eligible"])
-        self.assertIn("TWO_CONSECUTIVE_STOPS", result["paper_admission"]["reasons"])
-        self.assertIn("DAILY_LOSS_STOP", result["paper_admission"]["reasons"])
-
-    def test_unknown_cost_blocks_paper_not_research(self):
-        ledger = {"mode": "PAPER_ONLY", "daily_realized_net_pnl_twd": 0,
-                  "consecutive_stops": 0, "open_positions": 0,
-                  "open_stop_risk_twd": 0, "proposed_entry": 50,
-                  "proposed_stop": 49, "proposed_notional_twd": 50000}
-        result = audit(STATUS, paper_ledger=ledger)
-        self.assertIn("FULL_EXECUTION_COST_MISSING", result["paper_admission"]["reasons"])
-        self.assertTrue(result["market"]["research_observation_available"])
 
     def test_schedule_event_absence_not_certified(self):
         report = audit(STATUS, workflow_source={
