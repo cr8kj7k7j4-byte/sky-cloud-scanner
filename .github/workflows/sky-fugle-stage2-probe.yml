@@ -6,6 +6,7 @@ on:
       - 'scan_requests/fugle_stage2/latest.json'
   workflow_dispatch:
 permissions:
+  actions: read
   contents: write
 concurrency:
   group: sky-fugle-paid-global-research-v1-live-wholemarket
@@ -28,7 +29,7 @@ jobs:
         id: guard
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:probe:stage2'
+        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:live:wholemarket'
       - name: Publish reservation before any paid call
         id: claim
         if: steps.guard.outputs.allowed == 'true'
@@ -43,7 +44,7 @@ jobs:
         if: steps.guard.outputs.allowed == 'true' && steps.claim.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:probe:stage2' --verify
+        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:live:wholemarket' --verify
       - name: Probe 2 market snapshots and 2 individual quotes
         if: steps.guard.outputs.allowed == 'true' && steps.verify_claim.outcome == 'success'
         env:
