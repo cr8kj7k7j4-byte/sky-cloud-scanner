@@ -48,6 +48,8 @@ class ChatScanBridgeTests(unittest.TestCase):
         report={"schema":"SKY_DAYTRADE_13COL_RESEARCH_V2","rows":[row],"row_count":1,"universe_count":1,"production_eligible":False,"checked_at_tpe":"2026-11-09T13:30:00+08:00"}
         self.assertEqual(len(validate_report(report)),1)
         status=make_status("chat-20261109-a", report)
+        self.assertNotIn("candidate_chain_p0_r_ledger_verified", status)
+        self.assertNotIn("live_only_portfolio_ledger_pending", status)
         self.assertFalse(status["production_eligible"])
         self.assertEqual(status["row_count"],1)
 
