@@ -5,12 +5,14 @@ from src.sky_scan_readback import COMMANDS, canonical_command, validate_scan_rea
 NOW = datetime(2026, 11, 11, 1, 10, tzinfo=timezone.utc)
 RUN_ID = "123456"
 REQUEST_ID = "readback-20261111-001"
+SHA = "a" * 40
 
 def good():
     return {
         "schema": "SKY_CHAT_SCAN_STATUS_V1",
         "scan_id": RUN_ID,
         "request_id": REQUEST_ID,
+        "head_sha": SHA,
         "run_url": "https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/" + RUN_ID,
         "completed_at_utc": (NOW - timedelta(seconds=40)).isoformat(),
         "status": "REPORT_READY_RESEARCH_ONLY",
@@ -23,7 +25,8 @@ def good():
 
 def check(x):
     return validate_scan_readback(x, expected_run_id=RUN_ID,
-                                  expected_request_id=REQUEST_ID, now=NOW)
+                                  expected_request_id=REQUEST_ID,
+                                  expected_head_sha=SHA, now=NOW)
 
 class ReadbackContracts(unittest.TestCase):
     def test_all_five_commands_use_one_route(self):
@@ -56,6 +59,7 @@ class ReadbackContracts(unittest.TestCase):
     def test_fail_closed_for_wrong_provenance(self):
         for key, value in (("scan_id", "older"), ("request_id", "other"),
                            ("run_url", "https://example.com/123456"),
+                           ("head_sha", "b" * 40),
                            ("source", "TWSE_MIS"),
                            ("production_eligible", True),
                            ("automatic_order", True),
@@ -66,6 +70,12 @@ class ReadbackContracts(unittest.TestCase):
                 x[key] = value
                 with self.assertRaises(ValueError):
                     check(x)
+
+    def test_expected_commit_sha_is_required(self):
+        with self.assertRaisesRegex(ValueError, "HEAD_SHA_MISMATCH"):
+            validate_scan_readback(good(), expected_run_id=RUN_ID,
+                                   expected_request_id=REQUEST_ID,
+                                   expected_head_sha="invalid", now=NOW)
 
     def test_verified_executions_cannot_exceed_observed_prices(self):
         x = good()
