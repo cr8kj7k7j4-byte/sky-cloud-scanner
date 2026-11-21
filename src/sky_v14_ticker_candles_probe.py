@@ -34,9 +34,13 @@ def selected(stage2):
     picked=[]
     for market in ("TWSE","TPEx"):
         for x in stage2.get("results", []):
+            if not isinstance(x, dict):
+                continue
+            micro = x.get("microstructure")
             if (x.get("exchange")==market and x.get("executed_trade_verified") is True
-                    and x.get("microstructure", {}).get("turnover_gate_pass") is True
-                    and x.get("microstructure", {}).get("l1_spread_gate_pass") is True):
+                    and isinstance(micro, dict)
+                    and micro.get("turnover_gate_pass") is True
+                    and micro.get("l1_spread_gate_pass") is True):
                 picked.append(x)
                 break
     return picked
@@ -51,7 +55,9 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
         # quote-verified candidates, nor use them to approve model features.
         if (not isinstance(evidence_candidates, list) or len(evidence_candidates)!=2
                 or {x.get("exchange") for x in evidence_candidates if isinstance(x,dict)}!={"TWSE","TPEx"}
-                or any(not isinstance(x.get("symbol"),str) or not x["symbol"].isdigit()
+                or any(not isinstance(x, dict)
+                       or not isinstance(x.get("symbol"), str)
+                       or not x["symbol"].isdigit()
                        for x in evidence_candidates)):
             raise ValueError("BAD_EVIDENCE_SAMPLE_SET")
         selected_rows=evidence_candidates
@@ -187,7 +193,9 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                 is_limit=bool(verified_price is not None and upper_limit is not None
                               and verified_price >= upper_limit)
                 snapshot={
-                    "last":quote_price,"avg_price":row.get("microstructure",{}).get("average_price")
+                    "last":quote_price,
+                    "avg_price":(row.get("microstructure") or {}).get("average_price")
+                    if isinstance(row.get("microstructure"), dict) else None
                 }
                 # Do not expose potentially contaminated model features from
                 # invalid bar order, future bars, or mismatched source dates.
