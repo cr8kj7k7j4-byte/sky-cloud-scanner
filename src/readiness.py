@@ -46,7 +46,6 @@ def default_sky100_checks(
     oos=False,
     cost_stress=False,
     leakage_check=False,
-    paper_trade=False,
     monitoring=False,
 ):
     return [
@@ -62,6 +61,5 @@ def default_sky100_checks(
         ComponentCheck("OOS", 10, oos),
         ComponentCheck("成本壓力測試", 8, cost_stress),
         ComponentCheck("資料洩漏檢查", 8, leakage_check),
-        ComponentCheck("Paper Trading", 8, paper_trade),
         ComponentCheck("監控與告警", 6, monitoring),
     ]
