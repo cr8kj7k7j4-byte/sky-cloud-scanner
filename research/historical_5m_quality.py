@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from collections import Counter
 from datetime import datetime, time
+from math import isfinite
 from zoneinfo import ZoneInfo
 
 TAIPEI = ZoneInfo("Asia/Taipei")
@@ -50,7 +51,8 @@ def inspect_history(rows, start="2026-01-01", end="2026-11-07"):
             invalid["unaligned_5min_timestamp"] += 1
         try:
             o,h,l,c,v = (float(row[k]) for k in ("open","high","low","close","volume"))
-            if not (0 < l <= min(o,c) <= max(o,c) <= h and v >= 0):
+            if not (all(isfinite(value) for value in (o, h, l, c, v))
+                    and 0 < l <= min(o,c) <= max(o,c) <= h and v >= 0):
                 invalid["invalid_ohlcv_relationship"] += 1
         except (KeyError, TypeError, ValueError, OverflowError):
             invalid["invalid_ohlcv_values"] += 1
