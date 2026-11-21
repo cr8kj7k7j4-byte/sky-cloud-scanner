@@ -106,7 +106,7 @@ class SafePaidTriggerTests(unittest.TestCase):
 
     def test_paid_acceptance_is_manual_only(self):
         content = Path(".github/workflows/fugle-paid-api-acceptance.yml").read_text(encoding="utf-8")
-        self.assertNotIn("\\n  push:", content)
+        self.assertNotIn("\n  push:", content)
         self.assertIn("  workflow_dispatch:", content)
 
     def test_code_push_does_not_launch_market_provider_paid_probes(self):
