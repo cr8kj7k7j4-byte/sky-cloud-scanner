@@ -67,6 +67,15 @@ def validate_scan_readback(
         raise ValueError("RUN_URL_MISMATCH")
     if status.get("production_eligible") is not False or status.get("automatic_order") is not False:
         raise ValueError("RESEARCH_ONLY_GUARD_FAILED")
+    # Report readback is never proof that the live strategy is certified.
+    if status.get("live_strategy_status", "HOLD_INSUFFICIENT_DATA") != "HOLD_INSUFFICIENT_DATA":
+        raise ValueError("LIVE_STRATEGY_HOLD_REQUIRED")
+    evidence = status.get("live_strategy_evidence")
+    if evidence is not None and (
+        not isinstance(evidence, dict)
+        or evidence.get("full_rule_validation_complete") is not False
+    ):
+        raise ValueError("LIVE_STRATEGY_EVIDENCE_UNVERIFIED")
     if not isinstance(max_receipt_age_seconds, int) or max_receipt_age_seconds < 0:
         raise ValueError("INVALID_MAX_AGE")
     current = now or datetime.now(timezone.utc)
