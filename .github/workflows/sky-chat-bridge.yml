@@ -317,7 +317,12 @@ jobs:
               and receipt.get("head_sha") == sha
               and receipt.get("request_id") == request_id
           )
-          result = "研究報告已獨立讀回" if verified else "等待驗收，請查看診斷收據"
+          blocked = status.get("status") in {
+              "DATA_BLOCKED_PAID_API_GUARD", "DATA_BLOCKED_PAID_API_RESERVATION"
+          }
+          result = ("研究報告已獨立讀回" if verified else
+                    "付費 API 防護已阻擋本次掃描（未重新查詢富果）" if blocked else
+                    "等待驗收，請查看診斷收據")
           lines = [
               "## Sky 手機掃描",
               "",
@@ -325,6 +330,9 @@ jobs:
               "",
               f"- Run ID: `{run_id}`",
               f"- SHA: `{sha}`",
+              f"- Request ID: `{request_id or '未取得'}`",
+              f"- 狀態：`{status.get('status', 'UNKNOWN')}`",
+              f"- 阻擋原因：`{status.get('block_reason') or receipt.get('reason') or '無'}`",
               "- 交易資格：禁止交易",
           ]
           for title, url in (("同次報告／診斷", report_url), ("獨立讀回收據", receipt_url)):
