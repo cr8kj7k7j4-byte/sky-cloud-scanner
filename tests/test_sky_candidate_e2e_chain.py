@@ -103,6 +103,24 @@ class CandidateEvidenceChainTests(unittest.TestCase):
         self.assertEqual(report["stage2_quote_verified_count"], 0)
         self.assertEqual(report["rows"][0]["action"], "禁止交易")
 
+    def test_stale_or_future_quote_flag_cannot_fake_fresh_execution(self):
+        for timestamp in ("2026-11-10T11:36:59+08:00",
+                          "2026-11-10T11:40:01+08:00",
+                          "2026-11-10T03:36:59+00:00"):
+            with self.subTest(timestamp=timestamp):
+                x = reports()
+                x[1]["results"][0]["last_trade_time"] = timestamp
+                row = build(*x)["rows"][0]
+                self.assertFalse(row["quote_verified"])
+                self.assertFalse(row["five_minute_observed"])
+                self.assertIn("FRESH_EXECUTED_TRADE", row["evidence_missing"])
+                self.assertEqual(row["action"], "禁止交易")
+
+    def test_fresh_utc_quote_normalizes_to_taiwan_time(self):
+        x = reports()
+        x[1]["results"][0]["last_trade_time"] = "2026-11-10T03:39:10+00:00"
+        self.assertTrue(build(*x)["rows"][0]["quote_verified"])
+
     def test_positive_indicators_cannot_upgrade_production(self):
         x = reports()
         s = x[2]["samples"][0]

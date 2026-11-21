@@ -6,7 +6,8 @@ No structural replacement of formal 80% whole-market quote gate, no A+, no order
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
 from src.cost_profiles import USER_CASH_DAYTRADE_20261022
@@ -72,12 +73,19 @@ def build(stage1, stage2, stage3):
         stage1_row = candidate_by_key[key]
         candle = stage3_by_key.get(key)
         quote_time = _time(row.get("last_trade_time"))
+        checked_at = _time(stage2.get("checked_at_tpe"))
+        # Independently cross-check the provider timestamp against this same
+        # Stage-2 receipt. A stale or future quote cannot become fresh solely
+        # because an upstream status flag says FRESH_EXECUTED_TRADE.
+        quote_age = checked_at - quote_time if checked_at and quote_time else None
         verified_quote = (
             row.get("executed_trade_verified") is True
             and row.get("status") == "FRESH_EXECUTED_TRADE"
             and quote_time is not None
-            and quote_time.date() == _time(stage2.get("checked_at_tpe")).date()
-            if _time(stage2.get("checked_at_tpe")) is not None else False
+            and checked_at is not None
+            and quote_time.astimezone(ZoneInfo("Asia/Taipei")).date()
+                == checked_at.astimezone(ZoneInfo("Asia/Taipei")).date()
+            and timedelta(0) <= quote_age <= timedelta(seconds=180)
         )
         # Retain the original quote verifier as authority; stage report merely
         # checks its status and timestamp are mutually consistent.
