@@ -29,6 +29,21 @@ def candles(symbol,timeframe="5"):
          "close":30+i*0.01,"volume":100} for i in range(6)]}
 
 class DeepFiveMinTests(unittest.TestCase):
+    def test_invalid_stage2_symbols_never_reach_paid_endpoints(self):
+        for invalid in (None, "", "ABC", "23/30", "２３３０", 2330):
+            report = stage2()
+            report["results"][0]["symbol"] = invalid
+            calls = []
+            def record_ticker(symbol):
+                calls.append(symbol)
+                return ticker(symbol)
+            with self.subTest(symbol=invalid):
+                result = run(report, ticker_fn=record_ticker, candle_fn=candles,
+                             sleep_fn=lambda _: None, now=NOW)
+                self.assertEqual(calls, ["5202"])
+                self.assertEqual(result["attempted_api_requests"], 2)
+                self.assertFalse(result["production_eligible"])
+
     def test_missing_or_malformed_microstructure_skips_paid_candidate_probe(self):
         for malformed in (None, [], "bad", 0):
             report = stage2()
