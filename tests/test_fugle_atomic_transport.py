@@ -79,6 +79,9 @@ class PaidWorkflowWiringTests(unittest.TestCase):
         ".github/workflows/sky-limited-candidate-research.yml",
         ".github/workflows/fugle-2026-entitlement-probe.yml",
         ".github/workflows/fugle-paid-api-acceptance.yml",
+        ".github/workflows/swing-postmarket-research.yml",
+        ".github/workflows/swing-split-scope-research.yml",
+        ".github/workflows/sky-daytrade-preopen-readiness.yml",
     )
 
     def test_paid_workflows_enable_atomic_claim_with_write_permission(self):
