@@ -209,5 +209,34 @@ class ChatScanBridgeTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"MISSING_13_COLUMNS"):
             validate_report(report)
 
+
+    def test_weekend_zero_candidates_explains_zero_paid_candle_calls(self):
+        from src.sky_chat_bridge import diagnose_five_minute_path
+        diagnostic = diagnose_five_minute_path(
+            {"candidate_count": 0, "excluded_reasons": {"NON_TRADING_WEEKEND": 1955}},
+            {"attempted_count": 0, "verified_executed_count": 0},
+            {"attempted_api_requests": 0, "samples": []})
+        self.assertEqual(diagnostic["reason_code"], "NON_TRADING_SESSION")
+        self.assertEqual(diagnostic["five_minute_api_requests"], 0)
+        self.assertFalse(diagnostic["production_eligible"])
+
+    def test_five_minute_diagnostic_distinguishes_quote_and_provider_failures(self):
+        from src.sky_chat_bridge import diagnose_five_minute_path
+        stage1 = {"candidate_count": 2}
+        self.assertEqual(diagnose_five_minute_path(stage1, {"attempted_count": 0}, {})["reason_code"], "STAGE2_NO_QUOTE_REQUESTS")
+        self.assertEqual(diagnose_five_minute_path(stage1, {"attempted_count": 2, "verified_executed_count": 0}, {})["reason_code"], "STAGE2_NO_VERIFIED_EXECUTIONS")
+        self.assertEqual(diagnose_five_minute_path(stage1, {"attempted_count": 2, "verified_executed_count": 1}, {"attempted_api_requests": 0})["reason_code"], "NO_STAGE2_CANDIDATES_PASSED_5M_GATES")
+        self.assertEqual(diagnose_five_minute_path(stage1, {"attempted_count": 2, "verified_executed_count": 1}, {"attempted_api_requests": 2, "samples": [{"status": "HTTP_ERROR"}]})["reason_code"], "FIVE_MINUTE_PROVIDER_ERROR")
+
+    def test_mobile_notice_reports_reason_without_promoting_trade(self):
+        row = {key: "待確認" for key in COLUMNS}
+        row.update({"股票代碼": "1101", "現在動作": "等待", "正式交易資格": False})
+        report = {"schema": "SKY_DAYTRADE_13COL_RESEARCH_V2", "rows": [row],
+                  "row_count": 1, "universe_count": 1, "production_eligible": False}
+        status = make_status("research-weekend-001", report,
+            stage1={"candidate_count": 0, "excluded_reasons": {"NON_TRADING_WEEKEND": 1}})
+        self.assertIn("NON_TRADING_SESSION", status["mobile_research_notice"])
+        self.assertFalse(status["automatic_order"])
+
 if __name__=="__main__":
     unittest.main()
