@@ -55,7 +55,10 @@ def screen(report: dict, *, max_price: float = MAX_PRICE_TWD) -> dict:
         volume = positive(row.get("volume"))
         # An observed snapshot must be from today's trading session.
         # A prior-day or trial row is never a stage-1 current candidate.
-        if row.get("source") != "Fugle paid bulk snapshot":
+        if checked_at.weekday() >= 5:
+            # A weekend snapshot is reference data, never a same-session candidate.
+            reason = "NON_TRADING_WEEKEND"
+        elif row.get("source") != "Fugle paid bulk snapshot":
             reason = "NO_FUGLE_SNAPSHOT"
         elif row.get("snapshot_source_date") != checked_at.date().isoformat():
             reason = "NON_CURRENT_SNAPSHOT_DATE"
