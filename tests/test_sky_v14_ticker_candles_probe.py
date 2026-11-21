@@ -140,6 +140,22 @@ class DeepFiveMinTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"BAD_EVIDENCE_SAMPLE_SET"):
             run(None,evidence_candidates=[{"symbol":"2409","exchange":"TWSE"}])
 
+    def test_malformed_ticker_numeric_fields_fail_closed(self):
+        for field in ("limitUpPrice", "boardLot"):
+            for value in ("N/A", "nan", "inf", float("nan"), 0, True, None):
+                def malformed(symbol):
+                    result = ticker(symbol)
+                    result[field] = value
+                    return result
+                with self.subTest(field=field, value=value):
+                    result = run(stage2(), ticker_fn=malformed, candle_fn=candles,
+                                 sleep_fn=lambda _: None, now=NOW)
+                    self.assertTrue(all(
+                        row["status"] == "INCOMPLETE_TICKER_OR_5M_EVIDENCE"
+                        and row["production_eligible"] is False
+                        and row["action"] == "等待"
+                        for row in result["samples"]))
+
     def test_attention_stock_cannot_pass_research_readiness(self):
         def attention(symbol):
             data=ticker(symbol)
