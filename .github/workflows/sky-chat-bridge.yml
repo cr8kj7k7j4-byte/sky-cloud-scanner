@@ -191,13 +191,26 @@ jobs:
               receipt=json.loads(p.read_text(encoding="utf-8"))
           except (OSError,ValueError,TypeError):
               receipt={}
+          request_path=Path("scan_requests/chat/latest.json")
+          try:
+              request=json.loads(request_path.read_text(encoding="utf-8"))
+              expected_request_id=request.get("request_id")
+          except (OSError,ValueError,TypeError,AttributeError):
+              expected_request_id=None
           ok=(os.getenv("GUARD_ALLOWED")=="true"
               and os.getenv("CLAIM_OUTCOME")=="success"
               and os.getenv("VERIFIED_CLAIM_OUTCOME")=="success"
               and os.getenv("BRIDGE_OUTCOME")=="success"
               and os.getenv("READBACK_OUTCOME")=="success"
               and isinstance(receipt,dict)
+              and receipt.get("schema")=="SKY_CHAT_EXTERNAL_ARTIFACT_READBACK_V1"
               and receipt.get("status")=="PASS_RESEARCH_ONLY"
+              and isinstance(expected_request_id,str)
+              and receipt.get("request_id")==expected_request_id
+              and str(receipt.get("artifact_id","")).isdecimal()
+              and int(receipt.get("artifact_id",0))>0
+              and isinstance(receipt.get("row_count"),int)
+              and receipt.get("row_count")>0
               and str(receipt.get("run_id"))==os.getenv("GITHUB_RUN_ID")
               and receipt.get("head_sha")==os.getenv("GITHUB_SHA")
               and receipt.get("production_eligible") is False
