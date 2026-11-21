@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 from research import three_model_fugle_pipeline as pipeline
 from research import fugle_market_quality_audit as quality
+from research import fugle_2026_entitlement_probe as entitlement
 
 
 class DirectPaidTransportGuardTests(unittest.TestCase):
@@ -47,6 +48,24 @@ class DirectPaidTransportGuardTests(unittest.TestCase):
         self.assertIn("/snapshot/quotes/TSE", guard.call_args.args[0])
 
 
+class EntitlementDirectPaidTransportGuardTests(unittest.TestCase):
+    def test_entitlement_probe_claims_before_real_requests_transport(self):
+        order = []
+        response = MagicMock(status_code=403)
+        with patch.object(entitlement, "guard_fugle_request", side_effect=lambda *a: order.append("guard")) as guard:
+            with patch("requests.get", side_effect=lambda *a, **k: (order.append("network"), response)[1]) as network:
+                entitlement.run_probe("test-key", symbols=("2330",))
+        guard.assert_called_once()
+        network.assert_called_once()
+        self.assertEqual(order, ["guard", "network"])
+
+    def test_injected_entitlement_transport_stays_offline(self):
+        response = MagicMock(status_code=403)
+        with patch.object(entitlement, "guard_fugle_request") as guard:
+            entitlement.run_probe("test-key", symbols=("2330",), get=lambda *a, **k: response)
+        guard.assert_not_called()
+
+
 class PaidWorkflowWiringTests(unittest.TestCase):
     WORKFLOWS = (
         ".github/workflows/sky-single-stock-realtime.yml",
@@ -54,6 +73,15 @@ class PaidWorkflowWiringTests(unittest.TestCase):
         ".github/workflows/swing-v11-live-scan.yml",
         ".github/workflows/three-model-fugle-api-smoke.yml",
         ".github/workflows/fugle-market-quality-audit.yml",
+        ".github/workflows/three-model-fugle-private-ledger.yml",
+        ".github/workflows/three-model-next-session-markout.yml",
+        ".github/workflows/sky-market-provider-readiness.yml",
+        ".github/workflows/sky-limited-candidate-research.yml",
+        ".github/workflows/fugle-2026-entitlement-probe.yml",
+        ".github/workflows/fugle-paid-api-acceptance.yml",
+        ".github/workflows/swing-postmarket-research.yml",
+        ".github/workflows/swing-split-scope-research.yml",
+        ".github/workflows/sky-daytrade-preopen-readiness.yml",
     )
 
     def test_paid_workflows_enable_atomic_claim_with_write_permission(self):
@@ -63,6 +91,9 @@ class PaidWorkflowWiringTests(unittest.TestCase):
                 self.assertIn("SKY_PAID_ATOMIC_ENFORCE: \"1\"", content)
                 self.assertIn("GH_TOKEN: ${{ github.token }}", content)
                 self.assertIn("contents: write", content)
+                if path.endswith("fugle-paid-api-acceptance.yml"):
+                    self.assertIn("guard_fugle_request(req.full_url)", content)
+                    self.assertIn("actions/checkout@v4", content)
 
 
 if __name__ == "__main__":

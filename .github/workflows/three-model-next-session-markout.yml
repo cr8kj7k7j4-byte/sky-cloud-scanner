@@ -16,7 +16,7 @@ on:
       - 'tests/test_three_model_next_session_markout.py'
       - 'tests/test_three_model_fugle_pipeline.py'
 permissions:
-  contents: read
+  contents: write
   id-token: write
 concurrency:
   group: three-model-next-session-markout
@@ -24,6 +24,9 @@ concurrency:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SKY_PAID_ATOMIC_ENFORCE: "1"
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
