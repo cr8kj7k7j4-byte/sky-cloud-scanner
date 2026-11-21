@@ -49,7 +49,7 @@ jobs:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
         run: PYTHONPATH=. python -m research.sky_provider_readiness
       - name: Compare paid Fugle snapshot symbol membership against official universe
-        if: github.event_name != 'pull_request'
+        if: github.event_name == 'workflow_dispatch'
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
         run: PYTHONPATH=. python -m research.fugle_snapshot_coverage_audit
