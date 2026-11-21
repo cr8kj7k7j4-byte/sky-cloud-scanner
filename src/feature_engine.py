@@ -1,3 +1,4 @@
+import math
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from dataclasses import dataclass, asdict
@@ -19,9 +20,17 @@ class FeatureSnapshot:
 
 
 def _safe_pct(a, b):
-    if a is None or b in (None, 0):
+    """Fail closed on malformed, nonfinite or overflowing price ratios."""
+    if isinstance(a, bool) or isinstance(b, bool):
         return None
-    return (float(a) / float(b) - 1.0) * 100.0
+    try:
+        numerator, denominator = float(a), float(b)
+        if not (math.isfinite(numerator) and math.isfinite(denominator)) or denominator == 0:
+            return None
+        ratio = (numerator / denominator - 1.0) * 100.0
+    except (TypeError, ValueError, OverflowError, ZeroDivisionError):
+        return None
+    return ratio if math.isfinite(ratio) else None
 
 
 def build_features(candidate, candles=None, market_return_pct=None):
