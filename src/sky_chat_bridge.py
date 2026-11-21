@@ -203,6 +203,7 @@ def main():
                 status,
                 expected_run_id=str(os.getenv("GITHUB_RUN_ID") or ""),
                 expected_request_id=request_id,
+                expected_head_sha=str(os.getenv("GITHUB_SHA") or ""),
             )
         except ValueError as exc:
             status["status"] = "DATA_BLOCKED_READBACK_INVALID"

@@ -38,6 +38,7 @@ def validate_scan_readback(
     status: dict[str, Any], *,
     expected_run_id: str,
     expected_request_id: str,
+    expected_head_sha: str,
     now: datetime | None = None,
     max_receipt_age_seconds: int = 300,
     max_capture_age_seconds: int = 300,
@@ -52,6 +53,11 @@ def validate_scan_readback(
         raise ValueError("RUN_ID_MISMATCH")
     if not expected_request_id or status.get("request_id") != expected_request_id:
         raise ValueError("REQUEST_ID_MISMATCH")
+    import re
+    if (not isinstance(expected_head_sha, str)
+            or re.fullmatch(r"[0-9a-f]{40}", expected_head_sha) is None
+            or status.get("head_sha") != expected_head_sha):
+        raise ValueError("HEAD_SHA_MISMATCH")
     url = status.get("run_url")
     if not isinstance(url, str) or not url.startswith(
         "https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/"
@@ -97,6 +103,7 @@ def validate_scan_readback(
         "status": "RESEARCH_REPORT_READABLE_NOT_TRADE_CERTIFIED",
         "run_id": expected_run_id,
         "request_id": expected_request_id,
+        "head_sha": expected_head_sha,
         "receipt_age_seconds": round(max(0.0, age), 1),
         "snapshot_capture_at": captured.isoformat(),
         "snapshot_is_executed_trade_time": False,
