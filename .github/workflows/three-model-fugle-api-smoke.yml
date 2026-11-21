@@ -29,13 +29,14 @@ jobs:
         with:
           python-version: "3.12"
       - name: Validate real paid Fugle history without publishing candles
+        if: github.event_name == 'workflow_dispatch'
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
           RESEARCH_END_DATE: "2026-11-06"
         run: |
           PYTHONPATH=. python -m research.three_model_fugle_api_smoke
       - name: Attach sanitized acceptance status
-        if: always()
+        if: always() && github.event_name == 'workflow_dispatch'
         run: |
           if [ -f output/three_model_fugle_api_smoke_summary.json ]; then
             python - <<'PY' >> "$GITHUB_STEP_SUMMARY"

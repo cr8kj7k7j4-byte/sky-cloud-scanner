@@ -3,10 +3,6 @@ on:
   workflow_dispatch:
   # Initial six-endpoint acceptance already passed. Avoid 48 daily repeat runs;
   # market-hour ongoing diagnostics remain in sky-market-provider-readiness.yml.
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/fugle-paid-api-acceptance.yml"
 
 permissions:
   contents: write

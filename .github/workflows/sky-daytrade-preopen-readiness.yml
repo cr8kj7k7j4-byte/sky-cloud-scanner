@@ -66,7 +66,7 @@ jobs:
               f.write('should_check=' + ('true' if x.get('should_scan') is True else 'false') + '\n')
           PY
       - name: Probe paid Fugle all-market and individual permissions (up to 3 tries)
-        if: steps.calendar.outputs.should_check == 'true'
+        if: github.event_name == 'workflow_dispatch' && steps.calendar.outputs.should_check == 'true'
         run: |
           set -euo pipefail
           ok=0

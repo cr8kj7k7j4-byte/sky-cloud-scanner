@@ -96,5 +96,34 @@ class PaidWorkflowWiringTests(unittest.TestCase):
                     self.assertIn("actions/checkout@v4", content)
 
 
+
+class SafePaidTriggerTests(unittest.TestCase):
+    def test_fugle_entitlement_probe_has_no_protected_main_write(self):
+        content = Path(".github/workflows/fugle-2026-entitlement-probe.yml").read_text(encoding="utf-8")
+        self.assertNotIn("gh api --method PUT", content)
+        self.assertNotIn("Publish sanitized readback for mobile GitHub review", content)
+        self.assertIn("if: github.event_name == 'workflow_dispatch'", content)
+
+    def test_paid_acceptance_is_manual_only(self):
+        content = Path(".github/workflows/fugle-paid-api-acceptance.yml").read_text(encoding="utf-8")
+        self.assertNotIn("\\n  push:", content)
+        self.assertIn("  workflow_dispatch:", content)
+
+    def test_code_push_does_not_launch_market_provider_paid_probes(self):
+        content = Path(".github/workflows/sky-market-provider-readiness.yml").read_text(encoding="utf-8")
+        self.assertEqual(content.count("if: github.event_name == 'workflow_dispatch'"), 2)
+
+    def test_manual_only_entrypoints_gate_paid_steps(self):
+        expectations = {
+            ".github/workflows/sky-single-stock-realtime.yml": "if: github.event_name == 'workflow_dispatch'",
+            ".github/workflows/sky-limited-candidate-research.yml": "github.event_name == 'workflow_dispatch'",
+            ".github/workflows/sky-daytrade-preopen-readiness.yml": "github.event_name == 'workflow_dispatch'",
+            ".github/workflows/three-model-fugle-api-smoke.yml": "if: github.event_name == 'workflow_dispatch'",
+        }
+        for path, expected in expectations.items():
+            with self.subTest(path=path):
+                self.assertIn(expected, Path(path).read_text(encoding="utf-8"))
+
+
 if __name__ == "__main__":
     unittest.main()

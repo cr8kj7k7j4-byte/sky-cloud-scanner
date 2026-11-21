@@ -49,6 +49,11 @@ jobs:
       - name: Run split-scope and MIS safety tests
         run: python -m pytest -q tests/test_swing_split_scope_scanner.py tests/test_official_mis_coverage.py
       - name: Run research-only D-close plus candidate intraday scan
+        if: >-
+          github.event_name == 'workflow_dispatch' ||
+          (github.event_name == 'push' &&
+          (contains(toJSON(github.event.commits.*.added), 'scan_requests/swing_split_scope/') ||
+           contains(toJSON(github.event.commits.*.modified), 'scan_requests/swing_split_scope/')))
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
         run: python -m src.swing_split_scope_scanner --deep-n 8

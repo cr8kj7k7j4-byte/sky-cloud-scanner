@@ -17,6 +17,7 @@ on:
       - '.github/workflows/swing-postmarket-research.yml'
       - '.github/workflows/swing-split-scope-research.yml'
       - '.github/workflows/sky-daytrade-preopen-readiness.yml'
+      - '.github/workflows/three-model-fugle-api-smoke.yml'
       - 'research/sky_paid_fugle_api_guard.py'
       - 'research/sky_fugle_request_identity.py'
       - 'tests/test_sky_paid_fugle_api_guard.py'
