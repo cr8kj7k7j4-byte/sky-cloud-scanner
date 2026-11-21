@@ -70,13 +70,12 @@ def main():
             oos=True,
             cost_stress=True,
             leakage_check=True,
-            paper_trade=False,
             monitoring=False,
         )
         readiness = engineering_readiness(checks)
         assert readiness["score"] < 100
         assert readiness["production_ready"] is False
-        assert "Paper Trading" in readiness["blocking_components"]
+        assert "監控與告警" in readiness["blocking_components"]
 
     print("PASS Sky 100 core tests")
 
