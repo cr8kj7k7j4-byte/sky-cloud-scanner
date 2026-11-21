@@ -6,7 +6,7 @@ on:
       - 'scan_requests/chat/latest.json'
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
   actions: read
 concurrency:
   group: sky-fugle-paid-global-research-v1-live-wholemarket
@@ -49,6 +49,8 @@ jobs:
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
           SKY_FUGLE_ONLY_MARKETDATA: '1'
+          SKY_PAID_ATOMIC_ENFORCE: '1'
+          GH_TOKEN: ${{ github.token }}
         run: python -m src.sky_chat_bridge
       - name: Preserve denied reservation as NO_TRADE status
         if: always()
