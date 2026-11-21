@@ -185,7 +185,11 @@ def verify_uploaded_reservation(scope: str, run_id: str, now: datetime,
     if len(own) != 1:
         raise RuntimeError("OWN_RESERVATION_NOT_VISIBLE")
     artifact_id = own[0].get("id")
+    if type(artifact_id) is not int or artifact_id <= 0:
+        raise RuntimeError("INVALID_OWN_RESERVATION_ARTIFACT_ID")
     remote = download(artifact_id)
+    if not isinstance(remote, dict):
+        raise RuntimeError("INVALID_REMOTE_CLAIM_DOCUMENT")
     for key in ("schema", "status", "claim_nonce", "scope_hash", "slot", "run_id"):
         if remote.get(key) != local.get(key):
             raise RuntimeError("ARTIFACT_CLAIM_CONTENT_MISMATCH_" + key)
