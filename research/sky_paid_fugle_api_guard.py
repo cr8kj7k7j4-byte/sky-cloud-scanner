@@ -162,9 +162,16 @@ def verify_uploaded_reservation(scope: str, run_id: str, now: datetime,
         raise RuntimeError("CLAIM_RUN_MISMATCH")
     if not isinstance(local.get("claim_nonce"), str) or len(local["claim_nonce"]) != 32:
         raise RuntimeError("INVALID_LOCAL_NONCE")
-    ts = datetime.fromisoformat(str(local.get("checked_at_utc", "")).replace("Z", "+00:00"))
+    try:
+        ts = datetime.fromisoformat(str(local.get("checked_at_utc", "")).replace("Z", "+00:00"))
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError("INVALID_CLAIM_TIMESTAMP") from exc
+    if ts.tzinfo is None or ts.utcoffset() is None:
+        raise RuntimeError("CLAIM_TIMEZONE_REQUIRED")
+    if now.tzinfo is None or now.utcoffset() is None:
+        raise RuntimeError("VERIFY_TIMEZONE_REQUIRED")
     age = (now - ts).total_seconds()
-    if ts.tzinfo is None or not (-30 <= age < WINDOW_SECONDS):
+    if not (-30 <= age < WINDOW_SECONDS):
         raise RuntimeError("CLAIM_EXPIRED_OR_FUTURE")
     slot = slots(ts)[0]
     if local.get("slot") != slot:
