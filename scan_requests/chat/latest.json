@@ -1,6 +1,6 @@
 {
   "command": "Sky 快掃",
-  "request_id": "research-go-live-20261121-gate-b2",
+  "request_id": "research-w0-tib31-e2e-20261121-1",
   "read_only_no_orders": true,
-  "reason": "Owner requested second controlled research-only scan acceptance after previous RECENT_RESERVATION; never bypass shared reservation; require same-run independent artifact readback and NO_TRADE."
+  "reason": "W0 one-shot post-merge #558 research-only acceptance: exclude 31 retired TIB symbols, validate 1955-scope, real Fugle Snapshot, same-run external Artifact receipt, no auto-order or Production change; paid lease must fail closed on duplicate."
 }
