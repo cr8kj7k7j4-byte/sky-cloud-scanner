@@ -25,7 +25,7 @@ on:
   # 
 permissions:
   actions: read
-  contents: read
+  contents: write
 
 jobs:
   validate-freshness:
@@ -41,6 +41,9 @@ jobs:
 
   live-scan:
     if: github.event_name != 'pull_request'
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SKY_PAID_ATOMIC_ENFORCE: "1"
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

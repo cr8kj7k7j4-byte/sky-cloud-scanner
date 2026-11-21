@@ -10,13 +10,16 @@ on:
       - .github/workflows/three-model-fugle-api-smoke.yml
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 concurrency:
   group: three-model-fugle-api-smoke
   cancel-in-progress: false
 jobs:
   real-api-readonly:
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SKY_PAID_ATOMIC_ENFORCE: "1"
     timeout-minutes: 8
     steps:
       - name: Checkout
