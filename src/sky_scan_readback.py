@@ -103,6 +103,8 @@ def validate_scan_readback(
             or type(verified) is not int or not 0 <= verified <= observed):
         raise ValueError("INVALID_COVERAGE_COUNTS")
     captured = _parse_time(status.get("data_timestamp"), "SNAPSHOT_CAPTURE_AT")
+    if captured > completed + timedelta(seconds=30):
+        raise ValueError("SNAPSHOT_AFTER_SCAN_COMPLETION")
     if captured > current + timedelta(seconds=30):
         raise ValueError("SNAPSHOT_CAPTURE_IN_FUTURE")
     if not isinstance(max_capture_age_seconds, int) or max_capture_age_seconds < 0:

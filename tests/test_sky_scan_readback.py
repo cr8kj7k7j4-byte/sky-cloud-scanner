@@ -125,6 +125,12 @@ class ReadbackContracts(unittest.TestCase):
                     with self.assertRaises(ValueError):
                         check(x)
 
+    def test_capture_after_scan_completion_rejected(self):
+        x = good()
+        x["data_timestamp"] = (NOW + timedelta(seconds=10)).isoformat()
+        with self.assertRaisesRegex(ValueError, "SNAPSHOT_AFTER_SCAN_COMPLETION"):
+            check(x)
+
     def test_future_receipt_rejected(self):
         x = good()
         x["completed_at_utc"] = (NOW + timedelta(minutes=10)).isoformat()
