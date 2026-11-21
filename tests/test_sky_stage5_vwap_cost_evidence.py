@@ -36,6 +36,24 @@ class Stage5VwapCostSourceTests(unittest.TestCase):
         self.assertEqual(result["status"], "TURNOVER_VOLUME_AVERAGE_INCONSISTENT")
         self.assertFalse(result["vwap_certified"])
 
+    def test_extreme_finite_quote_numbers_never_emit_nonfinite_json(self):
+        import json
+        for avg, turn, volume in (
+            (1e308, 1e308, 1e308),
+            (1e-308, 1e308, 1e-308),
+            (1e-308, 1e-308, 1e-308),
+        ):
+            with self.subTest(avg=avg, turn=turn, volume=volume):
+                result = review_quote_vwap_evidence({
+                    "average_price": avg,
+                    "total_trade_value_twd": turn,
+                    "total_trade_volume_raw": volume,
+                })
+                self.assertEqual(result["status"], "TURNOVER_VOLUME_AVERAGE_INCONSISTENT")
+                self.assertIsNone(result["turnover_to_volume_avg_implied_scale"])
+                self.assertFalse(result["vwap_certified"])
+                json.dumps(result, allow_nan=False)
+
     def test_calibrated_base_fees_not_complete_cost(self):
         result = review_cost_evidence()
         self.assertEqual(result["profile_id"], "USER_CASH_DAYTRADE_20261022")
