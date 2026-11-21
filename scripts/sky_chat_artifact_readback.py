@@ -28,6 +28,7 @@ def verify_download(root: Path, *, run_id: str, request_id: str,
         raise ValueError("DOWNLOADED_STATUS_SHA_MISMATCH")
     attestation = validate_scan_readback(
         status, expected_run_id=run_id, expected_request_id=request_id,
+        expected_head_sha=expected_sha,
         now=now or datetime.now(timezone.utc),
     )
     if report.get("schema") != "SKY_DAYTRADE_13COL_RESEARCH_V2":
