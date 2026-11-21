@@ -105,7 +105,7 @@ jobs:
               except Exception:
                   return {}
 
-          w4=load("upstream/w4/shadow_promotion_dashboard.json")
+          w4={}  # Retired ledger source; no eligibility or sample evidence inferred
           w6=load("upstream/w6/w6_p1_report.json")
           summary=dict(w4.get("summary") or {})
           samples=int(summary.get("samples") or 0)
