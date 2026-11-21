@@ -17,7 +17,9 @@ STATUS_SCHEMA = "SKY_CHAT_SCAN_STATUS_V1"
 
 
 def canonical_command(command: str) -> str:
-    if command not in COMMANDS:
+    # Reject malformed JSON values deterministically, including unhashable lists/maps.
+    # A TypeError here would bypass the bridge's fail-closed request handling.
+    if not isinstance(command, str) or command not in COMMANDS:
         raise ValueError("UNSUPPORTED_SKY_COMMAND")
     return CANONICAL_COMMAND
 
