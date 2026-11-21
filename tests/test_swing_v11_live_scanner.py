@@ -1,7 +1,7 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from src.swing_v11_live_scanner import frozen_signal_pass, _entry_status, intraday_execution_decision, fetch_candidate_live_quotes
+from src.swing_v11_live_scanner import frozen_signal_pass, _entry_status, intraday_execution_decision, fetch_candidate_live_quotes, research_only_action
 
 TZ = ZoneInfo("Asia/Taipei")
 
@@ -67,3 +67,11 @@ def test_candidate_live_quotes_short_circuits_when_no_frozen_candidates():
     assert quotes == {}
     assert warnings == []
     assert meta == {"requested": 0, "mis": 0, "fugle": 0, "missing": 0}
+
+def test_challenger_buy_eligible_never_publishes_buy():
+    status, raw_action, reason = intraday_execution_decision(49.8, 50.0, 47.0, 59.0)
+    action, note = research_only_action(raw_action, reason)
+    assert status == "BUY_ELIGIBLE"
+    assert action == "觀察"
+    assert "禁止新進場" in note
+    assert research_only_action("禁止交易", "stop") == ("禁止交易", "stop")
