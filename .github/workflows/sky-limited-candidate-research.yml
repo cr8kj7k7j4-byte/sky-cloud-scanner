@@ -54,7 +54,7 @@ jobs:
               print("open="+str(data.get("should_scan") is True).lower(), file=f)
           PY
       - name: Collect bounded candidate evidence (main only; no orders)
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && steps.calendar.outputs.open == 'true'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && steps.calendar.outputs.open == 'true'
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
         run: PYTHONPATH=. python -m research.limited_candidate_scanner --max-candidates 12
