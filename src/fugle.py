@@ -10,7 +10,12 @@ def _headers():
 
 def _get(path, params=None):
     url = f"{BASE}{path}"
-    r = requests.get(url, params=params, headers=_headers(), timeout=20)
+    headers = _headers()
+    # Enforced research runs must obtain the shared atomic claim before HTTP.
+    # Guard errors fail closed: no provider request is sent.
+    from research.sky_fugle_atomic_ref_claim import guard_fugle_request
+    guard_fugle_request(url, params)
+    r = requests.get(url, params=params, headers=headers, timeout=20)
     try:
         r.raise_for_status()
     except requests.HTTPError as e:
