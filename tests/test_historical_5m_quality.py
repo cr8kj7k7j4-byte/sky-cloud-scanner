@@ -23,6 +23,14 @@ class QualityTest(unittest.TestCase):
         self.assertEqual(x["invalid_counts"]["duplicate_timestamp"],1)
         self.assertEqual(x["invalid_counts"]["invalid_ohlcv_relationship"],1)
 
+    def test_nonfinite_ohlcv_is_rejected(self):
+        for field in ("open", "high", "low", "close", "volume"):
+            for value in (float("nan"), float("inf"), float("-inf")):
+                with self.subTest(field=field, value=str(value)):
+                    result = inspect_history([bar(**{field: value})])
+                    self.assertEqual(result["status"], "INVALID_DATA")
+                    self.assertEqual(result["invalid_counts"]["invalid_ohlcv_relationship"], 1)
+
     def test_weekend_and_timezone(self):
         x=inspect_history([bar("2026-11-07T09:00:00+08:00"),bar("2026-11-06T09:05:00")])
         self.assertEqual(x["status"],"INVALID_DATA")
