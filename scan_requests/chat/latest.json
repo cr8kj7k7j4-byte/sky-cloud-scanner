@@ -1,6 +1,6 @@
 {
   "command": "Sky 快掃",
-  "request_id": "research-readback-20261121-main-e105fa0",
+  "request_id": "research-readback-20261121-main-9c268c0",
   "read_only_no_orders": true,
-  "reason": "Owner-authorized same-run read-only operational acceptance for main e105fa0; GitHub paid reservation must block duplicates; weekend snapshots are not live executions; NO_TRADE, no simulated ledger, no production promotion."
+  "reason": "Owner-authorized latest-main immutable same-run research readback acceptance after paid reservation shape fix; only one controlled scan; preserve no orders, no simulated ledger, no production promotion, and no claim of weekend live strategy certification."
 }
