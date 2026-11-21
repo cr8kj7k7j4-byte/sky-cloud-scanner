@@ -77,6 +77,25 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # Paid API quota is not inferred from the monthly subscription price.
+          # Record a conservative per-run budget without claiming official limits.
+          mkdir -p output/fugle_api_guard
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          Path("output/fugle_api_guard/subscription_policy.json").write_text(
+              json.dumps({
+                  "schema": "SKY_FUGLE_SUBSCRIPTION_POLICY_V1",
+                  "billing_model": "MONTHLY_SUBSCRIPTION",
+                  "provider_request_limit_verified": False,
+                  "provider_request_limit": None,
+                  "quota_enforcement": "PROVIDER_LIMIT_UNKNOWN_FAIL_CLOSED",
+                  "dedup_scope": "sky:live:wholemarket",
+                  "cross_workflow_data_reuse_verified": False,
+                  "automatic_order": False,
+                  "production_eligible": False
+              }, indent=2) + "\\n", encoding="utf-8")
+          PY
           # A subscription is not an unlimited rate-limit grant. Recheck only
           # GitHub reservation metadata while another paid observation is recent.
           # Never issue a Fugle call or upload a claim until a fresh slot is clear.
