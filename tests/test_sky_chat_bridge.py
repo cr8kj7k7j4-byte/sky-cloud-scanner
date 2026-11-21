@@ -10,6 +10,19 @@ class ChatScanBridgeTests(unittest.TestCase):
         self.assertIn('"automatic_order":False', workflow)
         self.assertIn('"trade_action":"禁止交易"', workflow)
 
+    def test_manual_scan_request_identity_is_unique_and_read_only(self):
+        from pathlib import Path
+        workflow = Path(".github/workflows/sky-chat-bridge.yml").read_text(encoding="utf-8")
+        self.assertIn("if: github.event_name == 'workflow_dispatch'", workflow)
+        self.assertIn('validate_request(payload)', workflow)
+        self.assertIn('os.environ["GITHUB_RUN_ID"]', workflow)
+        self.assertIn('os.environ["GITHUB_RUN_ATTEMPT"]', workflow)
+        self.assertIn('payload["request_id"] = f"manual-sky-{run_id}-{attempt}"', workflow)
+        self.assertIn('p.write_text(json.dumps(payload', workflow)
+        self.assertLess(workflow.index("Assign a unique request ID"),
+                        workflow.index("Reserve shared Fugle paid API slot"))
+        self.assertIn("Manual GitHub Actions research-only scan; no orders", workflow)
+
     def test_request_good(self):
         self.assertEqual(validate_request({"command":"Sky 當沖現在掃一次","request_id":"chat-20261109-a","read_only_no_orders":True}),"chat-20261109-a")
 

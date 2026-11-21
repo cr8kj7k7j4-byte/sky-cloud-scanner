@@ -21,6 +21,27 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install -r requirements.txt
+      - name: Assign a unique request ID to each manual research scan
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from src.sky_chat_bridge import validate_request
+          p = Path("scan_requests/chat/latest.json")
+          payload = json.loads(p.read_text(encoding="utf-8"))
+          # Validate the original read-only command before changing identity.
+          validate_request(payload)
+          run_id = os.environ["GITHUB_RUN_ID"]
+          attempt = os.environ["GITHUB_RUN_ATTEMPT"]
+          if not run_id.isdecimal() or not attempt.isdecimal():
+              raise SystemExit("INVALID_MANUAL_RUN_IDENTITY")
+          payload["request_id"] = f"manual-sky-{run_id}-{attempt}"
+          payload["reason"] = "Manual GitHub Actions research-only scan; no orders"
+          p.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          print("MANUAL_RESEARCH_REQUEST_ID:" + payload["request_id"])
+          PY
       - name: Verify paid reservation contracts without Fugle
         run: python -m unittest tests.test_sky_fugle_request_identity tests.test_sky_paid_fugle_api_guard -v
       - name: Reserve shared Fugle paid API slot (fail closed)
