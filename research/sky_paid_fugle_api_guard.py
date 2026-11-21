@@ -179,9 +179,16 @@ def verify_uploaded_reservation(scope: str, run_id: str, now: datetime,
     if local.get("scope_hash") != hashlib.sha256(scope.encode()).hexdigest()[:16]:
         raise RuntimeError("CLAIM_SCOPE_MISMATCH")
     name = artifact_name(scope, slot)
-    own = [a for a in lookup(name)
-           if str((a.get("workflow_run") or {}).get("id")) == run_id
-           and not a.get("expired", False)]
+    visible = lookup(name)
+    if not isinstance(visible, list) or any(not isinstance(a, dict) for a in visible):
+        raise RuntimeError("INVALID_RESERVATION_ARTIFACT_LIST")
+    active = [a for a in visible if not a.get("expired", False)]
+    if any(str((a.get("workflow_run") or {}).get("id")) != run_id for a in active):
+        # A competing claim means serialization may have been bypassed.
+        # Never issue a paid request on ambiguous ownership.
+        raise RuntimeError("COMPETING_RESERVATION_CLAIM")
+    own = [a for a in active
+           if str((a.get("workflow_run") or {}).get("id")) == run_id]
     if len(own) != 1:
         raise RuntimeError("OWN_RESERVATION_NOT_VISIBLE")
     artifact_id = own[0].get("id")
