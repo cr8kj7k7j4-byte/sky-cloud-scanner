@@ -84,12 +84,17 @@ def diagnose_five_minute_path(stage1, stage2, stage3):
                   else "STAGE2_NO_VERIFIED_EXECUTIONS")
     elif candle_attempts == 0:
         reason = "NO_STAGE2_CANDIDATES_PASSED_5M_GATES"
-    elif stage3.get("rate_limited"):
+    elif stage3.get("rate_limited") or any(
+        isinstance(sample, dict) and (sample.get("status") == "RATE_LIMITED" or sample.get("http_status") == 429)
+        for sample in samples
+    ):
         reason = "FIVE_MINUTE_RATE_LIMITED"
     elif any(s.get("status") in ("PLAN_RESTRICTED", "HTTP_ERROR", "SOURCE_ERROR", "INVALID_PROVIDER_PAYLOAD")
              for s in samples if isinstance(s, dict)):
         reason = "FIVE_MINUTE_PROVIDER_ERROR"
-    elif any(s.get("valid_today_five_min_bars", 0) > 0 for s in samples if isinstance(s, dict)):
+    elif any(isinstance(s, dict) and isinstance(s.get("valid_today_five_min_bars"), int)
+             and not isinstance(s.get("valid_today_five_min_bars"), bool)
+             and s["valid_today_five_min_bars"] > 0 for s in samples):
         reason = "FIVE_MINUTE_OBSERVED_RESEARCH_ONLY"
     else:
         reason = "FIVE_MINUTE_DATA_INCOMPLETE"
@@ -141,6 +146,15 @@ def make_status(request_id, report=None, error=None, observation=None, stage1=No
     report_status = ("DATA_BLOCKED_SOURCE_FAILURE" if source_missing else
                      "REPORT_READY_RESEARCH_ONLY" if observed_count > 0 else
                      "DATA_BLOCKED_NO_OBSERVATIONS")
+    five_minute_diagnostic = diagnose_five_minute_path(stage1, stage2, stage3)
+    if report is None:
+        mobile_notice = "研究快掃失敗；禁止交易"
+    elif report_status != "REPORT_READY_RESEARCH_ONLY":
+        mobile_notice = "研究報告資料不完整；禁止交易：" + report_status
+    elif five_minute_diagnostic["reason_code"] == "FIVE_MINUTE_OBSERVED_RESEARCH_ONLY":
+        mobile_notice = "已取得研究用五分鐘K棒；完整策略仍未驗收，禁止交易"
+    else:
+        mobile_notice = "研究報告可讀；五分鐘K棒未完成驗證：" + five_minute_diagnostic["reason_code"]
     return {
         "schema": "SKY_CHAT_SCAN_STATUS_V1",
         "request_id": request_id, "scan_id": run_id,
@@ -162,7 +176,7 @@ def make_status(request_id, report=None, error=None, observation=None, stage1=No
         "stage2_bounded_operational_probe_pass": stage2.get("operational_bounded_probe_pass", False),
         "stage2_elapsed_seconds": stage2.get("elapsed_seconds"),
         "stage2_max_plan_quota_inferred": False,
-        "five_minute_diagnostic": diagnose_five_minute_path(stage1, stage2, stage3),
+        "five_minute_diagnostic": five_minute_diagnostic,
         "v14_ticker_5m_attempted_api_requests": stage3.get("attempted_api_requests", 0),
         "v14_ticker_5m_samples": (stage3.get("samples") or [])[:2],
         "v14_ticker_5m_artifact": "output/sky_quickscan_information/v14_ticker_5m_evidence.json" if stage3 else None,
@@ -188,7 +202,7 @@ def make_status(request_id, report=None, error=None, observation=None, stage1=No
             100 * observation.get("fresh_executed_count", 0) / len(rows), 2) if rows else 0.0,
         # Explicitly separate an operational report from a verified live strategy.
         # A weekend/previous-session reference price cannot certify executed trades.
-        "mobile_research_notice": ("研究報告可讀；五分鐘K棒未驗證：" + diagnose_five_minute_path(stage1, stage2, stage3)["reason_code"] if report is not None else "研究快掃失敗；禁止交易"),
+        "mobile_research_notice": mobile_notice,
         "research_operational_status": report_status if report is not None else "FAILED",
         "live_strategy_status": "HOLD_INSUFFICIENT_DATA",
         "live_strategy_evidence": {
