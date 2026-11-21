@@ -42,3 +42,13 @@
 | 自動交易、正式 Production 策略 | **禁止／未核准** |
 
 此檔案為一次性已核對的上線驗收快照，**不是**自動更新行情的即時狀態檔。任何未來執行的成功或失敗，須依其獨立 Run ID、SHA 和 Artifact 重新判定。
+
+
+## 2026-11-21 正式研究主分支最新驗收（手動 Run #59）
+
+- [實跑 #44900002254](https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/44900002254)：2026-11-21 19:37～19:38 台灣時間，`workflow_dispatch`，`main` 精確 SHA `a6c4e5d0657035daeff2c13258bc85cdfa92d9b3`（已合併 #570），`run_attempt=1`，整體 `success`，Job `scan` 18/18 步驟成功，包含獨立讀回及 fail-closed 最終檢查。
+- 同次完整研究報告 Artifact `sky-chat-44900002254`（ID `14705657172`）；富果付費預約 Artifact `sky-fugle-reservation-83429406ed604ce6-5984203`（ID `14705632452`）；外部讀回收據 Artifact `sky-chat-external-readback-44900002254`（ID `14705627572`）。讀回 `PASS_RESEARCH_ONLY`、收據 Run ID `44900002254`、精確 SHA 與同次 request ID `research-go-live-20261121-gate-c3` 核對成功，最終日誌 `RESEARCH_READBACK_VERIFIED_NO_ORDERS`。
+- 富果付費母體 **1,955** 檔（TWSE 1,060／TPEx 895，已按約定排除創新板 31 檔）；參考行情 **1,942** 檔（99.34%）。資料時間 **2026-11-21 19:37:57 台灣時間**（週六非交易日），不是盤中實際成交時間。
+- 可認證同日成交 **0**、Stage1 候選 **0**、Stage2 實際請求 **0**、Stage2 可認證成交 **0**、五分鐘 K 棒 API 請求 **0**、K 棒觀測 **0**、VWAP 認證 **0**；Stage1 排除 `NON_CURRENT_SNAPSHOT_DATE=1955`。不可放寬交易日、時間戳、成交價與風控條件來強制 PASS。
+- **新修復之實跑確認（#570）**：日誌明確包含 `research_operational_status=REPORT_READY_RESEARCH_ONLY`、`live_strategy_status=HOLD_INSUFFICIENT_DATA`、`live_strategy_evidence` 所有認證數為 0、`production_eligible=false`、`automatic_order=false`。這是最新主分支研究操作鏈上線的實跑證據，不是盤中策略、下單或 Production 的驗收。
+- **本次結案範圍**：`RESEARCH_READ_ONLY_OPERATIONAL=PASS`（唯讀研究實跑／Artifact／讀回），`LIVE_INTRADAY_STRATEGY=HOLD`、`NO_TRADE`。跨 Workflow **全入口**付費 API 原子去重、真實交易日 Stage2／五分鐘 K／VWAP、完整策略及 ChatGPT 對話直接觸發端到端，仍屬未獲證實項目。模擬帳本 #508 仍永久不列交付條件，不新增交易模擬、付費掃描或第二控制器。
