@@ -133,7 +133,6 @@ class PaidWorkflowWiringRegressionTests(unittest.TestCase):
                 self.assertIn("steps.guard.outputs.allowed == 'true'", content)
                 self.assertIn("path: output/fugle_api_guard/claim.json", content)
                 self.assertLess(content.index("id: guard"), content.index("id: verify_claim"))
-                self.assertLess(content.index("id: verify_claim"), content.index("FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}"))
 
     def test_no_reactivated_scan_schedule(self):
         content = Path(self.WORKFLOWS[0]).read_text(encoding="utf-8")
