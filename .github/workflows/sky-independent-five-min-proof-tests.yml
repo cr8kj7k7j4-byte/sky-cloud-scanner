@@ -17,6 +17,6 @@ jobs:
         with:
           python-version: '3.11'
       - name: Run isolated provenance tests without provider calls
-        run: python -m unittest tests.test_sky_independent_five_min_source_proof -v
+        run: python -m unittest discover -s tests -p 'test_sky_independent_five_min_source_proof.py' -v
       - name: Verify retired ledger guard
         run: python research/sky_retired_paper_ledger_guard.py
