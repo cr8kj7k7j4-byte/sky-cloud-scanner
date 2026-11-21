@@ -106,5 +106,38 @@ class FugleGuardTests(unittest.TestCase):
             self.assertTrue((Path(td) / "claim.json").exists())
 
 
+class PaidWorkflowWiringRegressionTests(unittest.TestCase):
+    """Offline guard against removing paid preflight from the four live entrypoints."""
+
+    WORKFLOWS = (
+        ".github/workflows/scan.yml",
+        ".github/workflows/sky-chat-bridge.yml",
+        ".github/workflows/sky-full-market-private.yml",
+        ".github/workflows/sky-fugle-stage2-probe.yml",
+    )
+
+    def test_paid_workflows_share_one_serial_concurrency_group(self):
+        for path in self.WORKFLOWS:
+            with self.subTest(path=path):
+                content = Path(path).read_text(encoding="utf-8")
+                self.assertIn("group: sky-fugle-paid-global-research-v1-live-wholemarket", content)
+                self.assertIn("cancel-in-progress: false", content)
+
+    def test_paid_workflows_require_verified_claim_before_paid_execution(self):
+        for path in self.WORKFLOWS:
+            with self.subTest(path=path):
+                content = Path(path).read_text(encoding="utf-8")
+                self.assertIn("python -m research.sky_paid_fugle_api_guard --scope", content)
+                self.assertIn("--verify", content)
+                self.assertIn("steps.verify_claim.outcome == 'success'", content)
+                self.assertIn("steps.guard.outputs.allowed == 'true'", content)
+                self.assertIn("path: output/fugle_api_guard/claim.json", content)
+                self.assertLess(content.index("id: guard"), content.index("id: verify_claim"))
+
+    def test_no_reactivated_scan_schedule(self):
+        content = Path(self.WORKFLOWS[0]).read_text(encoding="utf-8")
+        self.assertNotIn("\n  schedule:\n", content)
+
+
 if __name__ == "__main__":
     unittest.main()
