@@ -62,6 +62,52 @@ def validate_report(report):
     return rows
 
 
+
+def diagnose_five_minute_path(stage1, stage2, stage3):
+    """Explain why the bounded 5m probe did not run; never trigger a paid call."""
+    stage1, stage2, stage3 = stage1 or {}, stage2 or {}, stage3 or {}
+    exclusions = stage1.get("excluded_reasons") or {}
+    candidates = stage1.get("candidate_count", 0)
+    attempts = stage2.get("attempted_count", 0)
+    verified = stage2.get("verified_executed_count", 0)
+    candle_attempts = stage3.get("attempted_api_requests", 0)
+    samples = stage3.get("samples") or []
+    if not isinstance(exclusions, dict):
+        exclusions = {}
+    if candidates == 0:
+        reason = ("NON_TRADING_SESSION" if exclusions.get("NON_TRADING_WEEKEND", 0) or
+                  exclusions.get("NON_TRADING_HOLIDAY", 0) else "NO_STAGE1_CANDIDATES")
+    elif attempts == 0:
+        reason = "STAGE2_NO_QUOTE_REQUESTS"
+    elif verified == 0:
+        reason = ("STAGE2_RATE_LIMITED" if stage2.get("rate_limited_count", 0)
+                  else "STAGE2_NO_VERIFIED_EXECUTIONS")
+    elif candle_attempts == 0:
+        reason = "NO_STAGE2_CANDIDATES_PASSED_5M_GATES"
+    elif stage3.get("rate_limited"):
+        reason = "FIVE_MINUTE_RATE_LIMITED"
+    elif any(s.get("status") in ("PLAN_RESTRICTED", "HTTP_ERROR", "SOURCE_ERROR", "INVALID_PROVIDER_PAYLOAD")
+             for s in samples if isinstance(s, dict)):
+        reason = "FIVE_MINUTE_PROVIDER_ERROR"
+    elif any(s.get("valid_today_five_min_bars", 0) > 0 for s in samples if isinstance(s, dict)):
+        reason = "FIVE_MINUTE_OBSERVED_RESEARCH_ONLY"
+    else:
+        reason = "FIVE_MINUTE_DATA_INCOMPLETE"
+    return {
+        "reason_code": reason,
+        "stage1_candidates": candidates,
+        "stage1_exclusion_reasons": exclusions,
+        "stage2_quote_requests": attempts,
+        "stage2_verified_executions": verified,
+        "five_minute_api_requests": candle_attempts,
+        "five_minute_samples": len(samples),
+        "provider_statuses": [s.get("status") for s in samples if isinstance(s, dict)],
+        "production_eligible": False,
+        "automatic_order": False,
+    }
+
+
+
 def make_status(request_id, report=None, error=None, observation=None, stage1=None, stage2=None, stage3=None, stage4=None):
     observation = observation or {}
     observed_count = observation.get("observed_price_count", 0)
@@ -116,6 +162,7 @@ def make_status(request_id, report=None, error=None, observation=None, stage1=No
         "stage2_bounded_operational_probe_pass": stage2.get("operational_bounded_probe_pass", False),
         "stage2_elapsed_seconds": stage2.get("elapsed_seconds"),
         "stage2_max_plan_quota_inferred": False,
+        "five_minute_diagnostic": diagnose_five_minute_path(stage1, stage2, stage3),
         "v14_ticker_5m_attempted_api_requests": stage3.get("attempted_api_requests", 0),
         "v14_ticker_5m_samples": (stage3.get("samples") or [])[:2],
         "v14_ticker_5m_artifact": "output/sky_quickscan_information/v14_ticker_5m_evidence.json" if stage3 else None,
@@ -141,6 +188,7 @@ def make_status(request_id, report=None, error=None, observation=None, stage1=No
             100 * observation.get("fresh_executed_count", 0) / len(rows), 2) if rows else 0.0,
         # Explicitly separate an operational report from a verified live strategy.
         # A weekend/previous-session reference price cannot certify executed trades.
+        "mobile_research_notice": ("研究報告可讀；五分鐘K棒未驗證：" + diagnose_five_minute_path(stage1, stage2, stage3)["reason_code"] if report is not None else "研究快掃失敗；禁止交易"),
         "research_operational_status": report_status if report is not None else "FAILED",
         "live_strategy_status": "HOLD_INSUFFICIENT_DATA",
         "live_strategy_evidence": {
