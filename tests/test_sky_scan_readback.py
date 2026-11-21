@@ -29,6 +29,22 @@ def check(x):
                                   expected_head_sha=SHA, now=NOW)
 
 class ReadbackContracts(unittest.TestCase):
+    def test_readback_rejects_false_live_strategy_promotion(self):
+        for value in ("READY", "PASS", "TRADE_CERTIFIED", True):
+            with self.subTest(value=value):
+                receipt = good()
+                receipt["live_strategy_status"] = value
+                with self.assertRaisesRegex(ValueError, "LIVE_STRATEGY_HOLD_REQUIRED"):
+                    check(receipt)
+
+    def test_readback_rejects_unverified_full_rule_claim(self):
+        for evidence in ({"full_rule_validation_complete": True}, {}, "PASS"):
+            with self.subTest(evidence=evidence):
+                receipt = good()
+                receipt["live_strategy_evidence"] = evidence
+                with self.assertRaisesRegex(ValueError, "LIVE_STRATEGY_EVIDENCE_UNVERIFIED"):
+                    check(receipt)
+
     def test_missing_or_expired_artifact_status_fails_closed(self):
         for field, value in (("status", "DATA_BLOCKED_READBACK_INVALID"),
                              ("scan_id", "another-run"),
