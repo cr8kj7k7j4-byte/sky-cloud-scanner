@@ -29,6 +29,23 @@ def check(x):
                                   expected_head_sha=SHA, now=NOW)
 
 class ReadbackContracts(unittest.TestCase):
+    def test_missing_or_expired_artifact_status_fails_closed(self):
+        for field, value in (("status", "DATA_BLOCKED_READBACK_INVALID"),
+                             ("scan_id", "another-run"),
+                             ("completed_at_utc", (NOW - timedelta(hours=1)).isoformat()),
+                             ("data_timestamp", (NOW - timedelta(hours=1)).isoformat())):
+            with self.subTest(field=field):
+                status = good()
+                status[field] = value
+                with self.assertRaises(ValueError):
+                    check(status)
+
+    def test_replayed_request_id_from_another_run_is_rejected(self):
+        status = good()
+        status["scan_id"] = "999999"
+        with self.assertRaisesRegex(ValueError, "RUN_ID_MISMATCH"):
+            check(status)
+
     def test_all_five_commands_use_one_route(self):
         self.assertEqual(len(COMMANDS), 5)
         for command in COMMANDS:
