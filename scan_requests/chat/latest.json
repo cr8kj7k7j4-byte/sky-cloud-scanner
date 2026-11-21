@@ -1,6 +1,6 @@
 {
   "command": "Sky 快掃",
-  "request_id": "research-go-live-20261121-once-a1",
+  "request_id": "research-go-live-20261121-gate-b2",
   "read_only_no_orders": true,
-  "reason": "Owner-authorized one-time research-only live transport acceptance: paid Fugle reservation -> scan -> same-run Artifact -> independent readback. No orders; no schedule changes."
+  "reason": "Owner requested second controlled research-only scan acceptance after previous RECENT_RESERVATION; never bypass shared reservation; require same-run independent artifact readback and NO_TRADE."
 }
