@@ -17,12 +17,18 @@ RETIRED_PATHS = frozenset({
     "tests/test_paper_trading.py",
     "research/sky_p0r_repair_status.py",
     "tests/test_sky_p0r_repair_status.py",
+    "src/paper_trading.py",
+    "tests/test_paper_trading.py",
+    "research/sky_p0r_repair_status.py",
+    "tests/test_sky_p0r_repair_status.py",
     "research/sky_paper_only_acceptance.py",
     "tests/test_sky_paper_only_acceptance.py",
     "research/sky_paper_trade_trace.py",
     "tests/test_sky_paper_trade_trace.py",
 })
 RETIRED_MODULES = (
+    "src.paper_trading",
+    "research.sky_p0r_repair_status",
     "src.paper_trading",
     "research.sky_p0r_repair_status",
     "research.sky_paper_only_acceptance",
