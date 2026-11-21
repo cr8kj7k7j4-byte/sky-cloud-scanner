@@ -42,6 +42,22 @@ class StageOneSnapshotTests(unittest.TestCase):
         self.assertEqual(r["candidate_count"], 0)
         self.assertEqual(sum(r["excluded_reasons"].values()), 6)
 
+    def test_weekend_same_date_snapshot_cannot_create_stage1_candidates(self):
+        # Same-date snapshots on Saturday/Sunday must not be mistaken for live trading.
+        for checked_at in ("2026-11-21T10:00:00+08:00",
+                           "2026-11-22T10:00:00+08:00"):
+            with self.subTest(checked_at=checked_at):
+                day = checked_at[:10]
+                rows = [self.row("1101", snapshot_source_date=day),
+                        self.row("8089", exchange="TPEx", snapshot_source_date=day)]
+                report = self.report(rows)
+                report["checked_at_tpe"] = checked_at
+                result = screen(report)
+                self.assertEqual(result["candidate_count"], 0)
+                self.assertEqual(result["excluded_reasons"], {"NON_TRADING_WEEKEND": 2})
+                self.assertFalse(result["production_eligible"])
+                self.assertFalse(result["automatic_order"])
+
     def test_real_snapshot_to_stage1_without_lasttrade_time(self):
         from datetime import datetime
         from zoneinfo import ZoneInfo
