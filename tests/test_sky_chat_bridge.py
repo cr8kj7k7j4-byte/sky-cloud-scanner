@@ -122,6 +122,25 @@ class ChatScanBridgeTests(unittest.TestCase):
                          ["1103", "1101"])
         self.assertFalse(status["production_eligible"])
 
+    def test_reference_only_run_does_not_claim_live_strategy_ready(self):
+        row = {key: "待確認" for key in COLUMNS}
+        row.update({"股票代碼": "1101", "現在動作": "等待",
+                    "正式交易資格": False})
+        report = {"schema": "SKY_DAYTRADE_13COL_RESEARCH_V2",
+                  "rows": [row], "row_count": 1, "universe_count": 1,
+                  "production_eligible": False}
+        observation = {"observed_price_count": 1, "fresh_executed_count": 0,
+                       "by_exchange": {"TWSE": {"snapshot_rows": 1},
+                                       "TPEx": {"snapshot_rows": 1}}}
+        status = make_status("research-weekend-001", report, observation=observation)
+        self.assertEqual(status["status"], "REPORT_READY_RESEARCH_ONLY")
+        self.assertEqual(status["research_operational_status"], "REPORT_READY_RESEARCH_ONLY")
+        self.assertEqual(status["live_strategy_status"], "HOLD_INSUFFICIENT_DATA")
+        self.assertEqual(status["live_strategy_evidence"]["five_minute_observed_count"], 0)
+        self.assertEqual(status["live_strategy_evidence"]["vwap_certified_count"], 0)
+        self.assertFalse(status["production_eligible"])
+        self.assertFalse(status["automatic_order"])
+
     def test_partial_source_failure_is_not_ready(self):
         row = {key: "待確認" for key in COLUMNS}
         row.update({"股票代碼": "1101", "現在動作": "等待", "正式交易資格": False})
