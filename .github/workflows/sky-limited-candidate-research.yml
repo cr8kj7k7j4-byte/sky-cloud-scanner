@@ -17,13 +17,16 @@ on:
   # # Actual GitHub schedule start time may be delayed.
   # - cron: "20 1 * * 1-5"
 permissions:
-  contents: read
+  contents: write
 concurrency:
   group: sky-limited-candidate-research-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   test-and-collect:
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SKY_PAID_ATOMIC_ENFORCE: "1"
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
