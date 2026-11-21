@@ -1,0 +1,29 @@
+name: Sky Retired Ledger All Branches Audit
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'research/sky_all_branches_retired_ledger_audit.py'
+      - '.github/workflows/sky-retired-ledger-all-branches-audit.yml'
+permissions:
+  contents: read
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Fetch remote branch tips for complete inventory
+        run: git fetch --no-tags --prune origin '+refs/heads/*:refs/remotes/origin/*'
+      - name: Inventory exact retired paths (no deletion)
+        run: python research/sky_all_branches_retired_ledger_audit.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sky-retired-ledger-all-branches
+          path: |
+            retired-ledger-all-branches.json
+            retired-ledger-all-branches.md
+          if-no-files-found: warn

@@ -60,6 +60,8 @@ def check(root=ROOT):
         if p in RETIRED_PATHS or p in {
             "research/sky_retired_paper_ledger_guard.py",
             "tests/test_sky_retired_paper_ledger_guard.py",
+            # Read-only inventory must list forbidden names as data, not runtime use.
+            "research/sky_all_branches_retired_ledger_audit.py",
         }:
             continue
         if not (p.endswith((".py", ".yml", ".yaml", ".toml")) or p == ".env.example"):
