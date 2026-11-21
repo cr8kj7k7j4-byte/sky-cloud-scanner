@@ -25,15 +25,18 @@ def _get(path, params=None):
     if enforced:
         from research.sky_fugle_request_identity import canonical_fugle_request
         identity = canonical_fugle_request("GET", url, parameters=params)
+        # Match the atomic GitHub-ref five-minute UTC slot exactly.
+        slot = int(time.time()) // 300
         # Serialize same-process requests. A cached response is reused only
         # after a successful provider response; never cache errors or denials.
         with _ATOMIC_CACHE_LOCK:
             cached = _ATOMIC_CACHE.get(identity)
-            if cached is not None and time.monotonic() - cached[0] < _ATOMIC_CACHE_TTL_SECONDS:
+            if (cached is not None and cached[2] == slot
+                    and time.monotonic() - cached[0] < _ATOMIC_CACHE_TTL_SECONDS):
                 return copy.deepcopy(cached[1])
             guard_fugle_request(url, params)
             result = _fetch_json(url, params, headers, path)
-            _ATOMIC_CACHE[identity] = (time.monotonic(), copy.deepcopy(result))
+            _ATOMIC_CACHE[identity] = (time.monotonic(), copy.deepcopy(result), slot)
             return result
     guard_fugle_request(url, params)
     return _fetch_json(url, params, headers, path)
