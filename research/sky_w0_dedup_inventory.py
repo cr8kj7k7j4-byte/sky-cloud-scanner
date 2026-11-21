@@ -19,7 +19,7 @@ RETAIN_PROTECTED = {
     "scan.yml", "sky-full-market-five-minute-dispatch.yml",
     "sky-full-market-private.yml", "sky-chat-bridge.yml",
     "schedule-health-audit.yml", "research-freeze-governance.yml",
-    "sky-paper-only-acceptance.yml", "sky-recovery-watchdog.yml",
+    "sky-recovery-watchdog.yml",
 }
 REMOVED = {
     "sky-research-once-20261109.yml",
