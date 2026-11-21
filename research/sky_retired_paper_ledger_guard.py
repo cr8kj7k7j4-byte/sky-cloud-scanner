@@ -22,12 +22,12 @@ RETIRED_MODULES = (
     "research.sky_paper_only_acceptance",
     "research.sky_paper_trade_trace",
 )
-IMPORT = re.compile(r"^\\s*(?:from\\s+(research\\.sky_(?:paper_only_acceptance|paper_trade_trace))\\s+import\\b|import\\s+(research\\.sky_(?:paper_only_acceptance|paper_trade_trace))\\b)", re.M)
+IMPORT = re.compile(r"^\s*(?:from\s+(research\.sky_(?:paper_only_acceptance|paper_trade_trace))\s+import\b|import\s+(research\.sky_(?:paper_only_acceptance|paper_trade_trace))\b)", re.M)
 
 
 def check(root=ROOT):
     proc = subprocess.run(["git", "ls-files", "-z"], cwd=root, capture_output=True, check=True)
-    tracked = {p.decode("utf-8") for p in proc.stdout.split(b"\\0") if p}
+    tracked = {p.decode("utf-8") for p in proc.stdout.split(b"\0") if p}
     violations = [{"path": p, "reason": "RETIRED_DEDICATED_COMPONENT"} for p in sorted(RETIRED_PATHS & tracked)]
     for p in sorted(tracked):
         if not p.endswith(".py") or p in RETIRED_PATHS:
