@@ -13,14 +13,15 @@ class DirectPaidTransportGuardTests(unittest.TestCase):
         response.__enter__.return_value = response
         response.__exit__.return_value = False
         response.read.return_value = b'{}'
-        with patch.object(pipeline, "guard_fugle_request") as guard, \
-             patch.object(pipeline, "urlopen", return_value=response) as network, \
+        order = []
+        with patch.object(pipeline, "guard_fugle_request", side_effect=lambda *a: order.append("guard")) as guard, \
+             patch.object(pipeline, "urlopen", side_effect=lambda *a, **k: (order.append("network"), response)[1]) as network, \
              patch.object(pipeline, "normalize_response", return_value=[]):
             pipeline.read_fugle("2330", "5", date(2026, 11, 1),
                                 date(2026, 11, 2), "test-key")
         guard.assert_called_once()
         network.assert_called_once()
-        self.assertLess(guard.call_args_list[0] is not None, network.call_count > 0)
+        self.assertEqual(order, ["guard", "network"])
 
     def test_mocked_three_model_transport_does_not_claim_or_use_network(self):
         get = MagicMock(return_value={"symbol": "2330", "timeframe": "5", "data": []})
