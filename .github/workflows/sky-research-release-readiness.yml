@@ -1,0 +1,57 @@
+name: Sky Research Release Readiness (No Orders)
+on:
+  push:
+    branches:
+      - research/sky-mobile-paper-integration
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  research-readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Audit retired simulated-ledger dependencies
+        run: python -m research.sky_retired_ledger_guard
+      - name: Validate completed market-bar source contracts
+        run: python -m unittest tests.test_sky_p0r_512_source_adapter -v
+      - name: Verify paid API safety contracts without market calls
+        run: python -m unittest tests.test_sky_paid_fugle_api_guard -v
+      - name: Record readiness evidence (not live-data certification)
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          mkdir -p output/sky_research_release
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          data = {
+              "schema": "SKY_RESEARCH_RELEASE_READINESS_V1",
+              "run_id": os.environ["GITHUB_RUN_ID"],
+              "head_sha": os.environ["GITHUB_SHA"],
+              "contract_job_status": os.environ["JOB_STATUS"],
+              "scope": "RESEARCH_ONLY",
+              "production_eligible": False,
+              "automatic_order": False,
+              "live_fugle_data_verified": False,
+              "mobile_same_run_readback_verified": False,
+              "research_system_live": False,
+              "verdict": "PENDING_LIVE_EVIDENCE",
+          }
+          Path("output/sky_research_release/readiness.json").write_text(
+              json.dumps(data, indent=2) + "\n", encoding="utf-8"
+          )
+          PY
+      - name: Upload research readiness receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-research-readiness-${{ github.run_id }}
+          path: output/sky_research_release/readiness.json
+          if-no-files-found: error
+          retention-days: 14
