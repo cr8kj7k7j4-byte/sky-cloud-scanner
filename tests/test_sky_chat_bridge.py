@@ -234,6 +234,8 @@ class ChatScanBridgeTests(unittest.TestCase):
         report = {"schema": "SKY_DAYTRADE_13COL_RESEARCH_V2", "rows": [row],
                   "row_count": 1, "universe_count": 1, "production_eligible": False}
         status = make_status("research-weekend-001", report,
+            observation={"observed_price_count": 1,
+                         "by_exchange": {"TWSE": {"snapshot_rows": 1}, "TPEx": {"snapshot_rows": 1}}},
             stage1={"candidate_count": 0, "excluded_reasons": {"NON_TRADING_WEEKEND": 1}})
         self.assertIn("NON_TRADING_SESSION", status["mobile_research_notice"])
         self.assertFalse(status["automatic_order"])
