@@ -234,9 +234,47 @@ class ChatScanBridgeTests(unittest.TestCase):
         report = {"schema": "SKY_DAYTRADE_13COL_RESEARCH_V2", "rows": [row],
                   "row_count": 1, "universe_count": 1, "production_eligible": False}
         status = make_status("research-weekend-001", report,
+            observation={"observed_price_count": 1,
+                         "by_exchange": {"TWSE": {"snapshot_rows": 1}, "TPEx": {"snapshot_rows": 1}}},
             stage1={"candidate_count": 0, "excluded_reasons": {"NON_TRADING_WEEKEND": 1}})
         self.assertIn("NON_TRADING_SESSION", status["mobile_research_notice"])
         self.assertFalse(status["automatic_order"])
+
+
+    def test_5m_sample_429_without_top_level_flag_is_rate_limited(self):
+        from src.sky_chat_bridge import diagnose_five_minute_path
+        result = diagnose_five_minute_path(
+            {"candidate_count": 1}, {"attempted_count": 1, "verified_executed_count": 1},
+            {"attempted_api_requests": 1, "samples": [{"status": "RATE_LIMITED", "http_status": 429}]})
+        self.assertEqual(result["reason_code"], "FIVE_MINUTE_RATE_LIMITED")
+        self.assertFalse(result["automatic_order"])
+
+    def test_mobile_source_failure_never_says_report_readable(self):
+        row = {key: "待確認" for key in COLUMNS}
+        row.update({"股票代碼": "1101", "現在動作": "等待", "正式交易資格": False})
+        report = {"schema": "SKY_DAYTRADE_13COL_RESEARCH_V2", "rows": [row],
+                  "row_count": 1, "universe_count": 1, "production_eligible": False}
+        result = make_status("research-source-error-001", report,
+            observation={"observed_price_count": 1, "snapshot_errors": {"TWSE": "timeout"}})
+        self.assertEqual(result["status"], "DATA_BLOCKED_SOURCE_FAILURE")
+        self.assertIn("資料不完整", result["mobile_research_notice"])
+        self.assertNotIn("報告可讀", result["mobile_research_notice"])
+
+    def test_mobile_5m_observed_not_misreported_unverified(self):
+        row = {key: "待確認" for key in COLUMNS}
+        row.update({"股票代碼": "1101", "現在動作": "等待", "正式交易資格": False})
+        report = {"schema": "SKY_DAYTRADE_13COL_RESEARCH_V2", "rows": [row],
+                  "row_count": 1, "universe_count": 1, "production_eligible": False}
+        result = make_status("research-5m-observed-001", report,
+            observation={"observed_price_count": 1,
+                         "by_exchange": {"TWSE": {"snapshot_rows": 1}, "TPEx": {"snapshot_rows": 1}}},
+            stage1={"candidate_count": 1},
+            stage2={"attempted_count": 1, "verified_executed_count": 1},
+            stage3={"attempted_api_requests": 2, "samples": [{"valid_today_five_min_bars": 3}]})
+        self.assertEqual(result["five_minute_diagnostic"]["reason_code"], "FIVE_MINUTE_OBSERVED_RESEARCH_ONLY")
+        self.assertIn("已取得研究用五分鐘K棒", result["mobile_research_notice"])
+        self.assertIn("禁止交易", result["mobile_research_notice"])
+        self.assertFalse(result["production_eligible"])
 
 if __name__=="__main__":
     unittest.main()
