@@ -1,6 +1,6 @@
 {
   "command": "Sky 快掃",
-  "request_id": "research-go-live-20261121-gate-b2",
+  "request_id": "research-go-live-20261121-gate-c3",
   "read_only_no_orders": true,
-  "reason": "Owner requested second controlled research-only scan acceptance after previous RECENT_RESERVATION; never bypass shared reservation; require same-run independent artifact readback and NO_TRADE."
+  "reason": "Owner-requested latest-main read-only research operational acceptance; after-hours snapshot is not live executed trade; enforce paid reservation, immutable same-run readback, NO_TRADE and no simulated ledger."
 }
