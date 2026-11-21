@@ -12,6 +12,8 @@ class ChatScanBridgeTests(unittest.TestCase):
         self.assertEqual(workflow.count('gh run download "$GITHUB_RUN_ID"'), 1)
         self.assertIn('--head-sha "$HEAD_SHA" --expected-sha "$GITHUB_SHA"', workflow)
         self.assertIn("sky-chat-external-readback-", workflow)
+        self.assertIn("付費 API 防護已阻擋本次掃描", workflow)
+        self.assertIn("f\"- 阻擋原因：", workflow)
         self.assertIn('root / "chat_bridge/latest.json"', validator)
         self.assertIn('root / "sky_quickscan_information/latest_13col.json"', validator)
         self.assertIn("RUN_HEAD_SHA_MISMATCH", validator)
