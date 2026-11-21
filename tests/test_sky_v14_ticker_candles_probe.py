@@ -29,6 +29,33 @@ def candles(symbol,timeframe="5"):
          "close":30+i*0.01,"volume":100} for i in range(6)]}
 
 class DeepFiveMinTests(unittest.TestCase):
+    def test_missing_or_malformed_microstructure_skips_paid_candidate_probe(self):
+        for malformed in (None, [], "bad", 0):
+            report = stage2()
+            report["results"][0]["microstructure"] = malformed
+            calls = []
+            def record_ticker(symbol):
+                calls.append(symbol)
+                return ticker(symbol)
+            with self.subTest(microstructure=malformed):
+                result = run(report, ticker_fn=record_ticker, candle_fn=candles,
+                             sleep_fn=lambda _: None, now=NOW)
+                self.assertEqual(calls, ["5202"])
+                self.assertEqual(result["attempted_api_requests"], 2)
+                self.assertFalse(result["production_eligible"])
+
+    def test_nondict_evidence_candidates_rejected_before_paid_calls(self):
+        for malformed in (None, [], "2409", 2409):
+            calls = []
+            def deny_ticker(symbol):
+                calls.append(symbol)
+                raise AssertionError("PAID_API_MUST_NOT_BE_CALLED")
+            with self.subTest(candidate=malformed):
+                with self.assertRaisesRegex(ValueError, "BAD_EVIDENCE_SAMPLE_SET"):
+                    run(None, evidence_candidates=[malformed, {"symbol": "5202", "exchange": "TPEx"}],
+                        ticker_fn=deny_ticker, sleep_fn=lambda _: None, now=NOW)
+                self.assertEqual(calls, [])
+
     def test_malformed_evidence_candidates_fail_before_any_paid_calls(self):
         calls = []
         def deny_ticker(symbol):
