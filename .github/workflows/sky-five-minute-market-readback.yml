@@ -6,6 +6,7 @@ on:
       - "research/sky_p0r_512_source_adapter.py"
       - "tests/test_sky_p0r_512_source_adapter.py"
       - ".github/workflows/sky-five-minute-market-readback.yml"
+      - "research/sky_retired_ledger_guard.py"
 permissions:
   contents: read
   actions: read
@@ -18,6 +19,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Reject retired simulated-ledger dependencies
+        run: python -m research.sky_retired_ledger_guard
       - name: Verify five-minute market evidence validation
         run: python -m unittest tests.test_sky_p0r_512_source_adapter -v
       - name: Require an explicit completed-bar source for manual acceptance
