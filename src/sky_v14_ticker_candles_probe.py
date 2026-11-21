@@ -144,6 +144,23 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                                     or close <= 0 or volume < 0):
                                 invalid_bar_sequence=True
                                 continue
+                            # Some provider receipts include OHLC; never allow
+                            # contradictory or non-finite OHLC into features.
+                            # Close-only legacy fixtures remain observation-only.
+                            ohlc_keys=("open", "high", "low")
+                            if any(k in b for k in ohlc_keys):
+                                if not all(k in b for k in ohlc_keys):
+                                    invalid_bar_sequence=True
+                                    continue
+                                opening, high, low = (b[k] for k in ohlc_keys)
+                                if (any(isinstance(v, bool) or not isinstance(v, (int, float))
+                                        or not math.isfinite(v) or v <= 0
+                                        for v in (opening, high, low))
+                                        or high < max(opening, close)
+                                        or low > min(opening, close)
+                                        or low > high):
+                                    invalid_bar_sequence=True
+                                    continue
                             valid.append(b)
                             last_accepted_stamp=stamp
                         except (KeyError, ValueError, TypeError, OverflowError):

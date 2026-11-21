@@ -44,6 +44,24 @@ class DeepFiveMinTests(unittest.TestCase):
                         sleep_fn=lambda _: None, now=NOW, evidence_candidates=candidates)
         self.assertEqual(calls, [])
 
+    def test_invalid_ohlc_provider_bars_fail_closed_without_paid_network(self):
+        cases = (("high", 20.0), ("low", 40.0), ("open", float("nan")),
+                 ("high", float("inf")), ("low", True))
+        for field, value in cases:
+            def malformed(symbol, timeframe="5"):
+                receipt = candles(symbol, timeframe)
+                for bar in receipt["data"]:
+                    bar.update(open=30.0, high=31.0, low=29.0)
+                receipt["data"][-1][field] = value
+                return receipt
+            with self.subTest(field=field, value=value):
+                report = run(stage2(), ticker_fn=ticker, candle_fn=malformed,
+                             sleep_fn=lambda _: None, now=NOW)
+                self.assertTrue(all(sample["feature_preview"] is None
+                                    and sample["bar_sequence_valid"] is False
+                                    and sample["production_eligible"] is False
+                                    for sample in report["samples"]))
+
     def test_invalid_price_or_volume_blocks_features(self):
         for field, value in (("close", -1), ("close", 0), ("close", float("nan")),
                              ("close", float("inf")), ("close", True),
