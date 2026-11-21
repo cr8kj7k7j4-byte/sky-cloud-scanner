@@ -28,7 +28,7 @@ RETIRED_MODULES = (
     "research.sky_paper_only_acceptance",
     "research.sky_paper_trade_trace",
 )
-IMPORT = re.compile(r"^\\s*(?:from\\s+((?:src\\.paper_trading|research\\.sky_(?:p0r_repair_status|paper_only_acceptance|paper_trade_trace)))\\s+import\\b|import\\s+((?:src\\.paper_trading|research\\.sky_(?:p0r_repair_status|paper_only_acceptance|paper_trade_trace)))\\b)", re.M)
+IMPORT = re.compile(r"^\s*(?:from\s+((?:src\.paper_trading|research\.sky_(?:p0r_repair_status|paper_only_acceptance|paper_trade_trace)))\s+import\b|import\s+((?:src\.paper_trading|research\.sky_(?:p0r_repair_status|paper_only_acceptance|paper_trade_trace)))\b)", re.M)
 
 
 def check(root=ROOT):
