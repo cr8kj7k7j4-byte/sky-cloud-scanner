@@ -6,7 +6,7 @@ on:
 # .github/workflows/sky-market-provider-readiness.yml
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: fugle-paid-market-quality
@@ -18,6 +18,8 @@ jobs:
     timeout-minutes: 10
     env:
       FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+      GH_TOKEN: ${{ github.token }}
+      SKY_PAID_ATOMIC_ENFORCE: "1"
     steps:
       - uses: actions/checkout@v4
       - name: Validate audit parser offline
