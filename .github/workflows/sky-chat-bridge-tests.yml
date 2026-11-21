@@ -9,6 +9,9 @@ on:
       - research/sky-mobile-paper-integration
     paths:
       - 'research/sky_full_universe_information.py'
+      - 'research/sky_retired_ledger_guard.py'
+      - 'research/sky_p0r_512_source_adapter.py'
+      - 'tests/test_sky_p0r_512_source_adapter.py'
       - 'src/sky_chat_bridge.py'
       - 'src/sky_scan_readback.py'
       - 'tests/test_sky_scan_readback.py'
@@ -26,6 +29,9 @@ on:
   pull_request:
     paths:
       - 'src/sky_chat_bridge.py'
+      - 'research/sky_retired_ledger_guard.py'
+      - 'research/sky_p0r_512_source_adapter.py'
+      - 'tests/test_sky_p0r_512_source_adapter.py'
       - 'research/sky_candidate_e2e_chain.py'
       - 'research/sky_stage5_vwap_cost_evidence.py'
       - 'research/sky_stage5_breakout_antichase_evidence.py'
@@ -68,6 +74,8 @@ jobs:
           python-version: '3.12'
       - name: Install tested runtime HTTP dependency
         run: pip install requests
+      - name: Block retired simulated-ledger dependencies before research CI
+        run: python -m research.sky_retired_ledger_guard
       - name: Syntax-check bridge files
         run: python -m py_compile scripts/sky_chat_artifact_readback.py src/sky_scan_readback.py research/sky_full_universe_information.py src/sky_chat_bridge.py src/sky_mcp_contract.py research/sky_snapshot_candidates.py src/sky_stage2_candidate_quotes.py src/sky_stage2_deep_quality.py src/sky_v14_ticker_candles_probe.py research/sky_candidate_e2e_chain.py research/sky_stage5_vwap_cost_evidence.py research/sky_stage5_breakout_antichase_evidence.py
       - name: Run isolated contracts without paid credentials
@@ -88,7 +96,7 @@ jobs:
               expected = "SKY_GOVERNED_SMOKE_FIXED_V1\\n"
               assert p.read_text(encoding="utf-8") == expected, "ISOLATED_SMOKE_FIXTURE_REQUIRES_APPROVED_PATCH"
           PY
-      - name: Verify combined PAPER_ONLY provenance and ledger contracts
+      - name: Verify research-only paid API provenance and completed-bar contracts
         if: github.ref == 'refs/heads/research/sky-mobile-paper-integration'
         run: python -m unittest tests.test_sky_fugle_request_identity tests.test_sky_fugle_paid_http_atomic_boundary tests.test_sky_paid_fugle_api_guard tests.test_sky_p0r_512_source_adapter -v
       - name: Prepare synthetic research-only Artifact transport probe
