@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from research.historical_5m_quality import inspect_history
+from research.sky_fugle_atomic_ref_claim import guard_fugle_request
 
 START, END = "2026-01-01", "2026-11-07"
 BASE = "https://api.fugle.tw/marketdata/v1.0/stock"
@@ -34,7 +35,8 @@ def summarize_candles(data):
 
 
 def run_probe(api_key, symbols=SYMBOLS, get=None):
-    if get is None:
+    live_transport = get is None
+    if live_transport:
         import requests
         get = requests.get
     results = []
@@ -45,10 +47,14 @@ def run_probe(api_key, symbols=SYMBOLS, get=None):
             result.update({"status": "MISSING_CREDENTIAL", "permission_verified": False})
         else:
             try:
+                url = f"{BASE}/historical/candles/{symbol}"
+                params = {"from": START, "to": END, "timeframe": "5",
+                          "fields": "open,high,low,close,volume,average", "sort": "asc"}
+                if live_transport:
+                    guard_fugle_request(url, params)
                 response = get(
-                    f"{BASE}/historical/candles/{symbol}",
-                    params={"from": START, "to": END, "timeframe": "5",
-                            "fields": "open,high,low,close,volume,average", "sort": "asc"},
+                    url,
+                    params=params,
                     headers={"X-API-KEY": api_key, "User-Agent": "Sky-Research-Probe/1.0"},
                     timeout=30,
                 )
