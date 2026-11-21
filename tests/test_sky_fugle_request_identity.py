@@ -36,6 +36,16 @@ class CanonicalFugleRequestTests(unittest.TestCase):
         self.assertEqual(key("GET", "/intraday/quote/2330", parameters={}),
                          key("GET", "/intraday/quote/2330"))
 
+    def test_invalid_parameter_values_never_become_paid_request_keys(self):
+        for value in (None, True, False, [], {}, ["5"], {"value": 5}):
+            with self.subTest(value=repr(value)):
+                with self.assertRaisesRegex(ValueError, "INVALID_PARAMETER_VALUE_TYPE"):
+                    key("GET", "/historical/candles/2330", parameters={"limit": value})
+        with self.assertRaisesRegex(ValueError, "INVALID_PARAMETER_VALUE_TYPE"):
+            key("GET", "/historical/candles/2330", parameters={5: "10"})
+        self.assertEqual(key("GET", "/historical/candles/2330?limit=10"),
+                         key("GET", "/historical/candles/2330", parameters={"limit": 10}))
+
     def test_unsupported_or_untrusted_fail_closed(self):
         for url in (
             "http://api.fugle.tw/intraday/quote/2330",
