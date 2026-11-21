@@ -56,6 +56,21 @@ class DeepFiveMinTests(unittest.TestCase):
                         ticker_fn=deny_ticker, sleep_fn=lambda _: None, now=NOW)
                 self.assertEqual(calls, [])
 
+    def test_malformed_provider_average_never_crashes_five_minute_preview(self):
+        for avg in ("N/A", "nan", float("inf"), float("nan"), 0, True, None):
+            report = stage2()
+            for row in report["results"]:
+                row["microstructure"]["average_price"] = avg
+            with self.subTest(avg=avg):
+                result = run(report, ticker_fn=ticker, candle_fn=candles,
+                             sleep_fn=lambda _: None, now=NOW)
+                self.assertEqual(len(result["samples"]), 2)
+                for row in result["samples"]:
+                    self.assertEqual(row["status"], "CANDLE_TICKER_RESEARCH_READY_NOT_TRADE")
+                    self.assertIsNotNone(row["feature_preview"])
+                    self.assertIsNone(row["feature_preview"]["vwap_distance_pct"])
+                    self.assertFalse(row["production_eligible"])
+
     def test_malformed_evidence_candidates_fail_before_any_paid_calls(self):
         calls = []
         def deny_ticker(symbol):
