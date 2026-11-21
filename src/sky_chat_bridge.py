@@ -135,7 +135,7 @@ def make_status(request_id, report=None, error=None, observation=None, stage1=No
         "candidate_chain_vwap_certified": stage4.get("vwap_certified_count", 0),
         "candidate_chain_p0_r_ledger_verified": False,
         "broker_account_required_for_research": False,
-        "research_mode": "BROKERLESS_RESEARCH_AND_PAPER_ONLY",
+        "research_mode": "BROKERLESS_RESEARCH_ONLY",
         "live_only_portfolio_ledger_pending": True,
         "stage2_v14_canonical_audit_invoked": sum(bool(x.get("canonical_v14_p0c_audit")) for x in (stage2.get("results") or [])),
         "stage2_quote_preview": (stage2.get("results") or [])[:6],
