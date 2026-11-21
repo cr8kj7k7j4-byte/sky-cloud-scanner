@@ -38,3 +38,16 @@
 - Every PASS requires a stable GitHub run/commit/artifact link and expected result.
 - `COVERED BY TESTS`, `PENDING`, `BLOCKED`, and `PASS` are distinct states.
 - No autonomous order placement, no brokerage execution, no simulated trading ledger, no additional paid calls for offline validation.
+
+
+## Evidence update — latest-main run 44919673960 (2026-11-21, Saturday, Asia/Taipei)
+
+Evidence: [workflow run](https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/44919673960), artifacts `sky-chat-44919673960` (14712609264) and `sky-chat-external-readback-44919673960` (14712893258).
+
+- SHA `e9d205432659c38d7085bac0a0cc11ba17eb62a1`, request `manual-sky-44919673960-1`; workflow SUCCESS, same-run independent receipt `PASS_RESEARCH_ONLY`.
+- `REPORT_READY_RESEARCH_ONLY`, Fugle paid snapshot, 1,955 rows, `verified_executed_count=0`, `production_eligible=false`, `automatic_order=false`.
+- The sample quote evidence reports `SNAPSHOT_DATE_NOT_TODAY`; the capture is Saturday 2026-11-21 23:32 Asia/Taipei. **This is not a live-session certification.**
+- `v14_ticker_5m_evidence.json`: `attempted_api_requests=0`, `samples=[]`, `official_v14_entry_eligible=false`, `whole_market_certified=false`. Do **not** mark G5 PASS.
+- No independently certified VWAP source reconstruction is evidenced. Do **not** mark G6 PASS.
+- G4 **PASS (technical same-run artifact readback only)**; G5/G6/G7 remain **PENDING**. No additional weekend paid scan is justified.
+- Next controlled step: on next open Taiwan market session, use the existing paid-reservation-protected scan, inspect 5m sample collection and provider VWAP provenance, preserve fail-closed research-only status; never place orders or reintroduce the simulated ledger.
