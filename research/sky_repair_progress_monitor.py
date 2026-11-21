@@ -15,9 +15,9 @@ from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 from pathlib import Path
 
-TARGET_PRS = (508, 511, 512, 531, 536)
+TARGET_PRS = (547, 511, 512, 531, 536)
 NEXT_ACTIONS = {
-    508: ("OFF_MARKET", "WIRE_PAPER_LEDGER_EVENT_SOURCE_AND_VALIDATE_COSTS"),
+    547: ("OFF_MARKET", "VERIFY_RETIRED_LEDGER_REMOVAL_AND_REGRESSION_GUARD"),
     511: ("MARKET_SESSION", "CERTIFY_TWSE_TPEX_EXECUTED_TIMESTAMPS"),
     512: ("MARKET_SESSION", "VERIFY_CANDLE_CAUSALITY_AND_INTEGRATION"),
     531: ("OFF_MARKET", "WIRE_REAL_BRIDGE_ARTIFACT_READBACK"),
@@ -170,7 +170,7 @@ def collect(fetch, now=None, user_blockers=None):
         "unverified_gates": [
             "Fugle per-symbol actual-execution timestamp and session freshness",
             "Real failed-run Artifact download/readback",
-            "P0-R PAPER_ONLY input and cost evidence",
+            "Retired simulated-ledger removal and CI regression guard",
             "W0/P0-G documented human review",
         ],
         "production_eligible": False, "automatic_order": False,
