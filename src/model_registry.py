@@ -243,7 +243,7 @@ def rollback_champion(path, prior_config):
 
 def promotion_readiness(*, walk_forward=False, oos=False, cost_stress=False,
                         leakage_check=False, survivorship_review=False,
-                        regime_stability=False, paper_trade=False,
+                        regime_stability=False,
                         sample_sufficient=False):
     checks = {
         "walk_forward": bool(walk_forward),
