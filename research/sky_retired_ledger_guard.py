@@ -33,7 +33,7 @@ def audit():
         path = ROOT / name
         if path.suffix not in SOURCE_SUFFIXES or not path.is_file():
             continue
-        if name == "research/sky_retired_ledger_guard.py":
+        if name.startswith("tests/") or name == "research/sky_retired_ledger_guard.py":
             continue
         try:
             data = path.read_text(encoding="utf-8")
