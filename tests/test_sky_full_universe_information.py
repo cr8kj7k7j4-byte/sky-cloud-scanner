@@ -104,3 +104,41 @@ def test_snapshot_without_lasttrade_time_keeps_reference_and_collection_clock():
     assert report["snapshot_reference_without_trade_time_count"] == 1
     assert report["fresh_executed_count"] == 0
     assert report["no_order_or_production_promotion"] is True
+
+
+def test_owner_retired_31_tib_symbols_are_excluded_from_research_universe():
+    from research.sky_full_universe_information import (
+        RESEARCH_EXCLUDED_TIB_SYMBOLS, filter_research_universe
+    )
+    assert len(RESEARCH_EXCLUDED_TIB_SYMBOLS) == 31
+    excluded = [
+        {"symbol": symbol, "name": "TIB", "exchange": "TWSE"}
+        for symbol in sorted(RESEARCH_EXCLUDED_TIB_SYMBOLS)
+    ]
+    retained = [
+        {"symbol": "2330", "name": "TSMC", "exchange": "TWSE"},
+        {"symbol": "6488", "name": "OTC", "exchange": "TPEx"},
+    ]
+    filtered, dropped = filter_research_universe(excluded + retained)
+    assert filtered == retained
+    assert dropped == sorted(RESEARCH_EXCLUDED_TIB_SYMBOLS)
+    assert len(filtered) == 2
+    # No missing-quote placeholders for excluded research symbols.
+    report = build(filtered, {}, NOW)
+    assert report["universe_count"] == 2
+    assert not RESEARCH_EXCLUDED_TIB_SYMBOLS.intersection(
+        row["symbol"] for row in report["all_symbols"]
+    )
+
+
+def test_research_exclusion_keeps_source_universe_and_market_scope_unchanged():
+    from research.sky_full_universe_information import filter_research_universe
+    input_rows = [
+        {"symbol": "2237", "exchange": "TWSE"},
+        {"symbol": "2237", "exchange": "TPEx"},
+        {"symbol": "2330", "exchange": "TWSE"},
+    ]
+    filtered, excluded = filter_research_universe(input_rows)
+    assert excluded == ["2237"]
+    assert len(input_rows) == 3
+    assert filtered == input_rows[1:]
