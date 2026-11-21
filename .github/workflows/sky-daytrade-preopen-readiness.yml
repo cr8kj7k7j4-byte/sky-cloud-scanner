@@ -13,7 +13,7 @@ on:
   # - cron: '15,30,45,55 0 * * 1-5'
   # 
 permissions:
-  contents: read
+  contents: write
   actions: read
 
 concurrency:
@@ -26,6 +26,8 @@ jobs:
     timeout-minutes: 10
     env:
       PYTHONPATH: .
+      GH_TOKEN: ${{ github.token }}
+      SKY_PAID_ATOMIC_ENFORCE: "1"
       SKY_FUGLE_ONLY_MARKETDATA: "1"
       ALLOW_MIS_OTC_FALLBACK: "0"
       FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
