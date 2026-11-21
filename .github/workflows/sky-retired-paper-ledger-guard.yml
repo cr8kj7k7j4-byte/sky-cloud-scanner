@@ -1,0 +1,25 @@
+name: Sky Retired Simulated Ledger Guard (Research)
+on:
+  pull_request:
+    paths:
+      - 'research/**'
+      - 'tests/**'
+      - '.github/workflows/**'
+      - 'src/**'
+      - 'docs/SKY_PAPER_LEDGER_PERMANENT_REMOVAL_20261121.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  retired-ledger-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Reject dedicated retired simulated trading ledger or imports
+        run: python -m research.sky_retired_paper_ledger_guard
+      - name: Test retained read-only market / schedule audit
+        run: python -m unittest tests.test_sky_w0_shared_blocker_audit -v
