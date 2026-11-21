@@ -45,7 +45,7 @@ def test_shadow_sample_sufficiency_passes_diverse_complete_sample():
     assert result["observed"]["top_symbol_share"] <= 0.20
 
 
-def test_promotion_scorecard_blocks_missing_paper_gate():
+def test_promotion_scorecard_blocks_missing_oos_gate():
     evidence = {
         "sample_sufficient": True,
         "metrics": {
@@ -56,12 +56,12 @@ def test_promotion_scorecard_blocks_missing_paper_gate():
         "validation": {
             "sample_sufficient": True,
             "walk_forward_passed": True,
-            "oos_passed": True,
+            "oos_passed": False,
             "cost_stress_passed": True,
             "leakage_check_passed": True,
             "survivorship_reviewed": True,
             "regime_stability_passed": True,
-            "paper_trade_passed": False,
+
         },
     }
     card = build_promotion_scorecard(
@@ -70,7 +70,7 @@ def test_promotion_scorecard_blocks_missing_paper_gate():
         max_drawdown_r=5.0,
     )
     assert card["promotable_to_governance_review"] is False
-    assert "paper_trade" in card["failed_checks"]
+    assert "oos" in card["failed_checks"]
     assert card["production_eligible"] is False
 
 
@@ -90,7 +90,7 @@ def test_promotion_scorecard_full_pass_is_review_only():
             "leakage_check_passed": True,
             "survivorship_reviewed": True,
             "regime_stability_passed": True,
-            "paper_trade_passed": True,
+
         },
     }
     card = build_promotion_scorecard(
