@@ -95,7 +95,12 @@ def record(meta, payload, source_date, checked_at):
     if source_date != checked_at.date().isoformat():
         result["data_status"] = "SNAPSHOT_DATE_NOT_TODAY"
     elif price is None:
-        result["data_status"] = "MISSING_EXECUTED_PRICE"
+        # Provider returned the symbol with zero volume: not a missing row.
+        # No inference about halt, official status or tradability is permitted.
+        result["data_status"] = (
+            "ZERO_REPORTED_VOLUME_NO_PRICE" if result["volume"] == 0
+            else "MISSING_EXECUTED_PRICE"
+        )
     elif ts is None:
         result["data_status"] = "UNVERIFIED_EXECUTION_TIME"
     elif ts.date() != checked_at.date() or result["time_age_seconds"] > 180:
@@ -153,6 +158,50 @@ def build(universe, snapshots, checked_at, errors=None):
                     code = str(q.get("symbol") or "")
                     if code:
                         by_exchange[exchange][code] = (q, str(data.get("date") or ""))
+    # Raw provider diagnostics must be calculated BEFORE the symbol lookup
+    # collapses duplicate rows. This is informational, not trade certification.
+    official_symbols = {
+        exchange: {str(meta["symbol"]) for meta in universe
+                   if meta.get("exchange") == exchange}
+        for exchange in MARKET
+    }
+    snapshot_integrity = {}
+    for exchange, market in MARKET.items():
+        payload = snapshots.get(market)
+        valid_response = isinstance(payload, dict) and isinstance(payload.get("data"), list)
+        raw = payload["data"] if valid_response else []
+        raw_symbols = [
+            str(item.get("symbol") or "") for item in raw if isinstance(item, dict)
+        ]
+        nonblank = [symbol for symbol in raw_symbols if symbol]
+        distinct = set(nonblank)
+        covered = distinct & official_symbols[exchange]
+        missing = official_symbols[exchange] - covered
+        snapshot_integrity[exchange] = {
+            "api_response_valid": valid_response,
+            "source_market": market,
+            "raw_rows": len(raw),
+            "unique_returned_symbols": len(distinct),
+            "duplicate_symbol_rows": len(nonblank) - len(distinct),
+            "blank_symbol_rows": len(raw_symbols) - len(nonblank),
+            "invalid_row_count": len(raw) - len(raw_symbols),
+            "unexpected_symbols": len(distinct - official_symbols[exchange]),
+            "official_symbols_missing_from_snapshot": len(missing),
+            "official_symbol_coverage_pct": round(
+                100 * len(covered) / len(official_symbols[exchange]), 2
+            ) if official_symbols[exchange] else 0.0,
+            "missing_official_symbols": [
+                {"symbol": str(meta["symbol"]), "name": str(meta.get("name") or ""),
+                 "classification": "NOT_RETURNED_BY_FUGLE_SNAPSHOT",
+                 "next_check": "FUGLE_TICKER_PRODUCT_TYPE_AND_LISTING_STATUS"}
+                for meta in universe
+                if meta.get("exchange") == exchange
+                and str(meta["symbol"]) in missing
+            ],
+            "snapshot_date": payload.get("date") if isinstance(payload, dict) else None,
+            "snapshot_time_is_execution_time": False,
+            "production_eligible": False,
+        }
     rows = []
     for meta in universe:
         exchange = meta.get("exchange")
@@ -182,12 +231,38 @@ def build(universe, snapshots, checked_at, errors=None):
         }
         by_market[exchange]["fresh_executed_pct"] = round(
             100 * by_market[exchange]["fresh_executed"] / len(subset), 1) if subset else 0.0
+    # Missing prices, returned symbols, and executed-trade timestamps are
+    # separate measures; never promote Snapshot coverage to live execution.
+    missing_price_rows = [x for x in rows if x["last_price"] is None]
+    missing_price_diagnostics = [
+        {"symbol": x["symbol"], "name": x["name"],
+         "exchange": x["exchange"], "reported_volume": x.get("volume"),
+         "data_status": x["data_status"], "official_trading_status": "UNVERIFIED"}
+        for x in missing_price_rows
+    ]
     verified = sum(x["data_status"] == "FRESH_EXECUTED_TRADE" for x in rows)
     report = {
         "schema": "SKY_INFORMATION_FIRST_FULL_UNIVERSE_V1",
         "checked_at_tpe": checked_at.isoformat(),
         "universe_count": len(rows), "snapshot_status": statuses,
         "snapshot_errors": errors or {}, "by_exchange": by_market,
+        "snapshot_integrity": snapshot_integrity,
+        "snapshot_api_calls_expected_per_scan": 2,
+        "missing_price_count": len(missing_price_rows),
+        "zero_reported_volume_no_price_count": sum(
+            x["data_status"] == "ZERO_REPORTED_VOLUME_NO_PRICE"
+            for x in missing_price_rows
+        ),
+        "missing_price_diagnostics": missing_price_diagnostics,
+        "missing_price_official_status_certified": False,
+        "snapshot_reference_coverage_pct": round(
+            100 * sum(x["last_price"] is not None for x in rows) / len(rows), 2
+        ) if rows else 0.0,
+        "snapshot_reference_coverage_denominator": len(rows),
+        "quote_execution_sample_size": 0,
+        "quote_execution_certified_count": 0,
+        "quote_execution_certification_pct": None,
+        "quote_execution_certification_status": "NOT_SAMPLED_IN_SNAPSHOT_STAGE",
         "observed_price_count": sum(x["last_price"] is not None for x in rows),
         "snapshot_reference_requires_last_trade_time": False,
         "snapshot_reference_without_trade_time_count": sum(
