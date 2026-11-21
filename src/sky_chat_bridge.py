@@ -139,6 +139,17 @@ def make_status(request_id, report=None, error=None, observation=None, stage1=No
         "observed_price_coverage_pct": round(100 * observed_count / len(rows), 2) if rows else 0.0,
         "fresh_executed_coverage_pct": round(
             100 * observation.get("fresh_executed_count", 0) / len(rows), 2) if rows else 0.0,
+        # Explicitly separate an operational report from a verified live strategy.
+        # A weekend/previous-session reference price cannot certify executed trades.
+        "research_operational_status": report_status if report is not None else "FAILED",
+        "live_strategy_status": "HOLD_INSUFFICIENT_DATA",
+        "live_strategy_evidence": {
+            "executed_trade_verified_count": observation.get("fresh_executed_count", 0),
+            "stage2_verified_executed_count": stage2.get("verified_executed_count", 0),
+            "five_minute_observed_count": stage4.get("stage3_five_minute_observed_count", 0),
+            "vwap_certified_count": stage4.get("vwap_certified_count", 0),
+            "full_rule_validation_complete": False,
+        },
         "production_eligible": False, "automatic_order": False,
         "block_reason": error or ("SOURCE_DATA_INCOMPLETE" if source_missing else
                                   "UNVERIFIED_EXECUTED_TRADE_COVERAGE"),
