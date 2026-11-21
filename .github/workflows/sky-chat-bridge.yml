@@ -94,7 +94,20 @@ jobs:
           p=Path("output/chat_bridge/latest.json")
           if not p.exists():
               p.parent.mkdir(parents=True,exist_ok=True)
-              reason=("RESERVATION_DENIED" if os.getenv("GUARD_OUTCOME")=="success" and os.getenv("GUARD_ALLOWED")!="true"
+              # Preserve the exact reservation decision for diagnosis; never
+              # turn a duplicate/denied request into a successful scan.
+              guard_receipt=Path("output/fugle_api_guard/claim.json")
+              guard={}
+              try:
+                  loaded=json.loads(guard_receipt.read_text(encoding="utf-8"))
+                  if isinstance(loaded,dict) and loaded.get("schema")=="SKY_PAID_FUGLE_RESERVATION_V1":
+                      guard=loaded
+              except (OSError,ValueError,TypeError):
+                  pass
+              reason=(guard.get("reason") if os.getenv("GUARD_OUTCOME")=="success"
+                      and os.getenv("GUARD_ALLOWED")!="true"
+                      and guard.get("status")=="DUPLICATE_BLOCKED"
+                      and guard.get("reason") in ("RECENT_RESERVATION",)
                       else "RESERVATION_OR_SCAN_NOT_VERIFIED")
               p.write_text(json.dumps({
                   "schema":"SKY_CHAT_SCAN_STATUS_V1",
@@ -260,6 +273,7 @@ jobs:
                  f"- Run ID: `{run}`",
                  f"- Request ID: `{rid if isinstance(rid,str) and rid.isascii() else '未取得'}`",
                  f"- 資料筆數：`{receipt.get('row_count',0) if verified else 0}`",
+                 f"- 阻擋原因：`{status.get('block_reason')}`" if not verified and status.get("block_reason") else "- 驗收：僅研究用途",
                  "- 交易資格：禁止交易",
                  "- 自動下單：停用"]
           url=os.environ.get("REPORT_ARTIFACT_URL","")
