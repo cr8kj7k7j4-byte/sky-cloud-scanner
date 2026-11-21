@@ -19,6 +19,27 @@ TZ = ZoneInfo("Asia/Taipei")
 OUTPUT_DIR = Path("output/sky_quickscan_information")
 MARKET = {"TWSE": "TSE", "TPEx": "OTC"}
 
+# Repository-owner approved exclusion of 31 innovation-board symbols from
+# the research trading/scan universe. Keep these explicit, auditable IDs;
+# this does not change the official source feed or certify trade timestamps.
+RESEARCH_EXCLUDED_TIB_SYMBOLS = frozenset(
+    "2237 2254 2258 2432 3150 4195 4582 4590 6534 6645 6771 6854 6908 6921 6924 6949 6951 6955 6969 6988 7610 7631 7730 7740 7803 7812 7823 7827 7835 8162 8487".split()
+)
+
+
+def filter_research_universe(universe):
+    """Return active research symbols and a separately auditable exclusion."""
+    included, excluded = [], []
+    for meta in universe:
+        symbol = str(meta.get("symbol", ""))
+        if meta.get("exchange") == "TWSE" and symbol in RESEARCH_EXCLUDED_TIB_SYMBOLS:
+            excluded.append(symbol)
+        else:
+            included.append(meta)
+    return included, sorted(set(excluded))
+
+
+
 
 def numeric(value):
     try:
@@ -261,6 +282,7 @@ def summary(report):
 def main():
     checked_at = datetime.now(TZ)
     universe, status = load_official_universe()
+    universe, excluded_research_symbols = filter_research_universe(universe)
     snapshots = {}
     errors = {}
     for market in MARKET.values():
@@ -269,6 +291,9 @@ def main():
         except Exception as exc:
             errors[market] = type(exc).__name__
     report = build(universe, snapshots, checked_at, errors)
+    report["excluded_research_symbols"] = excluded_research_symbols
+    report["excluded_research_symbol_count"] = len(excluded_research_symbols)
+    report["official_universe_count_before_research_exclusion"] = len(universe) + len(excluded_research_symbols)
     report["official_universe_warnings"] = status.get("warnings", [])
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     (OUTPUT_DIR / "full_universe.json").write_text(
