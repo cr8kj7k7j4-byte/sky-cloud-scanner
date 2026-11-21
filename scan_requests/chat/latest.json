@@ -1,6 +1,6 @@
 {
   "command": "Sky 快掃",
-  "request_id": "research-go-live-20261121-once-a1",
+  "request_id": "research-go-live-20261121-w0-once-b2",
   "read_only_no_orders": true,
-  "reason": "Owner-authorized one-time research-only live transport acceptance: paid Fugle reservation -> scan -> same-run Artifact -> independent readback. No orders; no schedule changes."
+  "reason": "W0 owner-authorized one-time research go-live acceptance on protected main. Verify paid API lease, Fugle read-only Snapshot, same-run 13-column report and external GitHub Artifact receipt. No auto-orders, no schedule changes, no Production strategy promotion."
 }
