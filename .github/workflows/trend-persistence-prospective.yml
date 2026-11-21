@@ -2,8 +2,7 @@ name: W1 Trend Persistence V1.1 Prospective Evidence
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
+  pull_request:
     paths:
       - "research/trend_persistence_prospective.py"
       - "tests/test_trend_persistence_prospective.py"
@@ -17,7 +16,19 @@ permissions:
   contents: read
 
 jobs:
+  contract-tests:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt pytest
+      - run: PYTHONPATH=. pytest -q tests/test_trend_persistence_prospective.py
   prospective:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
