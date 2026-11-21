@@ -36,3 +36,24 @@ def test_pass_guard_with_inconsistent_dates_is_blocked():
     })
     assert result["status"] == "BLOCKED_STALE_SIGNAL_HISTORY"
     assert not result["publication_allowed"]
+
+def test_missing_malformed_output_fails_closed_and_writes_receipt(tmp_path):
+    import json
+    import subprocess
+    import sys
+    for raw in (None, "not-json", "[]", "null"):
+        target = tmp_path / "scan.json"
+        receipt = tmp_path / "freshness_gate.json"
+        if raw is not None:
+            target.write_text(raw, encoding="utf-8")
+        elif target.exists():
+            target.unlink()
+        cp = subprocess.run(
+            [sys.executable, "-m", "research.verify_swing_v11_live_output",
+             "--input", str(target), "--report", str(receipt)],
+            capture_output=True, text=True, check=False)
+        assert cp.returncode != 0
+        result = json.loads(receipt.read_text(encoding="utf-8"))
+        assert result["status"] == "BLOCKED_SCAN_OUTPUT_MISSING"
+        assert result["publication_allowed"] is False
+        assert result["production_eligible"] is False

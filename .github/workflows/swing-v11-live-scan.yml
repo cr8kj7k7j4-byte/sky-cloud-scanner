@@ -1,21 +1,14 @@
 name: Sky Swing V1.1 Live Whole-Market Scan
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/swing-v11-live-scan.yml"
-      - "src/swing_v11_live_scanner.py"
-      - "src/swing_split_scope_scanner.py"
-      - "src/swing_observation_report.py"
-      - "research/verify_swing_v11_live_output.py"
-      - "src/sky_command_router.py"
-      - "research/SKY_SWING_V11_INTRADAY_EXECUTION_OVERLAY_V1.md"
+  # Do not launch any market-data scan automatically on main push.
+  # Explicit workflow_dispatch remains available for approved research.
   pull_request:
     paths:
       - "src/swing_v11_live_scanner.py"
       - "tests/test_swing_v11_freshness.py"
       - "tests/test_verify_swing_v11_live_output.py"
+      - "research/verify_swing_v11_live_output.py"
       - "tests/test_swing_observation_report.py"
       - ".github/workflows/swing-v11-live-scan.yml"
   workflow_dispatch:

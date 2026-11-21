@@ -5,8 +5,18 @@ import json
 from pathlib import Path
 
 
-def validate_swing_scan_output(payload: dict) -> dict:
+def validate_swing_scan_output(payload: dict | None) -> dict:
+    if not isinstance(payload, dict):
+        return {
+            "status": "BLOCKED_SCAN_OUTPUT_MISSING",
+            "signal_date": None, "expected_signal_date": None,
+            "guard_status": None, "candidate_count": None,
+            "publication_allowed": False, "production_eligible": False,
+            "reason": "V1.1 scanner produced no valid JSON report; trading is prohibited.",
+        }
     guard = payload.get("signal_date_guard") or {}
+    if not isinstance(guard, dict):
+        guard = {}
     status = guard.get("status")
     fresh = guard.get("fresh") is True
     signal_date = payload.get("signal_date")
@@ -29,7 +39,10 @@ def main():
     ap.add_argument("--input", required=True)
     ap.add_argument("--report", required=True)
     args = ap.parse_args()
-    x = json.loads(Path(args.input).read_text(encoding="utf-8"))
+    try:
+        x = json.loads(Path(args.input).read_text(encoding="utf-8"))
+    except (OSError, ValueError, UnicodeError):
+        x = None
     out = validate_swing_scan_output(x)
     p=Path(args.report)
     p.parent.mkdir(parents=True, exist_ok=True)
