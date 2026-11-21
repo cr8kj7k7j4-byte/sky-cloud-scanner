@@ -121,7 +121,10 @@ class ChatScanBridgeTests(unittest.TestCase):
         workflow = (Path(__file__).resolve().parents[1] /
                     ".github/workflows/sky-chat-bridge.yml").read_text(encoding="utf-8")
         publish_step = workflow.split("- name: Publish sanitized summary for ChatGPT GitHub connector", 1)[1]
-        self.assertIn("if: ${{ always() && github.ref == 'refs/heads/main' }}", publish_step)
+        self.assertIn("if: ${{ always() }}", publish_step)
+        self.assertIn("Do not write to protected main via the Contents API.", publish_step)
+        self.assertNotIn("repos/${", publish_step)
+        self.assertNotIn("contents/docs/SKY_CHAT_LATEST_STATUS.json", publish_step)
         self.assertIn("if: always()", workflow.split("- name: Upload complete 13-column report and status", 1)[1].split("- name: Publish sanitized summary", 1)[0])
 
     def test_request_good(self):
