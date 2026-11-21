@@ -1,0 +1,100 @@
+{
+  "schema": "SKY_WEEKLY_HISTORICAL_EVIDENCE_AUDIT_V1",
+  "scope": "RESEARCH_ONLY",
+  "window_tpe": {
+    "start": "2026-11-16",
+    "end": "2026-11-20",
+    "timezone": "Asia/Taipei"
+  },
+  "audit_as_of_tpe": "2026-11-22",
+  "base_sha": "2e417e9c54409235eba7243cf22568e55ac2a602",
+  "status": "INSUFFICIENT_DATA",
+  "production_change": false,
+  "automatic_order": false,
+  "retired_simulated_ledger_used": false,
+  "daily": [
+    {
+      "trade_date_tpe": "2026-11-16",
+      "market_data_verified": false,
+      "prior_signal_verified": false,
+      "signal_version_sha_verified": false,
+      "replay_eligible": false,
+      "result": "INSUFFICIENT_DATA",
+      "reason": "No independently verified time-aligned market data plus contemporaneous model decision evidence in inspected records"
+    },
+    {
+      "trade_date_tpe": "2026-11-17",
+      "market_data_verified": false,
+      "prior_signal_verified": false,
+      "signal_version_sha_verified": false,
+      "replay_eligible": false,
+      "result": "INSUFFICIENT_DATA",
+      "reason": "No independently verified time-aligned market data plus contemporaneous model decision evidence in inspected records"
+    },
+    {
+      "trade_date_tpe": "2026-11-18",
+      "market_data_verified": false,
+      "prior_signal_verified": false,
+      "signal_version_sha_verified": false,
+      "replay_eligible": false,
+      "result": "INSUFFICIENT_DATA",
+      "reason": "No independently verified time-aligned market data plus contemporaneous model decision evidence in inspected records"
+    },
+    {
+      "trade_date_tpe": "2026-11-19",
+      "market_data_verified": false,
+      "prior_signal_verified": false,
+      "signal_version_sha_verified": false,
+      "replay_eligible": false,
+      "result": "INSUFFICIENT_DATA",
+      "reason": "No independently verified time-aligned market data plus contemporaneous model decision evidence in inspected records"
+    },
+    {
+      "trade_date_tpe": "2026-11-20",
+      "market_data_verified": false,
+      "prior_signal_verified": false,
+      "signal_version_sha_verified": false,
+      "replay_eligible": false,
+      "result": "INSUFFICIENT_DATA",
+      "reason": "No independently verified time-aligned market data plus contemporaneous model decision evidence in inspected records"
+    }
+  ],
+  "investigated_sources": [
+    {
+      "kind": "github_action_run",
+      "run_id": 44793701790,
+      "run_created_utc": "2026-11-20T18:32:18Z",
+      "data_capture_tpe": "2026-11-21T02:32:37+08:00",
+      "head_sha": "d5507eff7797ac9d4289b996ea23746994cea95b",
+      "artifact_id": 14657476938,
+      "artifact_name": "sky-chat-44793701790",
+      "status": "DATA_BLOCKED_SOURCE_FAILURE",
+      "universe_count": 1986,
+      "reference_price_count": 1942,
+      "stage1_candidate_count": 0,
+      "five_minute_samples": 0,
+      "eligible_for_nov20_replay": false
+    },
+    {
+      "kind": "github_action_run",
+      "run_id": 44672555601,
+      "status": "TEST_PASS_LIVE_SCAN_SKIPPED",
+      "artifact_count": 0
+    },
+    {
+      "kind": "github_action_run",
+      "run_id": 44672546964,
+      "status": "TEST_PASS_LIVE_SCAN_SKIPPED",
+      "artifact_count": 0
+    }
+  ],
+  "replay_metrics": {
+    "win_rate": null,
+    "after_cost_expectancy": null,
+    "profit_factor": null,
+    "max_drawdown": null,
+    "trade_count": null
+  },
+  "governance": "HOLD_NO_PRODUCTION_PROMOTION",
+  "note": "UTC-day run counts are not a complete local trading-day record. Do not impute signals or simulate trade ledger."
+}
