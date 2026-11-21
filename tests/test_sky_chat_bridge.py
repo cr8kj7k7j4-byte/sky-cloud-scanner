@@ -2,6 +2,16 @@ import unittest
 from src.sky_chat_bridge import COLUMNS, make_status, validate_report, validate_request
 
 class ChatScanBridgeTests(unittest.TestCase):
+    def test_final_receipt_enforces_same_request_and_artifact(self):
+        from pathlib import Path
+        workflow = Path(".github/workflows/sky-chat-bridge.yml").read_text(encoding="utf-8")
+        self.assertIn('receipt.get("schema")=="SKY_CHAT_EXTERNAL_ARTIFACT_READBACK_V1"', workflow)
+        self.assertIn('receipt.get("request_id")==expected_request_id', workflow)
+        self.assertIn('receipt.get("artifact_id","")).isdecimal()', workflow)
+        self.assertIn('receipt.get("row_count")>0', workflow)
+        self.assertIn('receipt.get("production_eligible") is False', workflow)
+        self.assertIn('receipt.get("automatic_order") is False', workflow)
+
     def test_failure_receipt_workflow_preserves_request_identity(self):
         from pathlib import Path
         workflow = Path(".github/workflows/sky-chat-bridge.yml").read_text(encoding="utf-8")
