@@ -1,0 +1,75 @@
+name: Sky Mock Cross Workflow Dedup Proof A
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/sky-mock-cross-workflow-proof-*.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: write
+concurrency:
+  group: sky-mock-cross-workflow-dedup-proof-v1
+  cancel-in-progress: false
+jobs:
+  prove:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check shared mock reservation (no Fugle key)
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:mock:cross-workflow-proof-v1'
+      - name: Upload mock claim before any simulated authorization
+        if: steps.guard.outputs.allowed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.guard.outputs.claim_name }}
+          path: output/fugle_api_guard/claim.json
+          if-no-files-found: error
+          retention-days: 1
+      - name: Verify mock claim ZIP independently
+        id: verify_claim
+        if: steps.guard.outputs.allowed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:mock:cross-workflow-proof-v1' --verify
+      - name: Assert no paid call and fail-closed dedup
+        if: always()
+        env:
+          ALLOWED: ${{ steps.guard.outputs.allowed }}
+          GUARD_OUTCOME: ${{ steps.guard.outcome }}
+          VERIFY_OUTCOME: ${{ steps.verify_claim.outcome }}
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          allowed=os.environ.get("ALLOWED")
+          verified=os.environ.get("VERIFY_OUTCOME")
+          guard=os.environ.get("GUARD_OUTCOME")
+          claim=json.loads(Path("output/fugle_api_guard/claim.json").read_text())
+          status=claim.get("status")
+          passed=(guard=="success" and (
+              (allowed=="true" and verified=="success" and status=="CLAIM_REQUIRED_BEFORE_PAID_API")
+              or (allowed=="false" and status=="DUPLICATE_BLOCKED" and claim.get("reason")=="RECENT_RESERVATION")))
+          Path("output/mock_proof").mkdir(parents=True,exist_ok=True)
+          Path("output/mock_proof/result.json").write_text(json.dumps({
+              "schema":"SKY_MOCK_CROSS_WORKFLOW_PROOF_V1",
+              "workflow":"A","run_id":os.getenv("GITHUB_RUN_ID"),
+              "status":"CLAIM_VERIFIED" if allowed=="true" and passed else "DUPLICATE_BLOCKED" if passed else "FAILED_CLOSED",
+              "paid_api_calls":0,"fugle_credentials_used":False,
+              "production_eligible":False,"automatic_order":False},indent=2)+"\n")
+          if not passed: raise SystemExit("MOCK_CROSS_WORKFLOW_PROOF_FAILED_CLOSED")
+          PY
+      - name: Upload mock proof receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-mock-cross-workflow-proof-A-${{ github.run_id }}
+          path: output/mock_proof/result.json
+          if-no-files-found: error
+          retention-days: 7
