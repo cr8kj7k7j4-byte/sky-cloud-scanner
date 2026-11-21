@@ -17,6 +17,17 @@ from src.feature_engine import build_features
 TPE = ZoneInfo("Asia/Taipei")
 
 
+def positive_finite_number(value):
+    """Only genuine positive finite provider numbers can satisfy ticker gates."""
+    if isinstance(value, bool):
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    return number if math.isfinite(number) and number > 0 else None
+
+
 def selected(stage2):
     if stage2.get("schema") != "SKY_STAGE2_BOUNDED_QUOTE_EVIDENCE_V1":
         raise ValueError("BAD_STAGE2_SCHEMA")
@@ -170,7 +181,11 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                 eligible=ticker.get("canDayTrade") is True and ticker.get("canBuyDayTrade") is True
                 quote_price=row.get("verified_trade_price")
                 limit=ticker.get("limitUpPrice")
-                is_limit=bool(quote_price is not None and limit is not None and float(quote_price)>=float(limit))
+                verified_price=positive_finite_number(quote_price)
+                upper_limit=positive_finite_number(limit)
+                # Unknown/malformed limit-up values must never pass the ticker gate.
+                is_limit=bool(verified_price is not None and upper_limit is not None
+                              and verified_price >= upper_limit)
                 snapshot={
                     "last":quote_price,"avg_price":row.get("microstructure",{}).get("average_price")
                 }
@@ -210,7 +225,8 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                        and ticker.get("isDisposition") is False
                        and ticker.get("isAttention") is False
                        and ticker.get("isSpecificAbnormally") is False
-                       and boardlot is not None and float(boardlot)>0)
+                       and positive_finite_number(boardlot) is not None
+                       and verified_price is not None and upper_limit is not None)
                 result["status"]=("RAW_5M_RESEARCH_SAMPLE_NO_STAGE2" if evidence_candidates is not None
                                   else "CANDLE_TICKER_RESEARCH_READY_NOT_TRADE" if ready
                                   else "INCOMPLETE_TICKER_OR_5M_EVIDENCE")
