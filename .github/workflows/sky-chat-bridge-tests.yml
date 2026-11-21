@@ -3,6 +3,10 @@ on:
   pull_request:
     paths:
       - 'src/sky_chat_bridge.py'
+      - 'src/fugle.py'
+      - 'research/three_model_fugle_pipeline.py'
+      - 'research/fugle_market_quality_audit.py'
+      - 'tests/test_fugle_atomic_transport.py'
       - 'research/sky_paid_fugle_api_guard.py'
       - 'research/sky_fugle_request_identity.py'
       - 'tests/test_sky_paid_fugle_api_guard.py'
@@ -38,6 +42,11 @@ on:
       - 'research/sky_governed_auto_repair_smoke_fixture.txt'
       - 'tests/test_sky_governed_auto_repair.py'
       - '.github/workflows/sky-chat-bridge*.yml'
+      - '.github/workflows/sky-single-stock-realtime.yml'
+      - '.github/workflows/swing-live-scan.yml'
+      - '.github/workflows/swing-v11-live-scan.yml'
+      - '.github/workflows/three-model-fugle-api-smoke.yml'
+      - '.github/workflows/fugle-market-quality-audit.yml'
   workflow_dispatch:
 permissions:
   contents: read
@@ -53,9 +62,9 @@ jobs:
       - name: Install tested runtime HTTP dependency
         run: pip install requests
       - name: Syntax-check bridge files
-        run: python -m py_compile scripts/sky_chat_artifact_readback.py src/sky_scan_readback.py src/sky_chat_bridge.py src/sky_mcp_contract.py research/sky_snapshot_candidates.py src/sky_stage2_candidate_quotes.py src/sky_stage2_deep_quality.py src/sky_v14_ticker_candles_probe.py research/sky_candidate_e2e_chain.py research/sky_stage5_vwap_cost_evidence.py research/sky_stage5_breakout_antichase_evidence.py
+        run: python -m py_compile scripts/sky_chat_artifact_readback.py src/sky_scan_readback.py src/sky_chat_bridge.py src/fugle.py research/three_model_fugle_pipeline.py research/fugle_market_quality_audit.py src/sky_mcp_contract.py research/sky_snapshot_candidates.py src/sky_stage2_candidate_quotes.py src/sky_stage2_deep_quality.py src/sky_v14_ticker_candles_probe.py research/sky_candidate_e2e_chain.py research/sky_stage5_vwap_cost_evidence.py research/sky_stage5_breakout_antichase_evidence.py
       - name: Run isolated contracts without paid credentials
-        run: python -m unittest tests.test_sky_paid_fugle_api_guard tests.test_sky_fugle_request_identity tests.test_sky_chat_paid_reservation_workflow tests.test_sky_scan_readback tests.test_sky_chat_artifact_readback tests.test_sky_chat_bridge tests.test_sky_mcp_contract tests.test_sky_snapshot_candidates tests.test_sky_snapshot_integrity_research tests.test_sky_alert_reader tests.test_sky_stage2_candidate_quotes tests.test_sky_stage2_deep_quality tests.test_sky_v14_ticker_candles_probe tests.test_sky_candidate_e2e_chain tests.test_sky_stage5_vwap_cost_evidence tests.test_sky_stage5_breakout_antichase_evidence tests.test_sky_governed_auto_repair -v
+        run: python -m unittest tests.test_fugle_atomic_transport tests.test_sky_paid_fugle_api_guard tests.test_sky_fugle_request_identity tests.test_sky_chat_paid_reservation_workflow tests.test_sky_scan_readback tests.test_sky_chat_artifact_readback tests.test_sky_chat_bridge tests.test_sky_mcp_contract tests.test_sky_snapshot_candidates tests.test_sky_snapshot_integrity_research tests.test_sky_alert_reader tests.test_sky_stage2_candidate_quotes tests.test_sky_stage2_deep_quality tests.test_sky_v14_ticker_candles_probe tests.test_sky_candidate_e2e_chain tests.test_sky_stage5_vwap_cost_evidence tests.test_sky_stage5_breakout_antichase_evidence tests.test_sky_governed_auto_repair -v
       - name: Check isolated no-market repair smoke fixture when present
         shell: bash
         run: |
