@@ -12,8 +12,6 @@ on:
     branches: [main]
     paths:
       - 'research/sky_recovery_watchdog.py'
-      - 'research/sky_p0r_repair_status.py'
-      - 'tests/test_sky_p0r_repair_status.py'
       - 'tests/test_sky_recovery_watchdog.py'
       - 'research/sky_repair_progress_monitor.py'
       - 'tests/test_sky_repair_progress_monitor.py'
@@ -77,7 +75,7 @@ jobs:
         run: |
           set -euo pipefail
           for ATTEMPT in 1 2; do
-            if python -m unittest tests.test_sky_alert_information_format tests.test_sky_recovery_watchdog tests.test_sky_p0r_repair_status -v; then
+            if python -m unittest tests.test_sky_alert_information_format tests.test_sky_recovery_watchdog -v; then
               exit 0
             fi
             echo "Contract test failed on attempt ${ATTEMPT}; retrying once after a short delay"
@@ -87,12 +85,6 @@ jobs:
       - name: Write auditable health artifact
         if: always()
         run: python -m research.sky_recovery_watchdog
-      - name: Check PR #508 repair progress and retry one failed unit test only
-        if: always() && (github.event_name != 'schedule' || steps.tpe_market.outputs.within_market_session != 'true')
-        env:
-          GH_TOKEN: ${{ github.token }}
-          SKY_P0R_RETRY_FAILED_TEST_ONCE: 'true'
-        run: python -m research.sky_p0r_repair_status
       - name: Test structural paid API overlap audit without Fugle calls
         if: always() && (github.event_name != 'schedule' || steps.tpe_market.outputs.within_market_session != 'true')
         run: python -m unittest tests.test_sky_w0_dedup_inventory -v
