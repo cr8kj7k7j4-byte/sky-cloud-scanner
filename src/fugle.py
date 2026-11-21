@@ -1,7 +1,16 @@
 import requests
+import copy
+import os
+import threading
+import time
 from .config import FUGLE_API_KEY
 
 BASE = "https://api.fugle.tw/marketdata/v1.0/stock"
+
+# Per-process only: never use an unverified result from another Workflow.
+_ATOMIC_CACHE = {}
+_ATOMIC_CACHE_LOCK = threading.RLock()
+_ATOMIC_CACHE_TTL_SECONDS = 300
 
 def _headers():
     if not FUGLE_API_KEY:
@@ -11,10 +20,26 @@ def _headers():
 def _get(path, params=None):
     url = f"{BASE}{path}"
     headers = _headers()
-    # Enforced research runs must obtain the shared atomic claim before HTTP.
-    # Guard errors fail closed: no provider request is sent.
     from research.sky_fugle_atomic_ref_claim import guard_fugle_request
+    enforced = os.getenv("SKY_PAID_ATOMIC_ENFORCE") == "1"
+    if enforced:
+        from research.sky_fugle_request_identity import canonical_fugle_request
+        identity = canonical_fugle_request("GET", url, parameters=params)
+        # Serialize same-process requests. A cached response is reused only
+        # after a successful provider response; never cache errors or denials.
+        with _ATOMIC_CACHE_LOCK:
+            cached = _ATOMIC_CACHE.get(identity)
+            if cached is not None and time.monotonic() - cached[0] < _ATOMIC_CACHE_TTL_SECONDS:
+                return copy.deepcopy(cached[1])
+            guard_fugle_request(url, params)
+            result = _fetch_json(url, params, headers, path)
+            _ATOMIC_CACHE[identity] = (time.monotonic(), copy.deepcopy(result))
+            return result
     guard_fugle_request(url, params)
+    return _fetch_json(url, params, headers, path)
+
+
+def _fetch_json(url, params, headers, path):
     r = requests.get(url, params=params, headers=headers, timeout=20)
     try:
         r.raise_for_status()

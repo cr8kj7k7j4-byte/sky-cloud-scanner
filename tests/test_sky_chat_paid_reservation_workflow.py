@@ -28,7 +28,10 @@ class PaidReservationWorkflowTests(unittest.TestCase):
         self.assertIn("group: sky-fugle-paid-global-research-v1-live-wholemarket", source)
         self.assertIn("cancel-in-progress: false", source)
         self.assertIn("SKY_FUGLE_ONLY_MARKETDATA: '1'", source)
-        self.assertNotIn("contents: write", source)
+        # Atomic Git-ref claims need contents:write; branch-file writes remain banned.
+        self.assertIn("contents: write", source)
+        self.assertIn("SKY_PAID_ATOMIC_ENFORCE: '1'", source)
+        self.assertIn("GH_TOKEN: ${{ github.token }}", source)
         self.assertNotIn("gh api --method PUT", source)
         self.assertNotIn("schedule:", source)
         self.assertIn("sky-chat-${{ github.run_id }}", source)
