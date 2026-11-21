@@ -6,6 +6,7 @@ No structural replacement of formal 80% whole-market quote gate, no A+, no order
 from __future__ import annotations
 
 import json
+import math
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from pathlib import Path
@@ -78,8 +79,12 @@ def build(stage1, stage2, stage3):
         # Stage-2 receipt. A stale or future quote cannot become fresh solely
         # because an upstream status flag says FRESH_EXECUTED_TRADE.
         quote_age = checked_at - quote_time if checked_at and quote_time else None
+        price = row.get("verified_trade_price")
+        price_valid = (isinstance(price, (int, float)) and not isinstance(price, bool)
+                       and math.isfinite(price) and price > 0)
         verified_quote = (
-            row.get("executed_trade_verified") is True
+            price_valid
+            and row.get("executed_trade_verified") is True
             and row.get("status") == "FRESH_EXECUTED_TRADE"
             and quote_time is not None
             and checked_at is not None
