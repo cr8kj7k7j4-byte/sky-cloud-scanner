@@ -40,7 +40,7 @@ def canonical_fugle_request(method: str, url: str, *, parameters: dict | None = 
     if not SAFE_ENDPOINT.fullmatch(parsed.path):
         raise ValueError("UNSUPPORTED_FUGLE_ENDPOINT")
     params = parse_qsl(parsed.query, keep_blank_values=True, strict_parsing=True)
-    if parameters:
+    if parameters is not None:
         if not isinstance(parameters, dict):
             raise ValueError("INVALID_PARAMETERS")
         params.extend((str(k), str(v)) for k, v in parameters.items())

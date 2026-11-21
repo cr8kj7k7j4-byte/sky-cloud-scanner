@@ -28,6 +28,14 @@ class CanonicalFugleRequestTests(unittest.TestCase):
         self.assertNotEqual(key("GET", "/snapshot/quotes/TSE?type=COMMONSTOCK"),
                             key("GET", "/snapshot/quotes/OTC?type=COMMONSTOCK"))
 
+    def test_invalid_empty_parameter_containers_fail_closed(self):
+        for invalid in ([], (), "", 0, False):
+            with self.subTest(parameters=repr(invalid)):
+                with self.assertRaisesRegex(ValueError, "INVALID_PARAMETERS"):
+                    key("GET", "/intraday/quote/2330", parameters=invalid)
+        self.assertEqual(key("GET", "/intraday/quote/2330", parameters={}),
+                         key("GET", "/intraday/quote/2330"))
+
     def test_unsupported_or_untrusted_fail_closed(self):
         for url in (
             "http://api.fugle.tw/intraday/quote/2330",
