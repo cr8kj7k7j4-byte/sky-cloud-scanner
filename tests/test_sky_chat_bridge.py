@@ -2,6 +2,14 @@ import unittest
 from src.sky_chat_bridge import COLUMNS, make_status, validate_report, validate_request
 
 class ChatScanBridgeTests(unittest.TestCase):
+    def test_failure_receipt_workflow_preserves_request_identity(self):
+        from pathlib import Path
+        workflow = Path(".github/workflows/sky-chat-bridge.yml").read_text(encoding="utf-8")
+        self.assertIn('request_id=validate_request(payload)', workflow)
+        self.assertIn('"request_id":request_id,', workflow)
+        self.assertIn('"automatic_order":False', workflow)
+        self.assertIn('"trade_action":"禁止交易"', workflow)
+
     def test_request_good(self):
         self.assertEqual(validate_request({"command":"Sky 當沖現在掃一次","request_id":"chat-20261109-a","read_only_no_orders":True}),"chat-20261109-a")
 

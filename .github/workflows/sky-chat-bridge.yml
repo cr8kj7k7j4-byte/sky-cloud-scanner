@@ -61,6 +61,13 @@ jobs:
           python - <<'PY'
           import json, os
           from pathlib import Path
+          from src.sky_chat_bridge import validate_request
+          request_id = None
+          try:
+              payload=json.loads(Path("scan_requests/chat/latest.json").read_text(encoding="utf-8"))
+              request_id=validate_request(payload)
+          except (OSError, ValueError, TypeError, KeyError):
+              pass
           p=Path("output/chat_bridge/latest.json")
           if not p.exists():
               p.parent.mkdir(parents=True,exist_ok=True)
@@ -70,6 +77,7 @@ jobs:
                   "schema":"SKY_CHAT_SCAN_STATUS_V1",
                   "status":"FAILED_CLOSED",
                   "scan_id":os.getenv("GITHUB_RUN_ID"),
+                  "request_id":request_id,
                   "head_sha":os.getenv("GITHUB_SHA"),
                   "block_reason":reason,
                   "production_eligible":False,
