@@ -22,6 +22,9 @@ permissions:
 jobs:
   probe:
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SKY_PAID_ATOMIC_ENFORCE: "1"
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
