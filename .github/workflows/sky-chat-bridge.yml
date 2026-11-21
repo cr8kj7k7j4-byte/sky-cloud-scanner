@@ -7,6 +7,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: sky-chat-scan
   cancel-in-progress: false
@@ -42,6 +43,55 @@ jobs:
             output/sky_quickscan_information/candidate_e2e_chain.json
             output/sky_quickscan_information/candidate_e2e_chain.md
           if-no-files-found: warn
+          retention-days: 90
+      - name: Download and independently verify same-run Artifact (read-only)
+        if: ${{ steps.bridge.outcome == 'success' }}
+        id: external_readback
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/sky-chat-readback output/chat_bridge_readback
+          for ATTEMPT in 1 2 3 4 5; do
+            if gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "sky-chat-$GITHUB_RUN_ID" --dir /tmp/sky-chat-readback; then
+              break
+            fi
+            if [ "$ATTEMPT" = 5 ]; then
+              echo "SAME_RUN_ARTIFACT_NOT_READABLE" >&2
+              exit 1
+            fi
+            sleep 5
+          done
+          HEAD_SHA=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --jq '.head_sha')
+          ARTIFACT_ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" | python -c 'import json,os,sys; a=json.load(sys.stdin)["artifacts"]; n="sky-chat-"+os.environ["GITHUB_RUN_ID"]; print(next((x["id"] for x in a if x["name"]==n), ""))')
+          REQUEST_ID=$(python -c 'import json; print(json.load(open("scan_requests/chat/latest.json",encoding="utf-8"))["request_id"])')
+          python -m scripts.sky_chat_artifact_readback \
+            --directory /tmp/sky-chat-readback \
+            --run-id "$GITHUB_RUN_ID" --request-id "$REQUEST_ID" \
+            --head-sha "$HEAD_SHA" --expected-sha "$GITHUB_SHA" \
+            --artifact-id "$ARTIFACT_ID" \
+            --receipt output/chat_bridge_readback/external_receipt.json
+      - name: Preserve external readback failure as NO_TRADE diagnostic
+        if: always()
+        env:
+          READBACK_OUTCOME: ${{ steps.external_readback.outcome }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=Path("output/chat_bridge_readback/external_receipt.json")
+          p.parent.mkdir(parents=True,exist_ok=True)
+          if os.environ.get("READBACK_OUTCOME")!="success":
+              p.write_text(json.dumps({"schema":"SKY_CHAT_EXTERNAL_ARTIFACT_READBACK_V1","status":"FAILED_CLOSED","reason":"EXTERNAL_ARTIFACT_READBACK_NOT_VERIFIED","run_id":os.getenv("GITHUB_RUN_ID"),"head_sha":os.getenv("GITHUB_SHA"),"production_eligible":False,"automatic_order":False,"trade_action":"禁止交易"},ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+          PY
+      - name: Upload independent same-run readback receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-chat-external-readback-${{ github.run_id }}
+          path: output/chat_bridge_readback/external_receipt.json
+          if-no-files-found: error
           retention-days: 90
       # The protected main branch cannot be written directly from a workflow.
       # The uploaded per-run artifact above is the immutable status/readback source.
