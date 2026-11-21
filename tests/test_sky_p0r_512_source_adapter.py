@@ -26,10 +26,11 @@ def run(data):
     return adapt(data,actual_run=ACCEPTED_RUN,actual_sha=ACCEPTED_SHA,
                  artifact_id=ACCEPTED_ARTIFACT)
 class SourceAdapterTests(unittest.TestCase):
-    def test_verified_completed_bars_never_generate_fills(self):
+    def test_verified_completed_bars_are_research_only(self):
         x=run(fixture())
-        self.assertEqual(x["verdict"],"BARS_VERIFIED_PRECOMMITTED_SIGNAL_MISSING")
-        self.assertEqual(x["paper_fill_count"],0)
+        self.assertEqual(x["verdict"],"VERIFIED_COMPLETED_MARKET_BARS")
+        self.assertNotIn("paper_fill_count", x)
+        self.assertNotIn("paper_events_produced", x)
         self.assertFalse(x["production_eligible"])
         self.assertEqual(x["bar_sources"]["2409"]["accepted_count"],2)
     def test_wrong_artifact_provenance_rejected(self):
@@ -67,7 +68,6 @@ class SourceAdapterTests(unittest.TestCase):
         self.assertTrue(out["github_bar_source_verified"])
         self.assertEqual(set(out["bar_sources"]), {"2330", "5202"})
         self.assertEqual(out["source_run_id"],new_run)
-        self.assertEqual(out["paper_fill_count"],0)
         self.assertFalse(out["production_eligible"])
         for field in ("github_run_verified","successful_completed_run",
                       "unique_artifact_verified","source_workflow_matches_accepted"):
