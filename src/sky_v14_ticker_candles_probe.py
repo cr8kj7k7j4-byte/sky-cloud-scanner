@@ -37,7 +37,10 @@ def selected(stage2):
             if not isinstance(x, dict):
                 continue
             micro = x.get("microstructure")
-            if (x.get("exchange")==market and x.get("executed_trade_verified") is True
+            symbol = x.get("symbol")
+            if (x.get("exchange")==market
+                    and isinstance(symbol, str) and symbol.isascii() and symbol.isdigit()
+                    and x.get("executed_trade_verified") is True
                     and isinstance(micro, dict)
                     and micro.get("turnover_gate_pass") is True
                     and micro.get("l1_spread_gate_pass") is True):
