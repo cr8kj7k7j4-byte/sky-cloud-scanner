@@ -30,15 +30,21 @@ def review_quote_vwap_evidence(microstructure):
     avg = _positive(q.get("average_price"))
     turn = _positive(q.get("total_trade_value_twd"))
     volume_raw = _positive(q.get("total_trade_volume_raw"))
-    implied = (turn / (volume_raw * avg)) if all(
-        v is not None for v in (avg, turn, volume_raw)
-    ) else None
+    # Extreme but finite provider values can overflow the denominator or
+    # ratio. Never serialize NaN/Infinity as a JSON evidence metric.
+    implied = None
+    if all(v is not None for v in (avg, turn, volume_raw)):
+        denominator = volume_raw * avg
+        if math.isfinite(denominator) and denominator > 0:
+            ratio = turn / denominator
+            if math.isfinite(ratio) and ratio > 0:
+                implied = ratio
     # Diagnostic dimensionless scale is *observed*, not an official unit
     # certification. Exact scale can change with security type or provider.
     plausible = (implied is not None and 980 <= implied <= 1020)
     if not all(x is not None for x in (avg, turn, volume_raw)):
         state = "INCOMPLETE_PROVIDER_AVERAGE_OR_TURNOVER"
-    elif not plausible:
+    elif implied is None or not plausible:
         state = "TURNOVER_VOLUME_AVERAGE_INCONSISTENT"
     else:
         state = "OBSERVATION_RECONCILED_NOT_VWAP_CERTIFIED"
