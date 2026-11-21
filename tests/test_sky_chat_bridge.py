@@ -34,6 +34,25 @@ class ChatScanBridgeTests(unittest.TestCase):
                         "read_only_no_orders": False,
                     })
 
+    def test_malformed_command_values_fail_closed_with_value_error(self):
+        # JSON payloads may contain lists/dicts instead of a command string.
+        # They must be rejected as unsupported commands, not raise TypeError.
+        for command in (None, [], {}, ["Sky 快掃"], {"command": "Sky 快掃"}, 0, True):
+            with self.subTest(command=command):
+                with self.assertRaisesRegex(ValueError, "UNSUPPORTED_SKY_COMMAND"):
+                    validate_request({"command": command,
+                                      "request_id": "research-bad-command-001",
+                                      "read_only_no_orders": True})
+
+    def test_duplicate_request_id_is_not_a_trade_authorization(self):
+        payload = {"command": "Sky 快掃", "request_id": "research-duplicate-001",
+                   "read_only_no_orders": True}
+        self.assertEqual(validate_request(payload), payload["request_id"])
+        self.assertEqual(validate_request(payload), payload["request_id"])
+        payload["read_only_no_orders"] = False
+        with self.assertRaisesRegex(ValueError, "ORDER_POLICY_REQUIRED"):
+            validate_request(payload)
+
     def test_request_denies_order(self):
         with self.assertRaisesRegex(ValueError,"ORDER_POLICY_REQUIRED"):
             validate_request({"command":"Sky 當沖現在掃一次","request_id":"chat-20261109-a","read_only_no_orders":False})
