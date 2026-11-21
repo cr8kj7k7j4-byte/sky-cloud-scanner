@@ -9,7 +9,7 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: sky-chat-scan
+  group: sky-fugle-paid-global-research-v1-live-wholemarket
   cancel-in-progress: false
 jobs:
   scan:
@@ -21,8 +21,31 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install -r requirements.txt
+      - name: Verify paid reservation contracts without Fugle
+        run: python -m unittest tests.test_sky_fugle_request_identity tests.test_sky_paid_fugle_api_guard -v
+      - name: Reserve shared Fugle paid API slot (fail closed)
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:live:wholemarket'
+      - name: Publish reservation before any paid request
+        id: claim
+        if: steps.guard.outputs.allowed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.guard.outputs.claim_name }}
+          path: output/fugle_api_guard/claim.json
+          if-no-files-found: error
+          retention-days: 2
+      - name: Verify reservation ZIP independently (fail closed)
+        id: verify_claim
+        if: steps.guard.outputs.allowed == 'true' && steps.claim.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:live:wholemarket' --verify
       - name: Run read-only paid Fugle observations (market or after-market)
         id: bridge
+        if: steps.guard.outputs.allowed == 'true' && steps.verify_claim.outcome == 'success'
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
           SKY_FUGLE_ONLY_MARKETDATA: '1'
