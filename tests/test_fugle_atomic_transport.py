@@ -52,9 +52,9 @@ class EntitlementDirectPaidTransportGuardTests(unittest.TestCase):
     def test_entitlement_probe_claims_before_real_requests_transport(self):
         order = []
         response = MagicMock(status_code=403)
-        with patch.object(entitlement, "guard_fugle_request", side_effect=lambda *a: order.append("guard")) as guard, \\
-             patch("requests.get", side_effect=lambda *a, **k: (order.append("network"), response)[1]) as network:
-            entitlement.run_probe("test-key", symbols=("2330",))
+        with patch.object(entitlement, "guard_fugle_request", side_effect=lambda *a: order.append("guard")) as guard:
+            with patch("requests.get", side_effect=lambda *a, **k: (order.append("network"), response)[1]) as network:
+                entitlement.run_probe("test-key", symbols=("2330",))
         guard.assert_called_once()
         network.assert_called_once()
         self.assertEqual(order, ["guard", "network"])
