@@ -32,7 +32,7 @@ class BrokerlessResearchContractTest(unittest.TestCase):
                   "production_eligible": False}
         result = make_status("test-brokerless-001", report)
         self.assertFalse(result["broker_account_required_for_research"])
-        self.assertEqual(result["research_mode"], "BROKERLESS_RESEARCH_AND_PAPER_ONLY")
+        self.assertEqual(result["research_mode"], "BROKERLESS_RESEARCH_ONLY")
         self.assertFalse(result["production_eligible"])
 
     def test_live_broker_requirement_not_in_research_evidence_missing(self):
