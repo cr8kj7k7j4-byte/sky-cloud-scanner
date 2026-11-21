@@ -9,7 +9,7 @@ on:
       - ".github/workflows/fugle-paid-api-acceptance.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: fugle-paid-api-acceptance
@@ -18,16 +18,20 @@ concurrency:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
     env:
+      GH_TOKEN: ${{ github.token }}
+      SKY_PAID_ATOMIC_ENFORCE: "1"
       FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+    timeout-minutes: 5
     steps:
+      - uses: actions/checkout@v4
       - name: Validate actual Fugle API access (never print credentials)
         shell: bash
         run: |
           python3 - <<'PY'
           import json, os, urllib.request, urllib.error, datetime, time, sys
           from zoneinfo import ZoneInfo
+          from research.sky_fugle_atomic_ref_claim import guard_fugle_request
           key = os.environ.get("FUGLE_API_KEY", "").strip()
           if not key:
               print("FAIL: FUGLE_API_KEY missing"); sys.exit(1)
@@ -45,6 +49,7 @@ jobs:
               code=None; data={}; reason=""; count=None; stamp=None
               try:
                   req=urllib.request.Request(base+path, headers={"X-API-KEY":key,"Accept":"application/json","User-Agent":"Sky-Fugle-Acceptance/1.0"})
+                  guard_fugle_request(req.full_url)
                   with urllib.request.urlopen(req, timeout=18) as resp:
                       code=resp.status
                       data=json.load(resp)
