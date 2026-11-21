@@ -12,7 +12,6 @@ on:
       - "src/risk_engine.py"
       - "src/execution_engine.py"
       - "src/monitor_engine.py"
-      - "src/paper_trading.py"
       - "src/outcome_engine.py"
       - "src/trade_logger.py"
       - "tests/test_production_e2e_acceptance.py"
