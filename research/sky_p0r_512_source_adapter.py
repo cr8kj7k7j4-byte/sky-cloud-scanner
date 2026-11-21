@@ -1,6 +1,6 @@
-"""Read verified #512 live candle evidence into the #508 provenance ledger.
+"""Validate verified #512 five-minute market observations for research readback.
 
-This importer is NOT an order/signal producer and NEVER fabricates paper fills.
+This adapter only validates source provenance and completed bars. No order execution.
 """
 import argparse
 from datetime import datetime, timedelta, timezone
@@ -115,11 +115,7 @@ def adapt(payload, *, actual_run, actual_sha, artifact_id,
         "github_bar_source_verified": verified_future_source is not None,
         "bar_sources":output,
         "market_bars_available":True,
-        "approved_precommitted_signal_available":False,
-        "paper_events_produced":0,
-        "paper_fill_count":0,
-        "reconciled":False,
-        "verdict":"BARS_VERIFIED_PRECOMMITTED_SIGNAL_MISSING",
+        "verdict":"VERIFIED_COMPLETED_MARKET_BARS",
         "production_eligible":False,"automatic_order":False}
 
 def main():
@@ -142,6 +138,6 @@ def main():
     out.write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     print(json.dumps({"status":result["verdict"],"source_run_id":result["source_run_id"],
         "bars":{k:v["accepted_count"] for k,v in result["bar_sources"].items()},
-        "paper_fill_count":0,"production_eligible":False}))
+        "production_eligible":False}))
 if __name__=="__main__":
     main()
