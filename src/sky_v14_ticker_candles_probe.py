@@ -192,11 +192,13 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                 # Unknown/malformed limit-up values must never pass the ticker gate.
                 is_limit=bool(verified_price is not None and upper_limit is not None
                               and verified_price >= upper_limit)
-                snapshot={
-                    "last":quote_price,
-                    "avg_price":(row.get("microstructure") or {}).get("average_price")
-                    if isinstance(row.get("microstructure"), dict) else None
-                }
+                micro = row.get("microstructure")
+                avg_price = positive_finite_number(
+                    micro.get("average_price") if isinstance(micro, dict) else None
+                )
+                # A malformed provider average must not crash feature preview
+                # or be mistaken for a certified VWAP observation.
+                snapshot={"last":verified_price, "avg_price":avg_price}
                 # Do not expose potentially contaminated model features from
                 # invalid bar order, future bars, or mismatched source dates.
                 preview_safe = (evidence_candidates is None and source_identity_matches and len(valid)>=2 and not invalid_bar_sequence
