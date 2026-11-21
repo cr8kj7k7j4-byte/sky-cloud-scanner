@@ -17,6 +17,10 @@ class ChatScanBridgeTests(unittest.TestCase):
         self.assertIn("RUN_HEAD_SHA_MISMATCH", validator)
         self.assertIn("REPORT_DUPLICATE_OR_MISSING_SYMBOL", validator)
         self.assertIn("ARTIFACT_ID_MISSING", validator)
+        # Dispatch commands replace the checked-in request; validate against
+        # the effective request captured by this run, not the repository template.
+        self.assertIn('open("output/chat_bridge/latest.json", encoding="utf-8"))["request_id"]', workflow)
+        self.assertNotIn('open("scan_requests/chat/latest.json", encoding="utf-8"))["request_id"]', workflow)
 
     def test_cancelled_bridge_preserves_fail_closed_diagnostic(self):
         from pathlib import Path
