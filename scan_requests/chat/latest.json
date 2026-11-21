@@ -1,6 +1,6 @@
 {
   "command": "Sky 快掃",
-  "request_id": "chat-20261111-0904-live-intraday",
+  "request_id": "research-go-live-20261121-once-a1",
   "read_only_no_orders": true,
-  "reason": "One-time authorized live market data validation; market snapshot + limited Quote + 5-minute bars; no schedules resumed; NO_TRADE until verified."
+  "reason": "Owner-authorized one-time research-only live transport acceptance: paid Fugle reservation -> scan -> same-run Artifact -> independent readback. No orders; no schedule changes."
 }
