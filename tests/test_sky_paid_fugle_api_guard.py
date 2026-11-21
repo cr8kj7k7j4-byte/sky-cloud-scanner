@@ -118,6 +118,28 @@ class FugleGuardTests(unittest.TestCase):
                     local, lambda candidate: [artifact] if candidate == name else [],
                     lambda aid: dict(local))
 
+    def test_remote_reservation_requires_valid_artifact_id_and_document(self):
+        with TemporaryDirectory() as td:
+            _, name, local = prepare("sky:mock:same", self.now, lambda n: [],
+                                      "424242", Path(td))
+            for bad_id in (None, "91", True, 0, -1):
+                with self.subTest(artifact_id=bad_id):
+                    artifact = {"id": bad_id, "workflow_run": {"id": 424242},
+                                "expired": False}
+                    with self.assertRaisesRegex(RuntimeError, "INVALID_OWN_RESERVATION_ARTIFACT_ID"):
+                        verify_uploaded_reservation(
+                            "sky:mock:same", "424242", self.now, local,
+                            lambda candidate: [artifact] if candidate == name else [],
+                            lambda aid: dict(local))
+            artifact = {"id": 91, "workflow_run": {"id": 424242}, "expired": False}
+            for bad_document in (None, [], "not-a-claim", True):
+                with self.subTest(remote=bad_document):
+                    with self.assertRaisesRegex(RuntimeError, "INVALID_REMOTE_CLAIM_DOCUMENT"):
+                        verify_uploaded_reservation(
+                            "sky:mock:same", "424242", self.now, local,
+                            lambda candidate: [artifact] if candidate == name else [],
+                            lambda aid: bad_document)
+
     def test_artifact_zip_must_match_unique_nonce_not_only_run_id(self):
         with TemporaryDirectory() as td:
             _, name, local = prepare("sky:mock:same", self.now, lambda n: [],
