@@ -14,6 +14,14 @@ ROOT = Path(__file__).resolve().parents[1]
 RETIRED_PATHS = frozenset({
     ".github/workflows/sky-paper-only-acceptance.yml",
     "src/paper_trading.py",
+    ".github/workflows/shadow-outcome-backfill.yml",
+    ".github/workflows/shadow-promotion-dashboard.yml",
+    "research/shadow_outcome_backfill.py",
+    "research/shadow_promotion_dashboard.py",
+    "tests/test_shadow_outcome_backfill.py",
+    "tests/test_shadow_promotion_dashboard.py",
+    "src/shadow_evidence.py",
+    "tests/test_shadow_evidence.py",
     "tests/test_paper_trading.py",
     "research/sky_p0r_repair_status.py",
     "tests/test_sky_p0r_repair_status.py",
@@ -24,6 +32,9 @@ RETIRED_PATHS = frozenset({
 })
 RETIRED_MODULES = (
     "src.paper_trading",
+    "research.shadow_outcome_backfill",
+    "research.shadow_promotion_dashboard",
+    "src.shadow_evidence",
     "research.sky_p0r_repair_status",
     "research.sky_paper_only_acceptance",
     "research.sky_paper_trade_trace",
@@ -38,6 +49,8 @@ def check(root=ROOT):
     # Active runtime/configuration must not contain retired ledger switches or routes.
     runtime_tokens = (
         "PAPER_TRADING_MODE", "PAPER_GCS_BUCKET",
+        "shadow-outcome-backfill.yml", "shadow-promotion-dashboard.yml",
+        "from src.shadow_evidence import", "from research.shadow_outcome_backfill import",
         "research.sky_paper_only_acceptance", "research.sky_paper_trade_trace",
         "research.sky_p0r_repair_status", "sky-paper-only-acceptance.yml",
         "from .paper_trading import", "from src.paper_trading import",
