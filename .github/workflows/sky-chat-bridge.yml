@@ -405,3 +405,32 @@ jobs:
           echo "- SHA: $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
           echo "- Result: see this run's sky-chat artifact and external readback receipt" >> "$GITHUB_STEP_SUMMARY"
           echo "- Production: HOLD / NO_TRADE" >> "$GITHUB_STEP_SUMMARY"
+      - name: Enforce successful same-run external readback before declaring research scan green
+        if: ${{ !cancelled() && github.ref == 'refs/heads/research/sky-mobile-paper-integration' }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          status = json.loads(Path("output/chat_bridge/latest.json").read_text(encoding="utf-8"))
+          receipt = json.loads(Path("output/chat_bridge_readback/external_receipt.json").read_text(encoding="utf-8"))
+          run_id = os.environ["GITHUB_RUN_ID"]
+          sha = os.environ["GITHUB_SHA"]
+          request_id = status.get("request_id")
+          checks = {
+              "report_ready": status.get("status") == "REPORT_READY_RESEARCH_ONLY",
+              "scan_same_run": str(status.get("scan_id")) == run_id,
+              "scan_same_sha": status.get("head_sha") == sha,
+              "request_present": bool(request_id),
+              "receipt_pass": receipt.get("status") == "PASS_RESEARCH_ONLY",
+              "receipt_same_run": str(receipt.get("run_id")) == run_id,
+              "receipt_same_sha": receipt.get("head_sha") == sha,
+              "receipt_same_request": receipt.get("request_id") == request_id,
+              "no_auto_order": status.get("automatic_order") is False and receipt.get("automatic_order") is False,
+          }
+          for key, passed in checks.items():
+              print(f"{key}: {'PASS' if passed else 'FAIL'}")
+          if not all(checks.values()):
+              raise SystemExit("RESEARCH_MOBILE_SAME_RUN_READBACK_NOT_VERIFIED")
+          print("RESEARCH_MOBILE_SAME_RUN_READBACK_PASS")
+          PY
