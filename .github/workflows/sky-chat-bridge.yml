@@ -50,6 +50,33 @@ jobs:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
           SKY_FUGLE_ONLY_MARKETDATA: '1'
         run: python -m src.sky_chat_bridge
+      - name: Preserve denied reservation as NO_TRADE status
+        if: always()
+        env:
+          GUARD_ALLOWED: ${{ steps.guard.outputs.allowed }}
+          GUARD_OUTCOME: ${{ steps.guard.outcome }}
+          VERIFY_OUTCOME: ${{ steps.verify_claim.outcome }}
+          BRIDGE_OUTCOME: ${{ steps.bridge.outcome }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=Path("output/chat_bridge/latest.json")
+          if not p.exists():
+              p.parent.mkdir(parents=True,exist_ok=True)
+              reason=("RESERVATION_DENIED" if os.getenv("GUARD_OUTCOME")=="success" and os.getenv("GUARD_ALLOWED")!="true"
+                      else "RESERVATION_OR_SCAN_NOT_VERIFIED")
+              p.write_text(json.dumps({
+                  "schema":"SKY_CHAT_SCAN_STATUS_V1",
+                  "status":"FAILED_CLOSED",
+                  "scan_id":os.getenv("GITHUB_RUN_ID"),
+                  "head_sha":os.getenv("GITHUB_SHA"),
+                  "block_reason":reason,
+                  "production_eligible":False,
+                  "automatic_order":False,
+                  "trade_action":"禁止交易",
+              },ensure_ascii=False,indent=2)+"\\n",encoding="utf-8")
+          PY
       - name: Upload complete 13-column report and status
         if: always()
         uses: actions/upload-artifact@v4
@@ -116,5 +143,37 @@ jobs:
           path: output/chat_bridge_readback/external_receipt.json
           if-no-files-found: error
           retention-days: 90
+      - name: Enforce complete research-readback run status (fail closed)
+        if: always()
+        env:
+          GUARD_ALLOWED: ${{ steps.guard.outputs.allowed }}
+          CLAIM_OUTCOME: ${{ steps.claim.outcome }}
+          VERIFIED_CLAIM_OUTCOME: ${{ steps.verify_claim.outcome }}
+          BRIDGE_OUTCOME: ${{ steps.bridge.outcome }}
+          READBACK_OUTCOME: ${{ steps.external_readback.outcome }}
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          p=Path("output/chat_bridge_readback/external_receipt.json")
+          try:
+              receipt=json.loads(p.read_text(encoding="utf-8"))
+          except (OSError,ValueError,TypeError):
+              receipt={}
+          ok=(os.getenv("GUARD_ALLOWED")=="true"
+              and os.getenv("CLAIM_OUTCOME")=="success"
+              and os.getenv("VERIFIED_CLAIM_OUTCOME")=="success"
+              and os.getenv("BRIDGE_OUTCOME")=="success"
+              and os.getenv("READBACK_OUTCOME")=="success"
+              and isinstance(receipt,dict)
+              and receipt.get("status")=="PASS_RESEARCH_ONLY"
+              and str(receipt.get("run_id"))==os.getenv("GITHUB_RUN_ID")
+              and receipt.get("head_sha")==os.getenv("GITHUB_SHA")
+              and receipt.get("production_eligible") is False
+              and receipt.get("automatic_order") is False)
+          if not ok:
+              raise SystemExit("RESEARCH_READBACK_NOT_VERIFIED_NO_TRADE")
+          print("RESEARCH_READBACK_VERIFIED_NO_ORDERS")
+          PY
       # The protected main branch cannot be written directly from a workflow.
       # The uploaded per-run artifact above is the immutable status/readback source.
