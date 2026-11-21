@@ -30,6 +30,51 @@ class FugleGuardTests(unittest.TestCase):
         self.assertEqual(reason, "RECENT_RESERVATION")
         self.assertEqual(paid_calls, [])
 
+    def test_two_workflow_entries_share_claim_and_never_issue_second_paid_call(self):
+        """Deterministic offline A/B workflow race: zero external or paid API."""
+        scope = "sky:live:wholemarket"
+        claims = {}
+        paid_calls = []
+        workflow_names = ("Sky Chat On-Demand Scan Bridge", "Sky Cloud Scanner v0.5 + P0-R")
+
+        def lookup(name):
+            return claims.get(name, [])
+
+        with TemporaryDirectory() as td:
+            for index, workflow in enumerate(workflow_names):
+                allowed, name, receipt = prepare(
+                    scope, self.now + timedelta(seconds=index), lookup,
+                    workflow, Path(td) / str(index))
+                if allowed:
+                    claims.setdefault(name, []).append({
+                        "created_at": (self.now + timedelta(seconds=index)).isoformat()
+                    })
+                    paid_calls.append(workflow)
+                else:
+                    self.assertEqual(receipt["status"], "DUPLICATE_BLOCKED")
+                    self.assertEqual(receipt["reason"], "RECENT_RESERVATION")
+        self.assertEqual(paid_calls, [workflow_names[0]])
+
+    def test_cross_workflow_claim_blocks_across_utc_slot_boundary(self):
+        scope = "sky:live:wholemarket"
+        first = datetime(2026, 11, 11, 5, 9, 59, tzinfo=timezone.utc)
+        second = first + timedelta(seconds=2)
+        first_name = artifact_name(scope, slots(first)[0])
+        self.assertNotEqual(slots(first)[0], slots(second)[0])
+        self.assertEqual(check_reservation(
+            scope, second, lambda name: [
+                {"created_at": first.isoformat()}] if name == first_name else []),
+            (False, "RECENT_RESERVATION"))
+
+    def test_cross_workflow_artifact_lookup_error_fails_closed(self):
+        scope = "sky:live:wholemarket"
+        with TemporaryDirectory() as td:
+            with self.assertRaisesRegex(RuntimeError, "ARTIFACT_LOOKUP_UNAVAILABLE"):
+                prepare(scope, self.now,
+                        lambda name: (_ for _ in ()).throw(
+                            RuntimeError("ARTIFACT_LOOKUP_UNAVAILABLE")),
+                        "workflow-B", Path(td))
+
     def test_future_or_corrupt_reservation_never_authorizes_paid_request(self):
         name = artifact_name("sky:live:wholemarket", slots(self.now)[0])
         for timestamp in ("not-a-time", "2026-11-11T05:10:20",
