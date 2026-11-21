@@ -74,7 +74,31 @@ jobs:
         id: guard
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:live:wholemarket'
+        shell: bash
+        run: |
+          set -euo pipefail
+          # A subscription is not an unlimited rate-limit grant. Recheck only
+          # GitHub reservation metadata while another paid observation is recent.
+          # Never issue a Fugle call or upload a claim until a fresh slot is clear.
+          for attempt in {1..7}; do
+            python -m research.sky_paid_fugle_api_guard --scope 'sky:live:wholemarket'
+            result=$(python -c 'import json; from pathlib import Path; p=Path("output/fugle_api_guard/claim.json"); print(json.loads(p.read_text())["status"] if p.exists() else "MISSING")')
+            if [[ "$result" == "CLAIM_REQUIRED_BEFORE_PAID_API" ]]; then
+              echo "FUGLE_RESERVATION_READY_AFTER_ATTEMPT=$attempt"
+              exit 0
+            fi
+            reason=$(python -c 'import json; from pathlib import Path; print(json.loads(Path("output/fugle_api_guard/claim.json").read_text()).get("reason","UNKNOWN"))')
+            if [[ "$result" != "DUPLICATE_BLOCKED" || "$reason" != "RECENT_RESERVATION" ]]; then
+              echo "FUGLE_RESERVATION_FAIL_CLOSED:$result:$reason"
+              exit 1
+            fi
+            if [[ "$attempt" == 7 ]]; then
+              echo "FUGLE_RESERVATION_WAIT_EXHAUSTED_NO_PAID_CALL"
+              exit 1
+            fi
+            echo "FUGLE_RECENT_RESERVATION_WAITING_60_SECONDS_ATTEMPT=$attempt"
+            sleep 60
+          done
       - name: Publish reservation before any paid call
         id: claim
         if: steps.guard.outputs.allowed == 'true'
