@@ -96,6 +96,28 @@ class FugleGuardTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             workflow_request_scope("Sky", {"inputs": "not a mapping"})
 
+    def test_uploaded_claim_naive_or_malformed_timestamp_fails_closed(self):
+        with TemporaryDirectory() as td:
+            _, name, local = prepare("sky:mock:same", self.now, lambda n: [],
+                                      "424242", Path(td))
+            artifact = {"id": 91, "workflow_run": {"id": 424242}, "expired": False}
+            for timestamp, reason in (
+                ("2026-11-11T05:10:20", "CLAIM_TIMEZONE_REQUIRED"),
+                ("invalid-date", "INVALID_CLAIM_TIMESTAMP"),
+            ):
+                with self.subTest(timestamp=timestamp):
+                    altered = dict(local, checked_at_utc=timestamp)
+                    with self.assertRaisesRegex(RuntimeError, reason):
+                        verify_uploaded_reservation(
+                            "sky:mock:same", "424242", self.now, altered,
+                            lambda candidate: [artifact] if candidate == name else [],
+                            lambda aid: dict(altered))
+            with self.assertRaisesRegex(RuntimeError, "VERIFY_TIMEZONE_REQUIRED"):
+                verify_uploaded_reservation(
+                    "sky:mock:same", "424242", self.now.replace(tzinfo=None),
+                    local, lambda candidate: [artifact] if candidate == name else [],
+                    lambda aid: dict(local))
+
     def test_artifact_zip_must_match_unique_nonce_not_only_run_id(self):
         with TemporaryDirectory() as td:
             _, name, local = prepare("sky:mock:same", self.now, lambda n: [],
