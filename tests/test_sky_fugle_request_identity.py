@@ -46,6 +46,12 @@ class CanonicalFugleRequestTests(unittest.TestCase):
         self.assertEqual(key("GET", "/historical/candles/2330?limit=10"),
                          key("GET", "/historical/candles/2330", parameters={"limit": 10}))
 
+    def test_nonfinite_numeric_query_values_fail_closed(self):
+        for value in (float("nan"), float("inf"), float("-inf")):
+            with self.subTest(value=str(value)):
+                with self.assertRaisesRegex(ValueError, "INVALID_PARAMETER_VALUE_TYPE"):
+                    key("GET", "/historical/candles/2330", parameters={"limit": value})
+
     def test_unsupported_or_untrusted_fail_closed(self):
         for url in (
             "http://api.fugle.tw/intraday/quote/2330",

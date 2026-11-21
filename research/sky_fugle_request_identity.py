@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 from urllib.parse import parse_qsl, urlsplit
 
@@ -47,6 +48,8 @@ def canonical_fugle_request(method: str, url: str, *, parameters: dict | None = 
             # Do not silently turn None, booleans or containers into valid-looking
             # query strings: that would produce a misleading paid-request key.
             if not isinstance(k, str) or isinstance(v, bool) or not isinstance(v, (str, int, float)):
+                raise ValueError("INVALID_PARAMETER_VALUE_TYPE")
+            if isinstance(v, float) and not math.isfinite(v):
                 raise ValueError("INVALID_PARAMETER_VALUE_TYPE")
             params.append((k, str(v)))
     if any(k not in ALLOWED_PARAMETERS or not v or len(v) > 64 for k, v in params):
