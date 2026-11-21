@@ -73,6 +73,44 @@ def isolated_atomic_broker_candidate(workflow: str, source: str, *, repository_r
     return script.is_file() and "verify_remote_claims(" in script.read_text(encoding="utf-8")
 
 
+
+def controlled_atomic_proof_candidate(workflow: str, source: str, *, repository_root: Path) -> bool:
+    """Evidence-only A/B quote jobs use an independent atomic ref guard.
+
+    Static contract only: this does not certify live cross-run deduplication.
+    """
+    if workflow not in {
+        "sky-fugle-atomic-cross-run-proof-a.yml",
+        "sky-fugle-atomic-cross-run-proof-b.yml",
+    }:
+        return False
+    flags = triggers(source)
+    required = (
+        "research/sky-536-531-guard-readback",
+        "SKY_PAID_ATOMIC_ENFORCE: '1'",
+        "research.sky_fugle_live_cross_run_proof",
+        "GH_TOKEN: ${{ github.token }}",
+        "FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}",
+        "sky-fugle-live-cross-run-",
+        "if: always()",
+    )
+    if flags["schedule"] or not flags["workflow_dispatch"] or not all(
+        token in source for token in required
+    ):
+        return False
+    proof = repository_root / "research/sky_fugle_live_cross_run_proof.py"
+    fugle = repository_root / "src/fugle.py"
+    if not proof.is_file() or not fugle.is_file():
+        return False
+    implementation = proof.read_text(encoding="utf-8")
+    boundary = fugle.read_text(encoding="utf-8")
+    return all(token in implementation for token in (
+        "RESEARCH_BRANCH_REQUIRED", "LIVE_PROOF_OPT_IN_REQUIRED",
+        "RENDEZVOUS_OUTSIDE_ALLOWED_WINDOW", "ATOMIC_WINNER",
+        "DUPLICATE_BLOCKED", 'fugle.get_quote("2317")',
+        '"real_http_attempts": 0',
+    )) and "guard_fugle_request(" in boundary
+
 def triggers(source: str) -> dict:
     # Only uncommented lines with a top-level on: nested YAML indentation.
     lines = source.splitlines()
@@ -130,6 +168,8 @@ def audit(root: Path = WORKFLOW_DIR) -> dict:
                 path.name, source, repository_root=Path(__file__).resolve().parents[1]),
             "atomic_endpoint_isolated_broker_candidate": isolated_atomic_broker_candidate(
                 path.name, source, repository_root=Path(__file__).resolve().parents[1]),
+            "controlled_atomic_proof_candidate": controlled_atomic_proof_candidate(
+                path.name, source, repository_root=Path(__file__).resolve().parents[1]),
             "central_reservation_job": "  sky_paid_reservation:" in source,
             "paid_job_dependencies": source.count("needs: sky_paid_reservation") + source.count(", sky_paid_reservation]"),
             "central_fail_closed_final_gate": "Fail job when claim is rejected or not verified" in source,
@@ -141,7 +181,7 @@ def audit(root: Path = WORKFLOW_DIR) -> dict:
                 and "ATOMIC_CLAIM_VERIFIED_BEFORE_PAID" in source
             ),
         }
-        row["candidate_guarded"] = all([
+        row["candidate_guarded"] = row["controlled_atomic_proof_candidate"] or all([
             row["shared_group"], row["preflight_present"], row["receipt_readback"],
             (not row["central_reservation_job"] or
              (row["central_fail_closed_final_gate"] and row["paid_job_dependencies"] > 0)),
@@ -162,6 +202,8 @@ def audit(root: Path = WORKFLOW_DIR) -> dict:
         "unguarded_manual_or_event_count": sum(r["manual_or_event_trigger_available"] for r in rows if not r["candidate_guarded"]),
         "cohort_counts": {k: sum(r["static_cohort"] == k for r in rows) for k in sorted({r["static_cohort"] for r in rows})},
         "workflows": rows,
+        "controlled_atomic_proof_candidate_count": sum(
+            r["controlled_atomic_proof_candidate"] for r in rows),
         "atomic_endpoint_code_wired_candidate_count": sum(
             r["atomic_endpoint_code_wired_candidate"] for r in rows),
         "atomic_endpoint_isolated_broker_candidate_count": sum(
