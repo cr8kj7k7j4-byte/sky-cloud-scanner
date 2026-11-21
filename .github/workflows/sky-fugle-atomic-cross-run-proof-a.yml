@@ -1,6 +1,7 @@
 name: Sky Fugle Atomic Cross-Run Proof A (NO PAID)
 # One-shot research branch proof. No market-data secrets, no orders, no schedule.
 # 2026-11-21: run both workflows on same research SHA for no-paid atomic-ref readback.
+# Controlled owner-authorized A/B read-only provider proof; no orders, no schedule.
 on:
   workflow_dispatch:
     inputs:
