@@ -13,6 +13,16 @@
 - 同一真實富果唯讀端點受控跨 Workflow A／B：[Run A #44895886977](https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/44895886977)、[Run B #44895886923](https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/44895886923)。同 SHA、同請求鎖，一方 `DUPLICATE_BLOCKED`（0 HTTP），另一方 `ATOMIC_WINNER`（1 real HTTP 200）；此項仍只是受控端點，**不證明全 Repository 的 #536／#543 已整合**。
 - 舊模擬帳本 #508／#544 已關閉；#547／#548 已合併；不得恢復專用委託／成交／持倉／損益／重播、測試或交付依賴。
 
+
+## 2026-11-21 main 最新受控運行（Run #58；驗證於同日）
+
+- **直接查核 GitHub Job 全部步驟及日誌**：[Run 44899169535](https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/44899169535)、`main` SHA `381c705218da4af092bbb6f0c7fcd048e194ff4a`、request ID `research-go-live-20261121-gate-c3`：Workflow **success**，獨立讀回與最後 fail-closed 驗證均 success。
+- 富果付費請求保留共享預約及獨立 ZIP 驗證：Artifact `14704804938`；13 欄研究報告及狀態 Artifact `14704864249`；同次 SHA/Run ID/Request ID 的外部獨立讀回收據 Artifact `14705496228`，收據狀態 `PASS_RESEARCH_ONLY`，最後印出 `RESEARCH_READBACK_VERIFIED_NO_ORDERS`。
+- 母體 **1,955** 檔（TWSE **1,060**、TPEx **895**；已按研究範圍排除指定創新板 31 檔）。觀察到參考價 **1,942** 檔（**99.34%**；TWSE **1,059**、TPEx **883**）。快照擷取時間台灣時間 **2026-11-21 19:27**，為非交易日；參考價不代表當日有效成交價。
+- **可認證實際成交時間 0、Stage1 候選 0、Stage2 試請求 0、Stage2 認證成交 0、五分鐘 K 棒 API 試請求 0、五分鐘 K 棒觀測 0、VWAP 認證 0**。Stage1 排除原因 `NON_CURRENT_SNAPSHOT_DATE: 1955`，是週末資料新鮮度防護，不應放寬或繞過。
+- **正式判定**：`RESEARCH_READ_ONLY_OPERATIONAL = PASS`（完整唯讀研究執行／同次 Artifact 讀回），`LIVE_INTRADAY_STRATEGY = HOLD / INSUFFICIENT_DATA`、`NO_TRADE`、`production_eligible = false`、`automatic_order = false`。跨 Workflow 全入口付費去重仍需獨立真實實跑，不能以預約步驟成功取代完整證據。
+- `#561`～`#568` 修復與掃描驗收請求已合併至 `main`。未恢復已停用的 #508 模擬帳本，不新增專用模擬交易流程。上述證據是 **單次** 完成後的不可變驗收紀錄，不宣稱後續交易日的行情或策略結果。
+
 ## 持續性的安全邊界
 
 1. 唯讀研究服務由既有 GitHub Actions `sky-chat-bridge.yml` 提供；不新增重複執行器、排程、雲端部署或券商下單。
