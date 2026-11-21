@@ -75,7 +75,7 @@ jobs:
                   "production_eligible":False,
                   "automatic_order":False,
                   "trade_action":"禁止交易",
-              },ensure_ascii=False,indent=2)+"\\n",encoding="utf-8")
+              },ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
           PY
       - name: Upload complete 13-column report and status
         if: always()
