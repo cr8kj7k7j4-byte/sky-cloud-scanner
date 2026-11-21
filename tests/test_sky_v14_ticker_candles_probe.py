@@ -29,6 +29,21 @@ def candles(symbol,timeframe="5"):
          "close":30+i*0.01,"volume":100} for i in range(6)]}
 
 class DeepFiveMinTests(unittest.TestCase):
+    def test_malformed_evidence_candidates_fail_before_any_paid_calls(self):
+        calls = []
+        def deny_ticker(symbol):
+            calls.append(symbol)
+            raise AssertionError("PAID_API_MUST_NOT_BE_CALLED")
+        invalid_sets = ([], [{"symbol": "2409", "exchange": "TWSE"}],
+                        [{"symbol": "2409", "exchange": "TWSE"},
+                         {"symbol": "2409", "exchange": "TWSE"}])
+        for candidates in invalid_sets:
+            with self.subTest(candidates=candidates):
+                with self.assertRaisesRegex(ValueError, "BAD_EVIDENCE_SAMPLE_SET"):
+                    run(stage2(), ticker_fn=deny_ticker, candle_fn=lambda *a, **k: None,
+                        sleep_fn=lambda _: None, now=NOW, evidence_candidates=candidates)
+        self.assertEqual(calls, [])
+
     def test_invalid_price_or_volume_blocks_features(self):
         for field, value in (("close", -1), ("close", 0), ("close", float("nan")),
                              ("close", float("inf")), ("close", True),
