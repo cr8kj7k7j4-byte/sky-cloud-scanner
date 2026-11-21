@@ -13,6 +13,32 @@ class FugleGuardTests(unittest.TestCase):
     def setUp(self):
         self.now = datetime(2026, 11, 11, 5, 10, 20, tzinfo=timezone.utc)
 
+    def test_cross_workflow_same_scope_second_request_blocked_without_paid_call(self):
+        scope = "sky:live:wholemarket"
+        claimed = []
+        paid_calls = []
+        def lookup(name):
+            return [dict(created_at=self.now.isoformat())] if name in claimed else []
+        with TemporaryDirectory() as td:
+            allowed, name, receipt = prepare(scope, self.now, lookup, "run-A", Path(td))
+        self.assertTrue(allowed)
+        claimed.append(name)
+        second_allowed, reason = check_reservation(scope, self.now, lookup)
+        if second_allowed:
+            paid_calls.append("UNEXPECTED_PAID_REQUEST")
+        self.assertFalse(second_allowed)
+        self.assertEqual(reason, "RECENT_RESERVATION")
+        self.assertEqual(paid_calls, [])
+
+    def test_future_or_corrupt_reservation_never_authorizes_paid_request(self):
+        name = artifact_name("sky:live:wholemarket", slots(self.now)[0])
+        for timestamp in ("not-a-time", "2026-11-11T05:10:20",
+                          (self.now + timedelta(minutes=2)).isoformat()):
+            with self.subTest(timestamp=timestamp):
+                with self.assertRaises((RuntimeError, ValueError)):
+                    check_reservation("sky:live:wholemarket", self.now,
+                                      lambda key: [dict(created_at=timestamp)] if key == name else [])
+
     def test_empty_reservations_permit_only_preflight(self):
         allowed, reason = check_reservation("fugle-global", self.now, lambda name: [])
         self.assertTrue(allowed)
