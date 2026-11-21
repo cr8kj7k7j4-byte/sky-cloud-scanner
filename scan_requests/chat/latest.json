@@ -1,6 +1,6 @@
 {
   "command": "Sky 快掃",
-  "request_id": "research-readback-20261121-main-9c268c0",
+  "request_id": "research-readback-20261121-final-f016dc3",
   "read_only_no_orders": true,
-  "reason": "Owner-authorized latest-main immutable same-run research readback acceptance after paid reservation shape fix; only one controlled scan; preserve no orders, no simulated ledger, no production promotion, and no claim of weekend live strategy certification."
+  "reason": "Owner-authorized single latest-main research-only readback after prior reservation 2026-11-21T12:00:59Z is older than 300 seconds; verify actual guard and same-run artifact; NO_TRADE; no production promotion, no simulated ledger."
 }
