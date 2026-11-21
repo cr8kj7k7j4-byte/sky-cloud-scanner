@@ -218,7 +218,9 @@ jobs:
             if gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "sky-chat-$GITHUB_RUN_ID" --dir /tmp/sky-chat-downloaded 2>/tmp/sky-chat-download-error; then
               break
             fi
-            if [[ "$attempt" == 10 ]] || ! grep -q 'HTTP 404: Not Found' /tmp/sky-chat-download-error; then
+            # GitHub's artifact index may lag upload completion. Retry only
+            # bounded read-only lookups; never rerun the paid Fugle scan.
+            if [[ "$attempt" == 10 ]] || ! grep -Eq 'HTTP 404: Not Found|no artifact matches any of the names or patterns provided' /tmp/sky-chat-download-error; then
               cat /tmp/sky-chat-download-error >&2
               exit 1
             fi
