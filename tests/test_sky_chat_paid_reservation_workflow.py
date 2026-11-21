@@ -34,6 +34,16 @@ class PaidReservationWorkflowTests(unittest.TestCase):
         self.assertIn("sky-chat-${{ github.run_id }}", source)
         self.assertIn("sky-chat-external-readback-${{ github.run_id }}", source)
 
+    def test_run_must_fail_closed_after_diagnostic_artifacts(self):
+        source = self.source
+        self.assertIn("name: Preserve denied reservation as NO_TRADE status", source)
+        self.assertIn("name: Enforce complete research-readback run status (fail closed)", source)
+        self.assertIn("RESEARCH_READBACK_NOT_VERIFIED_NO_TRADE", source)
+        self.assertIn('receipt.get("status")=="PASS_RESEARCH_ONLY"', source)
+        self.assertLess(source.index("name: Upload independent same-run readback receipt"),
+                        source.index("name: Enforce complete research-readback run status"))
+
+
 
 if __name__ == "__main__":
     unittest.main()
