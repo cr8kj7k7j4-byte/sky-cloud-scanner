@@ -98,6 +98,7 @@ def make_status(request_id, report=None, error=None, observation=None, stage1=No
     return {
         "schema": "SKY_CHAT_SCAN_STATUS_V1",
         "request_id": request_id, "scan_id": run_id,
+        "head_sha": os.getenv("GITHUB_SHA"),
         "run_url": f"https://github.com/{repo}/actions/runs/{run_id}" if repo else None,
         "completed_at_utc": datetime.now(timezone.utc).isoformat(),
         "status": report_status if report is not None else "FAILED",
