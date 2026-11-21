@@ -121,6 +121,19 @@ class CandidateEvidenceChainTests(unittest.TestCase):
         x[1]["results"][0]["last_trade_time"] = "2026-11-10T03:39:10+00:00"
         self.assertTrue(build(*x)["rows"][0]["quote_verified"])
 
+    def test_nonfinite_or_malformed_trade_price_never_verifies_quote(self):
+        for price in (float("nan"), float("inf"), float("-inf"),
+                      "N/A", "30", None, True, 0, -1):
+            with self.subTest(price=price):
+                x = reports()
+                x[1]["results"][0]["verified_trade_price"] = price
+                row = build(*x)["rows"][0]
+                self.assertFalse(row["quote_verified"])
+                self.assertIsNone(row["verified_trade_price"])
+                self.assertFalse(row["five_minute_observed"])
+                self.assertEqual(row["p0_r_status"], "RISK_INPUT_REQUIRED")
+                self.assertEqual(row["action"], "禁止交易")
+
     def test_positive_indicators_cannot_upgrade_production(self):
         x = reports()
         s = x[2]["samples"][0]
