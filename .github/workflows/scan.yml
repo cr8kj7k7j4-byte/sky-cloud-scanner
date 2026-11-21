@@ -117,12 +117,16 @@ jobs:
         env:
           SKY_FUGLE_ONLY_MARKETDATA: "1"
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+          SKY_PAID_ATOMIC_ENFORCE: '1'
+          GH_TOKEN: ${{ github.token }}
         run: python -m src.diagnose_sources | tee source-diagnostics.json
         continue-on-error: true
       - name: Run scanner
         if: steps.calendar.outputs.should_scan == 'true' && steps.guard.outputs.allowed == 'true' && steps.verify_claim.outcome == 'success'
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+          SKY_PAID_ATOMIC_ENFORCE: '1'
+          GH_TOKEN: ${{ github.token }}
           MAX_PRICE: "100"
           TOP_N: "100"
           DEEP_DIVE_N: "12"
@@ -162,6 +166,8 @@ jobs:
         continue-on-error: true
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+          SKY_PAID_ATOMIC_ENFORCE: '1'
+          GH_TOKEN: ${{ github.token }}
         run: |
           python -m research.sky_full_universe_information
           cat output/sky_quickscan_information/latest.md >> "$GITHUB_STEP_SUMMARY"
@@ -171,6 +177,8 @@ jobs:
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
           SKY_FUGLE_ONLY_MARKETDATA: "1"
+          SKY_PAID_ATOMIC_ENFORCE: '1'
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           python -m research.sky_fugle_individual_execution_probe --limit 8
