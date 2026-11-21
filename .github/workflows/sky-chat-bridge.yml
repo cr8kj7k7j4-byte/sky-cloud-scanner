@@ -109,6 +109,7 @@ jobs:
               },ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
           PY
       - name: Upload complete 13-column report and status
+        id: upload_report
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -218,6 +219,54 @@ jobs:
           if not ok:
               raise SystemExit("RESEARCH_READBACK_NOT_VERIFIED_NO_TRADE")
           print("RESEARCH_READBACK_VERIFIED_NO_ORDERS")
+          PY
+      - name: Show safe mobile-readable research result in GitHub Actions summary
+        if: always()
+        env:
+          REPORT_ARTIFACT_URL: ${{ steps.upload_report.outputs.artifact-url }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          def load(path):
+              try:
+                  value=json.loads(Path(path).read_text(encoding="utf-8"))
+                  return value if isinstance(value,dict) else {}
+              except (OSError,ValueError,TypeError):
+                  return {}
+          status=load("output/chat_bridge/latest.json")
+          receipt=load("output/chat_bridge_readback/external_receipt.json")
+          request=load("scan_requests/chat/latest.json")
+          run=os.environ["GITHUB_RUN_ID"]
+          sha=os.environ["GITHUB_SHA"]
+          rid=request.get("request_id")
+          verified=(status.get("scan_id")==run
+                    and status.get("head_sha")==sha
+                    and status.get("request_id")==rid
+                    and status.get("status")=="REPORT_READY_RESEARCH_ONLY"
+                    and receipt.get("schema")=="SKY_CHAT_EXTERNAL_ARTIFACT_READBACK_V1"
+                    and receipt.get("status")=="PASS_RESEARCH_ONLY"
+                    and receipt.get("run_id")==run
+                    and receipt.get("head_sha")==sha
+                    and receipt.get("request_id")==rid
+                    and receipt.get("production_eligible") is False
+                    and receipt.get("automatic_order") is False)
+          blocked=receipt.get("status")=="FAILED_CLOSED"
+          outcome=("研究報告已獨立讀回" if verified else
+                   "安全阻擋，未產生可驗收報告" if blocked else
+                   "未通過完整讀回驗收")
+          lines=["## Sky 快掃｜手機可讀研究結果","",outcome,"",
+                 f"- Run ID: `{run}`",
+                 f"- Request ID: `{rid if isinstance(rid,str) and rid.isascii() else '未取得'}`",
+                 f"- 資料筆數：`{receipt.get('row_count',0) if verified else 0}`",
+                 "- 交易資格：禁止交易",
+                 "- 自動下單：停用"]
+          url=os.environ.get("REPORT_ARTIFACT_URL","")
+          if verified and url.startswith("https://github.com/"):
+              lines.append(f"- [同次研究報告]({url})")
+          with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as out:
+              out.write("\n".join(lines)+"\n")
           PY
       # The protected main branch cannot be written directly from a workflow.
       # The uploaded per-run artifact above is the immutable status/readback source.
