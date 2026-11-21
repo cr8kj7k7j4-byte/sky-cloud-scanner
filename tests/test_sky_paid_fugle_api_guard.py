@@ -209,6 +209,23 @@ class FugleGuardTests(unittest.TestCase):
                     "sky:mock:same", "424242", self.now + timedelta(seconds=301),
                     local, lookup, lambda aid: dict(local))
 
+    def test_competing_workflow_claim_fails_closed_before_paid_call(self):
+        with TemporaryDirectory() as td:
+            _, name, local = prepare("sky:mock:same", self.now, lambda n: [],
+                                      "424242", Path(td))
+            own = {"id": 91, "workflow_run": {"id": 424242}, "expired": False}
+            other = {"id": 92, "workflow_run": {"id": 999999}, "expired": False}
+            with self.assertRaisesRegex(RuntimeError, "COMPETING_RESERVATION_CLAIM"):
+                verify_uploaded_reservation(
+                    "sky:mock:same", "424242", self.now, local,
+                    lambda candidate: [own, other] if candidate == name else [],
+                    lambda aid: dict(local))
+            with self.assertRaisesRegex(RuntimeError, "INVALID_RESERVATION_ARTIFACT_LIST"):
+                verify_uploaded_reservation(
+                    "sky:mock:same", "424242", self.now, local,
+                    lambda candidate: [own, None] if candidate == name else [],
+                    lambda aid: dict(local))
+
     def test_receipt_without_secrets_or_market_data(self):
         with TemporaryDirectory() as td:
             allowed, name, receipt = prepare("fugle-global", self.now, lambda name: [],
