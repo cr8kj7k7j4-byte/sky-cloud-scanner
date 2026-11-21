@@ -35,8 +35,31 @@ def check(root=ROOT):
     proc = subprocess.run(["git", "ls-files", "-z"], cwd=root, capture_output=True, check=True)
     tracked = {p.decode("utf-8") for p in proc.stdout.split(b"\0") if p}
     violations = [{"path": p, "reason": "RETIRED_DEDICATED_COMPONENT"} for p in sorted(RETIRED_PATHS & tracked)]
+    # Active runtime/configuration must not contain retired ledger switches or routes.
+    runtime_tokens = (
+        "PAPER_TRADING_MODE", "PAPER_GCS_BUCKET",
+        "research.sky_paper_only_acceptance", "research.sky_paper_trade_trace",
+        "research.sky_p0r_repair_status", "sky-paper-only-acceptance.yml",
+        "from .paper_trading import", "from src.paper_trading import",
+        "import src.paper_trading",
+    )
     for p in sorted(tracked):
-        if not p.endswith(".py") or p in RETIRED_PATHS:
+        if p in RETIRED_PATHS or p in {
+            "research/sky_retired_paper_ledger_guard.py",
+            "tests/test_sky_retired_paper_ledger_guard.py",
+        }:
+            continue
+        if not (p.endswith((".py", ".yml", ".yaml", ".toml")) or p == ".env.example"):
+            continue
+        file = root / p
+        try:
+            source = file.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        for token in runtime_tokens:
+            if token in source:
+                violations.append({"path": p, "reason": "RETIRED_RUNTIME_REFERENCE", "token": token})
+        if not p.endswith(".py"):
             continue
         file = root / p
         try:
