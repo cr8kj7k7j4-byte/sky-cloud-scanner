@@ -7,7 +7,6 @@ on:
       - ".github/workflows/shadow-outcome-backfill.yml"
       - "research/shadow_outcome_backfill.py"
       - "src/outcome_engine.py"
-      - "src/paper_trading.py"
   pull_request:
     branches: [main]
     paths:
@@ -16,7 +15,6 @@ on:
       - "research/shadow_promotion_dashboard.py"
       - "research/w4_scan_artifact_eligibility.py"
       - "src/outcome_engine.py"
-      - "src/paper_trading.py"
       - "src/shadow_evidence.py"
       - "src/model_registry.py"
       - "tests/test_shadow_outcome_backfill.py"
