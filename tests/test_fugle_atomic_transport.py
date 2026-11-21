@@ -48,7 +48,7 @@ class DirectPaidTransportGuardTests(unittest.TestCase):
         self.assertIn("/snapshot/quotes/TSE", guard.call_args.args[0])
 
 
-class DirectPaidTransportGuardTests(unittest.TestCase):
+class EntitlementDirectPaidTransportGuardTests(unittest.TestCase):
     def test_entitlement_probe_claims_before_real_requests_transport(self):
         order = []
         response = MagicMock(status_code=403)
