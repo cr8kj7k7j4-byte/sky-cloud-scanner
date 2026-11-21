@@ -7,7 +7,8 @@ on:
   workflow_dispatch:
 permissions:
   actions: read
-  contents: read
+  # Atomic endpoint claims create a research-only Git ref; no main writes.
+  contents: write
 concurrency:
   group: sky-fugle-paid-global-research-v1-live-wholemarket
   cancel-in-progress: false
@@ -24,7 +25,7 @@ jobs:
       - name: Run isolated safety tests
         run: python -m unittest tests.test_sky_fugle_stage2_probe -v
       - name: Verify paid reservation guard without Fugle
-        run: python -m unittest tests.test_sky_paid_fugle_api_guard -v
+        run: python -m unittest tests.test_sky_paid_fugle_api_guard tests.test_sky_fugle_atomic_ref_claim -v
       - name: Reserve shared paid Fugle slot (fail closed)
         id: guard
         env:
