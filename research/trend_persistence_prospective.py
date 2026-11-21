@@ -508,6 +508,9 @@ def run(history_dir: str, previous_state: str | None, out_dir: str):
     if now.time() < dtime(13, 40):
         raise RuntimeError("Prospective EOD snapshot must run after 13:40 Asia/Taipei")
 
+    # The legacy W1 collector uses free MIS market data. Until it is replaced
+    # with validated paid Fugle observations, fail closed BEFORE any network call.
+    raise PermissionError("FREE_MIS_MARKETDATA_DISABLED_BY_USER_POLICY")
     universe, health = load_official_universe()
     quotes, warnings = fetch_mis_quotes(universe)
     coverage = len(quotes) / len(universe) if universe else 0.0
@@ -565,7 +568,34 @@ def main():
     ap.add_argument("--previous-state")
     ap.add_argument("--out", default="output/trend_persistence_prospective")
     args = ap.parse_args()
-    run(args.history_dir, args.previous_state, args.out)
+    try:
+        run(args.history_dir, args.previous_state, args.out)
+    except Exception as exc:
+        # Preserve a sanitized diagnostic; never create or rewrite prospective state.
+        reason = ("FUGLE_ONLY_LEGACY_MIS_BLOCKED"
+                  if isinstance(exc, PermissionError)
+                  and str(exc) == "FREE_MIS_MARKETDATA_DISABLED_BY_USER_POLICY"
+                  else "PROSPECTIVE_UPDATE_FAILED")
+        out = Path(args.out)
+        out.mkdir(parents=True, exist_ok=True)
+        diagnostic = {
+            "schema": "TREND_PERSISTENCE_FAILURE_V1",
+            "generated_at": datetime.now(TZ).isoformat(),
+            "status": "DATA_BLOCKED",
+            "reason": reason,
+            "exception_type": type(exc).__name__,
+            "state_updated": False,
+            "production_change": False,
+            "trade_eligible": False,
+        }
+        (out / "failure.json").write_text(
+            json.dumps(diagnostic, ensure_ascii=False, indent=2), encoding="utf-8")
+        (out / "latest.md").write_text(
+            "# Trend Persistence V1.1 — DATA_BLOCKED\n"
+            + "- Reason: " + reason + "\n"
+            + "- No new prospective state or trading signal was produced.\n",
+            encoding="utf-8")
+        raise
 
 
 if __name__ == "__main__":
