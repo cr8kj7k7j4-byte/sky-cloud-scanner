@@ -56,6 +56,13 @@ class ArtifactReadbackTests(unittest.TestCase):
         self.assertEqual(receipt["row_count"], 1)
         self.assertFalse(receipt["production_eligible"])
 
+    def test_zero_artifact_id_rejected(self):
+        with self.assertRaisesRegex(ValueError, "ARTIFACT_ID_MISSING"):
+            with tempfile.TemporaryDirectory() as td:
+                verify_download(Path(td), run_id=RUN, request_id=REQ,
+                                head_sha=SHA, expected_sha=SHA,
+                                artifact_id="0", now=NOW)
+
     def test_wrong_run_sha_rejected(self):
         with self.assertRaisesRegex(ValueError, "RUN_HEAD_SHA_MISMATCH"):
             with tempfile.TemporaryDirectory() as td:

@@ -18,7 +18,7 @@ def verify_download(root: Path, *, run_id: str, request_id: str,
                     artifact_id: str, now: datetime | None = None) -> dict:
     if not (head_sha and expected_sha and head_sha == expected_sha):
         raise ValueError("RUN_HEAD_SHA_MISMATCH")
-    if not artifact_id or not artifact_id.isdecimal():
+    if not artifact_id or not artifact_id.isdecimal() or int(artifact_id) < 1:
         raise ValueError("ARTIFACT_ID_MISSING")
     status_file = root / "chat_bridge/latest.json"
     report_file = root / "sky_quickscan_information/latest_13col.json"
