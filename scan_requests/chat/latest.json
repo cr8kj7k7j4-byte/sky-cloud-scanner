@@ -1,6 +1,6 @@
 {
   "command": "Sky 快掃",
-  "request_id": "research-go-live-20261121-gate-c3",
+  "request_id": "research-readback-20261121-main-e105fa0",
   "read_only_no_orders": true,
-  "reason": "Owner-requested latest-main read-only research operational acceptance; after-hours snapshot is not live executed trade; enforce paid reservation, immutable same-run readback, NO_TRADE and no simulated ledger."
+  "reason": "Owner-authorized same-run read-only operational acceptance for main e105fa0; GitHub paid reservation must block duplicates; weekend snapshots are not live executions; NO_TRADE, no simulated ledger, no production promotion."
 }
