@@ -20,6 +20,11 @@ jobs:
           python-version: "3.12"
       - name: Verify five-minute market evidence validation
         run: python -m unittest tests.test_sky_p0r_512_source_adapter -v
+      - name: Require an explicit completed-bar source for manual acceptance
+        if: ${{ github.event_name == 'workflow_dispatch' && vars.SKY_P0R_BAR_RUN_ID == '' }}
+        run: |
+          echo '::error title=Evidence missing::SKY_P0R_BAR_RUN_ID is required for manual 5m readback; no acceptance was performed.'
+          exit 1
       - name: Read GitHub-verified #512 completed bars (historical pin or future run)
         # Permit independently configured bar readback before a signal is available.
         if: ${{ vars.SKY_P0R_BAR_RUN_ID != '' }}
@@ -102,7 +107,7 @@ jobs:
                   run.get("head_sha") != pinned_sha
                   or str(artifact.get("id")) != pinned_artifact_id):
               raise SystemExit("HISTORICAL_BAR_PIN_MISMATCH")
-          path = Path("/tmp/sky-512-pr508-source")
+          path = Path("/tmp/sky-512-research-source")
           path.mkdir(parents=True, exist_ok=True)
           subprocess.run(["gh", "run", "download", chosen, "--repo", repo,
                           "--name", name, "--dir", str(path)],
