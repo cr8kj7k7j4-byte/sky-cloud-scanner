@@ -25,11 +25,14 @@ on:
       - ".github/workflows/sky-market-provider-readiness.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   check-provider:
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SKY_PAID_ATOMIC_ENFORCE: "1"
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
