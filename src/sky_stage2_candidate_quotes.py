@@ -5,6 +5,7 @@ No orders, no promotion, no whole-market qualification from a small sample.
 from __future__ import annotations
 
 import time
+import math
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -21,6 +22,17 @@ SLEEP_SECONDS = 1.0
 DIAGNOSTIC_RAPID_RISE_HOLD_PCT = 6.0
 
 
+def safe_change_pct(value):
+    """Untrusted provider values must not crash the research scan or trigger paid probes."""
+    if isinstance(value, bool):
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    return number if math.isfinite(number) else None
+
+
 def select(stage1, *, per_market=6):
     """Deterministic balanced sampling; strict upper limit even if inputs are large."""
     if stage1.get("schema") != "SKY_STAGE1_FUGLE_SNAPSHOT_CANDIDATES_V1":
@@ -33,8 +45,8 @@ def select(stage1, *, per_market=6):
                  if r.get("exchange") == exchange and r.get("production_eligible") is False
                  and r.get("observed_price") is not None
                  and r.get("reported_volume_raw") is not None
-                 and r.get("change_pct_observed") is not None
-                 and float(r["change_pct_observed"]) < DIAGNOSTIC_RAPID_RISE_HOLD_PCT]
+                 and safe_change_pct(r.get("change_pct_observed")) is not None
+                 and safe_change_pct(r.get("change_pct_observed")) < DIAGNOSTIC_RAPID_RISE_HOLD_PCT]
         output.extend(items[:per_market])
     return output
 

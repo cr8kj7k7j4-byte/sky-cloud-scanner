@@ -57,6 +57,19 @@ class Stage2BridgeTests(unittest.TestCase):
         picked = select(data)
         self.assertNotIn(data["candidates"][0]["symbol"], [x["symbol"] for x in picked])
 
+    def test_malformed_change_values_skip_paid_probes_without_crashing(self):
+        data = self.stage1()
+        invalid = ("N/A", "", "nan", "inf", float("nan"), float("inf"),
+                   [], {}, True, None)
+        for i, value in enumerate(invalid):
+            data["candidates"][i]["change_pct_observed"] = value
+        picked = select(data)
+        self.assertTrue(all(r["symbol"] not in
+                            {data["candidates"][i]["symbol"] for i in range(len(invalid))}
+                            for r in picked))
+        self.assertLessEqual(len(picked), 12)
+        self.assertTrue(all(r["production_eligible"] is False for r in picked))
+
     def test_cannot_expand_beyond_six_per_market(self):
         with self.assertRaisesRegex(ValueError,"INVALID_SAMPLE_SIZE"):
             select(self.stage1(),per_market=999)
