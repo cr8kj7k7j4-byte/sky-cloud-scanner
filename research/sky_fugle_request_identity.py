@@ -43,7 +43,12 @@ def canonical_fugle_request(method: str, url: str, *, parameters: dict | None = 
     if parameters is not None:
         if not isinstance(parameters, dict):
             raise ValueError("INVALID_PARAMETERS")
-        params.extend((str(k), str(v)) for k, v in parameters.items())
+        for k, v in parameters.items():
+            # Do not silently turn None, booleans or containers into valid-looking
+            # query strings: that would produce a misleading paid-request key.
+            if not isinstance(k, str) or isinstance(v, bool) or not isinstance(v, (str, int, float)):
+                raise ValueError("INVALID_PARAMETER_VALUE_TYPE")
+            params.append((k, str(v)))
     if any(k not in ALLOWED_PARAMETERS or not v or len(v) > 64 for k, v in params):
         raise ValueError("INVALID_PARAMETER")
     values = {}
