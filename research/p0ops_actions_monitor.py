@@ -13,7 +13,6 @@ from pathlib import Path
 WORKFLOWS = (
     "scan.yml",
     "swing-live-scan.yml",
-    "shadow-promotion-dashboard.yml",
 )
 QUEUE_WARNING_SEC = 300
 RUNTIME_WARNING_SEC = 600

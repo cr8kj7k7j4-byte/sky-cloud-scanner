@@ -28,7 +28,6 @@ class MonitorTests(unittest.TestCase):
         good = {"conclusion": "success", "queue_seconds": 12, "job_seconds": 30}
         self.assertEqual(assess("swing-live-scan.yml", [failed]),
                          ["LATEST_RUN_FAILED", "JOB_RUNTIME_OVER_10M"])
-        self.assertEqual(assess("shadow-promotion-dashboard.yml", [good]), [])
 
     def test_missing_timestamps_do_not_invent_seconds(self):
         self.assertIsNone(seconds_between(None, "2026-11-04T02:00:00Z"))

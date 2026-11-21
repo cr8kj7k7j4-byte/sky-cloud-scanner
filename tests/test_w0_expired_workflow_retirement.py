@@ -22,7 +22,6 @@ PRESERVED = (
     "sky-chat-bridge.yml",
     "schedule-health-audit.yml",
     "research-freeze-governance.yml",
-    "sky-paper-only-acceptance.yml",
     "sky-recovery-watchdog.yml",
     "sky-research-ci-watchdog.yml",
 )

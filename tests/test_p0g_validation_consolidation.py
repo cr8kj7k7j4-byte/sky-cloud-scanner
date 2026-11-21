@@ -67,7 +67,6 @@ def _rule(rule_id):
             "oos_passed": True,
             "cost_stress_passed": True,
             "leakage_check_passed": True,
-            "paper_trade_passed": True,
         },
         rollback={"available": True},
         created_at="2026-10-25T00:00:00+00:00",
@@ -116,7 +115,6 @@ def test_readiness_requires_new_canonical_modules():
         oos=True,
         cost_stress=True,
         leakage_check=True,
-        paper_trade=True,
         monitoring=True,
     )
     result = engineering_readiness(checks)
@@ -134,8 +132,7 @@ def test_promotion_readiness_never_uses_accuracy_only():
         leakage_check=True,
         survivorship_review=True,
         regime_stability=True,
-        paper_trade=False,
-        sample_sufficient=True,
+        sample_sufficient=False,
     )
     assert gate["promotable"] is False
-    assert "paper_trade" in gate["failed_checks"]
+    assert "sample_sufficient" in gate["failed_checks"]

@@ -45,23 +45,6 @@ jobs:
             tests/test_p0l_canonical_ledger.py \
             tests/test_production_e2e_acceptance.py
 
-      - name: Download latest W4 dashboard
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p upstream/w4
-          run_id="$(gh run list \
-            --workflow shadow-promotion-dashboard.yml \
-            --status success \
-            --limit 1 \
-            --json databaseId \
-            --jq '.[0].databaseId // empty')"
-          if [ -n "$run_id" ]; then
-            gh run download "$run_id" \
-              -n shadow-promotion-dashboard \
-              -D upstream/w4 || true
-          fi
-
       - name: Download latest W6 execution evidence
         shell: bash
         run: |
@@ -122,7 +105,7 @@ jobs:
               except Exception:
                   return {}
 
-          w4=load("upstream/w4/shadow_promotion_dashboard.json")
+          w4={}  # Retired ledger source; no eligibility or sample evidence inferred
           w6=load("upstream/w6/w6_p1_report.json")
           summary=dict(w4.get("summary") or {})
           samples=int(summary.get("samples") or 0)
@@ -145,7 +128,7 @@ jobs:
           status = "READY_FOR_P0R_REVIEW" if suff and user_risk_configured else "NOT_EVALUABLE"
           blockers=[]
           if not suff:
-              blockers.append("W4_SAMPLE_SUFFICIENCY_NOT_MET")
+              blockers.append("FORWARD_SAMPLE_SUFFICIENCY_UNVERIFIED")
           if not user_risk_configured:
               blockers.append("USER_CAPITAL_1R_NOT_CONFIGURED")
           if not w6:

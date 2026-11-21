@@ -28,7 +28,6 @@ jobs:
       FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
       STRICT_OFFICIAL_MODE: "1"
       ALLOW_MIS_OTC_FALLBACK: "1"
-      PAPER_TRADING_MODE: "shadow"
       EXEC_ENFORCE_GATE: "1"
     steps:
       - uses: actions/checkout@v4

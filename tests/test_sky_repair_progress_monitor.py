@@ -51,7 +51,7 @@ class RepairProgressTests(unittest.TestCase):
         self.assertEqual(len(calls), len(TARGET_PRS) * 2)
         self.assertEqual(obj["health"], "CI_FINISHED_ACCEPTANCE_PENDING")
         self.assertEqual(obj["watchdog_cadence"], "10_MINUTES_BEST_EFFORT_GITHUB_ACTIONS")
-        self.assertEqual(obj["monitored_prs"], [508, 511, 512, 531, 536])
+        self.assertEqual(obj["monitored_prs"], [547, 511, 512, 531, 536])
         self.assertEqual(obj["details"][1]["work_window"], "MARKET_SESSION")
         self.assertFalse(obj["details"][0]["repair_performed"])
         self.assertFalse(obj["production_eligible"])
@@ -63,30 +63,30 @@ class RepairProgressTests(unittest.TestCase):
 
     def test_read_failure_is_not_silent(self):
         def fake(path):
-            if path == "pulls/508":
+            if path == "pulls/547":
                 raise urllib.error.HTTPError("url", 403, "forbidden", {}, None)
             if path.startswith("pulls/"):
                 return pr(int(path.split("/")[1]))
             return {"workflow_runs": [run()]}
         obj = collect(fake)
         self.assertEqual(obj["health"], "BLOCKED_NEEDS_HUMAN_ENGINEERING")
-        self.assertEqual(obj["fetch_errors"][0]["pr"], 508)
+        self.assertEqual(obj["fetch_errors"][0]["pr"], 547)
 
 
     def test_operator_blocker_does_not_stop_unrelated_off_market_repairs(self):
         details = [summarize(pr(n), [run()]) for n in TARGET_PRS]
         now = datetime(2026, 11, 12, 14, 0, tzinfo=timezone.utc)
         work = route_work_items(details, now, {
-            508: {"action": "Owner must approve external source permission",
+            547: {"action": "Owner must approve external source permission",
                   "url": "https://github.com/example/repo/settings"}})
         states = {x["pr"]: x["routing_state"] for x in work["queue"]}
-        self.assertEqual(states[508], "WAIT_USER")
+        self.assertEqual(states[547], "WAIT_USER")
         self.assertEqual(states[511], "WAIT_MARKET")
         self.assertEqual(states[531], "READY_FOR_ENGINEERING")
         self.assertEqual(states[536], "READY_FOR_ENGINEERING")
-        self.assertNotIn(508, work["next_off_market_engineering_prs"])
+        self.assertNotIn(547, work["next_off_market_engineering_prs"])
         self.assertIn(531, work["next_off_market_engineering_prs"])
-        self.assertEqual(work["operator_notifications"][0]["pr"], 508)
+        self.assertEqual(work["operator_notifications"][0]["pr"], 547)
         self.assertFalse(work["official_trading_day_confirmed"])
 
     def test_market_clock_is_not_official_market_authorization(self):
@@ -101,10 +101,10 @@ class RepairProgressTests(unittest.TestCase):
         self.assertFalse(work["official_trading_day_confirmed"])
 
     def test_operator_blocker_needs_explicit_action_and_url(self):
-        details = [summarize(pr(508), [run()])]
+        details = [summarize(pr(547), [run()])]
         with self.assertRaises(ValueError):
             route_work_items(details, datetime.now(timezone.utc),
-                             {508: {"action": "needs owner"}})
+                             {547: {"action": "needs owner"}})
 
     def test_transient_get_retries_only_get_and_caps_at_three_attempts(self):
         count = [0]

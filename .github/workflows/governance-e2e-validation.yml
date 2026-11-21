@@ -34,5 +34,4 @@ jobs:
           pytest -q \
             tests/test_production_e2e_acceptance.py \
             tests/test_governance_pit_gate.py \
-            tests/test_revenue_pit.py \
-            tests/test_paper_trading.py
+            tests/test_revenue_pit.py

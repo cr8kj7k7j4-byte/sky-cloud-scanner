@@ -36,15 +36,11 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Download latest Shadow promotion dashboard artifact
+      - name: Verify retained Sky status source without retired paper ledger
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p latest_dashboard
-          RUN_ID="$(gh run list --workflow shadow-promotion-dashboard.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId')"
-          test -n "$RUN_ID"
-          gh run download "$RUN_ID" -n shadow-promotion-dashboard -D latest_dashboard
-          echo "DASHBOARD_RUN_ID=$RUN_ID" >> "$GITHUB_ENV"
+          test -f docs/SKY_CHAT_LATEST_STATUS.json
 
       - name: Preserve previous status for material-change detection
         shell: bash
@@ -66,16 +62,16 @@ jobs:
           from datetime import datetime, timezone
           from pathlib import Path
 
-          root = Path("latest_dashboard")
-          dash = json.loads((root / "shadow_promotion_dashboard.json").read_text(encoding="utf-8"))
-          elig_path = root / "w4_scan_eligibility.json"
-          elig = json.loads(elig_path.read_text(encoding="utf-8")) if elig_path.exists() else {}
+          source_status = json.loads(Path("docs/SKY_CHAT_LATEST_STATUS.json").read_text(encoding="utf-8"))
+          dash = {"stage": "RETIRED_SIMULATED_LEDGER", "production_eligible": False}
+          elig = {"status": "NOT_EVALUABLE", "reason": "RETIRED_SIMULATED_LEDGER"}
 
           snapshot = {
               "schema_version": "SKY_EXTERNAL_STATUS_SNAPSHOT_V1_0",
               "generated_at_utc": datetime.now(timezone.utc).isoformat(),
               "source": {
-                  "dashboard_workflow_run_id": os.environ.get("DASHBOARD_RUN_ID"),
+                  "read_only_source": "docs/SKY_CHAT_LATEST_STATUS.json",
+                   "source_status": "REFERENCE_ONLY_NOT_VERIFIED_CURRENT",
                   "repository": os.environ.get("GITHUB_REPOSITORY"),
               },
               "production_baseline": {
@@ -108,7 +104,7 @@ jobs:
               "# Sky External Latest Status",
               "",
               f"- Generated (UTC): {snapshot['generated_at_utc']}",
-              f"- Dashboard workflow run: {os.environ.get('DASHBOARD_RUN_ID')}",
+              "- Status source: docs/SKY_CHAT_LATEST_STATUS.json (reference only)",
               f"- W4 status: **{status}**",
               f"- Eligible scan runs: {eligible_runs}",
               f"- Eligible records: {eligible_records}",
@@ -234,7 +230,7 @@ jobs:
             echo "No status change to commit."
             exit 0
           fi
-          git commit -m "W4: publish external latest status snapshot [skip ci]"
+          git commit -m "Sky: publish read-only external status snapshot [skip ci]"
           # A concurrent writer or GitHub transient ref lock can reject the
           # first push. Retry with a fresh remote base; NEVER force-push.
           # If the generated status files conflict, fail visibly rather than

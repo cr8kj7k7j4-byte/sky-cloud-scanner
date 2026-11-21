@@ -199,7 +199,7 @@ def validate_champion_config(payload, config):
             reasons.append(f"{rule_id}@{version}:not_production_enabled")
         required = (
             "walk_forward_passed", "oos_passed", "cost_stress_passed",
-            "leakage_check_passed", "paper_trade_passed",
+            "leakage_check_passed",
         )
         missing = [k for k in required if not dict(match.get("validation") or {}).get(k)]
         if missing:
@@ -243,7 +243,7 @@ def rollback_champion(path, prior_config):
 
 def promotion_readiness(*, walk_forward=False, oos=False, cost_stress=False,
                         leakage_check=False, survivorship_review=False,
-                        regime_stability=False, paper_trade=False,
+                        regime_stability=False,
                         sample_sufficient=False):
     checks = {
         "walk_forward": bool(walk_forward),
@@ -252,7 +252,6 @@ def promotion_readiness(*, walk_forward=False, oos=False, cost_stress=False,
         "leakage_check": bool(leakage_check),
         "survivorship_review": bool(survivorship_review),
         "regime_stability": bool(regime_stability),
-        "paper_trade": bool(paper_trade),
         "sample_sufficient": bool(sample_sufficient),
     }
     failed = [k for k, ok in checks.items() if not ok]
@@ -388,7 +387,6 @@ PROMOTION_SCORECARD_WEIGHTS = {
     "leakage_check": 10,
     "survivorship_review": 8,
     "regime_stability": 10,
-    "paper_trade": 10,
     "positive_expectancy": 7,
     "profit_factor": 4,
     "drawdown_control": 3,
@@ -450,9 +448,6 @@ def build_promotion_scorecard(
         "regime_stability": bool(
             validation.get("regime_stability_passed", validation.get("regime_stability", False))
         ),
-        "paper_trade": bool(
-            validation.get("paper_trade_passed", validation.get("paper_trade", False))
-        ),
         "positive_expectancy": expectancy > float(min_expectancy_r),
         "profit_factor": pf > float(min_profit_factor),
         "drawdown_control": (
@@ -480,7 +475,6 @@ def build_promotion_scorecard(
         "leakage_check",
         "survivorship_review",
         "regime_stability",
-        "paper_trade",
         "positive_expectancy",
         "profit_factor",
         "drawdown_control",

@@ -19,7 +19,7 @@ RETAIN_PROTECTED = {
     "scan.yml", "sky-full-market-five-minute-dispatch.yml",
     "sky-full-market-private.yml", "sky-chat-bridge.yml",
     "schedule-health-audit.yml", "research-freeze-governance.yml",
-    "sky-paper-only-acceptance.yml", "sky-recovery-watchdog.yml",
+    "sky-recovery-watchdog.yml",
 }
 REMOVED = {
     "sky-research-once-20261109.yml",
@@ -36,7 +36,7 @@ CRON_RETIRED_KEEP_MANUAL = {
 }
 OWNERS = {
     "formal_execution_risk": {"lead": 365, "dependent": [367, 387],
-                              "scope": "FUTURE_LIVE_ONLY; current research PAPER_ONLY is #496/#497/#498"},
+                              "scope": "FUTURE_LIVE_ONLY; simulated ledger retired; research remains read-only"},
     "fugle_quote_executed_provenance": {"lead": 480, "dependent": [357, 364, 472, 474, 499],
                                        "scope": "TWSE/TPEx source timestamps; no provider-paid duplicate"},
     "five_minute_causal_bars": {"lead": 488, "dependent": [480],

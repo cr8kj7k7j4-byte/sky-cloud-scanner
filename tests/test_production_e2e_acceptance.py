@@ -8,7 +8,6 @@ from src.ranking_engine import rank_candidates
 from src.risk_engine import RiskPolicy, evaluate_candidate
 from src.execution_engine import ExecutionCostPolicy
 from src.monitor_engine import evaluate_monitor_state
-from src.paper_trading import evaluate_paper_gate, build_paper_snapshot
 from src.outcome_engine import evaluate_long_outcome
 from src.trade_logger import TradeRecord, evaluate_trade_record
 
@@ -106,7 +105,7 @@ def _build_chain(last=10.25, daily_pnl=0.0, execution_policy=None):
     return market, c
 
 
-def test_happy_path_reaches_shadow_but_not_live_execution():
+def test_happy_path_remains_research_only_without_auto_execution():
     market, c = _build_chain(execution_policy=_execution_policy(True))
 
     assert market["market_bias"] in {"BULLISH", "NEUTRAL", "BEARISH"}
@@ -120,16 +119,8 @@ def test_happy_path_reaches_shadow_but_not_live_execution():
     assert c["monitor"]["state"] == "TRIGGERED"
     assert c["monitor"]["action"] == "等待"
 
-    gate = evaluate_paper_gate("shadow", "RESEARCH_ONLY")
-    snap = build_paper_snapshot(
-        run_id="e2e-allow",
-        observed_at="2026-10-25T09:35:00+08:00",
-        item=c,
-        gate=gate,
-    )
-    assert snap["action"] == "SHADOW_OBSERVE"
-    assert snap["paper_gate"]["simulation_allowed"] is False
-    assert snap["strategy"]["production_eligible"] is False
+    assert c["monitor"]["action"] != "買進"
+    assert c["strategy_plan"]["production_eligible"] is False
 
 
 def test_daily_loss_limit_blocks_before_execution_action():
