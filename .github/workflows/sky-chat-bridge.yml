@@ -30,6 +30,11 @@ concurrency:
   cancel-in-progress: false
 jobs:
   scan:
+    # The research acceptance branch requires a fresh, explicit command.
+    if: >-
+      ${{ github.ref != 'refs/heads/research/sky-mobile-paper-integration' ||
+          (github.event_name == 'workflow_dispatch' &&
+           inputs.command != '' && inputs.command != 'use_saved_request') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

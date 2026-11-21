@@ -47,6 +47,13 @@ class DispatchAliasContractTests(unittest.TestCase):
         for alias in COMMANDS:
             self.assertIn("- '" + alias + "'", text)
 
+    def test_research_acceptance_requires_explicit_dispatch_before_paid_job(self):
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        job_header = workflow.split("  scan:\n", 1)[1].split("    runs-on:", 1)[0]
+        self.assertIn("github.ref != 'refs/heads/research/sky-mobile-paper-integration' ||", job_header)
+        self.assertIn("github.event_name == 'workflow_dispatch' &&", job_header)
+        self.assertIn("inputs.command != '' && inputs.command != 'use_saved_request'", job_header)
+
     def test_each_alias_reaches_saved_request_file_before_existing_bridge(self):
         code = dispatch_code()
         for alias in sorted(COMMANDS):
