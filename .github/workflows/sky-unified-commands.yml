@@ -122,18 +122,16 @@ jobs:
               "evidence": result.get("evidence", {}),
               "no_order_or_production_promotion": True
           }
-          Path("/tmp/sky_unified_status.json").write_text(
-              json.dumps(safe, ensure_ascii=False, indent=2) + chr(10))
+          out = Path("output/unified/sanitized_status.json")
+          out.parent.mkdir(parents=True, exist_ok=True)
+          out.write_text(json.dumps(safe, ensure_ascii=False, indent=2) + chr(10),
+                         encoding="utf-8")
           PY
-          TARGET="repos/${GITHUB_REPOSITORY}/contents/docs/SKY_UNIFIED_LATEST_$(python -c 'import json; print(json.load(open("/tmp/sky_unified_status.json"))["command"].upper())').json"
-          CONTENT=$(base64 -w0 /tmp/sky_unified_status.json)
-          for ATTEMPT in 1 2 3; do
-            SHA=$(gh api "$TARGET" --jq '.sha' 2>/dev/null || true)
-            if [ -n "$SHA" ]; then
-              gh api --method PUT "$TARGET" -f message="ops: publish sanitized scan status [skip ci]" -f content="$CONTENT" -f sha="$SHA" -f branch=main >/dev/null && break
-            else
-              gh api --method PUT "$TARGET" -f message="ops: publish sanitized scan status [skip ci]" -f content="$CONTENT" -f branch=main >/dev/null && break
-            fi
-            if [ "$ATTEMPT" = 3 ]; then exit 1; fi
-            sleep 2
-          done
+      - name: Upload sanitized same-run status Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-unified-status-${{ github.run_id }}
+          path: output/unified/sanitized_status.json
+          if-no-files-found: error
+          retention-days: 30
