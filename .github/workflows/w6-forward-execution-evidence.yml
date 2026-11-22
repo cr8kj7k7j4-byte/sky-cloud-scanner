@@ -16,6 +16,10 @@ permissions:
 
 jobs:
   collect-and-report:
+    # W0 #363 fail-closed: never execute the retired Paper-dependent
+    # collector through workflow_dispatch while source migration is HOLD.
+    # Keep old evidence/steps readable for lineage review, not execution.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
