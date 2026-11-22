@@ -13,10 +13,28 @@ on:
         default: "2330,6488"
         type: string
 permissions:
-  # Atomic paid-endpoint claims create Git refs; no protected-main file writes.
-  contents: write
+  contents: read
 jobs:
+  contracts:
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run no-paid selected/unified Fugle guard contracts
+        run: |
+          pip install -r requirements.txt
+          python -m unittest tests.test_sky_market_quote_view -v
   quote:
+    if: github.event_name == 'workflow_dispatch'
+    # Manual atomic paid-endpoint claims create Git refs, not main file writes.
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
