@@ -2,6 +2,7 @@
 """Read-only FinMind entitlement/data acceptance. Never logs the token or trades."""
 import datetime as dt
 import json
+import math
 import os
 import pathlib
 import sys
@@ -17,6 +18,8 @@ DATASETS = {
     "margin_maintenance": ("TaiwanStockMarginMaintenance", {"date", "stock_id", "margin_balance", "margin_cost", "margin_ratio", "margin_maintenance"}),
 }
 OUTPUT = pathlib.Path("research_output/finmind_acceptance.json")
+EXPECTED_DATES = [f"2026-10-{day}" for day in range(27, 31)]
+PRICE_COLUMNS = ("open", "max", "min", "close", "Trading_Volume")
 
 
 def classify_api_error(payload: bytes) -> str:
@@ -51,10 +54,11 @@ def probe(name, dataset, required, token, start, end):
         with urllib.request.urlopen(request, timeout=25) as response:
             body = response.read(4 * 1024 * 1024)
             status = response.status
+        result["http_status"] = status
         obj = json.loads(body)
         data = obj.get("data", []) if isinstance(obj, dict) else []
-        result["http_status"] = status
         api_status = obj.get("status") if isinstance(obj, dict) else None
+        result["api_status"] = api_status if type(api_status) is int else None
         if status != 200 or api_status not in (None, 200) or not isinstance(data, list):
             result["reason"] = "api_error_or_invalid_shape"
         elif not data:
@@ -69,6 +73,31 @@ def probe(name, dataset, required, token, start, end):
                           last_date=dates[-1] if dates else None)
             # Entitlement checks fail closed on null/invalid or nonpositive maintenance values.
             numeric_ok = True
+            if dataset == "TaiwanStockPrice":
+                result["dates"] = [date for date in dates if date in EXPECTED_DATES]
+                result["first_date"] = next(iter(result["dates"]), None)
+                result["last_date"] = next(iter(reversed(result["dates"])), None)
+                result["symbol_matches"] = all(
+                    isinstance(row, dict) and row.get("stock_id") == "2330"
+                    for row in data
+                )
+                missing = sorted(set().union(*(
+                    required - row.keys() if isinstance(row, dict) else required
+                    for row in data
+                )))
+                result["missing_columns"] = missing
+                numeric_ok = (
+                    api_status == 200 and dates == EXPECTED_DATES
+                    and result["symbol_matches"] and not missing
+                    and all(
+                        all(type(row[field]) in (int, float) and math.isfinite(row[field])
+                            for field in PRICE_COLUMNS)
+                        and row["Trading_Volume"] >= 0
+                        and 0 < row["min"] <= min(row["open"], row["close"])
+                        <= max(row["open"], row["close"]) <= row["max"]
+                        for row in data
+                    )
+                )
             if dataset == "TaiwanStockMarginMaintenance":
                 numeric_ok = all(isinstance(row, dict) and row.get("stock_id") == "2330"
                     and isinstance(row.get("margin_maintenance"), (int, float))
@@ -101,23 +130,29 @@ def main():
     result = {
         "purpose": "read_only_entitlement_acceptance",
         "tested_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
+        "run_id": os.environ.get("GITHUB_RUN_ID"),
+        "commit_sha": os.environ.get("GITHUB_SHA"),
         "symbol": "2330", "start_date": start, "end_date": end,
-        "api_source": BASE, "token_present": bool(os.environ.get("FINMIND_TOKEN")),
+        "api_source": BASE, "token_present": bool(os.environ.get("FINMIND_API_TOKEN")),
         "results": {}, "overall": "FAIL", "promotion_status": "RESEARCH_ONLY",
     }
     token = os.environ.get("FINMIND_TOKEN", "").strip()
     selected = os.environ.get("FINMIND_DATASET_FILTER", "").strip()
-    datasets = {selected: DATASETS[selected]} if selected in DATASETS else DATASETS
-    result["scope"] = "SINGLE_DATASET" if selected in DATASETS else "ALL_FOUR_DATASETS"
-    if token:
+    datasets = {selected: DATASETS[selected]} if selected == "daily_price" else {}
+    result["scope"] = "SINGLE_DATASET" if datasets else "INVALID_SCOPE"
+    if not datasets:
+        result["reason"] = "daily_price_scope_required"
+    elif token:
         for name, (dataset, required) in datasets.items():
             key, value = probe(name, dataset, required, token, start, end)
             result["results"][key] = value
     else:
-        result["reason"] = "FINMIND_TOKEN_missing"
-    result["overall"] = ("PASS" if len(result["results"]) == len(datasets)
+        result["reason"] = "FINMIND_API_TOKEN_missing"
+    result["overall"] = ("PASS" if datasets and len(result["results"]) == len(datasets)
                          and all(x["status"] == "PASS" for x in result["results"].values())
                          else "FAIL")
+    if not token and datasets:
+        result["overall"] = "BLOCKED"
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(result, ensure_ascii=False, indent=2))
