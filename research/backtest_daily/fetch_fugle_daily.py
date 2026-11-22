@@ -17,6 +17,8 @@ import argparse
 import csv
 import os
 import time
+from pathlib import Path
+import sys
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -32,7 +34,11 @@ CHUNKS = [
 ]
 
 MIN_INTERVAL_S = 1.1   # about 55 requests per minute, below the 60/min historical limit
-MAX_RETRIES_429 = 3
+# The shared GitHub-ref claim is fail-closed, including on HTTP 429.
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+from research.sky_fugle_atomic_ref_claim import guard_fugle_request
 
 
 def build_url(symbol: str, start: str, end: str) -> str:
@@ -49,21 +55,20 @@ def build_url(symbol: str, start: str, end: str) -> str:
 def fetch_chunk(symbol: str, start: str, end: str, api_key: str) -> list[dict]:
     url = build_url(symbol, start, end)
     req = urllib.request.Request(url, headers={"X-API-KEY": api_key, "Accept": "application/json"})
-    for attempt in range(MAX_RETRIES_429 + 1):
-        try:
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                payload = json.loads(resp.read().decode("utf-8"))
-            return payload.get("data", [])
-        except urllib.error.HTTPError as e:
-            if e.code == 429 and attempt < MAX_RETRIES_429:
-                time.sleep(60)
-                continue
-            if e.code == 404:
-                # No bars for this symbol in this window (e.g. not yet listed). Not an error.
-                print(f"{symbol} {start}..{end}: no data (404), skipped")
-                return []
-            raise RuntimeError(f"HTTP {e.code} for {symbol} {start}..{end}") from None
-    return []
+    # Claim the canonical URL before any HTTP; no retry under the same claim.
+    if os.environ.get("SKY_PAID_ATOMIC_ENFORCE") != "1":
+        raise RuntimeError("HISTORICAL_PAID_GUARD_REQUIRED")
+    guard_fugle_request(url)
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+        return payload.get("data", [])
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            print(f"{symbol} {start}..{end}: no data (404), skipped")
+            return []
+        # 429 and all other failures require W0 claim review before retry.
+        raise RuntimeError(f"HTTP {e.code} for {symbol} {start}..{end}") from None
 
 
 TICKERS_URL = "https://api.fugle.tw/marketdata/v1.0/stock/intraday/tickers"
@@ -88,6 +93,9 @@ def list_universe(api_key: str) -> list[str]:
         q = urllib.parse.urlencode({"type": "EQUITY", "market": market, "isNormal": "true"})
         req = urllib.request.Request(f"{TICKERS_URL}?{q}",
                                      headers={"X-API-KEY": api_key, "Accept": "application/json"})
+        if os.environ.get("SKY_PAID_ATOMIC_ENFORCE") != "1":
+            raise RuntimeError("HISTORICAL_PAID_GUARD_REQUIRED")
+        guard_fugle_request(req.full_url)
         with urllib.request.urlopen(req, timeout=30) as resp:
             payload = json.loads(resp.read().decode("utf-8"))
         symbols.extend(parse_universe(payload))
