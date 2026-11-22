@@ -6,6 +6,17 @@
 - 結論：**INSUFFICIENT_DATA / HOLD**。已盤點既有執行證據；**尚未取得五日完整可認證歷史行情與事前決策訊號**，不得宣稱完成五日逐筆回測。
 - 不新增模擬帳本、模擬委託/成交/損益、重播、任何自動下單或 Production 規則變更。
 
+## 後續補證｜2026-11-22 10:16 TPE（保留原始調查結論）
+
+**這一節是較原調查新增的後續資料，不回寫 11/16～11/20 的事前交易訊號。**
+
+- GitHub [Actions run #44975178358](https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/44975178358)，`event=push`、`head_sha=0bebf486a827e69f62a1838aebb3e928e114c28f`、執行結論 `success`，建立於 2026-11-22 02:14:48 UTC（10:14:48 台北時間）。執行 job `sampled-history` 的下載、匯出完整性和五分鐘 K 棒結構驗證步驟均 `success`。
+- 原始 job 日誌逐檔顯示 10 檔五分鐘棒，根數依序 `243, 250, 126, 260, 263, 269, 234, 124, 45, 80`，共 **1,894 根**；後續 `validate_history_export.py` 日誌顯示 `expected_symbols=10`、`successful_downloads=10`、`history_files=10`、`total_5m_bars=1894`、`validation_pass=true`，且沒有 failed downloads、missing files、unexpected files、empty files 或 parse errors。
+- `research.audit_weekly_history_5m` 輸出 `STRUCTURE_PASS_NOT_STRATEGY_VERIFIED`；10 檔逐檔分類均為 `STRUCTURE_PASS_NOT_PIT_VERIFIED`。該驗證只是取樣檔案結構、交易時段和逐日觀察，**不是全市場完整性、當時模型事前訊號、官方 PIT 母體、實際成交或正期望策略認證**。
+- 同次 Artifact **#14735556373**（`w0-history-nov16-20-sample-44975178358`）已由 GitHub 清單確認存在且未過期；上述數量是從**同次 Workflow job 原始日誌**獨立讀回，並非聲稱已逐位元解壓 ZIP 驗 hash。
+- **去重決策：** 這 10 檔既有資料優先保存／沿用，**禁止**由 #626 的 `w0-history-nov2026-one-shot.yml` 再次發送相同範圍的付費歷史請求。保留本 PR 研究報告與原始提交；一次性下載 Workflow 應列 `REJECT_DUPLICATE` 候選，在 #363/W0 四關治理後才處置。
+- 原下方「未取得」指的是**原調查所檢視的執行紀錄範圍內**未取得符合當日策略回溯條件的行情與事前訊號。新取得的 10 檔歷史資料可以支持樣本資料 QA，不能倒填 11/16～20 當時沒有保存的決策快照。五日績效、成本後期望值與完整研究級結論繼續 `INSUFFICIENT_DATA / HOLD`。
+
 ## 1. 可獨立核查的來源與方法
 
 1. GitHub Actions REST `GET /repos/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs?created=YYYY-MM-DD..YYYY-MM-DD`，針對 UTC 日期 11/16～11/20 分別核對；GitHub created 時區為 UTC，**UTC 每日總量不可當成台灣交易日完整掃描數**，並非全 repository 所有 Artifact 的完整原始資料下載。
