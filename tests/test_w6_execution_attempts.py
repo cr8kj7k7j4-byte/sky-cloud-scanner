@@ -21,12 +21,27 @@ def test_quote_cannot_claim_fill():
     assert "FINAL_FILL_STATUS_REQUIRES_AUTHORIZED_EXECUTION_SOURCE" in validate_attempt(x)
 
 
-def test_paper_fill_requires_passed_gate():
+def test_retired_paper_fill_is_rejected_even_with_legacy_pass_marker():
     x=base()
     x.update(source_type="AUTHORIZED_PAPER_ENGINE",fill_status="FILLED",fill_price=50.1,
              fill_timestamp="2026-10-28T09:05:02+08:00",filled_shares=1000)
-    assert "PAPER_GATE_NOT_PASSED" in validate_attempt(x)
+    assert "RETIRED_PAPER_EXECUTION_SOURCE" in validate_attempt(x)
+    assert "FINAL_FILL_STATUS_REQUIRES_AUTHORIZED_EXECUTION_SOURCE" in validate_attempt(x)
     x["paper_gate_verdict"]="PASS_TO_PAPER_TRADING"
+    assert "RETIRED_PAPER_EXECUTION_SOURCE" in validate_attempt(x)
+
+
+def test_retired_paper_source_is_rejected_even_without_a_fill():
+    x=base()
+    x["source_type"]="AUTHORIZED_PAPER_ENGINE"
+    assert "RETIRED_PAPER_EXECUTION_SOURCE" in validate_attempt(x)
+
+
+def test_source_backed_broker_execution_remains_valid():
+    x=base()
+    x.update(source_type="BROKER_EXECUTION", broker_execution_id="broker-1",
+             fill_status="FILLED", fill_price=50.1,
+             fill_timestamp="2026-10-28T09:05:02+08:00", filled_shares=1000)
     assert validate_attempt(x) == []
 
 
