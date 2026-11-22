@@ -1,9 +1,1 @@
-{
-  "schema": "W0_HISTORY_SAMPLE_ONE_SHOT_V1",
-  "from": "2026-11-16",
-  "to": "2026-11-20",
-  "twse_n": 5,
-  "tpex_n": 5,
-  "research_only": true,
-  "automatic_order": false
-}
+{"schema":"W0_HISTORY_SAMPLE_ONE_SHOT_V1","from":"2026-11-16","to":"2026-11-20","twse_n":5,"tpex_n":5,"research_only":true,"automatic_order":false}
