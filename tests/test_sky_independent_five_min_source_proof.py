@@ -65,6 +65,21 @@ class IndependentFiveMinProofTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "COUNTS"):
             validate(p, run=r, artifact=a)
 
+    def test_missing_last_bar_cannot_bypass_count_checks(self):
+        # Regression: a ternary without explicit parentheses used to
+        # suppress the entire OR condition when no last-bar claim existed.
+        p, r, a = fixture()
+        p["samples"][0]["last_feature_bar_time_tpe"] = None
+        p["samples"][0]["valid_today_five_min_bars"] = 999
+        with self.assertRaisesRegex(ValueError, "SOURCE_COUNTS_OR_LAST_BAR_MISMATCH"):
+            validate(p, run=r, artifact=a)
+
+    def test_missing_last_bar_must_fail_when_bars_completed(self):
+        p, r, a = fixture()
+        p["samples"][0].pop("last_feature_bar_time_tpe")
+        with self.assertRaisesRegex(ValueError, "SOURCE_COUNTS_OR_LAST_BAR_MISMATCH"):
+            validate(p, run=r, artifact=a)
+
     def test_exclude_unfinished_bar(self):
         p, r, a = fixture()
         p["time_tpe"] = "2026-11-23T10:08:00+08:00"
