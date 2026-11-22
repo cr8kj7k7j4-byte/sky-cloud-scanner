@@ -89,3 +89,24 @@ with patch.dict("os.environ", {"SKY_PAID_ATOMIC_ENFORCE": "1"}), patch.object(
 
 assert len(claimed) == 3
 print("PASS PIT timeframe, atomic fail-closed, and no paid 429 retry")
+
+
+# W0 #363: the existing PIT test also guards the four paid Workflow entrypoints.
+# Static checks only: never dispatch workflows or call the provider.
+for workflow_name in (
+    "w3a-opening-acceleration-1m-probe.yml",
+    "w3a-opening-acceleration-1m-short.yml",
+    "w3a-opening-acceleration-1m-full.yml",
+    "w3a-whole-universe-intraday-history.yml",
+):
+    workflow = Path(".github/workflows", workflow_name).read_text(encoding="utf-8")
+    triggers = workflow.split("\npermissions:", 1)[0]
+    assert "workflow_dispatch:" in triggers, workflow_name
+    assert "\n  push:" not in triggers, workflow_name
+    assert "\n  schedule:" not in triggers, workflow_name
+    assert "  contents: write" in workflow, workflow_name
+    assert "  actions: read" in workflow, workflow_name
+    assert "group: sky-fugle-paid-global-research-v1-live-wholemarket" in workflow, workflow_name
+    assert "SKY_PAID_ATOMIC_ENFORCE: '1'" in workflow, workflow_name
+    assert "GH_TOKEN: ${{ github.token }}" in workflow, workflow_name
+print("PASS four existing paid historical Workflows: manual-only and atomic-guarded")
