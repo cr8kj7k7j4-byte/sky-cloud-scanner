@@ -147,11 +147,11 @@ jobs:
           DEFENSIVE_LOSS_STREAK: ${{ vars.DEFENSIVE_LOSS_STREAK || '5' }}
           LOCKDOWN_DRAWDOWN_PCT: ${{ vars.LOCKDOWN_DRAWDOWN_PCT || '0.06' }}
           LOT_SIZE: ${{ vars.LOT_SIZE || '1000' }}
-          DAILY_PNL: ${{ vars.DAILY_PNL || '0' }}
-          OPEN_RISK: ${{ vars.OPEN_RISK || '0' }}
-          CONCURRENT_POSITIONS: ${{ vars.CONCURRENT_POSITIONS || '0' }}
-          CORRELATED_OPEN_RISK: ${{ vars.CORRELATED_OPEN_RISK || '0' }}
-          ACCOUNT_DRAWDOWN_PCT: ${{ vars.ACCOUNT_DRAWDOWN_PCT || '0' }}
+          DAILY_PNL: ${{ vars.DAILY_PNL || '' }}
+          OPEN_RISK: ${{ vars.OPEN_RISK || '' }}
+          CONCURRENT_POSITIONS: ${{ vars.CONCURRENT_POSITIONS || '' }}
+          CORRELATED_OPEN_RISK: ${{ vars.CORRELATED_OPEN_RISK || '' }}
+          ACCOUNT_DRAWDOWN_PCT: ${{ vars.ACCOUNT_DRAWDOWN_PCT || '' }}
           CONSECUTIVE_LOSSES: ${{ vars.CONSECUTIVE_LOSSES || '' }}
           MONITOR_STATE_BACKEND: ${{ vars.MONITOR_STATE_BACKEND || 'file' }}
           REDIS_URL: ${{ secrets.REDIS_URL }}

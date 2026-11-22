@@ -28,11 +28,18 @@ CAUTION_LOSS_STREAK = int(os.getenv("CAUTION_LOSS_STREAK", "3"))
 DEFENSIVE_LOSS_STREAK = int(os.getenv("DEFENSIVE_LOSS_STREAK", "5"))
 LOCKDOWN_DRAWDOWN_PCT = float(os.getenv("LOCKDOWN_DRAWDOWN_PCT", "0.06"))
 LOT_SIZE = int(os.getenv("LOT_SIZE", "1000"))
-DAILY_PNL = float(os.getenv("DAILY_PNL", "0"))
-OPEN_RISK = float(os.getenv("OPEN_RISK", "0"))
-CONCURRENT_POSITIONS = int(os.getenv("CONCURRENT_POSITIONS", "0"))
-CORRELATED_OPEN_RISK = float(os.getenv("CORRELATED_OPEN_RISK", "0"))
-ACCOUNT_DRAWDOWN_PCT = float(os.getenv("ACCOUNT_DRAWDOWN_PCT", "0"))
+# Missing real account-state evidence is UNKNOWN, never a synthetic flat book.
+# Only an explicitly supplied, verified caller value may equal zero.
+def _optional_number(name: str, cast):
+    raw = os.getenv(name, "").strip()
+    return cast(raw) if raw else None
+
+
+DAILY_PNL = _optional_number("DAILY_PNL", float)
+OPEN_RISK = _optional_number("OPEN_RISK", float)
+CONCURRENT_POSITIONS = _optional_number("CONCURRENT_POSITIONS", int)
+CORRELATED_OPEN_RISK = _optional_number("CORRELATED_OPEN_RISK", float)
+ACCOUNT_DRAWDOWN_PCT = _optional_number("ACCOUNT_DRAWDOWN_PCT", float)
 # Absence of independently verified position history is UNKNOWN, not zero losses.
 _CONSECUTIVE_LOSSES_RAW = os.getenv("CONSECUTIVE_LOSSES", "").strip()
 CONSECUTIVE_LOSSES = int(_CONSECUTIVE_LOSSES_RAW) if _CONSECUTIVE_LOSSES_RAW else None

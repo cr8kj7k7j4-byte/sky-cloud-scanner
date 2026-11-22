@@ -226,15 +226,24 @@ def evaluate_candidate(candidate, portfolio_context, policy=None):
     policy = policy or RiskPolicy()
     candidate = candidate or {}
     portfolio_context = portfolio_context or {}
-    # Missing or unverified loss streak is never proof of zero losses.
-    # Fail closed for new entries rather than silently bypassing the 2-loss stop.
-    if portfolio_context.get("consecutive_losses") is None:
+    # Missing or unverified account state is never proof of zero losses,
+    # zero exposure or zero holdings. Preserve the existing engine and
+    # block new entries until ALL account-dependent inputs are supplied.
+    required_account_inputs = (
+        "daily_pnl", "open_risk", "concurrent_positions",
+        "correlated_open_risk", "drawdown_pct", "consecutive_losses",
+    )
+    missing = [
+        name for name in required_account_inputs
+        if portfolio_context.get(name) is None
+    ]
+    if missing:
         return {
             "status": "RISK_INPUT_REQUIRED",
             "portfolio_allowed": False,
             "state": "UNKNOWN",
-            "required_inputs": ["consecutive_losses"],
-            "reasons": ["缺少連續停損實際紀錄，停止新進場（P0-R）"],
+            "required_inputs": missing,
+            "reasons": ["缺少真實帳戶損益、部位或風險紀錄，停止新進場（P0-R）"],
             "recommended_shares": 0,
             "risk_budget": 0.0,
             "remaining_daily_risk_budget": 0.0,
@@ -250,12 +259,12 @@ def evaluate_candidate(candidate, portfolio_context, policy=None):
         stop=candidate.get("stop"),
         target=candidate.get("target"),
         account_equity=portfolio_context.get("account_equity", 0),
-        daily_pnl=portfolio_context.get("daily_pnl", 0),
-        open_risk=portfolio_context.get("open_risk", 0),
-        concurrent_positions=portfolio_context.get("concurrent_positions", 0),
-        correlated_open_risk=portfolio_context.get("correlated_open_risk", 0),
-        drawdown_pct=portfolio_context.get("drawdown_pct", 0),
-        consecutive_losses=portfolio_context.get("consecutive_losses", 0),
+        daily_pnl=portfolio_context["daily_pnl"],
+        open_risk=portfolio_context["open_risk"],
+        concurrent_positions=portfolio_context["concurrent_positions"],
+        correlated_open_risk=portfolio_context["correlated_open_risk"],
+        drawdown_pct=portfolio_context["drawdown_pct"],
+        consecutive_losses=portfolio_context["consecutive_losses"],
         grade=candidate.get("grade"),
         policy=policy,
         execution_policy=portfolio_context.get("execution_policy"),
