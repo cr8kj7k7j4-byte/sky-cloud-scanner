@@ -1,10 +1,9 @@
 name: W0 Nov16-20 One-Time Historical Fugle Sample (Research Only)
+# W0 #363: retired after successful 2026-11-22 run #44975178358.
+# 10 sample files / 1,894 bars are already preserved in Artifact #14735556373.
+# Retain this file for historical provenance only; never request same paid range.
 on:
-  push:
-    branches:
-      - research/w0-weekly-evidence-audit-20261116-20
-    paths:
-      - 'research/requests/W0_HISTORY_20261116_20_REQUEST.json'
+  workflow_dispatch:
 permissions:
   contents: write
   actions: read
@@ -13,6 +12,9 @@ concurrency:
   cancel-in-progress: false
 jobs:
   sampled-history:
+    # W0 #363: strictly fail-closed even if manually dispatched.
+    # Only historical run/Artifact are valid for audit; no paid replay.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
