@@ -25,6 +25,38 @@ class AtomicClaimContractTests(unittest.TestCase):
         self.assertFalse(try_claim(self.ref, "b" * 40, fake_github_atomic_create))
         self.assertEqual(len(existing), 1)
 
+    def test_parallel_AB_race_one_winner_one_duplicate_zero_paid_calls(self):
+        # Two independent mock workflow runners race the SAME endpoint identity.
+        # The fake GitHub create-ref critical section is atomic; no network used.
+        from concurrent.futures import ThreadPoolExecutor
+        from threading import Barrier, Lock
+
+        barrier = Barrier(2)
+        lock = Lock()
+        refs = set()
+        paid_http_calls = []
+
+        def fake_github_create(ref, sha):
+            with lock:
+                if ref in refs:
+                    return {"status": 422, "existing": True}
+                refs.add(ref)
+                return {"status": 201, "ref": ref}
+
+        def competing_runner(sha):
+            barrier.wait(timeout=5)
+            allowed = try_claim(self.ref, sha, fake_github_create)
+            # No paid request is issued in either mocked branch.
+            return allowed
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            winner = pool.submit(competing_runner, "a" * 40)
+            loser = pool.submit(competing_runner, "b" * 40)
+            outcomes = [winner.result(timeout=6), loser.result(timeout=6)]
+        self.assertCountEqual(outcomes, [True, False])
+        self.assertEqual(len(refs), 1)
+        self.assertEqual(paid_http_calls, [])
+
     def test_identical_history_query_reuses_stable_ref_across_runs(self):
         from unittest.mock import patch
         from research.sky_fugle_atomic_ref_claim import guard_fugle_request
