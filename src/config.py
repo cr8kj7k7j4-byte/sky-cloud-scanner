@@ -33,7 +33,10 @@ OPEN_RISK = float(os.getenv("OPEN_RISK", "0"))
 CONCURRENT_POSITIONS = int(os.getenv("CONCURRENT_POSITIONS", "0"))
 CORRELATED_OPEN_RISK = float(os.getenv("CORRELATED_OPEN_RISK", "0"))
 ACCOUNT_DRAWDOWN_PCT = float(os.getenv("ACCOUNT_DRAWDOWN_PCT", "0"))
-CONSECUTIVE_LOSSES = int(os.getenv("CONSECUTIVE_LOSSES", "0"))
+# No observed loss history must not silently become a verified zero-loss state.
+# The candidate gate in risk_engine requires a non-None value.
+_raw_loss_streak = os.getenv("CONSECUTIVE_LOSSES", "").strip()
+CONSECUTIVE_LOSSES = int(_raw_loss_streak) if _raw_loss_streak else None
 
 # P0-A Alert & Monitoring state store
 MONITOR_STATE_BACKEND = os.getenv("MONITOR_STATE_BACKEND", "file").strip().lower()
