@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Iterable
 
 import requests
+from research.sky_fugle_atomic_ref_claim import guard_fugle_request
 
 BASE = "https://api.fugle.tw/marketdata/v1.0/stock"
 UA = "SkyCloudScanner-PITUniverse/1.0"
@@ -82,26 +83,22 @@ def _request_chunk(symbol, a, b, *, timeframe="5", request_get=requests.get, sle
         "fields": "open,high,low,close,volume,average",
         "sort": "asc",
     }
-    for attempt in range(MAX_429_RETRIES + 1):
-        r = request_get(url, params=params, headers=headers(), timeout=30)
-        if r.status_code == 404:
-            return []
-        if r.status_code == 403:
-            raise PermissionError(f"historical endpoint restricted for {symbol}")
-        if r.status_code == 429:
-            if attempt >= MAX_429_RETRIES:
-                r.raise_for_status()
-            retry_after = r.headers.get("Retry-After")
-            try:
-                wait = float(retry_after) if retry_after is not None else BACKOFF_SECONDS[attempt]
-            except (TypeError, ValueError):
-                wait = BACKOFF_SECONDS[attempt]
-            sleep_fn(max(wait, BACKOFF_SECONDS[attempt]))
-            continue
-        r.raise_for_status()
-        payload = r.json()
-        return payload.get("data", []) if isinstance(payload, dict) else []
-    return []
+    # W0 #363: fail closed unless the common atomic Git ref has been claimed.
+    # The canonical request identity includes symbol, timeframe and dates.
+    # Once claimed, never replay a paid call on HTTP 429.
+    if os.getenv("SKY_PAID_ATOMIC_ENFORCE") != "1":
+        raise RuntimeError("HISTORICAL_PAID_GUARD_REQUIRED")
+    guard_fugle_request(url, params)
+    r = request_get(url, params=params, headers=headers(), timeout=30)
+    if r.status_code == 404:
+        return []
+    if r.status_code == 403:
+        raise PermissionError(f"historical endpoint restricted for {symbol}")
+    if r.status_code == 429:
+        raise RuntimeError("FUGLE_RATE_LIMITED_NO_RETRY_UNDER_ATOMIC_CLAIM")
+    r.raise_for_status()
+    payload = r.json()
+    return payload.get("data", []) if isinstance(payload, dict) else []
 
 
 def download_symbol(
