@@ -31,7 +31,7 @@ permissions:
   contents: write # required for research-only atomic Git refs; no deploy or orders
   actions: read
 concurrency:
-  group: sky-fugle-paid-global-research-v1-live-wholemarket
+  group: ${{ github.event_name == 'pull_request' && format('sky-historical-qa-pr-{0}', github.event.pull_request.number) || 'sky-fugle-paid-global-research-v1-live-wholemarket' }}
   cancel-in-progress: false
 
 jobs:
