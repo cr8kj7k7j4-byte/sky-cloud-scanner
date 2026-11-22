@@ -17,6 +17,17 @@
 - **去重決策：** 這 10 檔既有資料優先保存／沿用，**禁止**由 #626 的 `w0-history-nov2026-one-shot.yml` 再次發送相同範圍的付費歷史請求。保留本 PR 研究報告與原始提交；一次性下載 Workflow 應列 `REJECT_DUPLICATE` 候選，在 #363/W0 四關治理後才處置。
 - 原下方「未取得」指的是**原調查所檢視的執行紀錄範圍內**未取得符合當日策略回溯條件的行情與事前訊號。新取得的 10 檔歷史資料可以支持樣本資料 QA，不能倒填 11/16～20 當時沒有保存的決策快照。五日績效、成本後期望值與完整研究級結論繼續 `INSUFFICIENT_DATA / HOLD`。
 
+## 後續正式讀回｜2026-11-22 原始 ZIP 獨立驗收
+
+> 此段為在初次研究報告及 10:16 初步補證**之後**取得的獨立驗收；前段「尚未解壓 ZIP」是當時真實查核狀態，不抹除或倒填為當時已驗證。完整執行紀錄見 [唯一總控 #363 驗收留言](https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/issues/363#issuecomment-7075406149)。
+
+- 已讀取原 [Actions run #44975178358](https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs/44975178358) **同次 Artifact #14735556373** 的原始 ZIP，ZIP SHA-256 `c0b06825a8ab47def2464ee7e1364b533dfa1ef592a1c827458b9be10389ebf4`。
+- ZIP 內 `weekly_5m_quality.json` SHA-256 `43c49bf94dcc788575e58247a89f0412344f2008e79e9af301c10e2decb8754d`；`download_summary.json` SHA-256 `f7946614c2d5eb74f9f91a143616acf95be3d8c41964233fe8c004db7693b75d`。
+- 10 檔 `history/<symbol>_5.json` 的原始檔案 SHA-256 **10／10** 與原品質 JSON 中各檔對應值一致；逐檔根數與逐日統計 **10／10** 一致。五日合計依序 `364／374／381／388／387`，共 **1,894 根**，離線結構驗證 **0 個違規**。
+- **合格範圍僅是取樣 ZIP 內容完整性、來源及時間資料的結構**，不是全上市上櫃 PIT、事前不可變交易訊號、實際成交、成本後績效或正期望認證；缺漏仍維持 `INSUFFICIENT_DATA／HOLD`。
+- 此類既有研究樣本已擁有可追溯原始 Artifact，**不可再次向 Fugle 發送相同範圍的付費歷史請求**。最新 main 已以 #647／#648 沿用既有原子 claim 防護；本 PR 舊下載器與新一次性 Workflow 不可整包合併，應以 `REJECT_DUPLICATE` 處理，只保留獨有報告及非重複 QA。
+- 原第⑥項「P0-R 真實券商資金、持倉與已實現損益接線」已由使用者從 #363 研究級工程結案條件取消；研究風險計算與資料不足時禁止交易的安全限制仍保留。
+
 ## 1. 可獨立核查的來源與方法
 
 1. GitHub Actions REST `GET /repos/cr8kj7k7j4-byte/sky-cloud-scanner/actions/runs?created=YYYY-MM-DD..YYYY-MM-DD`，針對 UTC 日期 11/16～11/20 分別核對；GitHub created 時區為 UTC，**UTC 每日總量不可當成台灣交易日完整掃描數**，並非全 repository 所有 Artifact 的完整原始資料下載。
