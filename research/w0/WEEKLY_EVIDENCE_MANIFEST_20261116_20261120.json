@@ -96,5 +96,49 @@
     "trade_count": null
   },
   "governance": "HOLD_NO_PRODUCTION_PROMOTION",
-  "note": "UTC-day run counts are not a complete local trading-day record. Do not impute signals or simulate trade ledger."
+  "note": "UTC-day run counts are not a complete local trading-day record. Do not impute signals or simulate trade ledger.",
+  "subsequent_sample_evidence": {
+    "source": "GitHub Actions executed sample, not contemporaneous strategy decision",
+    "run_id": 44975178358,
+    "run_event": "push",
+    "run_created_utc": "2026-11-22T02:14:48Z",
+    "run_head_sha": "0bebf486a827e69f62a1838aebb3e928e114c28f",
+    "run_conclusion": "success",
+    "artifact_id": 14735556373,
+    "artifact_name": "w0-history-nov16-20-sample-44975178358",
+    "artifact_exists": true,
+    "artifact_zip_hash_independently_verified": false,
+    "verification_basis": "GitHub run job logs, upload artifact metadata",
+    "exchange_sample": {
+      "twse": 5,
+      "tpex": 5
+    },
+    "total_symbols": 10,
+    "history_files": 10,
+    "total_five_minute_bars": 1894,
+    "per_symbol_bars_from_job_log": {
+      "1414": 126,
+      "3490": 269,
+      "3512": 45,
+      "3532": 243,
+      "3594": 234,
+      "3605": 263,
+      "6151": 124,
+      "6467": 260,
+      "6872": 80,
+      "7769": 250
+    },
+    "validation_pass": true,
+    "quality_status": "STRUCTURE_PASS_NOT_STRATEGY_VERIFIED",
+    "bar_structure_pass_symbols": 10,
+    "point_in_time_verified": false,
+    "all_market_verified": false,
+    "contemporaneous_strategy_signals_verified": false,
+    "historical_fill_verified": false,
+    "replay_or_backtest_executed": false,
+    "production_eligible": false,
+    "reuse_existing_evidence_only": true,
+    "repeat_paid_download_for_same_scope_allowed": false,
+    "observation": "Sample-only ex-post data QA; historical evidence inventory remains a faithful as-of record; no signal or PnL imputation"
+  }
 }
