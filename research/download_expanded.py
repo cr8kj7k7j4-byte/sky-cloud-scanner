@@ -9,8 +9,6 @@ from research.sky_fugle_atomic_ref_claim import guard_fugle_request
 BASE = "https://api.fugle.tw/marketdata/v1.0/stock"
 UA = "SkyCloudScanner-ExpandedResearch/0.5"
 MIN_INTERVAL = 1.25
-MAX_429_RETRIES = 5
-BACKOFF_SECONDS = (5, 10, 20, 40, 60)
 
 def headers():
     key = os.getenv("FUGLE_API_KEY", "").strip()
@@ -40,27 +38,25 @@ def _request_chunk(symbol, a, b, *, request_get=requests.get, sleep_fn=time.slee
     if os.getenv("SKY_PAID_ATOMIC_ENFORCE") != "1":
         raise RuntimeError("HISTORICAL_PAID_GUARD_REQUIRED")
     guard_fugle_request(url, params)
-    for attempt in range(MAX_429_RETRIES + 1):
-        r = request_get(url, params=params, headers=headers(), timeout=30)
+    r = request_get(url, params=params, headers=headers(), timeout=30)
 
-        # A 404 for an older historical chunk can mean the symbol was not yet
-        # listed / no bars exist for that interval. It should not invalidate
-        # the entire symbol export; continue with later chunks.
-        if r.status_code == 404:
-            return []
+    # A 404 for an older historical chunk can mean the symbol was not yet
+    # listed / no bars exist for that interval. It should not invalidate
+    # the entire symbol export; continue with later chunks.
+    if r.status_code == 404:
+        return []
 
-        if r.status_code == 403:
-            raise PermissionError(f"historical endpoint restricted for {symbol}")
+    if r.status_code == 403:
+        raise PermissionError(f"historical endpoint restricted for {symbol}")
 
-        if r.status_code == 429:
-            # A claimed paid endpoint must not be sent a second time.
-            raise RuntimeError("FUGLE_RATE_LIMITED_NO_RETRY_UNDER_ATOMIC_CLAIM")
+    if r.status_code == 429:
+        # A claimed paid endpoint must not be sent a second time.
+        raise RuntimeError("FUGLE_RATE_LIMITED_NO_RETRY_UNDER_ATOMIC_CLAIM")
 
-        r.raise_for_status()
-        payload = r.json()
-        return payload.get("data", []) if isinstance(payload, dict) else []
+    r.raise_for_status()
+    payload = r.json()
+    return payload.get("data", []) if isinstance(payload, dict) else []
 
-    return []
 
 
 def get_hist(symbol, start, end, *, request_get=requests.get, sleep_fn=time.sleep):
