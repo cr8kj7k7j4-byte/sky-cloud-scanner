@@ -19,11 +19,8 @@ on:
         description: "Forward 5m bars; 12=60 minutes"
         required: true
         default: "12"
-  push:
-    branches:
-      - main
-    paths:
-      - ".github/workflows/ml-pilot-train.yml"
+  # W0 #363: paid historical training must never auto-run on source pushes.
+  # Research requires explicit W0-governed manual dispatch only.
 
 permissions:
   contents: write
@@ -66,7 +63,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           SKY_PAID_ATOMIC_ENFORCE: '1'
         run: |
-          python research/download_intraday.py \
+          python -m research.download_intraday \
             --symbols "$SYMBOLS" \
             --from-date "$FROM_DATE" \
             --to-date "$TO_DATE" \

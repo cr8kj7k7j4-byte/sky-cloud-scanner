@@ -30,7 +30,7 @@ jobs:
         run: pip install requests pandas
       - name: Download full governed TAIEX IX0001 5m benchmark
         run: |
-          python research/download_taiex_benchmark.py \
+          python -m research.download_taiex_benchmark \
             --from-date 2023-05-23 \
             --to-date 2026-10-22 \
             --out-dir research_output/taiex_benchmark

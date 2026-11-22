@@ -83,3 +83,29 @@ class PaidLegacyGuardContract(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "DUPLICATE_PAID_FUGLE_ENDPOINT_BLOCKED"):
                 taiex.download_taiex("2026-11-16", "2026-11-20", request_get=get)
             get.assert_not_called()
+
+
+class PaidWorkflowEntrypointContracts(unittest.TestCase):
+    """No additional workflow or paid calls; only inspect existing YAML."""
+    def test_ml_training_is_manual_only(self):
+        from pathlib import Path
+        text = Path(".github/workflows/ml-pilot-train.yml").read_text(encoding="utf-8")
+        header = text.split("permissions:", 1)[0]
+        self.assertIn("  workflow_dispatch:", header)
+        self.assertNotIn("  push:", header)
+        self.assertNotIn("  schedule:", header)
+
+    def test_paid_downloads_use_package_module_entrypoints(self):
+        from pathlib import Path
+        pairs = {
+            "backtest-v05.yml": "download_intraday",
+            "ml-pilot-train.yml": "download_intraday",
+            "w3a-fugle-pit-coverage-probe.yml": "probe_fugle_pit_intraday_coverage",
+            "w3a-taiex-benchmark-audit.yml": "download_taiex_benchmark",
+        }
+        for filename, module in pairs.items():
+            with self.subTest(filename=filename):
+                text = (Path(".github/workflows") / filename).read_text(encoding="utf-8")
+                self.assertIn("python -m research." + module, text)
+                self.assertNotIn("python research/" + module + ".py", text)
+                self.assertIn("SKY_PAID_ATOMIC_ENFORCE: '1'", text)

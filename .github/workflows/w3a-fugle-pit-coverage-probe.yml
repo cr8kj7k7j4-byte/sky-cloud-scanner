@@ -32,7 +32,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           SKY_PAID_ATOMIC_ENFORCE: '1'
         run: |
-          python research/probe_fugle_pit_intraday_coverage.py \
+          python -m research.probe_fugle_pit_intraday_coverage \
             --pit-snapshot research_output_pit/official_universe_snapshot.json \
             --as-of 2026-09-30 \
             --audit-dates "2023-12-31,2024-12-31,2025-12-31,2026-09-30" \
