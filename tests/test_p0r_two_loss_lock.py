@@ -48,5 +48,34 @@ class TwoLossEntryLockTests(unittest.TestCase):
         self.assertEqual(result["status"], "BLOCK")
 
 
+    def test_each_unknown_account_field_blocks_new_entries(self):
+        candidate = {"entry": 50, "stop": 49, "target": 54, "grade": "A+"}
+        complete = {"account_equity": 500000, "daily_pnl": 0,
+                    "open_risk": 0, "concurrent_positions": 0,
+                    "correlated_open_risk": 0, "drawdown_pct": 0,
+                    "consecutive_losses": 0}
+        for field in ("daily_pnl", "open_risk", "concurrent_positions",
+                      "correlated_open_risk", "drawdown_pct", "consecutive_losses"):
+            with self.subTest(missing=field):
+                missing = dict(complete)
+                missing.pop(field)
+                result = evaluate_candidate(candidate, missing)
+                self.assertEqual(result["status"], "RISK_INPUT_REQUIRED")
+                self.assertEqual(result["state"], "UNKNOWN")
+                self.assertFalse(result["portfolio_allowed"])
+                self.assertEqual(result["recommended_shares"], 0)
+                self.assertIn(field, result["required_inputs"])
+
+    def test_complete_explicit_account_zero_inputs_are_not_missing(self):
+        candidate = {"entry": 50, "stop": 49, "target": 54, "grade": "A+"}
+        complete = {"account_equity": 500000, "daily_pnl": 0,
+                    "open_risk": 0, "concurrent_positions": 0,
+                    "correlated_open_risk": 0, "drawdown_pct": 0,
+                    "consecutive_losses": 0}
+        result = evaluate_candidate(candidate, complete)
+        self.assertNotEqual(result["status"], "RISK_INPUT_REQUIRED")
+        self.assertEqual(result["required_inputs"], [])
+
+
 if __name__ == "__main__":
     unittest.main()
