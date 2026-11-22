@@ -15,7 +15,7 @@ from urllib.parse import parse_qsl, urlsplit
 
 SAFE_ENDPOINT = re.compile(r"^/(?:marketdata/v1\.0/stock/)?(snapshot/quotes/(?:TSE|OTC)|intraday/(?:quote|candles|ticker)/[0-9A-Za-z]+|intraday/tickers|historical/candles/[0-9A-Za-z]+)$")
 SAFE_SYMBOL = re.compile(r"^[0-9A-Za-z]{2,10}$")
-ALLOWED_PARAMETERS = frozenset({"from", "to", "timeframe", "type", "limit", "sort", "offset", "market", "fields"})
+ALLOWED_PARAMETERS = frozenset({"from", "to", "timeframe", "type", "limit", "sort", "offset", "market", "fields", "isNormal"})
 
 
 def canonical_fugle_request(method: str, url: str, *, parameters: dict | None = None) -> str:
@@ -59,6 +59,12 @@ def canonical_fugle_request(method: str, url: str, *, parameters: dict | None = 
         if k in values and values[k] != v:
             raise ValueError("CONFLICTING_PARAMETER")
         values[k] = v
+    # Fugle intraday/tickers supports isNormal=true|false only. Keep the
+    # paid-request identity strict for all other routes and parameter values.
+    if "isNormal" in values:
+        endpoint = parsed.path.removeprefix("/marketdata/v1.0/stock/").lstrip("/")
+        if endpoint != "intraday/tickers" or values["isNormal"] not in ("true", "false"):
+            raise ValueError("INVALID_PARAMETER")
     if "from" in values and "to" in values and values["from"] > values["to"]:
         raise ValueError("INVALID_DATE_RANGE")
     identity = {"provider": "fugle", "method": "GET",
