@@ -43,5 +43,6 @@ jobs:
           name: backtest-daily-brk20
           path: |
             research/backtest_daily/results.json
+            research/backtest_daily/results_report.md
             research/backtest_daily/data/daily/universe.txt
           if-no-files-found: warn

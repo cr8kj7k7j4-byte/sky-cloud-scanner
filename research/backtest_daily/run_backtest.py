@@ -101,6 +101,59 @@ def promotion_check(summaries_primary: dict, summaries_stress: dict) -> dict:
             "PASS_RESEARCH": verdict}
 
 
+CHECK_LABELS_ZH = {
+    "n_validation_ge_100": "驗證期交易筆數至少 100 筆",
+    "n_research_test_ge_100": "2026 研究測試期交易筆數至少 100 筆",
+    "expectancy_primary_validation_gt_0": "驗證期扣成本後平均每筆報酬為正（主要成本 0.45%）",
+    "expectancy_primary_research_test_gt_0": "2026 研究測試期扣成本後平均每筆報酬為正（主要成本 0.45%）",
+    "pf_primary_validation_ge_1_2": "驗證期獲利因子至少 1.2（主要成本）",
+    "pf_primary_research_test_ge_1_2": "2026 研究測試期獲利因子至少 1.2（主要成本）",
+    "expectancy_stress_validation_gt_0": "驗證期在壓力成本 0.65% 下仍為正",
+    "month_concentration_check": "單一月份獲利集中度檢查（本版尚未實作）",
+}
+
+
+def _pct(x):
+    return "—" if x is None else f"{x * 100:.2f}%"
+
+
+def _num(x):
+    return "—" if x is None else f"{x:.2f}"
+
+
+def build_report_zh(result: dict) -> str:
+    names = {"train": "訓練期（2025 上半年）",
+             "validation": "驗證期（2025 下半年）",
+             "research_test_2026": "2026 研究測試期（1/1～10/22，非全新樣本外）"}
+    lines = ["# 日K 隔日策略回測結果（BRK20）", "",
+             "**本報告只用來檢驗預先定好的規則，不是投資建議。**", "",
+             "## 一、結論",
+             f"- 判定：**{result['promotion']['PASS_RESEARCH']}**",
+             "- 「PASS」代表通過研究門檻，還不能直接實單交易，之後仍要做全新樣本外與小額實測。",
+             "- 若判定為 FAIL，代表規則在扣成本後沒有達到門檻，系統不會因此改規則。", ""]
+    for label, key in (("主要成本（來回 0.45%）", "primary_cost"),
+                       ("壓力成本（來回 0.65%）", "stress_cost")):
+        lines += [f"## {'二' if key == 'primary_cost' else '三'}、{label}", "",
+                  "| 期間 | 交易筆數 | 扣成本後平均每筆報酬 | 獲利因子 | 勝率 | 最大回撤（累計報酬） |",
+                  "|---|---|---|---|---|---|"]
+        for split in ("train", "validation", "research_test_2026"):
+            s = result[key][split]
+            lines.append(f"| {names[split]} | {s['n']} | {_pct(s['expectancy'])} | "
+                         f"{_num(s['profit_factor'])} | {_pct(s['win_rate'])} | {_pct(s['max_drawdown'])} |")
+        lines.append("")
+    lines += ["## 四、各項檢查", "", "| 檢查項目 | 結果 |", "|---|---|"]
+    for k, v in result["promotion"]["checks"].items():
+        mark = "通過" if v is True else ("未通過" if v is False else "尚未實作")
+        lines.append(f"| {CHECK_LABELS_ZH.get(k, k)} | {mark} |")
+    lines += ["", "## 五、尚未完成、因此不能下結論的部分",
+              "- 走查驗證（至少 3 個時段）尚未做。",
+              "- 市場狀態（多頭、盤整、空頭）尚未分析，因為沒有加權指數資料。",
+              "- 規則拆解測試尚未做，只測了一組規則。",
+              "- 同時持倉與組合風險上限尚未實作，目前只是逐筆模擬。",
+              "- 尚無真正的全新樣本外資料，2026 年資料已被先前研究使用過。", ""]
+    return "\n".join(lines)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--data-dir", required=True)
@@ -120,7 +173,10 @@ def main():
     }
     with open(args.out, "w", encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
-    print(json.dumps(result["promotion"], ensure_ascii=False, indent=2))
+    report_path = os.path.splitext(args.out)[0] + "_report.md"
+    with open(report_path, "w", encoding="utf-8") as f:
+        f.write(build_report_zh(result))
+    print(f"判定：{result['promotion']['PASS_RESEARCH']}；中文報告：{report_path}")
 
 
 if __name__ == "__main__":
