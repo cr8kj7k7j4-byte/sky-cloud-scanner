@@ -25,7 +25,7 @@ on:
         default: "0.45"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   pilot-backtest:
@@ -50,6 +50,8 @@ jobs:
       - name: Download Fugle historical 5m data
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          SKY_PAID_ATOMIC_ENFORCE: '1'
         run: |
           python research/download_intraday.py \
             --symbols "${{ inputs.symbols }}" \

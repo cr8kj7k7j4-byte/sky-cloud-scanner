@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   probe:
@@ -29,6 +29,8 @@ jobs:
       - name: Probe Fugle historical 5m coverage
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          SKY_PAID_ATOMIC_ENFORCE: '1'
         run: |
           python research/probe_fugle_pit_intraday_coverage.py \
             --pit-snapshot research_output_pit/official_universe_snapshot.json \

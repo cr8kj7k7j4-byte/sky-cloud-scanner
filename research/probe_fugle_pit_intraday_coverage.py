@@ -10,6 +10,8 @@ from pathlib import Path
 
 import requests
 
+from research.sky_fugle_atomic_ref_claim import guard_fugle_request
+
 BASE = "https://api.fugle.tw/marketdata/v1.0/stock"
 UA = "Sky-W3A-PIT-Coverage-Probe/1.0"
 
@@ -148,35 +150,27 @@ def request_one(symbol: str, start: str, end: str, *, max_retries: int = 6):
         "fields": "open,high,low,close,volume,average",
         "sort": "asc",
     }
-    backoff = [5, 10, 20, 30, 45, 60]
-    for attempt in range(max_retries + 1):
-        r = requests.get(url, params=params, headers=headers(), timeout=30)
-        if r.status_code == 404:
-            return {"status": "NO_DATA_404", "bars": 0, "attempts": attempt + 1}
-        if r.status_code == 403:
-            return {"status": "PLAN_RESTRICTED_403", "bars": 0, "attempts": attempt + 1}
-        if r.status_code == 429:
-            if attempt >= max_retries:
-                return {"status": "RATE_LIMIT_429_EXHAUSTED", "bars": 0, "attempts": attempt + 1}
-            retry_after = r.headers.get("Retry-After")
-            try:
-                wait = float(retry_after) if retry_after is not None else backoff[attempt]
-            except (TypeError, ValueError):
-                wait = backoff[attempt]
-            time.sleep(max(wait, backoff[attempt]))
-            continue
-        r.raise_for_status()
-        payload = r.json()
-        rows = payload.get("data", []) if isinstance(payload, dict) else []
-        return {
-            "status": "OK" if rows else "EMPTY",
-            "bars": len(rows),
-            "attempts": attempt + 1,
-            "first_bar": rows[0].get("date") if rows else None,
-            "last_bar": rows[-1].get("date") if rows else None,
-        }
-    return {"status": "UNKNOWN", "bars": 0, "attempts": max_retries + 1}
-
+    # Immutable historical claims permit one HTTP attempt; no 429 retry.
+    if os.getenv("SKY_PAID_ATOMIC_ENFORCE") != "1":
+        raise RuntimeError("HISTORICAL_PAID_GUARD_REQUIRED")
+    guard_fugle_request(url, params)
+    r = requests.get(url, params=params, headers=headers(), timeout=30)
+    if r.status_code == 404:
+        return {"status": "NO_DATA_404", "bars": 0, "attempts": 1}
+    if r.status_code == 403:
+        return {"status": "PLAN_RESTRICTED_403", "bars": 0, "attempts": 1}
+    if r.status_code == 429:
+        return {"status": "RATE_LIMIT_429_EXHAUSTED", "bars": 0, "attempts": 1}
+    r.raise_for_status()
+    payload = r.json()
+    rows = payload.get("data", []) if isinstance(payload, dict) else []
+    return {
+        "status": "OK" if rows else "EMPTY",
+        "bars": len(rows),
+        "attempts": 1,
+        "first_bar": rows[0].get("date") if rows else None,
+        "last_bar": rows[-1].get("date") if rows else None,
+    }
 
 def main():
     ap = argparse.ArgumentParser()

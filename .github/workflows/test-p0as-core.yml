@@ -38,4 +38,5 @@ jobs:
             tests/test_history_paid_atomic_gate.py \
             tests/test_sky_fugle_atomic_ref_claim.py \
             tests/test_evidence_cadence_checks.py \
-            tests/test_weekly_history_5m.py
+            tests/test_weekly_history_5m.py \
+            tests/test_research_paid_entrypoints_atomic.py

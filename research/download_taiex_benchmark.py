@@ -10,6 +10,8 @@ from pathlib import Path
 import pandas as pd
 import requests
 
+from research.sky_fugle_atomic_ref_claim import guard_fugle_request
+
 BASE="https://api.fugle.tw/marketdata/v1.0/stock"
 TAIEX_SYMBOL="IX0001"
 MIN_INTERVAL=1.10
@@ -41,7 +43,12 @@ def download_taiex(from_date: str,to_date: str,request_get=requests.get,sleep_fn
             "fields":"open,high,low,close,volume,average","sort":"asc",
         }
         t0=time.time()
+        if os.getenv('SKY_PAID_ATOMIC_ENFORCE') != '1':
+            raise RuntimeError('HISTORICAL_PAID_GUARD_REQUIRED')
+        guard_fugle_request(url, params)
         r=request_get(url,params=params,headers=_headers(),timeout=30)
+        if r.status_code==429:
+            raise RuntimeError('FUGLE_RATE_LIMITED_NO_RETRY_UNDER_ATOMIC_CLAIM')
         if r.status_code==404:
             data=[]
         else:
