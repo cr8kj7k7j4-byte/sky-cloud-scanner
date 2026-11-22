@@ -217,3 +217,19 @@ Supporting path：
    - 使用者 1R / max position 必須指定
    - 關鍵外部資料完全不可取得
    - ChatGPT UI 必須由使用者手動建立 / 切換視窗
+
+
+## 2026-11-22 W0 Single-Writer / No-Duplicate Directive (supersedes conflicting legacy text)
+
+**Canonical execution authority:** GitHub Issue [#363](https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/issues/363), latest `main`, open PR list, exact-SHA CI and immutable Artifacts. ChatGPT conversation windows are interfaces, not independent repair agents. **No system-level feature exists here to remotely disable other ChatGPT conversations**; every actor must respect repository rules.
+
+1. **W0 is the sole coordination owner** for repairs, schedule changes, branch cleanup and acceptance. W1–W7 can submit evidence and discrete work only with a #363 task reference and an assigned owner/path. Check current main and open PR *immediately before every write and merge*. A newer merged equivalent makes the older work `REJECT_DUPLICATE` (close redundant PR without cherry-picking or deleting its branch).
+2. **One problem → one task ID → one owner → one change set → one exact-SHA CI → one result Artifact.** A second implementation of the same behavior is forbidden unless the existing PR cannot safely be reused and W0 records the reason. Never merge whole legacy branches or delete research artifacts to make the queue look clean.
+3. **No duplicate execution:** existing `.github/workflows/scan.yml` is the *only* scheduled official five-slot intraday scan (09:05/09:15/09:30/09:50/10:15 Asia/Taipei). Paid five-minute full-market dispatch stays unscheduled. Research five-minute *evidence checks* are not five new paid scans. Do not add ChatGPT scheduled jobs instead of GitHub Actions.
+4. **CI technical gate:** existing required `governance-e2e` runs `scripts/sky_workflow_dedup_audit.py` and uploads the full Workflow inventory. It blocks altered canonical cron, another scheduled `src.main` scanner, and an enabled paid full-market five-minute dispatch. Shared crons for unrelated tasks and paid workflows lacking explicit guard markers are **review flags**, not automatic deletion proof. This is a bounded static gate, not a guarantee against every semantic duplicate or live paid race.
+5. **Preservation & deletion:** classify same-function implementations by semantic equivalence, real main diff, external/workflow references, immutable evidence and owner review. Preserve valuable distinct features; only archive/delete after four-gate evidence, no automatic branch deletion. Former Shadow/Paper/simulated ledgers are permanently retired and must not be reintroduced.
+6. **Research & Production:** unchanged formal baselines. Do not treat successful offline tests as real scans, verified historical trades, portfolio truth, paid provider concurrency evidence or authorization to promote Production. Fail-closed for missing evidence; no auto orders.
+7. **Work ownership:** W0 governance and coordination, W3A data/source, W3B workflow/runtime/bridge, W6 costs and risk inputs, W1 Swing, W2 intraday research, W4 prospective evidence, W5 candidate intake, W7 vendor/global method assessment. File ownership conflict → **HOLD** and record both competing PRs in #363 before further writes.
+8. **Completion:** record original vs consolidated function, retained advantage, rejected duplicate/defect, commit, CI, Workflow/Artifact result, operational proof and user action. Close a task only when the required evidence gate passes; do not confuse issue closure with system acceptance.
+
+**Legacy notes elsewhere in this file mentioning Shadow/Paper jobs are historical.** They do not authorize resurrecting retired simulated ledger paths or relying on retired schedules.
