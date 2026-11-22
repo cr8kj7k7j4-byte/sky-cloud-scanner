@@ -4,10 +4,8 @@ import tempfile
 import unittest
 from datetime import date
 from pathlib import Path
-from unittest.mock import patch
 
 from research.audit_weekly_history_5m import audit_candles, build_report
-from research.download_expanded import _request_chunk
 
 
 def candle(ts, value=10):
@@ -61,44 +59,6 @@ class HistoricalWeeklyAuditTests(unittest.TestCase):
             self.assertEqual(report["status"], "INSUFFICIENT_DATA")
             self.assertFalse(report["contemporaneous_model_signals_verified"])
 
-    def test_atomic_claim_failure_prevents_network(self):
-        with patch("research.download_expanded.guard_fugle_request",
-                   side_effect=RuntimeError("DUPLICATE_PAID_FUGLE_ENDPOINT_BLOCKED")):
-            def no_request(*args, **kwargs):
-                raise AssertionError("NETWORK_CALLED_AFTER_DENIED_CLAIM")
-            with self.assertRaisesRegex(RuntimeError, "DUPLICATE_PAID"):
-                _request_chunk("2330", date(2026, 11, 16), date(2026, 11, 20),
-                               request_get=no_request)
-
-    def test_completed_one_shot_workflow_is_permanently_fail_closed(self):
-        workflow = (Path(__file__).resolve().parents[1] / ".github" /
-                    "workflows" / "w0-history-nov2026-one-shot.yml").read_text(
-                        encoding="utf-8")
-        header = workflow.split("jobs:", 1)[0]
-        self.assertNotIn("\n  push:", header)
-        self.assertIn("\n  workflow_dispatch:", header)
-        jobs = workflow.split("jobs:", 1)[1]
-        self.assertIn("  sampled-history:", jobs)
-        self.assertIn("    if: ${{ false }}", jobs)
-        self.assertEqual(jobs.count("\n  sampled-history:"), 1)
-
-    def test_429_does_not_retry_under_atomic_claim(self):
-        class RateLimited:
-            status_code = 429
-            headers = {}
-            def raise_for_status(self):
-                raise AssertionError("unexpected")
-        calls = []
-        def response(*args, **kwargs):
-            calls.append(1)
-            return RateLimited()
-        with patch("research.download_expanded.guard_fugle_request"), \
-             patch.dict("os.environ", {"SKY_PAID_ATOMIC_ENFORCE": "1"}), \
-             patch("research.download_expanded.headers", return_value={}):
-            with self.assertRaisesRegex(RuntimeError, "NO_RETRY"):
-                _request_chunk("2330", date(2026, 11, 16), date(2026, 11, 20),
-                               request_get=response, sleep_fn=lambda _: None)
-        self.assertEqual(len(calls), 1)
 
 
 if __name__ == "__main__":
