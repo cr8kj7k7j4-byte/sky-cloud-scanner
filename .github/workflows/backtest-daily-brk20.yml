@@ -1,0 +1,48 @@
+name: backtest-daily-brk20
+
+# Manual only. No schedule. Research-only: produces results.json and never places orders.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backtest-daily-brk20
+  cancel-in-progress: false
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    defaults:
+      run:
+        working-directory: research/backtest_daily
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Offline unit tests (no network, no key)
+        run: python -m unittest tests.test_engine tests.test_pipeline -v
+
+      - name: Fetch daily bars from Fugle (historical candles)
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+        run: python fetch_fugle_daily.py --out data/daily
+
+      - name: Run pre-registered BRK20 backtest
+        run: python run_backtest.py --data-dir data/daily --out results.json
+
+      - name: Upload results and data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backtest-daily-brk20
+          path: |
+            research/backtest_daily/results.json
+            research/backtest_daily/results_report.md
+            research/backtest_daily/data/daily/universe.txt
+          if-no-files-found: warn
