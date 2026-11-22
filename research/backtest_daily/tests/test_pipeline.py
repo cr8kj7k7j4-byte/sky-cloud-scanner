@@ -162,6 +162,70 @@ class FetchHelperTests(unittest.TestCase):
         self.assertEqual(http.call_count, 1)
         self.assertEqual(len(responses), 1)
 
+    def test_universe_missing_enforcement_blocks_first_market_http(self):
+        from unittest import mock
+        with mock.patch.dict(os.environ, {"SKY_PAID_ATOMIC_ENFORCE": ""}), \
+             mock.patch.object(fetch_fugle_daily, "guard_fugle_request") as claim, \
+             mock.patch.object(fetch_fugle_daily.urllib.request, "urlopen") as network:
+            with self.assertRaisesRegex(RuntimeError, "HISTORICAL_PAID_GUARD_REQUIRED"):
+                fetch_fugle_daily.list_universe("fake-key")
+            claim.assert_not_called()
+            network.assert_not_called()
+
+    def test_universe_duplicate_claim_blocks_first_market_http(self):
+        from unittest import mock
+        with mock.patch.dict(os.environ, {"SKY_PAID_ATOMIC_ENFORCE": "1"}), \
+             mock.patch.object(fetch_fugle_daily, "guard_fugle_request",
+                               side_effect=RuntimeError("DUPLICATE_PAID_FUGLE_ENDPOINT_BLOCKED")) as claim, \
+             mock.patch.object(fetch_fugle_daily.urllib.request, "urlopen") as network:
+            with self.assertRaisesRegex(RuntimeError, "DUPLICATE_PAID_FUGLE_ENDPOINT_BLOCKED"):
+                fetch_fugle_daily.list_universe("fake-key")
+            claim.assert_called_once()
+            network.assert_not_called()
+
+    def test_universe_separate_tse_otc_claims_before_mock_http(self):
+        from unittest import mock
+        import json
+
+        class Response:
+            def __init__(self, symbol):
+                self.symbol = symbol
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def read(self):
+                payload = {"data": [{"symbol": self.symbol, "type": "EQUITY"}]}
+                return json.dumps(payload).encode("utf-8")
+
+        claimed = []
+        requested = []
+
+        def claim(url):
+            claimed.append(url)
+
+        def fake_urlopen(req, timeout=30):
+            requested.append(req.full_url)
+            self.assertIn(req.full_url, claimed)
+            return Response("2330" if "market=TSE" in req.full_url else "6488")
+
+        with mock.patch.dict(os.environ, {"SKY_PAID_ATOMIC_ENFORCE": "1"}), \
+             mock.patch.object(fetch_fugle_daily, "guard_fugle_request",
+                               side_effect=claim), \
+             mock.patch.object(fetch_fugle_daily.urllib.request, "urlopen",
+                               side_effect=fake_urlopen) as network, \
+             mock.patch.object(fetch_fugle_daily.time, "sleep") as sleep:
+            symbols = fetch_fugle_daily.list_universe("fake-key")
+        self.assertEqual(symbols, ["2330", "6488"])
+        self.assertEqual(network.call_count, 2)
+        self.assertEqual(len(claimed), 2)
+        self.assertEqual(set(claimed), set(requested))
+        self.assertNotEqual(claimed[0], claimed[1])
+        self.assertEqual(sleep.call_count, 2)
+
     def test_chunks_are_under_one_year(self):
         from datetime import date
         for s, e in fetch_fugle_daily.CHUNKS:
