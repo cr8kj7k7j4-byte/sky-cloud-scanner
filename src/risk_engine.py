@@ -134,6 +134,11 @@ def evaluate_trade(
     if reward <= 0:
         reasons.append("Long 模式 Target 必須高於 Entry")
 
+    # P0-R hard stop: two consecutive stopped-out trades end new entries for the day.
+    # Do not treat CAUTION/DEFENSIVE position sizing as an override.
+    # Missing or stale portfolio inputs must be handled by the caller separately.
+    if int(consecutive_losses or 0) >= 2:
+        reasons.append("連續兩筆停損，停止新進場（P0-R）")
     if state == "LOCKDOWN":
         reasons.append("回撤達 LOCKDOWN 門檻，禁止新開倉")
     if state == "DEFENSIVE" and grade not in (None, "A+"):
