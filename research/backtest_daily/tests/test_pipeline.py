@@ -147,8 +147,8 @@ class FetchHelperTests(unittest.TestCase):
                "GITHUB_REPOSITORY": "example/sky",
                "GH_TOKEN": "mock-token",
                "GITHUB_SHA": "a" * 40}
-        with mock.patch.dict(os.environ, env), \\
-             mock.patch.object(atomic, "github_create_ref", side_effect=fake_github_create_ref), \\
+        with mock.patch.dict(os.environ, env), \
+             mock.patch.object(atomic, "github_create_ref", side_effect=fake_github_create_ref), \
              mock.patch.object(fetch_fugle_daily.urllib.request, "urlopen",
                                side_effect=mock_urlopen) as http:
             with ThreadPoolExecutor(max_workers=2) as pool:
