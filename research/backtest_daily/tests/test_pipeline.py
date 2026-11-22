@@ -56,6 +56,17 @@ class FetchHelperTests(unittest.TestCase):
             d1 = date.fromisoformat(e)
             self.assertLess((d1 - d0).days, 366)
 
+    def test_universe_keeps_ordinary_stocks_only(self):
+        payload = {"data": [
+            {"symbol": "2330", "type": "EQUITY"},
+            {"symbol": "0050", "type": "EQUITY"},     # ETF, excluded
+            {"symbol": "00878", "type": "EQUITY"},    # ETF, excluded
+            {"symbol": "2330A", "type": "EQUITY"},    # not 4 digits, excluded
+            {"symbol": "1101", "type": "INDEX"},      # wrong type, excluded
+            {"symbol": "6488", "type": "EQUITY"},
+        ]}
+        self.assertEqual(fetch_fugle_daily.parse_universe(payload), ["2330", "6488"])
+
     def test_skips_incomplete_rows_without_fabricating(self):
         rows = fetch_fugle_daily.to_rows([
             {"date": "2025-01-02T00:00:00", "open": None, "high": 1, "low": 1, "close": None, "volume": 0},

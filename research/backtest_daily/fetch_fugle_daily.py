@@ -62,6 +62,35 @@ def fetch_chunk(symbol: str, start: str, end: str, api_key: str) -> list[dict]:
     return []
 
 
+TICKERS_URL = "https://api.fugle.tw/marketdata/v1.0/stock/intraday/tickers"
+
+
+def parse_universe(payload: dict) -> list[str]:
+    """Keep ordinary 4-digit common stocks. Excludes ETFs (00xx), warrants and odd lots."""
+    out = []
+    for item in payload.get("data", []):
+        sym = str(item.get("symbol", ""))
+        if item.get("type", "EQUITY") != "EQUITY":
+            continue
+        if len(sym) == 4 and sym.isdigit() and not sym.startswith("00"):
+            out.append(sym)
+    return sorted(set(out))
+
+
+def list_universe(api_key: str) -> list[str]:
+    """Normal (non-attention, non-disposition) listed and OTC common stocks."""
+    symbols: list[str] = []
+    for market in ("TSE", "OTC"):
+        q = urllib.parse.urlencode({"type": "EQUITY", "market": market, "isNormal": "true"})
+        req = urllib.request.Request(f"{TICKERS_URL}?{q}",
+                                     headers={"X-API-KEY": api_key, "Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+        symbols.extend(parse_universe(payload))
+        time.sleep(MIN_INTERVAL_S)
+    return sorted(set(symbols))
+
+
 def to_rows(data: list[dict]) -> list[dict]:
     rows = []
     for d in data:
@@ -74,7 +103,7 @@ def to_rows(data: list[dict]) -> list[dict]:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--symbols", required=True, help="text file, one symbol per line")
+    ap.add_argument("--symbols", default="", help="optional text file; default = full normal universe")
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
 
@@ -83,8 +112,14 @@ def main():
         raise SystemExit("FUGLE_API_KEY is not set")
 
     os.makedirs(args.out, exist_ok=True)
-    with open(args.symbols, encoding="utf-8") as f:
-        symbols = [s.strip() for s in f if s.strip()]
+    if args.symbols:
+        with open(args.symbols, encoding="utf-8") as f:
+            symbols = [s.strip() for s in f if s.strip()]
+    else:
+        symbols = list_universe(api_key)
+        with open(os.path.join(args.out, "universe.txt"), "w", encoding="utf-8") as f:
+            f.write("\n".join(symbols) + "\n")
+    print(f"universe size: {len(symbols)}")
 
     for sym in symbols:
         seen = {}
