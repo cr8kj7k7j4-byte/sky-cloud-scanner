@@ -2,12 +2,8 @@ name: Sky P0-OPS Market Data Permission Preflight
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/p0ops-provider-preflight.yml"
-      - "research/p0ops_provider_capability.py"
-      - "tests/test_p0ops_provider_capability.py"
+  # W0 #363: P0Ops Fugle entitlement probe makes paid market requests.
+  # Do not auto-trigger it on source pushes; keep explicit manual research only.
   # PAUSED on 2026-11-10 by user request: formerly scheduled trigger.
   # schedule:
   # # 08:55 Asia/Taipei weekdays; permission probe only, NOT a live coverage certification.

@@ -1,12 +1,8 @@
 name: Sky MCR Preopen Readiness (read-only)
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/mcr-preopen-readiness.yml'
-      - 'research/mcr_preopen_readiness.py'
-      - 'tests/test_mcr_preopen_readiness.py'
+  # W0 #363: MCR Fugle bulk quote preopen probe makes paid market requests.
+  # Do not auto-trigger it on source pushes; keep explicit manual research only.
   # PAUSED on 2026-11-10 by user request: formerly scheduled trigger.
   # schedule:
   # # Asia/Taipei 20:30 previous weekday, 00:30 and 04:30 next trading day.
