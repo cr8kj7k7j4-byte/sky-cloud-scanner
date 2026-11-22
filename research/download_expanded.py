@@ -4,6 +4,7 @@ import argparse, json, os, time
 from datetime import date, timedelta
 from pathlib import Path
 import requests
+from research.sky_fugle_atomic_ref_claim import guard_fugle_request
 
 BASE = "https://api.fugle.tw/marketdata/v1.0/stock"
 UA = "SkyCloudScanner-ExpandedResearch/0.5"
@@ -34,6 +35,10 @@ def _request_chunk(symbol, a, b, *, request_get=requests.get, sleep_fn=time.slee
         "sort": "asc",
     }
 
+    # Every paid historical endpoint request must be claimed atomically.
+    # Never send an HTTP request if the shared ref claim fails or is duplicated.
+    # Research workflow explicitly requires SKY_PAID_ATOMIC_ENFORCE=1.
+    guard_fugle_request(url, params)
     for attempt in range(MAX_429_RETRIES + 1):
         r = request_get(url, params=params, headers=headers(), timeout=30)
 
@@ -47,6 +52,9 @@ def _request_chunk(symbol, a, b, *, request_get=requests.get, sleep_fn=time.slee
             raise PermissionError(f"historical endpoint restricted for {symbol}")
 
         if r.status_code == 429:
+            # A live paid workflow must not retry an already claimed endpoint.
+            if os.getenv("SKY_PAID_ATOMIC_ENFORCE") == "1":
+                raise RuntimeError("FUGLE_RATE_LIMITED_NO_RETRY_UNDER_ATOMIC_CLAIM")
             if attempt >= MAX_429_RETRIES:
                 r.raise_for_status()
             retry_after = r.headers.get("Retry-After")
@@ -88,6 +96,10 @@ def main():
     ap.add_argument("--out", default="research_data/history")
     args = ap.parse_args()
     start, end = date.fromisoformat(args.from_date), date.fromisoformat(args.to_date)
+    if start > end:
+        raise SystemExit("INVALID_HISTORY_DATE_RANGE")
+    if os.getenv("SKY_PAID_ATOMIC_ENFORCE") != "1":
+        raise SystemExit("HISTORICAL_PAID_GUARD_REQUIRED")
     sample = json.loads(Path(args.manifest).read_text(encoding="utf-8"))["sample"]
     out = Path(args.out); out.mkdir(parents=True, exist_ok=True)
     summary = []
