@@ -101,5 +101,29 @@ class IndependentFiveMinProofTests(unittest.TestCase):
             validate(p, run=None, artifact=a)
 
 
+class CompletedRunWiringContractTests(unittest.TestCase):
+    def test_manual_audit_has_no_paid_api_or_new_schedule(self):
+        from pathlib import Path
+        path = Path(".github/workflows/sky-independent-five-min-proof-tests.yml")
+        workflow = path.read_text(encoding="utf-8")
+        self.assertIn("source_run_id:", workflow)
+        self.assertIn("if: github.event_name == 'workflow_dispatch'", workflow)
+        self.assertIn("actions: read", workflow)
+        self.assertNotIn("  schedule:", workflow)
+        self.assertIn("SCAN_RUN_NOT_SUCCESSFUL", workflow)
+        self.assertIn("SOURCE_ARTIFACT_MISSING_OR_AMBIGUOUS", workflow)
+        self.assertIn("INDEPENDENT_FIVE_MIN_SOURCE_NOT_VERIFIED", workflow)
+        self.assertIn("INSUFFICIENT_DATA", workflow)
+        self.assertIn("calls_to_fugle", workflow)
+        self.assertNotIn("secrets.FUGLE_API_KEY", workflow)
+
+    def test_full_source_receipt_path_is_stable(self):
+        from pathlib import Path
+        workflow = Path(".github/workflows/sky-independent-five-min-proof-tests.yml").read_text(encoding="utf-8")
+        self.assertIn("sky_quickscan_information/v14_ticker_5m_evidence.json", workflow)
+        self.assertIn('validate(payload, run=run, artifact=artifact)', workflow)
+        self.assertIn("completed_bar_count", workflow)
+        self.assertIn("PASS_RESEARCH_SOURCE_ONLY", workflow)
+
 if __name__ == "__main__":
     unittest.main()
