@@ -1,4 +1,5 @@
 import unittest
+from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from src.sky_market_quote_view import collect, parse_symbols
 
@@ -52,6 +53,21 @@ class QuoteViewerTests(unittest.TestCase):
         def denied(_): raise PermissionError()
         result=collect(["2330"],now=NOW,universe=UNIVERSE,fetch=denied)
         self.assertEqual(result["quotes"][0]["status"],"PLAN_RESTRICTED")
+
+    def test_paid_workflow_entrances_require_atomic_claim(self):
+        root = Path(__file__).resolve().parents[1] / ".github/workflows"
+        selected = (root / "sky-selected-quote-view.yml").read_text(encoding="utf-8")
+        unified = (root / "sky-unified-commands.yml").read_text(encoding="utf-8")
+        for name, workflow in (("selected", selected), ("unified", unified)):
+            with self.subTest(name=name):
+                self.assertIn("SKY_PAID_ATOMIC_ENFORCE: '1'", workflow)
+                self.assertIn("GH_TOKEN: ${{ github.token }}", workflow)
+                self.assertIn("contents: write", workflow)
+                self.assertIn("secrets.FUGLE_API_KEY", workflow)
+                self.assertNotIn("gh api --method PUT", workflow)
+        # No previously paused schedule is resumed as a side effect.
+        self.assertNotIn("  schedule:\n", selected)
+        self.assertNotIn("\n  schedule:\n", unified)
 
     def test_unknown_symbol_never_fabricated(self):
         result=collect(["9999"],now=NOW,universe=UNIVERSE,fetch=quote)
