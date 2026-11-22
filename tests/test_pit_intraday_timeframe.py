@@ -23,6 +23,8 @@ def fake_get(url,params,headers,timeout):
 
 # No real provider requests or GitHub refs are created by these tests.
 from unittest.mock import patch
+# The test only validates mocked transport; no secret is required.
+m.headers = lambda: {}
 
 paid_attempts = []
 def no_network(*args, **kwargs):
