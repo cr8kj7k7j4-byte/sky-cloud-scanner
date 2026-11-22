@@ -1,5 +1,7 @@
 # W4｜Forward Shadow / Paper Evidence Status — 2026-10-26
 
+> **ARCHIVED HISTORICAL SNAPSHOT — superseded 2026-11-21.** This page describes the 2026-10-26 historical state only. The Owner has permanently retired all dedicated simulated Paper/Shadow trading ledgers, fills, PnL, scheduled backfill, dashboards and their acceptance dependencies. References below to Paper artifacts, `shadow_history`, post-market Shadow workflows and `research/w4_scan_artifact_eligibility.py` are **not executable current requirements**. For present W4 research evidence use [the current forward-evidence contract](W4_SHADOW_PAPER_LIVE_EVIDENCE_CONTRACT.md) and [the permanent removal directive](SKY_PAPER_LEDGER_PERMANENT_REMOVAL_20261121.md), under W0 [Issue #363](https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/issues/363). Never count legacy simulated observations as trades or new forward evidence.
+
 ## Formal status
 
 **WAITING_FOR_FIRST_ELIGIBLE_SCAN**
