@@ -25,6 +25,93 @@ class AtomicClaimContractTests(unittest.TestCase):
         self.assertFalse(try_claim(self.ref, "b" * 40, fake_github_atomic_create))
         self.assertEqual(len(existing), 1)
 
+    def test_identical_history_query_reuses_stable_ref_across_runs(self):
+        from unittest.mock import patch
+        from research.sky_fugle_atomic_ref_claim import guard_fugle_request
+
+        refs = set()
+        seen = []
+        def fake_github_create_ref(repo, token):
+            self.assertEqual(repo, "example/sky")
+            self.assertEqual(token, "offline-token")
+            def create(ref, sha):
+                seen.append(ref)
+                if ref in refs:
+                    return {"status": 422, "existing": True}
+                refs.add(ref)
+                return {"status": 201, "ref": ref}
+            return create
+
+        env = {
+            "SKY_PAID_ATOMIC_ENFORCE": "1",
+            "GITHUB_REPOSITORY": "example/sky",
+            "GH_TOKEN": "offline-token",
+            "GITHUB_SHA": self.sha,
+        }
+        endpoint = "https://api.fugle.tw/marketdata/v1.0/stock/historical/candles/2330"
+        params = {"from": "2026-11-16", "to": "2026-11-20", "timeframe": "5"}
+        with patch.dict("os.environ", env), patch(
+                "research.sky_fugle_atomic_ref_claim.github_create_ref",
+                side_effect=fake_github_create_ref):
+            guard_fugle_request(endpoint, params)
+            with self.assertRaisesRegex(RuntimeError, "DUPLICATE_PAID_FUGLE_ENDPOINT_BLOCKED"):
+                guard_fugle_request(endpoint, dict(reversed(list(params.items()))))
+        self.assertEqual(len(seen), 2)
+        self.assertEqual(len(refs), 1)
+        self.assertEqual(seen[0], seen[1])
+        self.assertTrue(seen[0].endswith("-1"))
+
+    def test_distinct_history_windows_and_symbols_do_not_share_claim(self):
+        from unittest.mock import patch
+        from research.sky_fugle_atomic_ref_claim import guard_fugle_request
+
+        seen = set()
+        def fake_github_create_ref(repo, token):
+            def create(ref, sha):
+                self.assertNotIn(ref, seen)
+                seen.add(ref)
+                return {"status": 201, "ref": ref}
+            return create
+        env = {
+            "SKY_PAID_ATOMIC_ENFORCE": "1",
+            "GITHUB_REPOSITORY": "example/sky",
+            "GH_TOKEN": "offline-token",
+            "GITHUB_SHA": self.sha,
+        }
+        endpoint = "/historical/candles/2330"
+        with patch.dict("os.environ", env), patch(
+                "research.sky_fugle_atomic_ref_claim.github_create_ref",
+                side_effect=fake_github_create_ref):
+            guard_fugle_request(endpoint, {"from": "2026-11-16", "to": "2026-11-20"})
+            guard_fugle_request(endpoint, {"from": "2026-11-17", "to": "2026-11-20"})
+            guard_fugle_request("/historical/candles/2317",
+                                {"from": "2026-11-16", "to": "2026-11-20"})
+        self.assertEqual(len(seen), 3)
+        self.assertTrue(all(ref.endswith("-1") for ref in seen))
+
+    def test_live_quote_retains_rolling_five_minute_claim(self):
+        from unittest.mock import patch
+        from research.sky_fugle_atomic_ref_claim import guard_fugle_request
+
+        seen = []
+        def fake_github_create_ref(repo, token):
+            def create(ref, sha):
+                seen.append(ref)
+                return {"status": 201, "ref": ref}
+            return create
+        env = {
+            "SKY_PAID_ATOMIC_ENFORCE": "1",
+            "GITHUB_REPOSITORY": "example/sky",
+            "GH_TOKEN": "offline-token",
+            "GITHUB_SHA": self.sha,
+        }
+        with patch.dict("os.environ", env), patch(
+                "research.sky_fugle_atomic_ref_claim.github_create_ref",
+                side_effect=fake_github_create_ref):
+            guard_fugle_request("/intraday/quote/2330")
+        self.assertEqual(len(seen), 1)
+        self.assertFalse(seen[0].endswith("-1"))
+
     def test_uncertain_race_result_must_fail_closed(self):
         for response in (None, {}, {"status": 201}, {"status": 422}, {"status": 403}):
             with self.subTest(response=response):
