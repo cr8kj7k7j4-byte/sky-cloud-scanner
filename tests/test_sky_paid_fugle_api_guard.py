@@ -268,20 +268,14 @@ class PaidWorkflowWiringRegressionTests(unittest.TestCase):
 
     def test_scan_has_only_the_five_canonical_weekday_slots(self):
         # W0 restored the official five scheduled research scans on 11/22.
-        # Do not restore the obsolete "no schedule ever" test: instead forbid
-        # any additional or duplicated schedule entries.
+        # Forbid any extra or duplicated cron entries.
         import re
         content = Path(self.WORKFLOWS[0]).read_text(encoding="utf-8")
         self.assertEqual(content.count("\n  schedule:\n"), 1)
         header = content.split("\npermissions:\n", 1)[0]
         self.assertIn("\n  schedule:\n", header)
         schedules = header.split("\n  schedule:\n", 1)[1]
-        crons = re.findall(r'^\s+- cron:\s*"([^"]+)"\s*
-
-if __name__ == "__main__":
-    unittest.main()
-,
-                           schedules, re.MULTILINE)
+        crons = re.findall(r'^\s+- cron:\s*"([^"]+)"\s*$', schedules, re.MULTILINE)
         self.assertEqual(crons, ["5,15,30,50 1 * * 1-5", "15 2 * * 1-5"])
         self.assertEqual(len(crons), len(set(crons)))
 
