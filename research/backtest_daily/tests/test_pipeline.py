@@ -49,6 +49,14 @@ class FetchHelperTests(unittest.TestCase):
         self.assertIn("from=2025-01-01", url)
         self.assertIn("to=2025-12-31", url)
 
+    def test_404_means_no_data_not_fatal(self):
+        import io
+        import unittest.mock as mock
+        err = fetch_fugle_daily.urllib.error.HTTPError(
+            "u", 404, "Not Found", {}, io.BytesIO(b""))
+        with mock.patch.object(fetch_fugle_daily.urllib.request, "urlopen", side_effect=err):
+            self.assertEqual(fetch_fugle_daily.fetch_chunk("3717", "2024-09-01", "2024-12-31", "k"), [])
+
     def test_chunks_are_under_one_year(self):
         from datetime import date
         for s, e in fetch_fugle_daily.CHUNKS:

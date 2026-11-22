@@ -58,6 +58,10 @@ def fetch_chunk(symbol: str, start: str, end: str, api_key: str) -> list[dict]:
             if e.code == 429 and attempt < MAX_RETRIES_429:
                 time.sleep(60)
                 continue
+            if e.code == 404:
+                # No bars for this symbol in this window (e.g. not yet listed). Not an error.
+                print(f"{symbol} {start}..{end}: no data (404), skipped")
+                return []
             raise RuntimeError(f"HTTP {e.code} for {symbol} {start}..{end}") from None
     return []
 
