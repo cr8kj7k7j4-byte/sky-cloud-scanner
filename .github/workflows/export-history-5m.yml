@@ -44,8 +44,10 @@ jobs:
       - name: Install dependency
         run: pip install requests
 
-      - name: Unit tests
-        run: python tests/test_history_export.py
+      - name: Unit tests (no paid API)
+        run: |
+          python tests/test_history_export.py
+          python -m unittest discover -s tests -p 'test_history_paid_atomic_gate.py' -v
 
       - name: Build deterministic official-universe sample
         run: |
