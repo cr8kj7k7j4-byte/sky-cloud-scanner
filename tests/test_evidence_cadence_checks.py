@@ -1,5 +1,6 @@
 from research.evidence_cadence_checks import (
     expected_five_minute_slots,
+    expected_formal_daytrade_slots,
     validate_source_timestamp,
     evaluate_scan_artifact_readiness,
     evaluate_cadence_observations,
@@ -41,3 +42,26 @@ def test_cadence_gaps():
     gaps = evaluate_cadence_observations(["09:00", "09:05"])
     assert len(gaps["missing_slots"]) == 53
     assert not gaps["cadence_evidence_complete"]
+
+
+def test_cadence_profiles_are_not_interchangeable():
+    formal = expected_formal_daytrade_slots()
+    assert formal == ["09:05", "09:15", "09:30", "09:50", "10:15"]
+    formal_result = evaluate_cadence_observations(
+        formal, scheduler_evidence_verified=True, cadence_profile="FORMAL_DAYTRADE_5")
+    assert formal_result["cadence_evidence_complete"]
+    assert formal_result["expected_slots"] == 5
+    legacy_result = evaluate_cadence_observations(
+        formal, scheduler_evidence_verified=True, cadence_profile="RESEARCH_55_SLOTS")
+    assert not legacy_result["cadence_evidence_complete"]
+    assert len(legacy_result["missing_slots"]) == 50
+    assert not evaluate_cadence_observations(formal, cadence_profile="FORMAL_DAYTRADE_5")["cadence_evidence_complete"]
+
+
+def test_unknown_cadence_profile_fails_closed():
+    try:
+        evaluate_cadence_observations(["09:05"], scheduler_evidence_verified=True, cadence_profile="UNKNOWN")
+    except ValueError as exc:
+        assert "UNKNOWN_CADENCE_PROFILE" in str(exc)
+    else:
+        raise AssertionError("unknown cadence must fail closed")
