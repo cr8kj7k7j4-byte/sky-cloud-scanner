@@ -53,6 +53,18 @@ class HistoricalWeeklyAuditTests(unittest.TestCase):
                 _request_chunk("2330", date(2026, 11, 16), date(2026, 11, 20),
                                request_get=no_request)
 
+    def test_completed_one_shot_workflow_is_permanently_fail_closed(self):
+        workflow = (Path(__file__).resolve().parents[1] / ".github" /
+                    "workflows" / "w0-history-nov2026-one-shot.yml").read_text(
+                        encoding="utf-8")
+        header = workflow.split("jobs:", 1)[0]
+        self.assertNotIn("\n  push:", header)
+        self.assertIn("\n  workflow_dispatch:", header)
+        jobs = workflow.split("jobs:", 1)[1]
+        self.assertIn("  sampled-history:", jobs)
+        self.assertIn("    if: ${{ false }}", jobs)
+        self.assertEqual(jobs.count("\n  sampled-history:"), 1)
+
     def test_429_does_not_retry_under_atomic_claim(self):
         class RateLimited:
             status_code = 429
