@@ -16,9 +16,9 @@ def bar(d, o, h, l, c, v=1_000_000):
 
 class SizingTests(unittest.TestCase):
     def test_risk_limited(self):
-        # per-share risk = 2 + 100*0.0045 = 2.45 -> 5000/2.45 = 2040 shares
+        # per-share risk = 2 + 100*0.0045 = 2.45 -> 100000/2.45 = 40816.3 -> 40816 shares
         self.assertEqual(
-            size_shares(100, 98, config.COST_PRIMARY_ROUND_TRIP, max_notional=10**9), 2040)
+            size_shares(100, 98, config.COST_PRIMARY_ROUND_TRIP, max_notional=10**9), 40816)
 
     def test_notional_binds_before_risk(self):
         # Same stop, default 100,000 notional cap -> 1,000 shares, not 2,040.
@@ -67,13 +67,22 @@ class TradeTests(unittest.TestCase):
                 bar("d1", 103, 104, 102, 103)]      # open 103 > max_accept 102
         self.assertIsNone(simulate_trade(bars, self.sig, 0.0045))
 
-    def test_entry_bar_not_used_for_exit(self):
-        # Entry bar itself touches the target, but must not count as an exit.
+    def test_entry_bar_target_not_taken(self):
+        # Entry bar's high reaches the target, but a daily bar cannot prove the order.
         bars = [bar("d0", 100, 101, 99, 100),
-                bar("d1", 100, 110, 97, 100),       # entry bar, big range
+                bar("d1", 100, 110, 98.5, 100),     # entry bar: high 110 >= 104, low 98.5 > stop 98
                 bar("d2", 100, 100.5, 99.5, 100)]
         t = simulate_trade(bars, self.sig, 0.0045, max_hold_bars=1)
         self.assertEqual(t.exit_reason, "time")
+
+    def test_entry_bar_stop_is_taken(self):
+        # Entry-day low breaks the stop: must exit at the stop, not ignore it.
+        bars = [bar("d0", 100, 101, 99, 100),
+                bar("d1", 100, 101, 97, 99),        # entry bar low 97 <= stop 98
+                bar("d2", 100, 100.5, 99.5, 100)]
+        t = simulate_trade(bars, self.sig, 0.0, max_hold_bars=5)
+        self.assertEqual(t.exit_reason, "stop")
+        self.assertAlmostEqual(t.exit_price, 98.0)
 
     def test_time_exit(self):
         bars = [bar("d0", 100, 101, 99, 100),

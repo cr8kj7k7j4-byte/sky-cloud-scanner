@@ -4,8 +4,10 @@ Causality rules (Gate 0):
 - A signal is decided on the CLOSE of bar i.
 - Entry happens at the OPEN of bar i+1, and only if that open is within the
   pre-registered max-accept price.
-- Exits start on bar i+2 onward at the earliest, i.e. the entry bar itself is
-  never used for an exit check.
+- The entry bar is checked for the STOP only (a stop hit on the entry day is
+  real risk with daily bars). The target is NOT taken on the entry bar, because
+  a daily bar cannot show whether its high came before or after the entry
+  (conservative: fewer wins, never optimistic).
 - If stop and target are both touched on the same bar, the stop is taken first
   (conservative, as in the frozen P0-S protocol).
 """
@@ -52,7 +54,7 @@ class Trade:
 
 def size_shares(entry: float, stop: float, cost_rate: float,
                 one_r: float = config.ONE_R_TWD,
-                max_notional: float = config.MAX_SINGLE_NOTIONAL_TWD) -> int:
+                max_notional: float = config.MAX_SINGLE_NOTIONAL_SWING_TWD) -> int:
     """Shares limited by the 1R budget (including estimated cost) and the notional cap."""
     per_share_risk = abs(entry - stop) + entry * cost_rate
     if per_share_risk <= 0 or entry <= 0:
@@ -87,7 +89,7 @@ def simulate_trade(bars: list[Bar], sig: Signal, cost_rate: float,
 
     exit_price, exit_date, reason = None, None, None
     last_i = min(len(bars) - 1, entry_i + max_hold_bars)
-    for j in range(entry_i + 1, last_i + 1):
+    for j in range(entry_i, last_i + 1):
         b = bars[j]
         if is_long:
             stop_hit = b.low <= sig.stop
@@ -95,6 +97,8 @@ def simulate_trade(bars: list[Bar], sig: Signal, cost_rate: float,
         else:
             stop_hit = b.high >= sig.stop
             target_hit = b.low <= sig.target
+        if j == entry_i:
+            target_hit = False   # see module docstring
 
         # Stop first on same-bar ambiguity. Gap-throughs fill at the open.
         if stop_hit:

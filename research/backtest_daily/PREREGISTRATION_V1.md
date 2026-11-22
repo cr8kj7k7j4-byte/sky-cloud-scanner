@@ -62,3 +62,10 @@ PASS_RESEARCH is not production. It only permits the next gate (fresh forward sh
 - Rule ablation (Gate 6): not done. Single variant only.
 - Portfolio constraints (Gate 7): per-trade simulation only; concurrency and portfolio heat not enforced in v1. Declared gap.
 - Live validation: none.
+
+## Amendment A1 — 2026-11-22, before any results were produced
+Clarification of the exit-check rule on the entry bar (found by unit test; no results exist):
+- The entry bar IS checked for the stop (a stop hit on the entry day is real risk).
+- The entry bar is NOT checked for the target (daily bars cannot order the high relative to the entry).
+- Same-bar stop/target on later bars: stop first (unchanged).
+This change only makes the simulation more conservative. The original text above is kept.
