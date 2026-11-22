@@ -35,4 +35,5 @@ jobs:
             tests/test_risk_engine.py \
             tests/test_p0s_oos.py \
             tests/test_download_expanded.py \
-            tests/test_history_paid_atomic_gate.py
+            tests/test_history_paid_atomic_gate.py \
+            tests/test_sky_fugle_atomic_ref_claim.py

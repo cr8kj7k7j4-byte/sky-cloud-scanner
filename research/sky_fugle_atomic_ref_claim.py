@@ -50,8 +50,11 @@ def try_claim(ref: str, sha: str, create_ref) -> bool:
 def guard_fugle_request(url: str, params: dict | None = None) -> None:
     """Optional endpoint claim immediately before a real Fugle HTTP request.
 
-    This guard is research-only and defaults to OFF. Unknown URLs or GitHub
-    write errors fail closed when enabled. Tests must mock provider transport.
+    This guard is research-only and defaults to OFF for legacy callers. When
+    enabled, historical candles use a stable claim and live endpoints retain
+    rolling five-minute claims. A historical claim is NOT a cache or proof of
+    successful download; W0 must review failed/partial requests before retry.
+    Unknown URLs or GitHub write errors fail closed when enabled.
     """
     mode = os.getenv("SKY_PAID_ATOMIC_ENFORCE")
     if mode is None:
@@ -61,7 +64,15 @@ def guard_fugle_request(url: str, params: dict | None = None) -> None:
     from research.sky_fugle_request_identity import canonical_fugle_request
 
     scope = canonical_fugle_request("GET", url, parameters=params)
-    slot = int(datetime.now(timezone.utc).timestamp()) // 300
+    # Immutable historical query windows must not regain paid-request permission
+    # when the rolling five-minute slot expires. Keep live endpoints on their
+    # existing rolling slot, preserving valid fresh market-data collection.
+    # This is deliberately fail-closed: an unsuccessful historical request
+    # requires W0 to inspect its claim and evidence before any retry.
+    from urllib.parse import urlsplit
+    endpoint = urlsplit(url).path.removeprefix("/marketdata/v1.0/stock/").lstrip("/")
+    historical = endpoint.startswith("historical/candles/")
+    slot = 1 if historical else int(datetime.now(timezone.utc).timestamp()) // 300
     ref = claim_ref(scope, slot)
     repo = os.getenv("GITHUB_REPOSITORY", "")
     token = os.getenv("GH_TOKEN", "")
