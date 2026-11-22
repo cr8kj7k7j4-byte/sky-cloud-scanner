@@ -4,8 +4,9 @@ name: backtest-daily-brk20
 on:
   workflow_dispatch:
 
+# Contents write is restricted to this manual research job's atomic Git-ref claim.
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: backtest-daily-brk20
@@ -31,6 +32,8 @@ jobs:
       - name: Fetch daily bars from Fugle (historical candles)
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          SKY_PAID_ATOMIC_ENFORCE: '1'
         run: python fetch_fugle_daily.py --out data/daily
 
       - name: Run pre-registered BRK20 backtest
