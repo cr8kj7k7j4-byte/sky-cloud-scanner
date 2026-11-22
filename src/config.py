@@ -33,7 +33,9 @@ OPEN_RISK = float(os.getenv("OPEN_RISK", "0"))
 CONCURRENT_POSITIONS = int(os.getenv("CONCURRENT_POSITIONS", "0"))
 CORRELATED_OPEN_RISK = float(os.getenv("CORRELATED_OPEN_RISK", "0"))
 ACCOUNT_DRAWDOWN_PCT = float(os.getenv("ACCOUNT_DRAWDOWN_PCT", "0"))
-CONSECUTIVE_LOSSES = int(os.getenv("CONSECUTIVE_LOSSES", "0"))
+# Absence of independently verified position history is UNKNOWN, not zero losses.
+_CONSECUTIVE_LOSSES_RAW = os.getenv("CONSECUTIVE_LOSSES", "").strip()
+CONSECUTIVE_LOSSES = int(_CONSECUTIVE_LOSSES_RAW) if _CONSECUTIVE_LOSSES_RAW else None
 
 # P0-A Alert & Monitoring state store
 MONITOR_STATE_BACKEND = os.getenv("MONITOR_STATE_BACKEND", "file").strip().lower()

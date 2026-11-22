@@ -23,4 +23,4 @@ jobs:
       - name: Compile Python sources
         run: python -m compileall -q src tests
       - name: Run P0-R unit tests
-        run: python tests/test_risk_engine.py
+        run: python tests/test_risk_engine.py && python -m unittest tests.test_p0r_two_loss_lock tests.test_p0r_loss_streak_source_guard -v
