@@ -32,9 +32,9 @@ def audit_candles(candles, *, start=START, end=END):
         except (AttributeError, TypeError, ValueError):
             errors.append(f"ROW_{index}_INVALID_TIMESTAMP")
             continue
-        if dt.isoformat() in seen:
+        if dt.astimezone(timezone.utc).isoformat() in seen:
             errors.append(f"ROW_{index}_DUPLICATE_TIMESTAMP")
-        seen.add(dt.isoformat())
+        seen.add(dt.astimezone(timezone.utc).isoformat())
         if not (start <= local.date() <= end):
             errors.append(f"ROW_{index}_OUTSIDE_REQUESTED_PERIOD")
         if local.weekday() >= 5 or not (time(9, 0) <= local.time() <= time(13, 35)):
@@ -94,6 +94,11 @@ def build_report(history_dir: Path, manifest_path: Path, start=START, end=END):
             out.append(result)
         except (ValueError, TypeError, json.JSONDecodeError):
             out.append({"symbol": symbol, "status": "INVALID_FILE"})
+    days = [(start + timedelta(days=i)).isoformat()
+            for i in range((end - start).days + 1)
+            if (start + timedelta(days=i)).weekday() < 5]
+    daily_bars = {d: sum(item.get('daily', {}).get(d, 0) for item in out) for d in days}
+    missing_days = [d for d, count in daily_bars.items() if count == 0]
     status_counts = {}
     for item in out:
         key = item["status"]
@@ -101,7 +106,9 @@ def build_report(history_dir: Path, manifest_path: Path, start=START, end=END):
     return {
         "schema": "SKY_WEEKLY_HISTORICAL_5M_QA_V1",
         "period": {"from": start.isoformat(), "to": end.isoformat(), "timezone": "Asia/Taipei"},
-        "status": "STRUCTURE_PASS_NOT_STRATEGY_VERIFIED" if status_counts.get("STRUCTURE_PASS_NOT_PIT_VERIFIED") == len(out) else "INSUFFICIENT_DATA",
+        "status": "STRUCTURE_PASS_NOT_STRATEGY_VERIFIED" if status_counts.get("STRUCTURE_PASS_NOT_PIT_VERIFIED") == len(out) and not missing_days else "INSUFFICIENT_DATA",
+        "daily_bars": daily_bars,
+        "missing_market_days": missing_days,
         "sample_size": len(out),
         "status_counts": status_counts,
         "sample_only": True,
