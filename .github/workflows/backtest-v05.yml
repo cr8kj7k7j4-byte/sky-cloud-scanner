@@ -53,7 +53,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           SKY_PAID_ATOMIC_ENFORCE: '1'
         run: |
-          python research/download_intraday.py \
+          python -m research.download_intraday \
             --symbols "${{ inputs.symbols }}" \
             --from-date "${{ inputs.from_date }}" \
             --to-date "${{ inputs.to_date }}" \
