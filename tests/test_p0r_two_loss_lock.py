@@ -1,6 +1,6 @@
 """Regression: P0-R two consecutive losses must block new entries, regardless of caution thresholds."""
 import unittest
-from src.risk_engine import RiskPolicy, evaluate_trade
+from src.risk_engine import RiskPolicy, evaluate_trade, evaluate_candidate
 
 
 class TwoLossEntryLockTests(unittest.TestCase):
@@ -26,6 +26,17 @@ class TwoLossEntryLockTests(unittest.TestCase):
                               daily_loss_limit_pct=0.02, lot_size=1000),
         )
         self.assertEqual(result["status"], "ALLOW")
+
+    def test_missing_loss_history_blocks_candidate(self):
+        candidate = {"entry": 50, "stop": 49, "target": 54, "grade": "A+"}
+        portfolio = {"account_equity": 500000, "daily_pnl": -1000}
+        result = evaluate_candidate(candidate, portfolio)
+        self.assertEqual(result["status"], "RISK_INPUT_REQUIRED")
+        self.assertFalse(result["portfolio_allowed"])
+        self.assertEqual(result["recommended_shares"], 0)
+        self.assertIn("consecutive_losses", result["required_inputs"])
+        portfolio["consecutive_losses"] = None
+        self.assertEqual(evaluate_candidate(candidate, portfolio)["status"], "RISK_INPUT_REQUIRED")
 
     def test_daily_limit_remains_independent(self):
         result = evaluate_trade(
