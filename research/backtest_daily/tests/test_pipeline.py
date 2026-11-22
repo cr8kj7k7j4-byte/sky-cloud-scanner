@@ -91,6 +91,77 @@ class FetchHelperTests(unittest.TestCase):
                 fetch_fugle_daily.fetch_chunk("2330", "2025-01-01", "2025-12-31", "key")
             network.assert_not_called()
 
+    def test_two_workflows_compete_through_real_fetch_guard_with_mock_http(self):
+        """Two concurrent entrypoint calls must result in ONE mock HTTP only."""
+        from concurrent.futures import ThreadPoolExecutor
+        from threading import Barrier, Lock
+        from unittest import mock
+        import io
+
+        from research import sky_fugle_atomic_ref_claim as atomic
+
+        barrier = Barrier(2)
+        lock = Lock()
+        claimed = set()
+
+        def fake_github_create_ref(repo, token):
+            self.assertEqual(repo, "example/sky")
+            self.assertEqual(token, "mock-token")
+            barrier.wait(timeout=5)
+
+            def create(ref, sha):
+                with lock:
+                    if ref in claimed:
+                        return {"status": 422, "existing": True}
+                    claimed.add(ref)
+                    return {"status": 201, "ref": ref}
+
+            return create
+
+        class MockResponse:
+            status = 200
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def read(self):
+                return b'{"data": [{"date": "2025-01-03"}]}'
+
+        responses = []
+
+        def mock_urlopen(req, timeout=30):
+            responses.append(req.full_url)
+            return MockResponse()
+
+        def runner(_):
+            try:
+                return ("won", fetch_fugle_daily.fetch_chunk(
+                    "2330", "2025-01-01", "2025-12-31", "mock-api-key"))
+            except RuntimeError as error:
+                return ("blocked", str(error))
+
+        env = {"SKY_PAID_ATOMIC_ENFORCE": "1",
+               "GITHUB_REPOSITORY": "example/sky",
+               "GH_TOKEN": "mock-token",
+               "GITHUB_SHA": "a" * 40}
+        with mock.patch.dict(os.environ, env), \\
+             mock.patch.object(atomic, "github_create_ref", side_effect=fake_github_create_ref), \\
+             mock.patch.object(fetch_fugle_daily.urllib.request, "urlopen",
+                               side_effect=mock_urlopen) as http:
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                a = pool.submit(runner, "A")
+                b = pool.submit(runner, "B")
+                outcomes = [a.result(timeout=8), b.result(timeout=8)]
+        self.assertCountEqual([outcome[0] for outcome in outcomes], ["won", "blocked"])
+        self.assertEqual(next(v for kind, v in outcomes if kind == "blocked"),
+                         "DUPLICATE_PAID_FUGLE_ENDPOINT_BLOCKED")
+        self.assertEqual(len(claimed), 1)
+        self.assertEqual(http.call_count, 1)
+        self.assertEqual(len(responses), 1)
+
     def test_chunks_are_under_one_year(self):
         from datetime import date
         for s, e in fetch_fugle_daily.CHUNKS:
