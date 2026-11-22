@@ -4,28 +4,29 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import math
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import date, timedelta
 from pathlib import Path
 
 from research.historical_5m_quality import inspect_history
 
-TPE = timezone(timedelta(hours=8))
-FIELDS = ("open", "high", "low", "close", "voldef audit_candles(candles, *, start=START, end=END):
-    """Use the canonical main 5m structural validator; keep weekly QA only.
+START = date(2026, 11, 16)
+END = date(2026, 11, 20)
 
-    This adapter adds date-window completeness diagnostics; it never asserts
-    official trading-day completeness, PIT, historical signals or fills.
+
+def audit_candles(candles, *, start=START, end=END):
+    """Use the canonical 5m inspector; retain only weekly QA aggregation.
+
+    Neither the inspector nor this adapter certifies market-day completeness,
+    contemporaneous strategy signals, PIT origin or actual executions.
     """
     if not isinstance(candles, list):
-        return {"status": "INVALID", "errors": ["INVALID_CANDLES_TYPE"],
-                "error_total": 1, "daily": {},
-                "point_in_time_verified": False,
-                "historical_signal_verified": False}
-
-    canonical = inspect_history(
-        candles, start=start.isoformat(), end=end.isoformat()
-    )
+        return {
+            "status": "INVALID", "errors": ["INVALID_CANDLES_TYPE"],
+            "error_total": 1, "daily": {},
+            "point_in_time_verified": False,
+            "historical_signal_verified": False,
+        }
+    canonical = inspect_history(candles, start=start.isoformat(), end=end.isoformat())
     days = [(start + timedelta(days=i)).isoformat()
             for i in range((end - start).days + 1)
             if (start + timedelta(days=i)).weekday() < 5]
@@ -36,17 +37,12 @@ FIELDS = ("open", "high", "low", "close", "voldef audit_candles(candles, *, star
                    else "EMPTY" if canonical.get("status") == "EMPTY"
                    else "STRUCTURE_PASS_NOT_PIT_VERIFIED"),
         "count": len(candles),
-        "daily": {day: canonical.get("session_counts", {}).get(day, 0)
-                  for day in days},
+        "daily": {day: canonical.get("session_counts", {}).get(day, 0) for day in days},
         "errors": errors[:50],
         "error_total": sum(invalid_counts.values()),
         "point_in_time_verified": False,
         "historical_signal_verified": False,
         "official_trading_calendar_reconciled": False,
-    }
-
-False,
-        "historical_signal_verified": False,
     }
 
 
