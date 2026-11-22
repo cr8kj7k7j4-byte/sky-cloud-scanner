@@ -170,8 +170,15 @@ def run():
 
     policy = _risk_policy()
     portfolio_context = _portfolio_context()
-    portfolio_state = drawdown_state(
-        ACCOUNT_DRAWDOWN_PCT, CONSECUTIVE_LOSSES, policy
+    # The state label must not say NORMAL when broker/account facts
+    # have not been verified. evaluate_candidate will also fail closed.
+    portfolio_state = (
+        "UNKNOWN"
+        if any(portfolio_context.get(key) is None for key in (
+            "daily_pnl", "open_risk", "concurrent_positions",
+            "correlated_open_risk", "drawdown_pct", "consecutive_losses",
+        ))
+        else drawdown_state(ACCOUNT_DRAWDOWN_PCT, CONSECUTIVE_LOSSES, policy)
     )
 
     st = {
