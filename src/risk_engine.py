@@ -226,6 +226,25 @@ def evaluate_candidate(candidate, portfolio_context, policy=None):
     policy = policy or RiskPolicy()
     candidate = candidate or {}
     portfolio_context = portfolio_context or {}
+    # Missing or unverified loss streak is never proof of zero losses.
+    # Fail closed for new entries rather than silently bypassing the 2-loss stop.
+    if portfolio_context.get("consecutive_losses") is None:
+        return {
+            "status": "RISK_INPUT_REQUIRED",
+            "portfolio_allowed": False,
+            "state": "UNKNOWN",
+            "required_inputs": ["consecutive_losses"],
+            "reasons": ["缺少連續停損實際紀錄，停止新進場（P0-R）"],
+            "recommended_shares": 0,
+            "risk_budget": 0.0,
+            "remaining_daily_risk_budget": 0.0,
+            "remaining_portfolio_heat": 0.0,
+            "net_rr": None,
+            "gross_rr": None,
+            "fee_tax_adjusted_rr": None,
+            "execution_adjusted_rr": None,
+            "execution_status": "EXECUTION_INPUT_REQUIRED",
+        }
     return evaluate_trade(
         entry=candidate.get("entry", candidate.get("last")),
         stop=candidate.get("stop"),
