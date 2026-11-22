@@ -1,6 +1,13 @@
 name: Sky Historical 5m Export
 
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'research/download_expanded.py'
+      - 'research/audit_weekly_history_5m.py'
+      - 'tests/test_weekly_history_5m.py'
+      - '.github/workflows/export-history-5m.yml'
   workflow_dispatch:
     inputs:
       from_date:
@@ -21,7 +28,11 @@ on:
         default: "50"
 
 permissions:
-  contents: read
+  contents: write # required for research-only atomic Git refs; no deploy or orders
+  actions: read
+concurrency:
+  group: sky-fugle-paid-global-research-v1-live-wholemarket
+  cancel-in-progress: false
 
 jobs:
   export-history:
@@ -40,19 +51,25 @@ jobs:
       - name: Install dependency
         run: pip install requests
 
-      - name: Unit tests
-        run: python tests/test_history_export.py
+      - name: Unit tests (never call paid API)
+        run: |
+          python tests/test_history_export.py
+          python -m unittest tests.test_weekly_history_5m -v
 
       - name: Build deterministic official-universe sample
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
         run: |
           python research/build_universe_sample.py \
             --twse-n "${{ inputs.twse_n }}" \
             --tpex-n "${{ inputs.tpex_n }}" \
             --out research_data/universe_manifest.json
 
-      - name: Download Fugle historical 5m data
+      - name: Download Fugle historical 5m data (atomically guarded)
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+          SKY_PAID_ATOMIC_ENFORCE: '1'
+          GH_TOKEN: ${{ github.token }}
         run: |
           python research/download_expanded.py \
             --manifest research_data/universe_manifest.json \
@@ -61,6 +78,7 @@ jobs:
             --out research_data/history
 
       - name: Validate export
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
         run: |
           python research/validate_history_export.py \
             --history-dir research_data/history \
@@ -68,12 +86,23 @@ jobs:
             --download-summary research_data/download_summary.json \
             --out research_data/export_validation.json
 
+      - name: Validate five-session candle timestamps and provenance
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+        run: |
+          python -m research.audit_weekly_history_5m \
+            --history-dir research_data/history \
+            --manifest research_data/universe_manifest.json \
+            --from-date "${{ inputs.from_date }}" \
+            --to-date "${{ inputs.to_date }}" \
+            --out research_data/weekly_5m_quality.json
+
       - name: Create archive
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
         run: |
           tar -czf sky-history-5m-${{ github.run_id }}.tar.gz research_data/
 
       - name: Publish summary
-        if: always()
+        if: always() && github.event_name == 'workflow_dispatch'
         run: |
           if [ -f research_data/export_validation.json ]; then
             echo "## Historical 5m Export" >> "$GITHUB_STEP_SUMMARY"
@@ -84,7 +113,7 @@ jobs:
           fi
 
       - name: Upload historical data artifact
-        if: always()
+        if: always() && github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: sky-history-5m-${{ github.run_id }}
@@ -93,5 +122,6 @@ jobs:
             research_data/universe_manifest.json
             research_data/download_summary.json
             research_data/export_validation.json
+            research_data/weekly_5m_quality.json
           if-no-files-found: error
           retention-days: 14
