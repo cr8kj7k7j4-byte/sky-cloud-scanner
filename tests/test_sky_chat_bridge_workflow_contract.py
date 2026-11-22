@@ -9,8 +9,10 @@ WORKFLOW = ROOT / ".github/workflows/sky-chat-bridge.yml"
 class ChatBridgeWorkflowContractTests(unittest.TestCase):
     def test_research_bridge_never_pushes_to_protected_main(self):
         workflow = WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn("contents: read", workflow)
-        self.assertNotIn("contents: write", workflow)
+        # Shared atomic Git ref claims need write permission; direct main writes remain forbidden.
+        self.assertIn("contents: write", workflow)
+        self.assertIn("group: sky-fugle-paid-global-research-v1-live-wholemarket", workflow)
+        self.assertIn("SKY_PAID_ATOMIC_ENFORCE: '1'", workflow)
         self.assertNotIn("gh api --method PUT", workflow)
         self.assertNotIn("git push", workflow)
 
