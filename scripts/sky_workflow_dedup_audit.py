@@ -12,8 +12,8 @@ from pathlib import Path
 
 CANONICAL_SCAN = "scan.yml"
 SCAN_CRONS = ("5,15,30,50 1 * * 1-5", "15 2 * * 1-5")
-PAID_RE = re.compile(r"FUGLE_API_KEY|api\\.fugle\\.tw", re.I)
-CRON_RE = re.compile(r'^\\s*- cron:\\s*[\\'"]?([^\\'"#\\n]+)', re.M)
+PAID_RE = re.compile(r"FUGLE_API_KEY|api\.fugle\.tw", re.I)
+CRON_RE = re.compile(r'^\s*- cron:\s*[\'"]?([^\'"#\n]+)', re.M)
 # An active top-level `on.schedule` is recognized only when indented as YAML
 # structure. Comments such as "# schedule:" do not activate schedules.
 
@@ -24,7 +24,7 @@ def workflow_info(path: Path) -> dict:
     on_block = []
     inside_on = False
     for line in lines:
-        if re.match(r'^(?:"on"|\\'on\\'|on):\\s*(?:#.*)?$', line):
+        if re.match(r'^(?:"on"|\'on\'|on):\s*(?:#.*)?$', line):
             inside_on = True
             continue
         if inside_on:
@@ -34,11 +34,11 @@ def workflow_info(path: Path) -> dict:
     active = False
     schedules = []
     for line in on_block:
-        if re.match(r'^  schedule:\\s*(?:#.*)?$', line):
+        if re.match(r'^  schedule:\s*(?:#.*)?$', line):
             active = True
             continue
         if active:
-            if re.match(r'^  [A-Za-z_][\\w-]*:\\s*', line):
+            if re.match(r'^  [A-Za-z_][\w-]*:\s*', line):
                 active = False
                 continue
             m = CRON_RE.match(line)
@@ -52,8 +52,8 @@ def workflow_info(path: Path) -> dict:
         "has_workflow_dispatch": bool(re.search(r"(?m)^  workflow_dispatch:", content)),
         "paid_endpoint_reference": paid,
         "atomic_enforce_reference": "SKY_PAID_ATOMIC_ENFORCE" in content,
-        "concurrency_group": (re.search(r"(?m)^  group:\\s*(.+)", content) or [None, None])[1],
-        "runs_main_scanner": bool(re.search(r"python\\s+-m\\s+src\\.main(?:\\s|$)", content)),
+        "concurrency_group": (re.search(r"(?m)^  group:\s*(.+)", content) or [None, None])[1],
+        "runs_main_scanner": bool(re.search(r"python\s+-m\s+src\.main(?:\s|$)", content)),
     }
 
 
