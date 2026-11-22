@@ -105,13 +105,17 @@ def validate(payload, *, run, artifact):
             else:
                 accepted += 1
                 last = stamp
+        # Keep the final-bar comparison separate from the count checks.
+        # A conditional expression wrapping the whole OR chain would silently
+        # skip count validation when last_feature_bar_time_tpe is absent.
+        claimed_last = sample.get("last_feature_bar_time_tpe")
+        expected_last = aware(claimed_last).isoformat() if claimed_last else None
+        actual_last = last.isoformat() if last else None
         if (accepted != sample.get("valid_today_five_min_bars")
                 or future != sample.get("rejected_future_five_min_bars", 0)
                 or unfinished != sample.get("excluded_unfinished_five_min_bars", 0)
                 or sample.get("bar_sequence_valid") is not True
-                or (last.isoformat() if last else None) !=
-                   (aware(sample["last_feature_bar_time_tpe"]).isoformat()
-                    if sample.get("last_feature_bar_time_tpe") else None)):
+                or actual_last != expected_last):
             raise ValueError("SOURCE_COUNTS_OR_LAST_BAR_MISMATCH")
         output.append({"exchange": key[0], "symbol": key[1],
                        "completed_bars": accepted, "excluded_unfinished": unfinished,
