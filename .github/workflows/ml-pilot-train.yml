@@ -26,7 +26,7 @@ on:
       - ".github/workflows/ml-pilot-train.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   train-ml-pilot:
@@ -63,6 +63,8 @@ jobs:
       - name: Download pilot historical 5m data
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          SKY_PAID_ATOMIC_ENFORCE: '1'
         run: |
           python research/download_intraday.py \
             --symbols "$SYMBOLS" \

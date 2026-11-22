@@ -5,6 +5,8 @@ from datetime import date
 from pathlib import Path
 import requests
 
+from research.sky_fugle_atomic_ref_claim import guard_fugle_request
+
 BASE = "https://api.fugle.tw/marketdata/v1.0/stock"
 UA = "SkyCloudScanner-Research/0.5"
 MIN_INTERVAL = 1.05  # <= 60 calls/min
@@ -24,14 +26,16 @@ def get_hist(symbol: str, start: str, end: str, timeframe: str = "5"):
         "fields": "open,high,low,close,volume,average",
         "sort": "asc",
     }
+    if os.getenv('SKY_PAID_ATOMIC_ENFORCE') != '1':
+        raise RuntimeError('HISTORICAL_PAID_GUARD_REQUIRED')
+    guard_fugle_request(url, params)
     r = requests.get(url, params=params, headers=headers(), timeout=30)
     if r.status_code == 404:
         return []
     if r.status_code == 403:
         raise PermissionError(f"historical endpoint restricted for {symbol}")
     if r.status_code == 429:
-        time.sleep(10)
-        r = requests.get(url, params=params, headers=headers(), timeout=30)
+        raise RuntimeError('FUGLE_RATE_LIMITED_NO_RETRY_UNDER_ATOMIC_CLAIM')
     r.raise_for_status()
     return r.json().get("data", [])
 

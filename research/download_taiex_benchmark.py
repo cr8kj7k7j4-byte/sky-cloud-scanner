@@ -7,8 +7,9 @@ import time
 from datetime import date, timedelta
 from pathlib import Path
 
-import pandas as pd
 import requests
+
+from research.sky_fugle_atomic_ref_claim import guard_fugle_request
 
 BASE="https://api.fugle.tw/marketdata/v1.0/stock"
 TAIEX_SYMBOL="IX0001"
@@ -41,7 +42,12 @@ def download_taiex(from_date: str,to_date: str,request_get=requests.get,sleep_fn
             "fields":"open,high,low,close,volume,average","sort":"asc",
         }
         t0=time.time()
+        if os.getenv('SKY_PAID_ATOMIC_ENFORCE') != '1':
+            raise RuntimeError('HISTORICAL_PAID_GUARD_REQUIRED')
+        guard_fugle_request(url, params)
         r=request_get(url,params=params,headers=_headers(),timeout=30)
+        if r.status_code==429:
+            raise RuntimeError('FUGLE_RATE_LIMITED_NO_RETRY_UNDER_ATOMIC_CLAIM')
         if r.status_code==404:
             data=[]
         else:
@@ -56,6 +62,8 @@ def download_taiex(from_date: str,to_date: str,request_get=requests.get,sleep_fn
 
 
 def build_decision_benchmark(decisions: pd.DataFrame,bars: list[dict]) -> pd.DataFrame:
+    # Paid history acquisition and offline guard tests need no pandas dependency.
+    import pandas as pd
     b=pd.DataFrame(bars)
     if b.empty:
         return pd.DataFrame(columns=["decision_id","market_return","market_benchmark_symbol","market_benchmark_cutoff"])
@@ -120,6 +128,7 @@ def main():
         "source":"Fugle historical candles",
     }
     if args.decisions:
+        import pandas as pd
         decisions=pd.read_csv(args.decisions)
         frame=build_decision_benchmark(decisions,bars)
         frame.to_csv(out/"market_benchmark.csv",index=False)
