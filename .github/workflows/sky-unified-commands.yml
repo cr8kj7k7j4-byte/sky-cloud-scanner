@@ -37,6 +37,8 @@ jobs:
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
           GH_TOKEN: ${{ github.token }}
+          # Enforce atomic dedup on every src.fugle._get() request.
+          SKY_PAID_ATOMIC_ENFORCE: '1'
           MAX_PRICE: "100"
           PYTHONPATH: .
         run: |
