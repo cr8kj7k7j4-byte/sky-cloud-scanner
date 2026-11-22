@@ -1,0 +1,34 @@
+name: Sky Research Scan Evidence Cadence Contracts
+on:
+  pull_request:
+    paths:
+      - 'research/evidence_cadence_checks.py'
+      - 'tests/test_evidence_cadence_checks.py'
+      - '.github/workflows/sky-research-evidence-cadence-tests.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  no-paid-research-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile independent research-only evidence checks
+        run: python -m py_compile research/evidence_cadence_checks.py tests/test_evidence_cadence_checks.py
+      - name: Run four fail-closed source and cadence contracts (no paid API)
+        run: |
+          python - <<'PY'
+          import runpy
+          tests = runpy.run_path("tests/test_evidence_cadence_checks.py")
+          cases = [(name, func) for name, func in tests.items()
+                   if name.startswith("test_") and callable(func)]
+          assert len(cases) >= 4, "INSUFFICIENT_CONTRACT_TESTS"
+          for name, func in cases:
+              print(name, flush=True)
+              func()
+          print("RESEARCH_CADENCE_CONTRACTS_PASS", len(cases))
+          PY
