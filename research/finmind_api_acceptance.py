@@ -136,7 +136,7 @@ def main():
         "api_source": BASE, "token_present": bool(os.environ.get("FINMIND_API_TOKEN")),
         "results": {}, "overall": "FAIL", "promotion_status": "RESEARCH_ONLY",
     }
-    token = os.environ.get("FINMIND_TOKEN", "").strip()
+    token = os.environ.get("FINMIND_API_TOKEN", "").strip()
     selected = os.environ.get("FINMIND_DATASET_FILTER", "").strip()
     datasets = {selected: DATASETS[selected]} if selected == "daily_price" else {}
     result["scope"] = "SINGLE_DATASET" if datasets else "INVALID_SCOPE"
