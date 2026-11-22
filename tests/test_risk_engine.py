@@ -66,6 +66,14 @@ def main():
     assert dd_lock["state"] == "LOCKDOWN"
     assert dd_lock["status"] == "BLOCK"
 
+    # This script is the existing P0-R GitHub Actions test entry point.
+    # Include the two-loss and missing-environment regression suites so
+    # green CI proves these safety gates, not just the legacy smoke checks.
+    import unittest
+    suite = unittest.defaultTestLoader.discover(str(ROOT / "tests"), pattern="test_p0r_*.py")
+    result = unittest.TextTestRunner(verbosity=1).run(suite)
+    assert result.wasSuccessful(), "P0-R fail-closed regression failed"
+
     print("PASS P0-R risk engine tests")
 
 
