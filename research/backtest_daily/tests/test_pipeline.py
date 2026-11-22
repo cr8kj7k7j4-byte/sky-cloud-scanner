@@ -54,8 +54,42 @@ class FetchHelperTests(unittest.TestCase):
         import unittest.mock as mock
         err = fetch_fugle_daily.urllib.error.HTTPError(
             "u", 404, "Not Found", {}, io.BytesIO(b""))
-        with mock.patch.object(fetch_fugle_daily.urllib.request, "urlopen", side_effect=err):
+        with mock.patch.dict(os.environ, {"SKY_PAID_ATOMIC_ENFORCE": "1"}), \\
+             mock.patch.object(fetch_fugle_daily, "guard_fugle_request") as claim, \\
+             mock.patch.object(fetch_fugle_daily.urllib.request, "urlopen", side_effect=err):
             self.assertEqual(fetch_fugle_daily.fetch_chunk("3717", "2024-09-01", "2024-12-31", "k"), [])
+            claim.assert_called_once()
+
+    def test_missing_atomic_enforcement_never_touches_network(self):
+        import unittest.mock as mock
+        with mock.patch.dict(os.environ, {"SKY_PAID_ATOMIC_ENFORCE": ""}), \\
+             mock.patch.object(fetch_fugle_daily.urllib.request, "urlopen") as network:
+            with self.assertRaisesRegex(RuntimeError, "HISTORICAL_PAID_GUARD_REQUIRED"):
+                fetch_fugle_daily.fetch_chunk("2330", "2025-01-01", "2025-12-31", "key")
+            network.assert_not_called()
+
+    def test_429_never_retries_after_one_atomic_claim(self):
+        import io
+        import unittest.mock as mock
+        err = fetch_fugle_daily.urllib.error.HTTPError(
+            "u", 429, "Too Many Requests", {}, io.BytesIO(b""))
+        with mock.patch.dict(os.environ, {"SKY_PAID_ATOMIC_ENFORCE": "1"}), \\
+             mock.patch.object(fetch_fugle_daily, "guard_fugle_request") as claim, \\
+             mock.patch.object(fetch_fugle_daily.urllib.request, "urlopen", side_effect=err) as network:
+            with self.assertRaisesRegex(RuntimeError, "HTTP 429"):
+                fetch_fugle_daily.fetch_chunk("2330", "2025-01-01", "2025-12-31", "key")
+            claim.assert_called_once()
+            network.assert_called_once()
+
+    def test_competing_claim_denial_blocks_http(self):
+        import unittest.mock as mock
+        with mock.patch.dict(os.environ, {"SKY_PAID_ATOMIC_ENFORCE": "1"}), \\
+             mock.patch.object(fetch_fugle_daily, "guard_fugle_request",
+                               side_effect=RuntimeError("DUPLICATE_PAID_FUGLE_ENDPOINT_BLOCKED")), \\
+             mock.patch.object(fetch_fugle_daily.urllib.request, "urlopen") as network:
+            with self.assertRaisesRegex(RuntimeError, "DUPLICATE_PAID_FUGLE_ENDPOINT_BLOCKED"):
+                fetch_fugle_daily.fetch_chunk("2330", "2025-01-01", "2025-12-31", "key")
+            network.assert_not_called()
 
     def test_chunks_are_under_one_year(self):
         from datetime import date
