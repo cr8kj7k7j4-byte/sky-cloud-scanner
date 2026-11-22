@@ -140,5 +140,30 @@
     "reuse_existing_evidence_only": true,
     "repeat_paid_download_for_same_scope_allowed": false,
     "observation": "Sample-only ex-post data QA; historical evidence inventory remains a faithful as-of record; no signal or PnL imputation"
+  },
+  "independent_zip_readback_20261122": {
+    "evidence_issued_in": "#363 comment 7075406149",
+    "source_run_id": 44975178358,
+    "source_artifact_id": 14735556373,
+    "readback_tpe_date": "2026-11-22",
+    "artifact_zip_sha256": "c0b06825a8ab47def2464ee7e1364b533dfa1ef592a1c827458b9be10389ebf4",
+    "quality_json_sha256": "43c49bf94dcc788575e58247a89f0412344f2008e79e9af301c10e2decb8754d",
+    "download_summary_sha256": "f7946614c2d5eb74f9f91a143616acf95be3d8c41964233fe8c004db7693b75d",
+    "checked_symbol_files": 10,
+    "sha256_match_count": 10,
+    "daily_bar_counts": {
+      "2026-11-16": 364,
+      "2026-11-17": 374,
+      "2026-11-18": 381,
+      "2026-11-19": 388,
+      "2026-11-20": 387
+    },
+    "total_bars": 1894,
+    "structural_violations": 0,
+    "independent_zip_validation_completed": true,
+    "full_market_verified": false,
+    "point_in_time_verified": false,
+    "contemporaneous_signals_verified": false,
+    "policy": "KEEP existing paid-download Artifact; do not re-request same date-symbol scope; this is not a strategy or live execution validation"
   }
 }
