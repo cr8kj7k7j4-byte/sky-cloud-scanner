@@ -65,7 +65,6 @@ jobs:
       - name: Publish sanitized execution verification
         if: always()
         env:
-          GH_TOKEN: ${{ github.token }}
           SCAN_OUTCOME: ${{ steps.scan.outcome }}
           COMMAND_INPUT: ${{ inputs.command }}
         run: |
