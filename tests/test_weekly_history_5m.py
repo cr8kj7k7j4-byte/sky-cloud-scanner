@@ -35,6 +35,23 @@ class HistoricalWeeklyAuditTests(unittest.TestCase):
         b["high"] = 1
         self.assertEqual(audit_candles([b])["status"], "INVALID")
 
+    def test_weekly_checks_reuse_canonical_session_end(self):
+        # Main's canonical data-quality check rejects 13:35 as regular 5m.
+        bad = audit_candles([candle("2026-11-16T13:35:00+08:00")])
+        self.assertEqual(bad["status"], "INVALID")
+        self.assertTrue(any("outside_regular_session" in e for e in bad["errors"]))
+
+    def test_weekly_checks_reuse_canonical_order_and_ohlcv(self):
+        bad = audit_candles([
+            candle("2026-11-16T09:10:00+08:00"),
+            candle("2026-11-16T09:05:00+08:00"),
+        ])
+        self.assertEqual(bad["status"], "INVALID")
+        self.assertTrue(any("non_ascending_timestamps" in e for e in bad["errors"]))
+        negative = audit_candles([candle("2026-11-16T09:05:00+08:00",
+                                         value=-1)])
+        self.assertEqual(negative["status"], "INVALID")
+
     def test_no_file_is_explicitly_insufficient(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
