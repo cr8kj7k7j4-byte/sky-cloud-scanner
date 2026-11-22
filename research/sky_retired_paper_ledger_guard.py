@@ -83,6 +83,28 @@ def check(root=ROOT):
             continue
         for match in IMPORT.finditer(source):
             violations.append({"path": p, "reason": "RETIRED_MODULE_IMPORT", "module": match.group(1) or match.group(2)})
+    # The legacy W6 Paper collector remains in version control for lineage
+    # review, but no execution job may be dispatched until W0 approves its
+    # replacement with independently sourced quote evidence.
+    legacy_w6 = ".github/workflows/w6-forward-execution-evidence.yml"
+    if legacy_w6 in tracked:
+        source = (root / legacy_w6).read_text(encoding="utf-8")
+        jobs_text = source.split("\njobs:\n", 1)
+        if len(jobs_text) != 2:
+            violations.append({"path": legacy_w6, "reason": "RETIRED_W6_COLLECTOR_NOT_FAIL_CLOSED"})
+        else:
+            lines = jobs_text[1].splitlines()
+            job_headers = [i for i, line in enumerate(lines)
+                           if re.fullmatch(r"  [A-Za-z_][A-Za-z0-9_-]*:", line)]
+            guard_ok = False
+            if len(job_headers) == 1 and lines[job_headers[0]] == "  collect-and-report:":
+                for line in lines[job_headers[0]+1:]:
+                    if not line.strip() or line.lstrip().startswith("#"):
+                        continue
+                    guard_ok = line == "    if: ${{ false }}"
+                    break
+            if not guard_ok:
+                violations.append({"path": legacy_w6, "reason": "RETIRED_W6_COLLECTOR_NOT_FAIL_CLOSED"})
     return {"schema": "SKY_RETIRED_PAPER_LEDGER_GUARD_V1",
             "passed": not violations, "violations": violations,
             "production_eligible": False, "automatic_order": False}
