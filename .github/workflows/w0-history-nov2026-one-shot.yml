@@ -1,0 +1,100 @@
+name: W0 Nov16-20 One-Time Historical Fugle Sample (Research Only)
+on:
+  push:
+    branches:
+      - research/w0-weekly-evidence-audit-20261116-20
+    paths:
+      - 'research/requests/W0_HISTORY_20261116_20_REQUEST.json'
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: sky-fugle-paid-global-research-v1-live-wholemarket
+  cancel-in-progress: false
+jobs:
+  sampled-history:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SKY_PAID_ATOMIC_ENFORCE: '1'
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout immutable research branch
+        uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install limited dependencies
+        run: python -m pip install requests
+      - name: Offline data-integrity and request-denial tests
+        run: python -m unittest discover -s tests -p 'test_weekly_history_5m.py' -v
+      - name: Validate the exact one-time request
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('research/requests/W0_HISTORY_20261116_20_REQUEST.json')
+          v=json.loads(p.read_text(encoding='utf-8'))
+          expected={'schema':'W0_HISTORY_SAMPLE_ONE_SHOT_V1','from':'2026-11-16',
+                    'to':'2026-11-20','twse_n':5,'tpex_n':5,
+                    'research_only':True,'automatic_order':False}
+          if v != expected:
+              raise SystemExit('ONE_SHOT_REQUEST_SCOPE_REJECTED')
+          PY
+      - name: Sample five TWSE and five TPEx symbols (NOT whole market)
+        run: |
+          python research/build_universe_sample.py --twse-n 5 --tpex-n 5 --out research_data/universe_manifest.json
+      - name: Read-only historically timestamped Fugle 5m candles (atomic per-request guard)
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+        run: |
+          python -m research.download_expanded --manifest research_data/universe_manifest.json \
+            --from-date 2026-11-16 --to-date 2026-11-20 --out research_data/history
+      - name: Validate sample export integrity
+        run: |
+          python research/validate_history_export.py --history-dir research_data/history \
+            --manifest research_data/universe_manifest.json \
+            --download-summary research_data/download_summary.json \
+            --out research_data/export_validation.json
+      - name: Check each trading-day bar time and source evidence
+        run: |
+          python -m research.audit_weekly_history_5m --history-dir research_data/history \
+            --manifest research_data/universe_manifest.json --from-date 2026-11-16 \
+            --to-date 2026-11-20 --out research_data/weekly_5m_quality.json
+      - name: Publish research status (no trading authorization)
+        if: always()
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=Path('research_data/weekly_5m_quality.json')
+          s={'schema':'W0_ONE_SHOT_HISTORY_STATUS_V1','run_id':os.environ.get('GITHUB_RUN_ID'),
+             'head_sha':os.environ.get('GITHUB_SHA'),'scope':'10_SYMBOL_SAMPLE_ONLY',
+             'history_downloaded':Path('research_data/download_summary.json').exists(),
+             'quality_report_exists':p.exists(),'production_eligible':False,
+             'automatic_order':False,'historical_signals_proven':False}
+          if p.exists():
+              v=json.loads(p.read_text(encoding='utf-8'))
+              s['quality_status']=v.get('status')
+              s['daily_bars']=v.get('daily_bars')
+          Path('research_data').mkdir(exist_ok=True)
+          Path('research_data/one_shot_status.json').write_text(json.dumps(s,indent=2)+'\n')
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a',encoding='utf-8') as f:
+              f.write('# W0 一次性歷史行情抽樣驗證（非買賣訊號）\n\n')
+              f.write('研究樣本：上市5檔＋上櫃5檔；11/16–20；不代表全市場、不能重建歷史交易訊號。\n\n')
+              f.write('證據檔：research_data/one_shot_status.json、weekly_5m_quality.json\n')
+          PY
+      - name: Upload immutable quality and lineage artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: w0-history-nov16-20-sample-${{ github.run_id }}
+          path: |
+            research_data/universe_manifest.json
+            research_data/download_summary.json
+            research_data/export_validation.json
+            research_data/weekly_5m_quality.json
+            research_data/one_shot_status.json
+            research_data/history
+          if-no-files-found: warn
+          retention-days: 30
