@@ -1,6 +1,8 @@
 import unittest
+from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from src.sky_market_quote_view import collect, parse_symbols
+from src.realtime_quote_evidence import fugle_executed_trade
 
 TPE = timezone(timedelta(hours=8))
 NOW = datetime(2026, 11, 6, 9, 30, tzinfo=TPE)
@@ -48,10 +50,47 @@ class QuoteViewerTests(unittest.TestCase):
         self.assertEqual(result["fresh_count"], 0)
         self.assertFalse(result["execution_authorized"])
 
+    def test_close_time_without_last_trade_time_never_certifies_execution(self):
+        payload = {
+            "date": NOW.date().isoformat(),
+            "lastPrice": 90.0,
+            "closeTime": int(NOW.timestamp() * 1_000_000),
+            "lastUpdated": int(NOW.timestamp() * 1_000_000),
+            "lastTrade": {"price": 90.0},
+        }
+        price, stamp, state = fugle_executed_trade(payload, now=NOW)
+        self.assertIsNone(price)
+        self.assertIsNone(stamp)
+        self.assertEqual(state, "MISSING_EXECUTED_TRADE_TIME")
+        payload["lastTrade"]["time"] = int(NOW.timestamp() * 1_000_000)
+        price, stamp, state = fugle_executed_trade(payload, now=NOW)
+        self.assertEqual(state, "FRESH_EXECUTED_TRADE")
+        self.assertEqual(price, 90.0)
+
     def test_plan_restriction_fail_closed(self):
         def denied(_): raise PermissionError()
         result=collect(["2330"],now=NOW,universe=UNIVERSE,fetch=denied)
         self.assertEqual(result["quotes"][0]["status"],"PLAN_RESTRICTED")
+
+    def test_paid_workflow_entrances_require_atomic_claim(self):
+        root = Path(__file__).resolve().parents[1] / ".github/workflows"
+        selected = (root / "sky-selected-quote-view.yml").read_text(encoding="utf-8")
+        unified = (root / "sky-unified-commands.yml").read_text(encoding="utf-8")
+        for name, workflow in (("selected", selected), ("unified", unified)):
+            with self.subTest(name=name):
+                self.assertIn("SKY_PAID_ATOMIC_ENFORCE: '1'", workflow)
+                self.assertIn("GH_TOKEN: ${{ github.token }}", workflow)
+                self.assertIn("contents: write", workflow)
+                self.assertIn("secrets.FUGLE_API_KEY", workflow)
+                self.assertNotIn("gh api --method PUT", workflow)
+        self.assertIn("if: github.event_name == 'workflow_dispatch'", selected)
+        self.assertIn("if: github.event_name == 'pull_request'", selected)
+        self.assertIn("contents: read", selected)
+        self.assertIn("if: github.event_name != 'pull_request'", selected)
+        self.assertIn("  pull_request:", selected)
+        # No previously paused schedule is resumed as a side effect.
+        self.assertNotIn("  schedule:\n", selected)
+        self.assertNotIn("\n  schedule:\n", unified)
 
     def test_unknown_symbol_never_fabricated(self):
         result=collect(["9999"],now=NOW,universe=UNIVERSE,fetch=quote)

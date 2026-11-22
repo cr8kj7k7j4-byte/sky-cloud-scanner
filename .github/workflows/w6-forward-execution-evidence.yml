@@ -6,19 +6,9 @@ on:
   # schedule:
   # - cron: "50 14 * * 1-5"
   # timezone: "Asia/Taipei"
-  push:
-    branches: [main]
-    paths:
-      - "src/feature_engine.py"
-      - "src/paper_trading.py"
-      - "research/w6_execution_baseline.py"
-      - "research/w6_execution_evidence.py"
-      - "research/w6_execution_attempts.py"
-      - "research/w6_collect_forward_l1.py"
-      - "research/w6_p1_report.py"
-      - "tests/test_w6_execution_research.py"
-      - "tests/test_w6_execution_attempts.py"
-      - ".github/workflows/w6-forward-execution-evidence.yml"
+  # W0 #363: automatic push trigger retired after #547 removed simulated
+  # Paper-ledger data. The legacy manual collector remains HOLD pending
+  # independent market-quote provenance migration and W0 review.
 
 permissions:
   contents: read
@@ -26,6 +16,10 @@ permissions:
 
 jobs:
   collect-and-report:
+    # W0 #363 fail-closed: never execute the retired Paper-dependent
+    # collector through workflow_dispatch while source migration is HOLD.
+    # Keep old evidence/steps readable for lineage review, not execution.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:

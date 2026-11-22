@@ -4,12 +4,11 @@ import argparse, json, os, time
 from datetime import date, timedelta
 from pathlib import Path
 import requests
+from research.sky_fugle_atomic_ref_claim import guard_fugle_request
 
 BASE = "https://api.fugle.tw/marketdata/v1.0/stock"
 UA = "SkyCloudScanner-ExpandedResearch/0.5"
 MIN_INTERVAL = 1.25
-MAX_429_RETRIES = 5
-BACKOFF_SECONDS = (5, 10, 20, 40, 60)
 
 def headers():
     key = os.getenv("FUGLE_API_KEY", "").strip()
@@ -34,35 +33,30 @@ def _request_chunk(symbol, a, b, *, request_get=requests.get, sleep_fn=time.slee
         "sort": "asc",
     }
 
-    for attempt in range(MAX_429_RETRIES + 1):
-        r = request_get(url, params=params, headers=headers(), timeout=30)
+    # Paid historical reads require W0 shared atomic claim, including direct CLI.
+    # Unknown/absent enforcement is not permission to send a paid request.
+    if os.getenv("SKY_PAID_ATOMIC_ENFORCE") != "1":
+        raise RuntimeError("HISTORICAL_PAID_GUARD_REQUIRED")
+    guard_fugle_request(url, params)
+    r = request_get(url, params=params, headers=headers(), timeout=30)
 
-        # A 404 for an older historical chunk can mean the symbol was not yet
-        # listed / no bars exist for that interval. It should not invalidate
-        # the entire symbol export; continue with later chunks.
-        if r.status_code == 404:
-            return []
+    # A 404 for an older historical chunk can mean the symbol was not yet
+    # listed / no bars exist for that interval. It should not invalidate
+    # the entire symbol export; continue with later chunks.
+    if r.status_code == 404:
+        return []
 
-        if r.status_code == 403:
-            raise PermissionError(f"historical endpoint restricted for {symbol}")
+    if r.status_code == 403:
+        raise PermissionError(f"historical endpoint restricted for {symbol}")
 
-        if r.status_code == 429:
-            if attempt >= MAX_429_RETRIES:
-                r.raise_for_status()
-            retry_after = r.headers.get("Retry-After")
-            try:
-                wait = float(retry_after) if retry_after is not None else BACKOFF_SECONDS[attempt]
-            except (TypeError, ValueError):
-                wait = BACKOFF_SECONDS[attempt]
-            wait = max(wait, BACKOFF_SECONDS[attempt])
-            sleep_fn(wait)
-            continue
+    if r.status_code == 429:
+        # A claimed paid endpoint must not be sent a second time.
+        raise RuntimeError("FUGLE_RATE_LIMITED_NO_RETRY_UNDER_ATOMIC_CLAIM")
 
-        r.raise_for_status()
-        payload = r.json()
-        return payload.get("data", []) if isinstance(payload, dict) else []
+    r.raise_for_status()
+    payload = r.json()
+    return payload.get("data", []) if isinstance(payload, dict) else []
 
-    return []
 
 
 def get_hist(symbol, start, end, *, request_get=requests.get, sleep_fn=time.sleep):
@@ -88,6 +82,10 @@ def main():
     ap.add_argument("--out", default="research_data/history")
     args = ap.parse_args()
     start, end = date.fromisoformat(args.from_date), date.fromisoformat(args.to_date)
+    if start > end:
+        raise SystemExit("INVALID_HISTORY_DATE_RANGE")
+    if os.getenv("SKY_PAID_ATOMIC_ENFORCE") != "1":
+        raise SystemExit("HISTORICAL_PAID_GUARD_REQUIRED")
     sample = json.loads(Path(args.manifest).read_text(encoding="utf-8"))["sample"]
     out = Path(args.out); out.mkdir(parents=True, exist_ok=True)
     summary = []

@@ -11,14 +11,15 @@ on:
         description: "End date"
         required: true
         default: "2026-10-22"
-  push:
-    branches:
-      - w3a/pit-feature-primitives
-    paths:
-      - ".github/workflows/w3a-whole-universe-intraday-history.yml"
+  # W0 #363: paid historical bulk download is manual-only.
 
 permissions:
-  contents: read
+  contents: write # existing Git-ref atomic claim requires write access
+  actions: read
+
+concurrency:
+  group: sky-fugle-paid-global-research-v1-live-wholemarket
+  cancel-in-progress: false
 
 jobs:
   prepare:
@@ -60,6 +61,8 @@ jobs:
     env:
       PYTHONPATH: .
       FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+      SKY_PAID_ATOMIC_ENFORCE: '1'
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

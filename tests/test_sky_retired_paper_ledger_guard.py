@@ -32,5 +32,30 @@ class RetiredPaperLedgerGuardTests(unittest.TestCase):
         self.assertFalse(check(self.root)["passed"])
 
 
+    def test_legacy_w6_manual_collector_requires_fail_closed_job(self):
+        path = ".github/workflows/w6-forward-execution-evidence.yml"
+        safe = ("name: Legacy W6\n"
+                "on:\n  workflow_dispatch:\n"
+                "jobs:\n  collect-and-report:\n"
+                "    if: ${{ false }}\n"
+                "    runs-on: ubuntu-latest\n")
+        self.track(path, safe)
+        self.assertTrue(check(self.root)["passed"])
+
+    def test_legacy_w6_without_guard_is_rejected(self):
+        path = ".github/workflows/w6-forward-execution-evidence.yml"
+        self.track(path, "on:\n  workflow_dispatch:\njobs:\n  collect-and-report:\n    runs-on: ubuntu-latest\n")
+        result = check(self.root)
+        self.assertFalse(result["passed"])
+        self.assertIn("RETIRED_W6_COLLECTOR_NOT_FAIL_CLOSED",
+                      [v["reason"] for v in result["violations"]])
+
+    def test_legacy_w6_added_job_is_rejected(self):
+        path = ".github/workflows/w6-forward-execution-evidence.yml"
+        self.track(path, ("jobs:\n  collect-and-report:\n    if: ${{ false }}\n"
+                          "  alternate-job:\n    runs-on: ubuntu-latest\n"))
+        self.assertFalse(check(self.root)["passed"])
+
+
 if __name__ == "__main__":
     unittest.main()

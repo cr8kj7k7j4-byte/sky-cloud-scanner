@@ -7,14 +7,15 @@ on:
     paths:
       - 'scan_requests/mcr/now.json'
       - 'scan_requests/quickscan/latest.json'
-  # PAUSED on 2026-11-10 by user request: formerly scheduled trigger.
-  # schedule:
-  # # UTC; Asia/Taipei UTC+8. Weekdays; official trading-calendar gate below.
-  # # Taipei 09:05, 09:15, 09:30, 09:50 and 10:15.
-  # # GitHub scheduled jobs may be delayed or skipped; verify run artifacts.
-  # - cron: "5,15,30,50 1 * * 1-5"
-  # - cron: "15 2 * * 1-5"
-  # 
+  # Canonical five scheduled research scans restored 2026-11-22.
+  # UTC (+8 Asia/Taipei): weekdays at 09:05, 09:15, 09:30, 09:50, 10:15.
+  # Official TWSE calendar, paid API reservation and fail-closed data gates
+  # remain in place. Scheduled start is best effort: require same-run evidence.
+  # No auto order and no research-to-Production model promotion.
+  schedule:
+    - cron: "5,15,30,50 1 * * 1-5"
+    - cron: "15 2 * * 1-5"
+
 permissions:
   contents: write
   actions: read
@@ -146,12 +147,12 @@ jobs:
           DEFENSIVE_LOSS_STREAK: ${{ vars.DEFENSIVE_LOSS_STREAK || '5' }}
           LOCKDOWN_DRAWDOWN_PCT: ${{ vars.LOCKDOWN_DRAWDOWN_PCT || '0.06' }}
           LOT_SIZE: ${{ vars.LOT_SIZE || '1000' }}
-          DAILY_PNL: ${{ vars.DAILY_PNL || '0' }}
-          OPEN_RISK: ${{ vars.OPEN_RISK || '0' }}
-          CONCURRENT_POSITIONS: ${{ vars.CONCURRENT_POSITIONS || '0' }}
-          CORRELATED_OPEN_RISK: ${{ vars.CORRELATED_OPEN_RISK || '0' }}
-          ACCOUNT_DRAWDOWN_PCT: ${{ vars.ACCOUNT_DRAWDOWN_PCT || '0' }}
-          CONSECUTIVE_LOSSES: ${{ vars.CONSECUTIVE_LOSSES || '0' }}
+          DAILY_PNL: ${{ vars.DAILY_PNL || '' }}
+          OPEN_RISK: ${{ vars.OPEN_RISK || '' }}
+          CONCURRENT_POSITIONS: ${{ vars.CONCURRENT_POSITIONS || '' }}
+          CORRELATED_OPEN_RISK: ${{ vars.CORRELATED_OPEN_RISK || '' }}
+          ACCOUNT_DRAWDOWN_PCT: ${{ vars.ACCOUNT_DRAWDOWN_PCT || '' }}
+          CONSECUTIVE_LOSSES: ${{ vars.CONSECUTIVE_LOSSES || '' }}
           MONITOR_STATE_BACKEND: ${{ vars.MONITOR_STATE_BACKEND || 'file' }}
           REDIS_URL: ${{ secrets.REDIS_URL }}
           MONITOR_STATE_REDIS_KEY: ${{ vars.MONITOR_STATE_REDIS_KEY || 'sky:p0a:monitor_state' }}

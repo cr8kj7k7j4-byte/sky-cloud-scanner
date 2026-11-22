@@ -1,12 +1,11 @@
 name: P0-S 5m OOS Validation
 
 on:
-  push:
-    branches: [ main ]
-    paths:
-      - "src/strategy_builder.py"
-      - "research/backtest_p0s_breakout_oos.py"
-      - ".github/workflows/p0s-oos-validation.yml"
+  # W0 #363: P0-S 5m Breakout is ARCHIVED_NO_RETUNE in the canonical
+  # research freeze registry. Source edits must not launch paid historical
+  # downloads or rerun this rejected strategy automatically.
+  # Historical/manual workflow retained for provenance; W0 must authorize
+  # any structural pre-registered research before manual dispatch.
   workflow_dispatch:
     inputs:
       from_date:

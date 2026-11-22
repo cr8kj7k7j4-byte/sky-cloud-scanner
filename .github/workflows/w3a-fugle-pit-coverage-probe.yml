@@ -1,11 +1,9 @@
 name: W3A Fugle PIT Coverage Probe
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "research/probe_fugle_pit_intraday_coverage.py"
-      - ".github/workflows/w3a-fugle-pit-coverage-probe.yml"
+  # W0 #363: PIT-coverage probe calls paid Fugle historical/candles.
+  # Do not auto-run after source/workflow changes on main.
+  # Manual research probe remains W0-governed; reuse existing evidence first.
   workflow_dispatch:
 
 permissions:

@@ -1,22 +1,16 @@
 name: W3A Opening Acceleration 1m Data Probe
 
 on:
-  push:
-    branches:
-      - w5/opening-acceleration-baseline-c-20261026
-      - w5/opening-acceleration-4tick-entry-20261026
-    paths:
-      - "research/download_pit_universe_intraday.py"
-      - "tests/test_pit_intraday_timeframe.py"
-      - ".github/workflows/w3a-opening-acceleration-1m-probe.yml"
-      - "research/w5/OPENING_ACCELERATION_BASELINE_C_PREREGISTRATION_20261026.md"
-      - "research/download_opening_acceleration_1m.py"
-      - "research/backtest_opening_acceleration_baseline_c.py"
-      - "tests/test_opening_acceleration_baseline_c.py"
+  # W0 #363: paid historical probe is manual-only; branch pushes must not spend API calls.
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write # existing Git-ref atomic claim requires write access
+  actions: read
+
+concurrency:
+  group: sky-fugle-paid-global-research-v1-live-wholemarket
+  cancel-in-progress: false
 
 jobs:
   probe:
@@ -25,6 +19,8 @@ jobs:
     env:
       PYTHONPATH: .
       FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+      SKY_PAID_ATOMIC_ENFORCE: '1'
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

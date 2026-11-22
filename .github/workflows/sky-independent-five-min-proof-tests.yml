@@ -1,0 +1,132 @@
+name: Sky Independent 5m Source Proof Tests
+on:
+  pull_request:
+    paths:
+      - 'research/sky_independent_five_min_source_proof.py'
+      - 'tests/test_sky_independent_five_min_source_proof.py'
+      - '.github/workflows/sky-independent-five-min-proof-tests.yml'
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: 'Completed Sky Chat scan Run ID to audit (blank = contracts only)'
+        required: false
+        type: string
+permissions:
+  contents: read
+  actions: read
+jobs:
+  five-minute-source-proof:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run isolated provenance tests without provider calls
+        run: python -m unittest discover -s tests -p 'test_sky_independent_five_min_source_proof.py' -v
+      - name: Verify retired ledger guard
+        run: python research/sky_retired_paper_ledger_guard.py
+
+  independent-completed-run-audit:
+    # Manual read-only post-run verification, NOT a paid scan or schedule.
+    if: github.event_name == 'workflow_dispatch' && inputs.source_run_id != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Independently retrieve completed run, GitHub Artifact and 5m receipt
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p output/sky_independent_five_min_source_audit
+          python - <<'PY'
+          import json, os, re, subprocess, sys
+          from pathlib import Path
+          from research.sky_independent_five_min_source_proof import validate
+
+          target = Path("output/sky_independent_five_min_source_audit/receipt.json")
+          run_id = os.environ["SOURCE_RUN_ID"]
+          repo = os.environ["GITHUB_REPOSITORY"]
+          receipt = {
+              "schema": "SKY_INDEPENDENT_5M_POST_RUN_AUDIT_V1",
+              "source_run_id": run_id,
+              "status": "FAILED_CLOSED",
+              "production_eligible": False,
+              "automatic_order": False,
+              "trade_action": "禁止交易",
+              "calls_to_fugle": 0,
+          }
+          try:
+              if not re.fullmatch(r"[1-9][0-9]{0,18}", run_id):
+                  raise ValueError("INVALID_RUN_ID")
+              def gh(*args):
+                  return subprocess.check_output(
+                      ["gh", *args], text=True, timeout=45
+                  )
+              run = json.loads(gh("api", f"repos/{repo}/actions/runs/{run_id}"))
+              # Only audited repository's completed Sky Chat runs are valid inputs.
+              if (run.get("name") != "Sky Chat On-Demand Scan Bridge"
+                      or run.get("status") != "completed"
+                      or run.get("conclusion") != "success"):
+                  raise ValueError("SCAN_RUN_NOT_SUCCESSFUL")
+              artifacts = json.loads(gh(
+                  "api", f"repos/{repo}/actions/runs/{run_id}/artifacts?per_page=100"
+              )).get("artifacts", [])
+              name = f"sky-chat-{run_id}"
+              matches = [a for a in artifacts if a.get("name") == name
+                         and a.get("expired") is False]
+              if len(matches) != 1:
+                  raise ValueError("SOURCE_ARTIFACT_MISSING_OR_AMBIGUOUS")
+              artifact = matches[0]
+              directory = Path("/tmp/sky-independent-5m-source")
+              directory.mkdir(parents=True, exist_ok=True)
+              gh("run", "download", run_id, "--repo", repo,
+                 "--name", name, "--dir", str(directory))
+              source = directory / "sky_quickscan_information/v14_ticker_5m_evidence.json"
+              payload = json.loads(source.read_text(encoding="utf-8"))
+              checked = validate(payload, run=run, artifact=artifact)
+              receipt["source_head_sha"] = run.get("head_sha")
+              receipt["source_artifact_id"] = artifact.get("id")
+              receipt["source_metadata_consistent"] = checked["source_metadata_consistent"]
+              receipt["samples_count"] = len(checked["samples"])
+              receipt["completed_bar_count"] = sum(
+                  sample["completed_bars"] for sample in checked["samples"]
+              )
+              # Empty/zero candidate samples are valid NO_TRADE research results,
+              # but do not establish a verified five-minute candle source.
+              if receipt["completed_bar_count"] < 1:
+                  receipt["status"] = "INSUFFICIENT_DATA"
+                  receipt["reason"] = "NO_COMPLETED_FIVE_MINUTE_SOURCE_BARS"
+              else:
+                  receipt["status"] = "PASS_RESEARCH_SOURCE_ONLY"
+                  receipt["bar_timestamp_semantics_certified"] = False
+                  receipt["vwap_certified"] = False
+          except (ValueError, OSError, KeyError, TypeError, subprocess.CalledProcessError,
+                  subprocess.TimeoutExpired, json.JSONDecodeError) as exc:
+              receipt["reason"] = str(exc)[:160] or type(exc).__name__
+          finally:
+              target.write_text(
+                  json.dumps(receipt, indent=2, ensure_ascii=False) + "\n",
+                  encoding="utf-8",
+              )
+              print(json.dumps(receipt, ensure_ascii=False))
+          if receipt["status"] != "PASS_RESEARCH_SOURCE_ONLY":
+              raise SystemExit("INDEPENDENT_FIVE_MIN_SOURCE_NOT_VERIFIED")
+          PY
+      - name: Upload independent audit receipt even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-independent-five-min-source-${{ github.run_id }}
+          path: output/sky_independent_five_min_source_audit/receipt.json
+          if-no-files-found: warn
+          retention-days: 30
