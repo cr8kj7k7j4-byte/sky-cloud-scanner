@@ -24,14 +24,19 @@ def test_artifact_fail_closed():
     assert evaluate_scan_artifact_readiness(eligible_successful_scans=0, artifact_files=0, records_loaded=0)["status"] == "WAITING_FOR_FIRST_ELIGIBLE_SCAN"
     assert evaluate_scan_artifact_readiness(eligible_successful_scans=1, artifact_files=0, records_loaded=0)["status"] == "SCAN_ARTIFACT_MISSING"
     assert evaluate_scan_artifact_readiness(eligible_successful_scans=1, artifact_files=1, records_loaded=0)["status"] == "SCAN_RECORDS_MISSING"
-    result = evaluate_scan_artifact_readiness(eligible_successful_scans=1, artifact_files=1, records_loaded=1)
+    unverified = evaluate_scan_artifact_readiness(eligible_successful_scans=1, artifact_files=1, records_loaded=1)
+    assert unverified["status"] == "SAME_RUN_ARTIFACT_UNVERIFIED"
+    assert not unverified["evidence_ready"]
+    result = evaluate_scan_artifact_readiness(eligible_successful_scans=1, artifact_files=1, records_loaded=1, same_run_verified=True)
     assert result["evidence_ready"]
     assert not result["production_eligible"]
     assert not result["live_order_enabled"]
 
 
 def test_cadence_gaps():
-    complete = evaluate_cadence_observations(expected_five_minute_slots())
+    not_attested = evaluate_cadence_observations(expected_five_minute_slots())
+    assert not not_attested["cadence_evidence_complete"]
+    complete = evaluate_cadence_observations(expected_five_minute_slots(), scheduler_evidence_verified=True)
     assert complete["cadence_evidence_complete"]
     gaps = evaluate_cadence_observations(["09:00", "09:05"])
     assert len(gaps["missing_slots"]) == 53
