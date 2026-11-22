@@ -71,7 +71,7 @@ jobs:
           SKY_PAID_ATOMIC_ENFORCE: '1'
           GH_TOKEN: ${{ github.token }}
         run: |
-          python research/download_expanded.py \
+          python -m research.download_expanded \
             --manifest research_data/universe_manifest.json \
             --from-date "${{ inputs.from_date }}" \
             --to-date "${{ inputs.to_date }}" \
