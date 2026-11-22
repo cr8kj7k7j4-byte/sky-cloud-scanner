@@ -6,7 +6,7 @@ on:
       - 'scan_requests/chat/latest.json'
   workflow_dispatch:
 permissions:
-  contents: write
+  contents: read
   actions: read
 concurrency:
   group: sky-fugle-paid-global-research-v1-live-wholemarket
