@@ -22,6 +22,16 @@ def expected_five_minute_slots() -> list[str]:
     ]
 
 
+# Formal production-daytrade research checks are five specific times, not
+# the optional 55-slot five-minute research sampling cadence.
+FORMAL_DAYTRADE_SLOTS = ("09:05", "09:15", "09:30", "09:50", "10:15")
+
+
+def expected_formal_daytrade_slots() -> list[str]:
+    """V4.0 formal Taiwan daytrade scan check times."""
+    return list(FORMAL_DAYTRADE_SLOTS)
+
+
 def validate_source_timestamp(value: object) -> bool:
     """Require a timezone-aware and parseable market data timestamp."""
     if not isinstance(value, str):
@@ -70,16 +80,23 @@ def evaluate_scan_artifact_readiness(
 def evaluate_cadence_observations(
     observed_slots: list[str] | None,
     *, scheduler_evidence_verified: bool = False,
+    cadence_profile: str = "RESEARCH_55_SLOTS",
 ) -> dict:
     """Compare observed scheduled slots, never infer them from on-demand runs.
 
     Input must come from independently verified scheduler+artifact evidence.
     """
-    expected = expected_five_minute_slots()
+    if cadence_profile == "RESEARCH_55_SLOTS":
+        expected = expected_five_minute_slots()
+    elif cadence_profile == "FORMAL_DAYTRADE_5":
+        expected = expected_formal_daytrade_slots()
+    else:
+        raise ValueError("UNKNOWN_CADENCE_PROFILE")
     observed = set(observed_slots or [])
     missing = [slot for slot in expected if slot not in observed]
     unexpected = sorted(observed.difference(expected))
     return {
+        "cadence_profile": cadence_profile,
         "expected_slots": len(expected),
         "verified_observed_slots": len(observed.intersection(expected)),
         "missing_slots": missing,
