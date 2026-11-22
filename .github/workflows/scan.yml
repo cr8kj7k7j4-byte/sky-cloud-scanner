@@ -7,14 +7,15 @@ on:
     paths:
       - 'scan_requests/mcr/now.json'
       - 'scan_requests/quickscan/latest.json'
-  # PAUSED on 2026-11-10 by user request: formerly scheduled trigger.
-  # schedule:
-  # # UTC; Asia/Taipei UTC+8. Weekdays; official trading-calendar gate below.
-  # # Taipei 09:05, 09:15, 09:30, 09:50 and 10:15.
-  # # GitHub scheduled jobs may be delayed or skipped; verify run artifacts.
-  # - cron: "5,15,30,50 1 * * 1-5"
-  # - cron: "15 2 * * 1-5"
-  # 
+  # Canonical five scheduled research scans restored 2026-11-22.
+  # UTC (+8 Asia/Taipei): weekdays at 09:05, 09:15, 09:30, 09:50, 10:15.
+  # Official TWSE calendar, paid API reservation and fail-closed data gates
+  # remain in place. Scheduled start is best effort: require same-run evidence.
+  # No auto order and no research-to-Production model promotion.
+  schedule:
+    - cron: "5,15,30,50 1 * * 1-5"
+    - cron: "15 2 * * 1-5"
+
 permissions:
   contents: write
   actions: read
