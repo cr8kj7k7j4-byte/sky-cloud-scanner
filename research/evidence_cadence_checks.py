@@ -34,7 +34,8 @@ def validate_source_timestamp(value: object) -> bool:
 
 
 def evaluate_scan_artifact_readiness(
-    *, eligible_successful_scans: int, artifact_files: int, records_loaded: int
+    *, eligible_successful_scans: int, artifact_files: int, records_loaded: int,
+    same_run_verified: bool = False
 ) -> dict:
     """Fail closed when successful scans lack corresponding readable results.
 
@@ -50,6 +51,8 @@ def evaluate_scan_artifact_readiness(
         status = "SCAN_ARTIFACT_MISSING"
     elif rows == 0:
         status = "SCAN_RECORDS_MISSING"
+    elif same_run_verified is not True:
+        status = "SAME_RUN_ARTIFACT_UNVERIFIED"
     else:
         status = "COLLECTING"
     return {
@@ -58,6 +61,7 @@ def evaluate_scan_artifact_readiness(
         "eligible_successful_scans": scans,
         "artifact_files": files,
         "records_loaded": rows,
+        "same_run_verified": same_run_verified is True,
         "production_eligible": False,
         "live_order_enabled": False,
     }
@@ -65,6 +69,7 @@ def evaluate_scan_artifact_readiness(
 
 def evaluate_cadence_observations(
     observed_slots: list[str] | None,
+    *, scheduler_evidence_verified: bool = False,
 ) -> dict:
     """Compare observed scheduled slots, never infer them from on-demand runs.
 
@@ -79,6 +84,7 @@ def evaluate_cadence_observations(
         "verified_observed_slots": len(observed.intersection(expected)),
         "missing_slots": missing,
         "unexpected_slots": unexpected,
-        "cadence_evidence_complete": not missing and not unexpected,
+        "cadence_evidence_complete": scheduler_evidence_verified is True and not missing and not unexpected,
+        "scheduler_evidence_verified": scheduler_evidence_verified is True,
         "production_eligible": False,
     }
