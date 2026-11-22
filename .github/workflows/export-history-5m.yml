@@ -21,7 +21,11 @@ on:
         default: "50"
 
 permissions:
-  contents: read
+  contents: write # shared atomic Git ref claim, no deploy or trading
+  actions: read
+concurrency:
+  group: sky-fugle-paid-global-research-v1-live-wholemarket
+  cancel-in-progress: false
 
 jobs:
   export-history:
@@ -50,9 +54,11 @@ jobs:
             --tpex-n "${{ inputs.tpex_n }}" \
             --out research_data/universe_manifest.json
 
-      - name: Download Fugle historical 5m data
+      - name: Download Fugle historical 5m data (atomic claim required)
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+          SKY_PAID_ATOMIC_ENFORCE: '1'
+          GH_TOKEN: ${{ github.token }}
         run: |
           python research/download_expanded.py \
             --manifest research_data/universe_manifest.json \
