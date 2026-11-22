@@ -65,6 +65,8 @@ class QuoteViewerTests(unittest.TestCase):
                 self.assertIn("contents: write", workflow)
                 self.assertIn("secrets.FUGLE_API_KEY", workflow)
                 self.assertNotIn("gh api --method PUT", workflow)
+        self.assertIn("if: github.event_name != 'pull_request'", selected)
+        self.assertIn("  pull_request:", selected)
         # No previously paused schedule is resumed as a side effect.
         self.assertNotIn("  schedule:\n", selected)
         self.assertNotIn("\n  schedule:\n", unified)
