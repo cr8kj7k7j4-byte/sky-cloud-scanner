@@ -134,6 +134,11 @@ def evaluate_trade(
     if reward <= 0:
         reasons.append("Long 模式 Target 必須高於 Entry")
 
+    # P0-R hard stop: two consecutive stopped-out trades end new entries for the day.
+    # Do not treat CAUTION/DEFENSIVE position sizing as an override.
+    # Missing or stale portfolio inputs must be handled by the caller separately.
+    if int(consecutive_losses or 0) >= 2:
+        reasons.append("連續兩筆停損，停止新進場（P0-R）")
     if state == "LOCKDOWN":
         reasons.append("回撤達 LOCKDOWN 門檻，禁止新開倉")
     if state == "DEFENSIVE" and grade not in (None, "A+"):
@@ -221,17 +226,45 @@ def evaluate_candidate(candidate, portfolio_context, policy=None):
     policy = policy or RiskPolicy()
     candidate = candidate or {}
     portfolio_context = portfolio_context or {}
+    # Missing or unverified account state is never proof of zero losses,
+    # zero exposure or zero holdings. Preserve the existing engine and
+    # block new entries until ALL account-dependent inputs are supplied.
+    required_account_inputs = (
+        "daily_pnl", "open_risk", "concurrent_positions",
+        "correlated_open_risk", "drawdown_pct", "consecutive_losses",
+    )
+    missing = [
+        name for name in required_account_inputs
+        if portfolio_context.get(name) is None
+    ]
+    if missing:
+        return {
+            "status": "RISK_INPUT_REQUIRED",
+            "portfolio_allowed": False,
+            "state": "UNKNOWN",
+            "required_inputs": missing,
+            "reasons": ["缺少真實帳戶損益、部位或風險紀錄，停止新進場（P0-R）"],
+            "recommended_shares": 0,
+            "risk_budget": 0.0,
+            "remaining_daily_risk_budget": 0.0,
+            "remaining_portfolio_heat": 0.0,
+            "net_rr": None,
+            "gross_rr": None,
+            "fee_tax_adjusted_rr": None,
+            "execution_adjusted_rr": None,
+            "execution_status": "EXECUTION_INPUT_REQUIRED",
+        }
     return evaluate_trade(
         entry=candidate.get("entry", candidate.get("last")),
         stop=candidate.get("stop"),
         target=candidate.get("target"),
         account_equity=portfolio_context.get("account_equity", 0),
-        daily_pnl=portfolio_context.get("daily_pnl", 0),
-        open_risk=portfolio_context.get("open_risk", 0),
-        concurrent_positions=portfolio_context.get("concurrent_positions", 0),
-        correlated_open_risk=portfolio_context.get("correlated_open_risk", 0),
-        drawdown_pct=portfolio_context.get("drawdown_pct", 0),
-        consecutive_losses=portfolio_context.get("consecutive_losses", 0),
+        daily_pnl=portfolio_context["daily_pnl"],
+        open_risk=portfolio_context["open_risk"],
+        concurrent_positions=portfolio_context["concurrent_positions"],
+        correlated_open_risk=portfolio_context["correlated_open_risk"],
+        drawdown_pct=portfolio_context["drawdown_pct"],
+        consecutive_losses=portfolio_context["consecutive_losses"],
         grade=candidate.get("grade"),
         policy=policy,
         execution_policy=portfolio_context.get("execution_policy"),

@@ -29,6 +29,18 @@ jobs:
           pip install pytest
       - name: Compile
         run: python -m compileall -q src tests research
+      - name: W0 single-owner workflow de-duplication guard (no paid API)
+        run: |
+          python -m unittest tests.test_sky_workflow_dedup_audit -v
+          python scripts/sky_workflow_dedup_audit.py
+      - name: Upload read-only W0 workflow inventory
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-w0-workflow-dedup-audit
+          path: output/w0_workflow_dedup_audit.json
+          if-no-files-found: warn
+          retention-days: 14
       - name: Run governance and production E2E
         run: |
           pytest -q \

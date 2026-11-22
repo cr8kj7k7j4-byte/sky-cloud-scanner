@@ -1,5 +1,10 @@
 name: Sky TSE OTC Selected Quote Viewer
 on:
+  pull_request:
+    paths:
+      - '.github/workflows/sky-selected-quote-view.yml'
+      - '.github/workflows/sky-unified-commands.yml'
+      - 'tests/test_sky_market_quote_view.py'
   workflow_dispatch:
     inputs:
       symbols:
@@ -10,7 +15,26 @@ on:
 permissions:
   contents: read
 jobs:
+  contracts:
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run no-paid selected/unified Fugle guard contracts
+        run: |
+          pip install -r requirements.txt
+          python -m unittest tests.test_sky_market_quote_view -v
   quote:
+    if: github.event_name == 'workflow_dispatch'
+    # Manual atomic paid-endpoint claims create Git refs, not main file writes.
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
@@ -23,8 +47,11 @@ jobs:
           pip install -r requirements.txt
           python -m unittest tests.test_sky_market_quote_view -v
       - name: Retrieve selected executed trade quotes (no orders)
+        if: github.event_name != 'pull_request'
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          SKY_PAID_ATOMIC_ENFORCE: '1'
           INPUT_SYMBOLS: ${{ inputs.symbols }}
         run: python -m src.sky_market_quote_view --symbols "$INPUT_SYMBOLS"
       - name: Upload evidence even if quotes unavailable

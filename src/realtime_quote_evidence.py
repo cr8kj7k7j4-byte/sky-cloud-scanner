@@ -57,7 +57,8 @@ def fugle_executed_trade(quote, now=None, *, max_age_seconds=120):
             raise ValueError()
     except (TypeError, ValueError):
         return None, None, "MISSING_EXECUTED_LAST_PRICE"
-    ts = timestamp_tpe(trade.get("time") or quote.get("closeTime"))
+    # closeTime is quote/session metadata, never proof of an executed trade.
+    ts = timestamp_tpe(trade.get("time"))
     if ts is None:
         return None, None, "MISSING_EXECUTED_TRADE_TIME"
     if quote.get("date") != now.date().isoformat() or ts.date() != now.date():

@@ -5,6 +5,7 @@ on:
     paths:
       - 'research/sky_all_branches_retired_ledger_audit.py'
       - '.github/workflows/sky-retired-ledger-all-branches-audit.yml'
+      - 'tests/test_sky_all_branches_retired_ledger_audit.py'
 permissions:
   contents: read
 jobs:
@@ -15,9 +16,11 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Unit-test fail-closed four-gate classifications
+        run: python -c 'import runpy; t=runpy.run_path("tests/test_sky_all_branches_retired_ledger_audit.py"); tests=[v for k,v in t.items() if k.startswith("test_") and callable(v)]; [test() for test in tests]; print(f"{len(tests)} fail-closed tests passed")'
       - name: Fetch remote branch tips for complete inventory
         run: git fetch --no-tags --prune origin '+refs/heads/*:refs/remotes/origin/*'
-      - name: Inventory exact retired paths (no deletion)
+      - name: Classify branch cleanup gates (read-only, no deletion)
         run: python research/sky_all_branches_retired_ledger_audit.py
       - uses: actions/upload-artifact@v4
         if: always()
