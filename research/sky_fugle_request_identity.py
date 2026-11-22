@@ -65,6 +65,9 @@ def canonical_fugle_request(method: str, url: str, *, parameters: dict | None = 
         endpoint = parsed.path.removeprefix("/marketdata/v1.0/stock/").lstrip("/")
         if endpoint != "intraday/tickers" or values["isNormal"] not in ("true", "false"):
             raise ValueError("INVALID_PARAMETER")
+        # Fugle ignores type when isNormal is present. Equivalent paid
+        # requests must share one atomic claim regardless of type syntax.
+        values.pop("type", None)
     if "from" in values and "to" in values and values["from"] > values["to"]:
         raise ValueError("INVALID_DATE_RANGE")
     identity = {"provider": "fugle", "method": "GET",

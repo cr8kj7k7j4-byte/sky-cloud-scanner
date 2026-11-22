@@ -49,6 +49,21 @@ class CanonicalFugleRequestTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "INVALID_PARAMETER"):
                     key("GET", url)
 
+    def test_isnormal_ignores_type_for_paid_request_identity(self):
+        # Official Fugle tickers contract: isNormal forces EQUITY and ignores type.
+        for normal in ("true", "false"):
+            with self.subTest(isNormal=normal):
+                base = f"/intraday/tickers?market=TSE&isNormal={normal}"
+                self.assertEqual(key("GET", base),
+                                 key("GET", base + "&type=EQUITY"))
+                self.assertEqual(key("GET", base),
+                                 key("GET", base + "&type=INDEX"))
+                self.assertNotEqual(key("GET", base),
+                                    key("GET", f"/intraday/tickers?market=OTC&isNormal={normal}"))
+        # Without isNormal the type filter is significant and must remain distinct.
+        self.assertNotEqual(key("GET", "/intraday/tickers?market=TSE&type=EQUITY"),
+                            key("GET", "/intraday/tickers?market=TSE&type=INDEX"))
+
     def test_invalid_empty_parameter_containers_fail_closed(self):
         for invalid in ([], (), "", 0, False):
             with self.subTest(parameters=repr(invalid)):
