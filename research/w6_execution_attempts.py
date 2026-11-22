@@ -58,10 +58,13 @@ def validate_attempt(attempt: dict) -> list[str]:
     else:
         if price is not None or a.get("fill_timestamp") is not None or a.get("filled_shares") not in (None, 0):
             errors.append("NON_FILL_CANNOT_HAVE_FILL_DATA")
-    if status in FINAL and a.get("source_type") not in {"BROKER_EXECUTION", "AUTHORIZED_PAPER_ENGINE"}:
+    # Owner permanently retired all simulated Paper/Shadow fills on 2026-11-21.
+    # Never authorize an execution claim through a legacy paper gate, even if
+    # the caller supplies a historical PASS_TO_PAPER_TRADING marker.
+    if a.get("source_type") == "AUTHORIZED_PAPER_ENGINE":
+        errors.append("RETIRED_PAPER_EXECUTION_SOURCE")
+    if status in FINAL and a.get("source_type") != "BROKER_EXECUTION":
         errors.append("FINAL_FILL_STATUS_REQUIRES_AUTHORIZED_EXECUTION_SOURCE")
-    if a.get("source_type") == "AUTHORIZED_PAPER_ENGINE" and a.get("paper_gate_verdict") != "PASS_TO_PAPER_TRADING":
-        errors.append("PAPER_GATE_NOT_PASSED")
     if a.get("source_type") == "BROKER_EXECUTION" and not a.get("broker_execution_id"):
         errors.append("BROKER_EXECUTION_ID_REQUIRED")
     if a.get("research_only") is not True:
