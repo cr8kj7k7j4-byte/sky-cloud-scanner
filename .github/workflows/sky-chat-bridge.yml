@@ -462,11 +462,18 @@ jobs:
         id: discovery
         env:
           GH_TOKEN: ${{ github.token }}
-          TARGET_COMMENT_ID: ${{ inputs.w0_comment_id || '7092354527' }}
+          TARGET_COMMENT_ID: ${{ github.event_name == 'issue_comment' && github.event.comment.id || inputs.w0_comment_id || '7092354527' }}
+          COMMENT_EVENT_TIME: ${{ github.event_name == 'issue_comment' && github.event.comment.created_at || '' }}
           WINDOW_START: ${{ inputs.w0_start || '2026-11-23T05:20:00Z' }}
           WINDOW_END: ${{ inputs.w0_end || '2026-11-23T05:30:00Z' }}
         run: |
           set -euo pipefail
+          # Issue comments use their own identity and a bounded, past-only time window.
+          # Historical preservation remains available through explicit dispatch inputs.
+          if [ -n "$COMMENT_EVENT_TIME" ]; then
+            WINDOW_START="$(python -c 'import datetime,os; t=datetime.datetime.fromisoformat(os.environ["COMMENT_EVENT_TIME"].replace("Z","+00:00")); print((t-datetime.timedelta(minutes=10)).isoformat())')"
+            WINDOW_END="$COMMENT_EVENT_TIME"
+          fi
           python -m scripts.sky_w0_run_discovery \
             --comment-id "$TARGET_COMMENT_ID" --start "$WINDOW_START" \
             --end "$WINDOW_END" --output output/w0_evidence/run_discovery.json
