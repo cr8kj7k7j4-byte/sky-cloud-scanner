@@ -47,6 +47,31 @@ class ChatScanBridgeTests(unittest.TestCase):
                         workflow.index("Reserve shared Fugle paid API slot"))
         self.assertIn("Manual GitHub Actions research-only scan; no orders", workflow)
 
+    def test_daytrade_quickscan_issue_comment_is_exactly_allowlisted_and_bound_to_request(self):
+        from pathlib import Path
+        workflow = Path(".github/workflows/sky-chat-bridge.yml").read_text(encoding="utf-8")
+        # Both commands remain constrained to #363 + repository OWNER in the job-level gate.
+        self.assertIn("github.event.issue.number == 363", workflow)
+        self.assertIn("github.event.comment.user.login == github.repository_owner", workflow)
+        self.assertIn("github.event.comment.author_association == 'OWNER'", workflow)
+        self.assertIn("github.event.comment.body == 'Sky 快掃'", workflow)
+        self.assertIn("github.event.comment.body == 'Sky 當沖快掃'", workflow)
+        self.assertIn('comment_body not in ("Sky 快掃", "Sky 當沖快掃")', workflow)
+        self.assertIn('payload["command"] = comment_body', workflow)
+        self.assertLess(workflow.index('payload["command"] = comment_body'),
+                        workflow.index("validate_request(payload)"))
+        self.assertEqual(validate_request({
+            "command": "Sky 當沖快掃",
+            "request_id": "chat-daytrade-quickscan-001",
+            "read_only_no_orders": True,
+        }), "chat-daytrade-quickscan-001")
+        with self.assertRaisesRegex(ValueError, "ORDER_POLICY_REQUIRED"):
+            validate_request({
+                "command": "Sky 當沖快掃",
+                "request_id": "chat-daytrade-quickscan-002",
+                "read_only_no_orders": False,
+            })
+
     def test_request_good(self):
         self.assertEqual(validate_request({"command":"Sky 當沖現在掃一次","request_id":"chat-20261109-a","read_only_no_orders":True}),"chat-20261109-a")
 
