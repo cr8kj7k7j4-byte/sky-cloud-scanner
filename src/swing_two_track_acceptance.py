@@ -24,16 +24,18 @@ def _day(value):
     return stamp.date().isoformat() if stamp is not None else None
 
 
-def _current_trade(confirmation, received):
+def _current_trade(confirmation, scan_started):
     price = confirmation.get("verified_executed_price")
     traded = _time(confirmation.get("verified_executed_at"))
+    checked_at = _time(confirmation.get("individual_checked_at_tpe"))
     return (
         confirmation.get("data_status") == "FRESH_EXECUTED_TRADE"
         and isinstance(price, (float, int)) and not isinstance(price, bool)
         and math.isfinite(price) and price > 0
-        and traded is not None and received is not None
-        and traded.date() == received.date()
-        and 0 <= (received - traded).total_seconds() <= 180
+        and traded is not None and checked_at is not None and scan_started is not None
+        and checked_at.date() == scan_started.date() == traded.date()
+        and 0 <= (checked_at - scan_started).total_seconds() <= 600
+        and 0 <= (checked_at - traded).total_seconds() <= 180
     )
 
 
