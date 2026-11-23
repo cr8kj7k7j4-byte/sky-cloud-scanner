@@ -77,6 +77,31 @@ class TestW0RunDiscovery(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "INCOMPLETE_ARTIFACT_LIST"):
                     discover("owner/repo", "token", 7092354527, START, END, getter)
 
+    def test_malformed_and_duplicate_artifact_identity_fail_closed(self):
+        bad_lists = (
+            [None],
+            ["invalid"],
+            [{"id": 12, "name": "valid"}, None],
+            [{"id": None, "name": "receipt"}],
+            [{"id": True, "name": "receipt"}],
+            [{"id": 0, "name": "receipt"}],
+            [{"id": 12, "name": ""}],
+            [{"id": 12}],
+            [{"id": 12, "name": "first"}, {"id": 12, "name": "second"}],
+        )
+        for artifacts in bad_lists:
+            with self.subTest(artifacts=artifacts):
+                def getter(repo, token, endpoint):
+                    if endpoint.startswith("/issues/comments/"):
+                        return COMMENT
+                    if endpoint.startswith("/actions/runs?"):
+                        return {"workflow_runs": [RUN]}
+                    return {"artifacts": artifacts, "total_count": len(artifacts)}
+                with self.assertRaisesRegex(
+                    ValueError, "INVALID_ARTIFACT_IDENTITY|DUPLICATE_ARTIFACT_ID"
+                ):
+                    discover("owner/repo", "token", 7092354527, START, END, getter)
+
     def test_issue_comment_workflow_uses_current_event_identity(self):
         # Contract: a new issue comment must not silently audit an old comment.
         from pathlib import Path
