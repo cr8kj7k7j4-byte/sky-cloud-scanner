@@ -11,7 +11,8 @@ class ChatBridgeWorkflowContractTests(unittest.TestCase):
         workflow = WORKFLOW.read_text(encoding="utf-8")
         # Shared atomic Git ref claims need write permission; direct main writes remain forbidden.
         self.assertIn("contents: write", workflow)
-        self.assertIn("group: sky-fugle-paid-global-research-v1-live-wholemarket", workflow)
+        self.assertIn("format('sky-alert-readonly-{0}', github.event.comment.id)", workflow)
+        self.assertIn("|| 'sky-fugle-paid-global-research-v1-live-wholemarket'", workflow)
         self.assertIn("SKY_PAID_ATOMIC_ENFORCE: '1'", workflow)
         self.assertNotIn("gh api --method PUT", workflow)
         self.assertNotIn("git push", workflow)

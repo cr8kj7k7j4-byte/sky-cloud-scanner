@@ -28,6 +28,56 @@ def positive_finite_number(value):
     return number if math.isfinite(number) and number > 0 else None
 
 
+
+def research_bar_average_weighted_observation(bars, *, now):
+    """Preserve raw average but refuse to infer interval VWAP.
+
+    Fugle Historical Candles defines minute-bar average as cumulative
+    average price from market open. Intraday Candles labels its field only
+    as average price and does not establish interval-specific VWAP semantics.
+    Therefore average_i * volume_i is not a valid independent VWAP
+    reconstruction without an explicit provider contract. This diagnostic
+    intentionally never computes a weighted average.
+    """
+    valid_now = isinstance(now, datetime) and now.utcoffset() is not None
+    completed = 0
+    preserved_average_count = 0
+    if isinstance(bars, list) and valid_now:
+        prior = None
+        for bar in bars:
+            if not isinstance(bar, dict):
+                continue
+            try:
+                stamp = datetime.fromisoformat(str(bar["date"]).replace("Z", "+00:00"))
+                if stamp.utcoffset() is None:
+                    continue
+                stamp = stamp.astimezone(TPE)
+            except (KeyError, ValueError, TypeError, OverflowError):
+                continue
+            if (stamp.date() != now.astimezone(TPE).date() or stamp.minute % 5
+                    or stamp.second or stamp.microsecond
+                    or (prior is not None and stamp - prior != timedelta(minutes=5))):
+                prior = stamp
+                continue
+            prior = stamp
+            if stamp + timedelta(minutes=5) > now.astimezone(TPE):
+                continue
+            completed += 1
+            if positive_finite_number(bar.get("average")) is not None:
+                preserved_average_count += 1
+    return {
+        "status": "INTRADAY_AVERAGE_SEMANTICS_UNVERIFIED_NO_VWAP",
+        "source": "FUGLE_INTRADAY_CANDLES_AVERAGE_FIELD",
+        "average_semantics": "NOT_DOCUMENTED_AS_INTERVAL_VWAP",
+        "historical_minute_average_semantics": "CUMULATIVE_FROM_MARKET_OPEN",
+        "weighted_average_observation": None,
+        "completed_bar_count": completed,
+        "completed_bars_with_finite_average": preserved_average_count,
+        "point_in_time_certified": False,
+        "independent_tick_vwap_certified": False,
+        "production_eligible": False,
+    }
+
 def selected(stage2):
     if stage2.get("schema") != "SKY_STAGE2_BOUNDED_QUOTE_EVIDENCE_V1":
         raise ValueError("BAD_STAGE2_SCHEMA")
@@ -109,7 +159,7 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                     "exchange":candles.get("exchange"),
                     "date":candles.get("date"),
                     "timeframe":candles.get("timeframe"),
-                    "data":[{key:bar.get(key) for key in ("date","open","high","low","close","volume")}
+                    "data":[{key:bar.get(key) for key in ("date","open","high","low","close","volume","average")}
                             for bar in bars if isinstance(bar,dict)][:100]
                             if isinstance(bars,list) else None,
                 }
@@ -228,6 +278,14 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                     "last_feature_bar_time_tpe":last_accepted_stamp.isoformat() if last_accepted_stamp else None,
                     "bar_timestamp_semantics_certified":False,
                     "feature_preview":features,
+                    "bar_average_weighted_observation":(
+                        research_bar_average_weighted_observation(bars, now=now)
+                        if source_identity_matches and actual_tf=="5" and cdate==day
+                           and not invalid_bar_sequence and rejected_future_bars==0
+                        else {"status":"INVALID_SOURCE_OR_BAR_SEQUENCE",
+                              "point_in_time_certified":False,
+                              "independent_tick_vwap_certified":False,
+                              "production_eligible":False}),
                     "avg_price_is_certified_vwap":False,
                     "official_bar_volume_unit":"整股張數（Fugle 官方 Intraday Candles 文件）",
                 })

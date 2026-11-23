@@ -25,7 +25,8 @@ class PaidReservationWorkflowTests(unittest.TestCase):
 
     def test_shared_serialization_and_no_order_promotion(self):
         source = self.source
-        self.assertIn("group: sky-fugle-paid-global-research-v1-live-wholemarket", source)
+        self.assertIn("format('sky-alert-readonly-{0}', github.event.comment.id)", source)
+        self.assertIn("|| 'sky-fugle-paid-global-research-v1-live-wholemarket'", source)
         self.assertIn("cancel-in-progress: false", source)
         self.assertIn("SKY_FUGLE_ONLY_MARKETDATA: '1'", source)
         # Atomic Git-ref claims need contents:write; branch-file writes remain banned.

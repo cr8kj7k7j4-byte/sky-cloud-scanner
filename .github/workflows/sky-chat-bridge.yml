@@ -12,18 +12,21 @@ permissions:
   contents: write
   actions: read
 concurrency:
-  group: sky-fugle-paid-global-research-v1-live-wholemarket
+  # Exact Sky 警戒 is a read-only artifact consumer; it must not queue against paid scans.
+  # All other requests retain the existing shared paid API concurrency guard.
+  group: ${{ github.event_name == 'issue_comment' && github.event.comment.body == 'Sky 警戒' && format('sky-alert-readonly-{0}', github.event.comment.id) || 'sky-fugle-paid-global-research-v1-live-wholemarket' }}
   cancel-in-progress: false
 jobs:
   scan:
     # Only the repository owner may request exactly Sky 快掃 on #363.
     if: >-
-      github.event_name != 'issue_comment' ||
+      (github.event_name != 'issue_comment' ||
       (github.event.issue.number == 363 &&
        github.event.comment.user.login == github.repository_owner &&
        github.event.comment.author_association == 'OWNER' &&
        (github.event.comment.body == 'Sky 快掃' ||
-        github.event.comment.body == 'Sky 當沖快掃'))
+        github.event.comment.body == 'Sky 當沖快掃'))) &&
+      github.event.comment.body != 'Sky 警戒'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -300,3 +303,121 @@ jobs:
           PY
       # The protected main branch cannot be written directly from a workflow.
       # The uploaded per-run artifact above is the immutable status/readback source.
+
+  alert_readonly:
+    # Existing workflow, isolated read-only job. No Fugle secrets, no reservation.
+    if: >-
+      github.event_name == 'issue_comment' &&
+      github.event.issue.number == 363 &&
+      github.event.comment.user.login == github.repository_owner &&
+      github.event.comment.author_association == 'OWNER' &&
+      github.event.comment.body == 'Sky 警戒'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install existing project requirements (no market API)
+        run: pip install -r requirements.txt
+      - name: Read-only alert tests
+        run: python -m unittest tests.test_sky_alert_reader tests.test_sky_alert_chat_readback -v
+      - name: Read existing scan Artifact, never request Fugle
+        id: alert_source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python -m scripts.sky_alert_chat_readback \
+            --output output/sky_alert_chat/receipt.json \
+            --markdown output/sky_alert_chat/receipt.md
+      - name: Preserve failures as NO_TRADE receipt
+        if: always()
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          p=Path("output/sky_alert_chat/receipt.json")
+          if not p.is_file():
+              p.parent.mkdir(parents=True,exist_ok=True)
+              p.write_text(json.dumps({
+                 "schema":"SKY_ALERT_CHAT_RECEIPT_V1",
+                 "run_id":os.environ["GITHUB_RUN_ID"],"head_sha":os.environ["GITHUB_SHA"],
+                 "status":"FAILED_CLOSED","reason":"SOURCE_OR_READBACK_NOT_VERIFIED",
+                 "production_eligible":False,"automatic_order":False,
+                 "trade_action":"禁止交易"},ensure_ascii=False)+"\n",encoding="utf-8")
+          PY
+      - name: Upload existing-data alert evidence
+        id: alert_upload
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-alert-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: output/sky_alert_chat/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Verify independent same-run alert receipt
+        if: always() && steps.alert_upload.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/sky-alert-external output/sky_alert_chat_external
+          for N in 1 2 3 4 5; do
+            if gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "sky-alert-$GITHUB_RUN_ID-attempt-$GITHUB_RUN_ATTEMPT" --dir /tmp/sky-alert-external; then break; fi
+            if [ "$N" = 5 ]; then exit 1; fi
+            sleep 5
+          done
+          python - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          original=Path("output/sky_alert_chat/receipt.json").read_bytes()
+          downloaded=Path("/tmp/sky-alert-external/receipt.json").read_bytes()
+          if hashlib.sha256(original).digest()!=hashlib.sha256(downloaded).digest():
+              raise SystemExit("ALERT_SAME_RUN_HASH_MISMATCH")
+          obj=json.loads(downloaded)
+          if (obj.get("schema")!="SKY_ALERT_CHAT_RECEIPT_V1"
+              or obj.get("run_id")!=os.environ["GITHUB_RUN_ID"]
+              or obj.get("head_sha")!=os.environ["GITHUB_SHA"]
+              or obj.get("production_eligible") is not False
+              or obj.get("automatic_order") is not False
+              or obj.get("trade_action")!="禁止交易"):
+              raise SystemExit("ALERT_SAME_RUN_INVARIANT_FAILED")
+          status="PASS_RESEARCH_ONLY" if obj.get("source") and obj.get("freshness_status") else "HOLD_FAIL_CLOSED"
+          receipt={"schema":"SKY_ALERT_CHAT_EXTERNAL_READBACK_V1","status":status,
+                   "run_id":obj["run_id"],"head_sha":obj["head_sha"],
+                   "source":obj.get("source"),"freshness_status":obj.get("freshness_status"),
+                   "production_eligible":False,"automatic_order":False,"trade_action":"禁止交易"}
+          Path("output/sky_alert_chat_external/receipt.json").write_text(json.dumps(receipt,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+          print("SKY_ALERT_INDEPENDENT_READBACK",status)
+          PY
+      - name: Upload independent alert receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-alert-external-readback-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: output/sky_alert_chat_external/receipt.json
+          if-no-files-found: warn
+          retention-days: 90
+      - name: Mobile-safe alert summary
+        if: always()
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          try: r=json.loads(Path("output/sky_alert_chat/receipt.json").read_text(encoding="utf-8"))
+          except (OSError,ValueError): r={}
+          src=r.get("source") or {}
+          lines=["## Sky 警戒｜唯讀 Artifact",
+                 "Run ID: "+os.environ["GITHUB_RUN_ID"],
+                 "來源 Run: "+str(src.get("source_run_id","未確認")),
+                 "來源 Artifact: "+str(src.get("source_artifact_id","未確認")),
+                 "來源時間: "+str(r.get("source_checked_at_tpe","待確認")),
+                 "讀取狀態: "+str(r.get("freshness_status","HOLD_FAIL_CLOSED")),
+                 "🔴 禁止交易。歷史觀察不等於即時成交；零付費 API。"]
+          with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as f:
+              f.write("\n".join(lines)+"\n")
+          PY

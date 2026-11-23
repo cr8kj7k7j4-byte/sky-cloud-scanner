@@ -158,6 +158,53 @@ class DeepFiveMinTests(unittest.TestCase):
             self.assertIn("date",raw["data"][0])
             self.assertIn("close",raw["data"][0])
 
+    def test_raw_provider_average_is_preserved_but_never_mislabeled_as_interval_vwap(self):
+        def with_average(symbol, timeframe="5"):
+            receipt = candles(symbol, timeframe)
+            for index, bar in enumerate(receipt["data"]):
+                bar["average"] = 20.0 if index < 3 else 30.0
+                bar["volume"] = 100 if index < 3 else 300
+            return receipt
+        output = run(stage2(), ticker_fn=ticker, candle_fn=with_average,
+                     sleep_fn=lambda _: None, now=NOW)
+        for item in output["samples"]:
+            self.assertEqual(item["raw_five_min_candles"]["data"][0]["average"], 20.0)
+            preview = item["bar_average_weighted_observation"]
+            self.assertEqual(preview["status"], "INTRADAY_AVERAGE_SEMANTICS_UNVERIFIED_NO_VWAP")
+            self.assertEqual(preview["average_semantics"], "NOT_DOCUMENTED_AS_INTERVAL_VWAP")
+            self.assertIsNone(preview["weighted_average_observation"])
+            self.assertEqual(preview["completed_bar_count"], 6)
+            self.assertEqual(preview["completed_bars_with_finite_average"], 6)
+            self.assertFalse(preview["point_in_time_certified"])
+            self.assertFalse(preview["independent_tick_vwap_certified"])
+            self.assertFalse(item["bar_timestamp_semantics_certified"])
+            self.assertFalse(item["production_eligible"])
+
+    def test_unverified_average_semantics_never_produce_weighted_vwap(self):
+        from src.sky_v14_ticker_candles_probe import research_bar_average_weighted_observation as diagnostic
+        complete = [
+            {"date": "2026-11-10T09:00:00+08:00", "average": 20.0, "volume": 100},
+            {"date": "2026-11-10T09:05:00+08:00", "average": 30.0, "volume": 300},
+            {"date": "2026-11-10T09:10:00+08:00", "average": 1000.0, "volume": 100},
+        ]
+        early = datetime(2026, 11, 10, 9, 12, tzinfo=ZoneInfo("Asia/Taipei"))
+        cases = (complete,
+                 [dict(complete[0], average=None), complete[1], complete[2]],
+                 [dict(complete[0], average=float("nan")), complete[1], complete[2]],
+                 [dict(complete[0], average=True), complete[1], complete[2]],
+                 [dict(complete[0], average=-3), complete[1], complete[2]],
+                 [dict(complete[0], volume=float("inf")), complete[1], complete[2]],
+                 [dict(complete[0], volume=True), complete[1], complete[2]],
+                 [dict(complete[0], volume=-1), complete[1], complete[2]],
+                 [dict(complete[0], volume=0), dict(complete[1], volume=0)])
+        for rows in cases:
+            result = diagnostic(rows, now=early)
+            self.assertIsNone(result["weighted_average_observation"])
+            self.assertFalse(result["independent_tick_vwap_certified"])
+            self.assertFalse(result["point_in_time_certified"])
+            self.assertFalse(result["production_eligible"])
+            self.assertEqual(result["status"], "INTRADAY_AVERAGE_SEMANTICS_UNVERIFIED_NO_VWAP")
+
     def test_readback_rejects_wrong_sha_and_run_id(self):
         from unittest.mock import patch
         from research.sky_512_artifact_validate import validate
