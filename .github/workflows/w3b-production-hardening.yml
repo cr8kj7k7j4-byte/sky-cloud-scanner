@@ -131,3 +131,25 @@ jobs:
             --kind failure \
             --workflow "W3B Production Hardening" \
             --run-url "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+  w0-cross-workflow-atomic-claim-proof:
+    # Same PR HEAD + canonical synthetic endpoint as governance-e2e; no Fugle calls.
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compete for GitHub atomic ref (real GitHub, no Fugle API)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: PYTHONPATH=. python scripts/sky_w0_cross_workflow_claim_evidence.py
+      - name: Upload immutable same-run Claim attempt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-w0-claim-race-${{ github.run_id }}
+          path: output/w0_claim_race/claim_result.json
+          if-no-files-found: error
+          retention-days: 30
