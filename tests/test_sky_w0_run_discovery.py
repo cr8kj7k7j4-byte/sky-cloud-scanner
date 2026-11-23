@@ -59,6 +59,16 @@ class TestW0RunDiscovery(unittest.TestCase):
         with self.assertRaises(ValueError):
             discover("owner/repo", "token", 7092354527, START, END, getter2)
 
+    def test_issue_comment_workflow_uses_current_event_identity(self):
+        # Contract: a new issue comment must not silently audit an old comment.
+        from pathlib import Path
+        workflow = Path(".github/workflows/sky-chat-bridge.yml").read_text(encoding="utf-8")
+        self.assertIn("github.event.comment.id || inputs.w0_comment_id", workflow)
+        self.assertIn("github.event.comment.created_at", workflow)
+        self.assertIn('if [ -n "$COMMENT_EVENT_TIME" ]; then', workflow)
+        self.assertIn('WINDOW_END="$COMMENT_EVENT_TIME"', workflow)
+        self.assertIn('datetime.timedelta(minutes=10)', workflow)
+
     def test_naive_time_and_bad_window_block(self):
         with self.assertRaises(ValueError):
             parse_time("2026-11-23T13:24:00")
