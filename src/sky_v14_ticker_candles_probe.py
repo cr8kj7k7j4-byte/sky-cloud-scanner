@@ -161,8 +161,14 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                 # Preserve a bounded, credential-free raw provider receipt for
                 # later same-SHA Artifact inspection; do not infer its semantics.
                 result["raw_five_min_candles"]={
+                    "source_endpoint":"FUGLE_INTRADAY_CANDLES",
+                    "source_request_timeframe":"5",
                     "symbol":candles.get("symbol"),
                     "exchange":candles.get("exchange"),
+                    # Required to validate provider unit by security type.
+                    # Missing source type is never silently treated as a board lot.
+                    "type":candles.get("type"),
+                    "market":candles.get("market"),
                     "date":candles.get("date"),
                     "timeframe":candles.get("timeframe"),
                     "data":[{key:bar.get(key) for key in ("date","open","high","low","close","volume","average")}
@@ -243,6 +249,17 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                             invalid_bar_sequence=True
                             continue
                 boardlot=ticker.get("boardLot")
+                ticker_type=ticker.get("type")
+                candle_type=candles.get("type")
+                # Fugle Intraday Candles: regular EQUITY uses board lots,
+                # odd-lot/emerging uses shares, and index uses turnover money.
+                # Contract matching is separate from actual volume reconciliation.
+                equity_lot_contract_matched=(
+                    source_identity_matches
+                    and ticker_type=="EQUITY" and candle_type=="EQUITY"
+                    and row["exchange"] in ("TWSE", "TPEx")
+                    and type(boardlot) in (int, float) and boardlot==1000
+                )
                 eligible=ticker.get("canDayTrade") is True and ticker.get("canBuyDayTrade") is True
                 quote_price=row.get("verified_trade_price")
                 limit=ticker.get("limitUpPrice")
@@ -257,7 +274,10 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                 )
                 # A malformed provider average must not crash feature preview
                 # or be mistaken for a certified VWAP observation.
-                snapshot={"last":verified_price, "avg_price":avg_price}
+                # A quote mean is not an independently authenticated tick
+                # VWAP. Never label a price-vs-mean ratio as vwap_distance_pct.
+                # Preserve the observed quote mean separately for research.
+                snapshot={"last":verified_price, "avg_price":None}
                 # Do not expose potentially contaminated model features from
                 # invalid bar order, future bars, or mismatched source dates.
                 preview_safe = (evidence_candidates is None and source_identity_matches and len(valid)>=2 and not invalid_bar_sequence
@@ -268,6 +288,16 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                     "ticker_date":tdate,"candles_date":cdate,
                     "source_identity_matches":source_identity_matches,
                     "board_lot_shares":boardlot,
+                    "ticker_source_type":ticker_type,
+                    "candle_source_type":candle_type,
+                    "provider_quote_average_unverified":avg_price,
+                    "vwap_feature_status":"HOLD_INDEPENDENT_TICK_VWAP_MISSING",
+                    "bar_volume_unit_contract_status":(
+                        "MATCH_FUGLE_REGULAR_EQUITY_1000_SHARES_PER_LOT"
+                        if equity_lot_contract_matched else
+                        "HOLD_SOURCE_TYPE_OR_BOARD_LOT_UNVERIFIED"),
+                    "bar_volume_share_multiplier":1000 if equity_lot_contract_matched else None,
+                    "bar_volume_cross_source_reconciled":False,
                     "trading_currency":ticker.get("tradingCurrency"),
                     "can_day_trade":ticker.get("canDayTrade"),
                     "can_buy_day_trade":ticker.get("canBuyDayTrade"),
@@ -293,7 +323,9 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                               "independent_tick_vwap_certified":False,
                               "production_eligible":False}),
                     "avg_price_is_certified_vwap":False,
-                    "official_bar_volume_unit":"整股張數（Fugle 官方 Intraday Candles 文件）",
+                    "official_bar_volume_unit":(
+                        "整股張數（1張=1000股；僅來源類型符合官方契約）"
+                        if equity_lot_contract_matched else None),
                 })
                 ready=(evidence_candidates is None and source_identity_matches and tdate==day and cdate==day
                        and actual_tf=="5" and len(valid)>=6
