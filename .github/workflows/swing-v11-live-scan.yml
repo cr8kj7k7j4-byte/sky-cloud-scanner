@@ -11,6 +11,8 @@ on:
       - "research/verify_swing_v11_live_output.py"
       - "tests/test_swing_observation_report.py"
       - ".github/workflows/swing-v11-live-scan.yml"
+  issue_comment:
+    types: [created]
   workflow_dispatch:
     inputs:
       top_n:
@@ -27,6 +29,11 @@ permissions:
   actions: read
   contents: write
 
+# Share the same paid whole-market lane with canonical and Swing scanners.
+concurrency:
+  group: sky-fugle-paid-global-research-v1-live-wholemarket
+  cancel-in-progress: false
+
 jobs:
   validate-freshness:
     if: github.event_name == 'pull_request'
@@ -40,7 +47,13 @@ jobs:
       - run: PYTHONPATH=. pytest -q tests/test_swing_v11_freshness.py tests/test_swing_v11_live_scanner.py tests/test_verify_swing_v11_live_output.py tests/test_swing_observation_report.py tests/test_swing_split_scope_scanner.py
 
   live-scan:
-    if: github.event_name != 'pull_request'
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.number == 363 &&
+       github.event.comment.user.login == github.repository_owner &&
+       github.event.comment.author_association == 'OWNER' &&
+       github.event.comment.body == 'Sky Swing V1.1｜現在掃一次')
     env:
       GH_TOKEN: ${{ github.token }}
       SKY_PAID_ATOMIC_ENFORCE: "1"
@@ -73,7 +86,49 @@ jobs:
           echo "history_dir=$HIST_DIR" >> "$GITHUB_OUTPUT"
           echo "daily_files=$(find "$HIST_DIR" -name '*_D.json' | wc -l)"
 
+      - name: Reject stale or unverifiable canonical daily signal before paid requests
+        id: daily_guard
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+          from src.swing_v11_live_scanner import load_daily_history, choose_signal_date, load_signal_date_guard
+          path = Path("${{ steps.data.outputs.history_dir }}")
+          signal_date, cross_section = choose_signal_date(load_daily_history(str(path)))
+          status = load_signal_date_guard(signal_date, datetime.now(ZoneInfo("Asia/Taipei")).date()) if signal_date else {"status": "MISSING_DAILY_HISTORY", "fresh": False}
+          output = Path("output/swing_v11_live/preflight_gate.json")
+          output.parent.mkdir(parents=True, exist_ok=True)
+          output.write_text(json.dumps({"schema":"SKY_V11_PREFLIGHT_V1","signal_date":signal_date,"cross_section":cross_section,"guard":status,"production_eligible":False,"automatic_order":False,"trade_action":"禁止交易"}, ensure_ascii=False, indent=2)+"\\n",encoding="utf-8")
+          if status.get("status") != "PASS":
+              raise SystemExit("BLOCKED_STALE_OR_UNVERIFIED_CANONICAL_DAILY_NO_PAID_API")
+          PY
+
+      - name: Reserve shared Fugle paid API slot (fail closed)
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:live:wholemarket'
+      - name: Publish reservation before paid API call
+        id: claim
+        if: steps.guard.outputs.allowed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.guard.outputs.claim_name }}
+          path: output/fugle_api_guard/claim.json
+          if-no-files-found: error
+          retention-days: 2
+      - name: Verify reservation claim independently
+        id: verify_claim
+        if: steps.guard.outputs.allowed == 'true' && steps.claim.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:live:wholemarket' --verify
+
       - name: Run V1.1 whole-market live scan
+        if: steps.verify_claim.outcome == 'success'
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
         run: |
@@ -84,7 +139,7 @@ jobs:
       # Observation is independent from V1.1 qualification. It does not repair
       # stale historical OHLC, permit trading, or certify whole-market live quotes.
       - name: Collect current TWSE TPEx daily market and Fugle candidate observations
-        if: always()
+        if: steps.verify_claim.outcome == 'success'
         continue-on-error: true
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
