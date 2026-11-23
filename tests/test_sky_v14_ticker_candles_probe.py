@@ -29,6 +29,41 @@ def candles(symbol,timeframe="5"):
          "close":30+i*0.01,"volume":100} for i in range(6)]}
 
 class DeepFiveMinTests(unittest.TestCase):
+    def test_observation_clock_is_normalized_before_five_minute_day_comparison(self):
+        # 16:15 UTC is 00:15 on the NEXT Taipei calendar date.
+        from datetime import timezone
+        observed_utc = datetime(2026, 11, 10, 16, 15, tzinfo=timezone.utc)
+        def ticker_after_midnight(symbol):
+            result = ticker(symbol)
+            result["date"] = "2026-11-11"
+            return result
+        def candles_after_midnight(symbol, timeframe="5"):
+            result = candles(symbol, timeframe)
+            result["date"] = "2026-11-11"
+            result["data"] = [
+                {"date": f"2026-11-11T00:{minute:02d}:00+08:00",
+                 "close": 30.0, "volume": 100}
+                for minute in (0, 5)]
+            return result
+        result = run(stage2(), ticker_fn=ticker_after_midnight,
+                     candle_fn=candles_after_midnight,
+                     sleep_fn=lambda _: None, now=observed_utc)
+        self.assertEqual(result["time_tpe"], "2026-11-11T00:15:00+08:00")
+        self.assertTrue(all(x["valid_today_five_min_bars"] == 2
+                            for x in result["samples"]))
+        self.assertTrue(all(x["bar_sequence_valid"] for x in result["samples"]))
+        self.assertFalse(result["production_eligible"])
+
+    def test_naive_observation_clock_is_rejected_before_provider_calls(self):
+        calls = []
+        def never_call(*args, **kwargs):
+            calls.append(args)
+            raise AssertionError("PAID_PROVIDER_CALLED")
+        with self.assertRaisesRegex(ValueError, "OBSERVATION_TIME_REQUIRES_AWARE_DATETIME"):
+            run(stage2(), ticker_fn=never_call, candle_fn=never_call,
+                sleep_fn=lambda _: None, now=datetime(2026, 11, 10, 11, 15))
+        self.assertEqual(calls, [])
+
     def test_invalid_stage2_symbols_never_reach_paid_endpoints(self):
         for invalid in (None, "", "ABC", "23/30", "２３３０", 2330):
             report = stage2()
