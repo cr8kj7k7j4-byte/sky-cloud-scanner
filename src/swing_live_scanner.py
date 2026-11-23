@@ -294,12 +294,15 @@ def run(mode="swing5d", top_n=20, deep_n=8):
                 "candidate_action": "觀察",
                 "verified_executed_price": None,
                 "verified_executed_at": None,
+                "individual_checked_at_tpe": None,
                 "data_status": "NOT_VERIFIED",
             }
             try:
                 quote = get_quote(item["symbol"])
+                checked_at = datetime.now(TZ)
+                confirmation["individual_checked_at_tpe"] = checked_at.isoformat()
                 verified_price, verified_at, evidence_status = fugle_executed_trade(
-                    quote, datetime.now(TZ), max_age_seconds=180
+                    quote, checked_at, max_age_seconds=180
                 )
                 confirmation["data_status"] = evidence_status
                 if evidence_status == "FRESH_EXECUTED_TRADE":
