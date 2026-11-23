@@ -50,5 +50,46 @@ class PITDownloadFailClosedTests(unittest.TestCase):
         self.assertEqual(self.run_case([], set()), [])
 
 
+class LegacyPaidWorkflowW0GuardContracts(unittest.TestCase):
+    """Offline proof that legacy manual paid entries cannot silently bypass W0."""
+
+    def _workflow(self, name):
+        return (Path(__file__).resolve().parents[1] / ".github" / "workflows" /
+                name).read_text(encoding="utf-8")
+
+    def test_manual_paid_probes_require_atomic_claim_and_no_auto_push(self):
+        for name in (
+            "a-plan-live-market-validation.yml",
+            "mcr-preopen-readiness.yml",
+            "p0ops-provider-preflight.yml",
+            "w3a-opening-acceleration-2026-jan-sep.yml",
+            "w3a-opening-acceleration-2026-jan-oct22.yml",
+        ):
+            with self.subTest(workflow=name):
+                content = self._workflow(name)
+                self.assertIn("  workflow_dispatch:", content)
+                self.assertNotRegex(content, r"(?m)^  push:")
+                self.assertIn("SKY_PAID_ATOMIC_ENFORCE:", content)
+                self.assertIn("GH_TOKEN:", content)
+                self.assertIn("contents: write", content)
+
+    def test_unprotected_pinned_historical_pilot_is_parked(self):
+        content = self._workflow("ai-direction-pilot-once.yml")
+        self.assertNotRegex(content, r"(?m)^  push:")
+        self.assertIn("  workflow_dispatch:", content)
+        self.assertIn("if: ${{ false }}", content)
+        self.assertIn("legacy pinned SHA has no verified per-request atomic Claim", content)
+
+    def test_real_claim_race_is_limited_to_pr689_and_two_existing_workflows(self):
+        for name in ("governance-e2e-validation.yml",
+                     "w3b-production-hardening.yml"):
+            with self.subTest(workflow=name):
+                content = self._workflow(name)
+                self.assertIn("w0-cross-workflow-atomic-claim-proof:", content)
+                self.assertIn("github.event.pull_request.number == 689", content)
+                self.assertIn("sky_w0_cross_workflow_claim_evidence.py", content)
+                self.assertIn("sky-w0-claim-race-", content)
+
+
 if __name__ == "__main__":
     unittest.main()
