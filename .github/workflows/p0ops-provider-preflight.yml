@@ -10,7 +10,7 @@ on:
   # - cron: "55 0 * * 1-5"
   # 
 permissions:
-  contents: read
+  contents: write  # GitHub immutable paid API Claim only
 
 concurrency:
   group: sky-provider-preflight
@@ -36,6 +36,8 @@ jobs:
       - name: Check runner market data permissions and official universe
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+          SKY_PAID_ATOMIC_ENFORCE: '1'
+          GH_TOKEN: ${{ github.token }}
         run: python -m research.p0ops_provider_capability
       - name: Upload sanitized permissions report
         if: always()
