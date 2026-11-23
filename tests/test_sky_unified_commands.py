@@ -108,3 +108,21 @@ def test_live_market_guard_taiwan_hours():
     assert market_session_open(datetime(2026, 11, 4, 13, 29, tzinfo=tz))
     assert not market_session_open(datetime(2026, 11, 4, 13, 30, tzinfo=tz))
     assert not market_session_open(datetime(2026, 11, 7, 10, 0, tzinfo=tz))
+
+
+def test_model_validation_comment_bridge_is_owner_only_and_no_paid_scan():
+    """Prevent arbitrary issue comments from dispatching research checks."""
+    from pathlib import Path
+
+    raw = Path(".github/workflows/sky-unified-commands.yml").read_text(encoding="utf-8")
+    assert "issue_comment:" in raw
+    assert "types: [created]" in raw
+    guard = raw.split("    if: >-", 1)[1].split("    runs-on:", 1)[0]
+    assert "github.event.issue.number == 363" in guard
+    assert "github.event.comment.user.login == github.repository_owner" in guard
+    assert "github.event.comment.author_association == 'OWNER'" in guard
+    assert "github.event.comment.body == 'Sky 全模型驗證'" in guard
+    assert 'COMMAND="model_validation"' in raw
+    assert '"request_id": ("issue-comment-" + os.environ["ISSUE_COMMENT_ID"]' in raw
+    assert 'command = ("model_validation" if os.environ.get("EVENT_NAME") == "issue_comment"' in raw
+    assert not any(line.startswith("  schedule:") for line in raw.splitlines())  # Paused schedule stays paused.

@@ -8,6 +8,8 @@ on:
   # schedule:
   # # 09:10 / 09:20 Asia/Taipei on weekdays; trading-calendar gate in runner.
   # - cron: '10,20 1 * * 1-5'
+  issue_comment:
+    types: [created]
   workflow_dispatch:
     inputs:
       command:
@@ -23,6 +25,13 @@ permissions:
   actions: read
 jobs:
   unified:
+    # Exact owner-only model validation on the canonical W0 issue. No paid scan.
+    if: >-
+      github.event_name != 'issue_comment' ||
+      (github.event.issue.number == 363 &&
+       github.event.comment.user.login == github.repository_owner &&
+       github.event.comment.author_association == 'OWNER' &&
+       github.event.comment.body == 'Sky 全模型驗證')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -44,6 +53,8 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "push" ]; then
             COMMAND=$(python -c 'import json; print(json.load(open("scan_requests/unified/latest.json"))["command"])')
+          elif [ "${{ github.event_name }}" = "issue_comment" ]; then
+            COMMAND="model_validation"
           elif [ "${{ github.event_name }}" = "schedule" ]; then
             COMMAND="all_market"
           else
@@ -67,12 +78,15 @@ jobs:
         env:
           SCAN_OUTCOME: ${{ steps.scan.outcome }}
           COMMAND_INPUT: ${{ inputs.command }}
+          EVENT_NAME: ${{ github.event_name }}
+          ISSUE_COMMENT_ID: ${{ github.event.comment.id }}
         run: |
           python - <<'PY'
           import json, os
           from datetime import datetime, timezone
           from pathlib import Path
-          command = os.environ.get("COMMAND_INPUT") or ""
+          command = ("model_validation" if os.environ.get("EVENT_NAME") == "issue_comment"
+                     else os.environ.get("COMMAND_INPUT") or "")
           if not command:
               try:
                   command = json.loads(Path("scan_requests/unified/latest.json").read_text())["command"]
@@ -108,6 +122,9 @@ jobs:
               "run_url": "https://github.com/{}/actions/runs/{}".format(
                   os.environ.get("GITHUB_REPOSITORY"), os.environ.get("GITHUB_RUN_ID")),
               "head_sha": os.environ.get("GITHUB_SHA"),
+              "request_id": ("issue-comment-" + os.environ["ISSUE_COMMENT_ID"]
+                             if os.environ.get("EVENT_NAME") == "issue_comment"
+                             and os.environ.get("ISSUE_COMMENT_ID") else None),
               "command": command,
               "scan_step_outcome": os.environ.get("SCAN_OUTCOME"),
               "report_exists": bool(payload),
