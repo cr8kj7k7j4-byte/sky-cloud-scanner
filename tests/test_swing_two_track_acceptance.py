@@ -97,8 +97,11 @@ def test_workflow_uses_two_tracks_without_replacing_original_guard():
     assert "snapshot_screen_status" in yml
     assert "candidate_execution_status" in yml
     assert "full_market_execution_certification_status" in yml
-    assert "PASS_OPERATIONAL_WHOLE_MARKET_LIVE_RESEARCH_ONLY" in yml
-    assert "HOLD_FULL_STRATEGY_AND_RISK_NOT_VERIFIED" in yml
+    module = Path("src/swing_two_track_acceptance.py").read_text(encoding="utf-8")
+    # The canonical certification criteria are in the independent evaluator,
+    # not duplicated as a literal in the workflow orchestration.
+    assert "PASS_OPERATIONAL_WHOLE_MARKET_LIVE_RESEARCH_ONLY" in module
+    assert "HOLD_FULL_STRATEGY_AND_RISK_NOT_VERIFIED" in module
     assert "sky-fugle-paid-global-research-v1-live-wholemarket" in yml
 
 
