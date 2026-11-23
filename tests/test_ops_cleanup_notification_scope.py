@@ -36,9 +36,7 @@ def test_intraday_and_monitoring_failure_notifications_remain():
 def test_split_scope_deletion_does_not_retrigger_research_scan():
     text = (WF / "swing-split-scope-research.yml").read_text(encoding="utf-8")
     job = text.split("\njobs:", 1)[1].split("\n    runs-on:", 1)[0]
-    # Only push commits that add/modify a request file may launch the scan.
-    # A deletion-only cleanup push matches neither allowed path condition.
-    assert "github.event_name == 'push'" in job
+    assert "github.event_name != 'push'" in job
     assert "github.event.commits.*.added" in job
     assert "github.event.commits.*.modified" in job
     assert "github.event.commits.*.removed" not in job
