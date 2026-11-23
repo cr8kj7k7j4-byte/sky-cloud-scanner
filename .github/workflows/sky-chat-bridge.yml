@@ -12,7 +12,9 @@ permissions:
   contents: write
   actions: read
 concurrency:
-  group: sky-fugle-paid-global-research-v1-live-wholemarket
+  # Exact Sky 警戒 is a read-only artifact consumer; it must not queue against paid scans.
+  # All other requests retain the existing shared paid API concurrency guard.
+  group: ${{ github.event_name == 'issue_comment' && github.event.comment.body == 'Sky 警戒' && format('sky-alert-readonly-{0}', github.event.comment.id) || 'sky-fugle-paid-global-research-v1-live-wholemarket' }}
   cancel-in-progress: false
 jobs:
   scan:
