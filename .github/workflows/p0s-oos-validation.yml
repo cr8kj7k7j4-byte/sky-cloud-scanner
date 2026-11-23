@@ -34,7 +34,7 @@ on:
         default: "0.45"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   validate:
@@ -60,6 +60,8 @@ jobs:
       - name: Download historical 5m data
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+          SKY_PAID_ATOMIC_ENFORCE: "1"
+          GH_TOKEN: ${{ github.token }}
         run: |
           python research/download_expanded.py \
             --manifest research_data/universe_manifest.json \

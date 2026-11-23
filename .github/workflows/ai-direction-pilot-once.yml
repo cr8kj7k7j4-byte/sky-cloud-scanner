@@ -1,9 +1,7 @@
 name: AI Direction 2026 One-shot Historical Pilot (Research Only)
 on:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/ai-direction-pilot-once.yml"
+  # W0 #363: legacy pinned SHA has no verified per-request atomic Claim.
+  # Do not auto-run paid historical research when this workflow changes.
   workflow_dispatch:
 permissions:
   contents: read
@@ -13,6 +11,9 @@ concurrency:
   cancel-in-progress: false
 jobs:
   run:
+    # Fail closed until the pinned historical implementation has proven guard.
+    # Explicit workflow_dispatch also stays disabled: no paid replay permitted.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:

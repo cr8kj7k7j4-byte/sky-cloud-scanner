@@ -9,7 +9,7 @@ on:
       - ".github/workflows/w3a-full-pit-history-export.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   export:
@@ -51,6 +51,8 @@ jobs:
       - name: Download full PIT 5m history with controlled API pacing
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+          SKY_PAID_ATOMIC_ENFORCE: "1"
+          GH_TOKEN: ${{ github.token }}
         run: |
           python research/download_pit_history.py             --manifest research_data/pit_history_manifest.json             --out research_data/pit_history
 

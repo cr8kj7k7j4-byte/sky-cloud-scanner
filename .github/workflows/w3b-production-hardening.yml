@@ -69,15 +69,14 @@ jobs:
             tests/test_sky_daytrade_preopen_readiness.py
       - name: Historical paid atomic download fail-closed regression (zero Fugle calls)
         run: |
-          python -m pytest -q tests/test_download_expanded.py tests/test_history_paid_atomic_gate.py
+          python -m pytest -q tests/test_download_expanded.py tests/test_history_paid_atomic_gate.py tests/test_download_pit_history_failclosed.py
       # Exact-HEAD Plan A tests must actually execute; generic CI green is insufficient.
       # Local fixtures only: no Fugle API, no new scan or trade action.
       - name: Plan A target contract and 5m regression
         run: |
           python -m pytest -q tests/test_swing_two_track_acceptance.py tests/test_sky_v14_ticker_candles_probe.py
-      # Execute the source-audit tests on this exact PR SHA; generic green CI
-      # must not stand in for a VWAP/volume/point-in-time source contract check.
-      # Fixture-only and no Fugle API requests.
+      # Retain the exact-SHA Stage 5 source-audit CI from merged PR #690.
+      # Offline fixtures only; never call Fugle or certify live VWAP.
       - name: Fugle Stage 5 trade-page source audit regression (zero paid API)
         run: python -m pytest -q tests/test_sky_stage5_vwap_cost_evidence.py
       - name: Production E2E
@@ -132,3 +131,25 @@ jobs:
             --kind failure \
             --workflow "W3B Production Hardening" \
             --run-url "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+  w0-cross-workflow-atomic-claim-proof:
+    # Same PR HEAD + canonical synthetic endpoint as governance-e2e; no Fugle calls.
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.number == 689 && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compete for GitHub atomic ref (real GitHub, no Fugle API)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: PYTHONPATH=. python scripts/sky_w0_cross_workflow_claim_evidence.py
+      - name: Upload immutable same-run Claim attempt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-w0-claim-race-${{ github.run_id }}
+          path: output/w0_claim_race/claim_result.json
+          if-no-files-found: error
+          retention-days: 30

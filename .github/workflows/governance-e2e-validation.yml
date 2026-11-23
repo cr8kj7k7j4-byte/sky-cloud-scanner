@@ -47,3 +47,25 @@ jobs:
             tests/test_production_e2e_acceptance.py \
             tests/test_governance_pit_gate.py \
             tests/test_revenue_pit.py
+
+  w0-cross-workflow-atomic-claim-proof:
+    # Same-repository PR only. Grant write only to this zero-Fugle evidence job.
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.number == 689 && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compete for GitHub atomic ref (real GitHub, no Fugle API)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: PYTHONPATH=. python scripts/sky_w0_cross_workflow_claim_evidence.py
+      - name: Upload immutable same-run Claim attempt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-w0-claim-race-${{ github.run_id }}
+          path: output/w0_claim_race/claim_result.json
+          if-no-files-found: error
+          retention-days: 30
