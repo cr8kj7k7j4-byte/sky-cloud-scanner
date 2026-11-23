@@ -1,6 +1,9 @@
 """Fail-closed tests for W0 run discovery; no network or Fugle calls."""
+import json
+import tempfile
 import unittest
-from scripts.sky_w0_run_discovery import discover, parse_time
+from pathlib import Path
+from scripts.sky_w0_run_discovery import attest_current_trigger, discover, parse_time
 
 START = parse_time("2026-11-23T05:20:00Z")
 END = parse_time("2026-11-23T05:30:00Z")
@@ -250,6 +253,47 @@ class TestW0RunDiscovery(unittest.TestCase):
         upload = workflow.split("      - name: Upload discovery artifact", 1)[1].split(
             "      - name: Independent same-run identity", 1)[0]
         self.assertIn("if-no-files-found: error", upload)
+
+    def test_current_issue_event_attestation_is_distinct_from_historical_candidates(self):
+        event = {"action": "created", "repository": {"full_name": "owner/repo"},
+                 "issue": {"number": 363},
+                 "comment": {"id": 7092354527, "body": "Sky #363 保全查核",
+                             "author_association": "OWNER", "user": {"login": "owner"}}}
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "event.json"
+            path.write_text(json.dumps(event), encoding="utf-8")
+            result = attest_current_trigger(
+                "owner/repo", 7092354527, "issue_comment", str(path),
+                "45192350089", "a" * 40)
+            self.assertEqual(result["status"], "PASS_THIS_RUN_TRIGGER_EVENT_ATTESTED_RESEARCH_ONLY")
+            self.assertEqual(result["trigger_run_id"], 45192350089)
+            self.assertEqual(result["trigger_comment_id"], 7092354527)
+            for altered in (
+                {"action": "edited"},
+                {"issue": {"number": 364}},
+                {"repository": {"full_name": "other/repo"}},
+                {"comment": {**event["comment"], "id": 7092354528}},
+                {"comment": {**event["comment"], "body": "Sky 快掃"}},
+                {"comment": {**event["comment"], "user": {"login": "someone"}}},
+                {"comment": {**event["comment"], "author_association": "CONTRIBUTOR"}},
+            ):
+                with self.subTest(altered=altered):
+                    path.write_text(json.dumps({**event, **altered}), encoding="utf-8")
+                    blocked = attest_current_trigger(
+                        "owner/repo", 7092354527, "issue_comment", str(path),
+                        "45192350089", "a" * 40)
+                    self.assertEqual(blocked["status"], "HOLD_TRIGGER_EVENT_UNATTESTED")
+            path.write_text(json.dumps(event), encoding="utf-8")
+            for inputs in (
+                ("workflow_dispatch", str(path), "45192350089", "a" * 40),
+                ("issue_comment", "", "45192350089", "a" * 40),
+                ("issue_comment", str(path), "0", "a" * 40),
+                ("issue_comment", str(path), "45192350089", "bad_sha"),
+            ):
+                with self.subTest(inputs=inputs):
+                    self.assertEqual(attest_current_trigger(
+                        "owner/repo", 7092354527, *inputs)["status"],
+                        "HOLD_TRIGGER_EVENT_UNATTESTED")
 
     def test_naive_time_and_bad_window_block(self):
         with self.assertRaises(ValueError):
