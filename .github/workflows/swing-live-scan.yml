@@ -50,7 +50,7 @@ jobs:
        github.event.comment.user.login == github.repository_owner &&
        github.event.comment.author_association == 'OWNER' &&
        (github.event.comment.body == 'Sky Swing 5D 快掃' ||
-       github.event.comment.body == 'Sky 波段現在掃一次')) ||
+       (github.event.comment.body == 'Sky 波段現在掃一次' || github.event.comment.body == 'Sky 波段快掃'))) ||
       (github.event_name == 'push' &&
        (contains(toJSON(github.event.commits.*.added), 'scan_requests/swing5d/') ||
         contains(toJSON(github.event.commits.*.modified), 'scan_requests/swing5d/')))
@@ -96,7 +96,7 @@ jobs:
           MAX_PRICE: "100"
           MIN_VOLUME: "500"
           MIN_TRADE_VALUE: "10000000"
-          SCAN_MODE: ${{ github.event_name == 'push' && 'swing5d' || (github.event_name == 'issue_comment' && github.event.comment.body == 'Sky 波段現在掃一次' && 'swing') || (github.event_name == 'issue_comment' && github.event.comment.body == 'Sky Swing 5D 快掃' && 'swing5d') || inputs.mode || 'swing5d' }}
+          SCAN_MODE: ${{ github.event_name == 'push' && 'swing5d' || (github.event_name == 'issue_comment' && (github.event.comment.body == 'Sky 波段現在掃一次' || github.event.comment.body == 'Sky 波段快掃') && 'swing') || (github.event_name == 'issue_comment' && github.event.comment.body == 'Sky Swing 5D 快掃' && 'swing5d') || inputs.mode || 'swing5d' }}
           TOP_N: ${{ inputs.top_n || '20' }}
           DEEP_N: ${{ inputs.deep_n || '8' }}
         run: |
@@ -107,7 +107,7 @@ jobs:
       - name: Verify scan output and publish summary
         if: steps.guard.outputs.allowed == 'true' && steps.verify_claim.outcome == 'success' && success()
         env:
-          SCAN_MODE: ${{ github.event_name == 'push' && 'swing5d' || (github.event_name == 'issue_comment' && github.event.comment.body == 'Sky 波段現在掃一次' && 'swing') || (github.event_name == 'issue_comment' && github.event.comment.body == 'Sky Swing 5D 快掃' && 'swing5d') || inputs.mode || 'swing5d' }}
+          SCAN_MODE: ${{ github.event_name == 'push' && 'swing5d' || (github.event_name == 'issue_comment' && (github.event.comment.body == 'Sky 波段現在掃一次' || github.event.comment.body == 'Sky 波段快掃') && 'swing') || (github.event_name == 'issue_comment' && github.event.comment.body == 'Sky Swing 5D 快掃' && 'swing5d') || inputs.mode || 'swing5d' }}
         run: |
           python - <<'PY'
           import json, os
@@ -159,7 +159,7 @@ jobs:
           CLAIM_OUTCOME: ${{ steps.claim.outcome }}
           VERIFIED_OUTCOME: ${{ steps.verify_claim.outcome }}
           SCAN_OUTCOME: ${{ steps.scan.outcome }}
-          SCAN_MODE: ${{ github.event_name == 'push' && 'swing5d' || (github.event_name == 'issue_comment' && github.event.comment.body == 'Sky 波段現在掃一次' && 'swing') || (github.event_name == 'issue_comment' && github.event.comment.body == 'Sky Swing 5D 快掃' && 'swing5d') || inputs.mode || 'swing5d' }}
+          SCAN_MODE: ${{ github.event_name == 'push' && 'swing5d' || (github.event_name == 'issue_comment' && (github.event.comment.body == 'Sky 波段現在掃一次' || github.event.comment.body == 'Sky 波段快掃') && 'swing') || (github.event_name == 'issue_comment' && github.event.comment.body == 'Sky Swing 5D 快掃' && 'swing5d') || inputs.mode || 'swing5d' }}
           REQUEST_ID: ${{ github.event.comment.id }}
         run: |
           python - <<'PY'
@@ -267,7 +267,7 @@ jobs:
       - name: Publish mobile-readable Swing result and safety status
         if: always()
         env:
-          SCAN_MODE: ${{ github.event_name == 'push' && 'swing5d' || (github.event_name == 'issue_comment' && github.event.comment.body == 'Sky 波段現在掃一次' && 'swing') || (github.event_name == 'issue_comment' && github.event.comment.body == 'Sky Swing 5D 快掃' && 'swing5d') || inputs.mode || 'swing5d' }}
+          SCAN_MODE: ${{ github.event_name == 'push' && 'swing5d' || (github.event_name == 'issue_comment' && (github.event.comment.body == 'Sky 波段現在掃一次' || github.event.comment.body == 'Sky 波段快掃') && 'swing') || (github.event_name == 'issue_comment' && github.event.comment.body == 'Sky Swing 5D 快掃' && 'swing5d') || inputs.mode || 'swing5d' }}
         run: |
           python - <<'PY'
           import json, os
