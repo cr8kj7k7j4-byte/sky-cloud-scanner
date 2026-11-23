@@ -104,3 +104,22 @@ def test_single_stock_swing_update_is_realtime():
     assert route.data_mode == "SINGLE_STOCK_REALTIME"
     assert route.symbol_required is True
     assert route.realtime_required is True
+
+
+def test_swing_quick_scan_alias_is_exact_owner_only_and_swing_mode():
+    from pathlib import Path
+    workflow = Path(".github/workflows/swing-live-scan.yml").read_text(encoding="utf-8")
+    guard = workflow.split("jobs:", 1)[1].split("runs-on:", 1)[0]
+    assert "github.event.issue.number == 363" in guard
+    assert "github.event.comment.user.login == github.repository_owner" in guard
+    assert "github.event.comment.author_association == 'OWNER'" in guard
+    assert "github.event.comment.body == 'Sky 波段快掃'" in guard
+    assert "github.event.comment.body == 'Sky Swing 5D 快掃'" in guard
+    assert "github.event.comment.body == 'Sky 波段現在掃一次'" in guard
+    assert "sky-fugle-paid-global-research-v1-live-wholemarket" in workflow
+    # All four mode expressions (scanner, gate, readback, mobile summary) must agree.
+    assert workflow.count("github.event.comment.body == 'Sky 波段快掃'") == 5
+    assert workflow.count("&& 'swing')") == 4
+    assert "id: scan" in workflow
+    assert "SCAN_OUTCOME: ${{ steps.scan.outcome }}" in workflow
+    assert "automatic_order" in workflow
