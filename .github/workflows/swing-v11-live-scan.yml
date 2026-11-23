@@ -19,6 +19,14 @@ on:
         description: "V1.1 candidate output count"
         required: true
         default: "20"
+      source_run_id:
+        description: "Verified W3 canonical daily history source Run ID (required for manual dispatch)"
+        required: false
+        type: string
+      artifact_name:
+        description: "Exact W3 canonical daily artifact name"
+        required: false
+        type: string
   # PAUSED on 2026-11-10 by user request: formerly scheduled trigger.
   # schedule:
   # # Taiwan market hours 09:00-13:30 (UTC+8), every 5 minutes.
@@ -68,15 +76,41 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Validate governed canonical daily source identity before download
+        id: daily_source
+        shell: bash
+        env:
+          SOURCE_RUN_ID: ${{ inputs.source_run_id || vars.SKY_SWING_CANONICAL_DAILY_RUN_ID }}
+          SOURCE_ARTIFACT: ${{ inputs.artifact_name || vars.SKY_SWING_CANONICAL_DAILY_ARTIFACT_NAME }}
+        run: |
+          python - <<'PY'
+          import json, os, re
+          from pathlib import Path
+          source_id = os.getenv("SOURCE_RUN_ID", "").strip()
+          artifact = os.getenv("SOURCE_ARTIFACT", "").strip()
+          ok = bool(re.fullmatch(r"[1-9][0-9]{5,19}", source_id)) and bool(re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,180}", artifact))
+          reason = "SOURCE_IDENTITY_CONFIGURED_NOT_FRESHNESS_CERTIFIED" if ok else "BLOCKED_UNVERIFIED_CANONICAL_SOURCE_IDENTITY"
+          output = Path("output/swing_v11_live/source_gate.json")
+          output.parent.mkdir(parents=True, exist_ok=True)
+          output.write_text(json.dumps({"schema":"SKY_V11_DAILY_SOURCE_GATE_V1","status":reason,"source_run_id":source_id if ok else None,"source_artifact_name":artifact if ok else None,"production_eligible":False,"automatic_order":False,"trade_action":"禁止交易"},ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+          if not ok:
+              raise SystemExit(reason)
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+              handle.write("run_id="+source_id+"\n")
+              handle.write("artifact_name="+artifact+"\n")
+          PY
+
       - name: Download canonical Swing daily history
+        if: steps.daily_source.outcome == 'success'
         uses: dawidd6/action-download-artifact@v11
         with:
-          run_id: 40252311345
-          name: w3-swing-canonical-daily-history-repaired-40252311345
+          run_id: ${{ steps.daily_source.outputs.run_id }}
+          name: ${{ steps.daily_source.outputs.artifact_name }}
           path: _canonical
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Locate canonical history
+        if: steps.daily_source.outcome == 'success'
         id: data
         shell: bash
         run: |

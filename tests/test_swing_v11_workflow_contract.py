@@ -41,4 +41,12 @@ def test_preflight_fails_closed_and_preserves_research():
     assert 'status.get("status") != "PASS"' in source
     assert "output/swing_v11_live/preflight_gate.json" in source
     assert "output/swing_v11_live/" in source
-    assert "run_id: 40252311345" in source  # stale source is explicitly gated, not certified
+    assert "run_id: 40252311345" not in source
+    assert "BLOCKED_UNVERIFIED_CANONICAL_SOURCE_IDENTITY" in source
+    assert "SOURCE_IDENTITY_CONFIGURED_NOT_FRESHNESS_CERTIFIED" in source
+    assert "SKY_SWING_CANONICAL_DAILY_RUN_ID" in source
+    assert "SKY_SWING_CANONICAL_DAILY_ARTIFACT_NAME" in source
+    assert "source_run_id:" in source and "artifact_name:" in source
+    assert "if: steps.daily_source.outcome == 'success'" in source
+    assert "run_id: ${{ steps.daily_source.outputs.run_id }}" in source
+    assert "name: ${{ steps.daily_source.outputs.artifact_name }}" in source
