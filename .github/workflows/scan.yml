@@ -113,15 +113,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: python -m research.sky_paid_fugle_api_guard --scope 'sky:live:wholemarket' --verify
-      - name: Diagnose data sources
-        if: steps.calendar.outputs.should_scan == 'true' && steps.guard.outputs.allowed == 'true' && steps.verify_claim.outcome == 'success'
-        env:
-          SKY_FUGLE_ONLY_MARKETDATA: "1"
-          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
-          SKY_PAID_ATOMIC_ENFORCE: '1'
-          GH_TOKEN: ${{ github.token }}
-        run: python -m src.diagnose_sources | tee source-diagnostics.json
-        continue-on-error: true
       - name: Run scanner
         if: steps.calendar.outputs.should_scan == 'true' && steps.guard.outputs.allowed == 'true' && steps.verify_claim.outcome == 'success'
         env:
@@ -156,22 +147,39 @@ jobs:
           MONITOR_STATE_BACKEND: ${{ vars.MONITOR_STATE_BACKEND || 'file' }}
           REDIS_URL: ${{ secrets.REDIS_URL }}
           MONITOR_STATE_REDIS_KEY: ${{ vars.MONITOR_STATE_REDIS_KEY || 'sky:p0a:monitor_state' }}
-        run: python -m src.main
+        run: |
+          # Keep the verified, process-local Fugle response cache shared across readers.
+          python - <<'PY'
+          import os
+          from contextlib import redirect_stdout
+          from pathlib import Path
+
+          from research.sky_full_universe_information import main as publish_information
+          from src.diagnose_sources import run as diagnose_sources
+          from src.main import run as scan
+
+          try:
+              with Path("source-diagnostics.json").open("w", encoding="utf-8") as report:
+                  with redirect_stdout(report):
+                      diagnose_sources()
+          except Exception as exc:
+              print(f"::warning::Source diagnostics failed ({type(exc).__name__})")
+
+          try:
+              scan()
+          finally:
+              try:
+                  publish_information()
+                  with Path(os.environ["GITHUB_STEP_SUMMARY"]).open("a", encoding="utf-8") as summary:
+                      summary.write(Path("output/sky_quickscan_information/latest.md").read_text(encoding="utf-8"))
+              except (Exception, SystemExit) as exc:
+                  print(f"::warning::Informational scan failed ({type(exc).__name__})")
+          PY
       - name: Publish all MCR research observations even when live scan is blocked
         if: always()
         run: |
           python -m unittest tests.test_mcr_observation_report -v
           python -m research.mcr_observation_report
-      - name: Always publish all-market informational observations (non-trading)
-        if: always() && steps.calendar.outputs.should_scan == 'true' && steps.guard.outputs.allowed == 'true' && steps.verify_claim.outcome == 'success'
-        continue-on-error: true
-        env:
-          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
-          SKY_PAID_ATOMIC_ENFORCE: '1'
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          python -m research.sky_full_universe_information
-          cat output/sky_quickscan_information/latest.md >> "$GITHUB_STEP_SUMMARY"
       - name: Verify bounded paid Fugle individual last-trades (research-only)
         if: always() && steps.calendar.outputs.should_scan == 'true' && steps.guard.outputs.allowed == 'true' && steps.verify_claim.outcome == 'success'
         continue-on-error: true
