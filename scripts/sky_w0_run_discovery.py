@@ -43,7 +43,7 @@ def discover(repo, token, comment_id, start, end, getter=github_json, max_pages=
     comment_time = parse_time(comment.get("created_at"))
     if comment_time > end:
         raise ValueError("COMMENT_AFTER_WINDOW")
-    candidates, complete = [], False
+    candidates, complete, listed_count, expected_total = [], False, 0, None
     for page in range(1, max_pages + 1):
         query = urlencode({"per_page": 100, "page": page,
                            "created": start.strftime("%Y-%m-%dT%H:%M:%SZ") + ".." +
@@ -52,6 +52,16 @@ def discover(repo, token, comment_id, start, end, getter=github_json, max_pages=
         batch = response.get("workflow_runs") if isinstance(response, dict) else None
         if not isinstance(batch, list):
             raise ValueError("INVALID_RUN_LIST")
+        total = response.get("total_count")
+        if type(total) is not int or total < 0:
+            raise ValueError("INVALID_RUN_LIST_TOTAL")
+        if expected_total is None:
+            expected_total = total
+        elif total != expected_total:
+            raise ValueError("RUN_LIST_TOTAL_CHANGED")
+        listed_count += len(batch)
+        if listed_count > expected_total:
+            raise ValueError("RUN_LIST_TOTAL_MISMATCH")
         for run in batch:
             if not isinstance(run, dict):
                 raise ValueError("INVALID_RUN")
@@ -86,7 +96,7 @@ def discover(repo, token, comment_id, start, end, getter=github_json, max_pages=
                               for a in artifacts if isinstance(a, dict)]
             })
         if len(batch) < 100:
-            complete = True
+            complete = listed_count == expected_total
             break
     # A run matching a time window is NOT proof that the original comment
     # caused it. Only an event-attested same-run receipt can certify linkage.
