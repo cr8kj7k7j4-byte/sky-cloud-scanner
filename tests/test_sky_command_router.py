@@ -76,3 +76,11 @@ def test_full_market_research_visibility_routes_are_explicit():
         assert route.realtime_required is True
         assert route.whole_market_required is True
         assert "research_visibility" in route.execution_target
+
+
+def test_single_stock_swing_update_is_realtime():
+    route = route_command("Sky 波段更新 3717")
+    assert route.command_family == "SKY_SINGLE_STOCK_UPDATE"
+    assert route.data_mode == "SINGLE_STOCK_REALTIME"
+    assert route.symbol_required is True
+    assert route.realtime_required is True
