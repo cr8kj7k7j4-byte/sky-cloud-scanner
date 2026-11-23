@@ -132,7 +132,7 @@ class TestW0RunDiscovery(unittest.TestCase):
         def getter(repo, token, endpoint):
             if endpoint.startswith("/issues/comments/"):
                 return COMMENT
-            if "page=1" in endpoint:
+            if "&page=1&" in endpoint:
                 return {"workflow_runs": [{**RUN, "event": "workflow_dispatch"}] * 100,
                         "total_count": 150}
             return {"workflow_runs": [], "total_count": 151}
