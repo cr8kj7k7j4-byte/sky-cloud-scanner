@@ -238,6 +238,19 @@ class TestW0RunDiscovery(unittest.TestCase):
         self.assertNotIn('WINDOW_END="$COMMENT_EVENT_TIME"', workflow)
         self.assertIn('datetime.timedelta(minutes=10)', workflow)
 
+    def test_discovery_failure_has_explicit_no_trade_artifact_fallback(self):
+        from pathlib import Path
+        workflow = Path(".github/workflows/sky-chat-bridge.yml").read_text(encoding="utf-8")
+        self.assertIn("Preserve failed discovery as no-trade evidence", workflow)
+        self.assertIn("DISCOVERY_STEP_", workflow)
+        self.assertIn('"status": "HOLD_DISCOVERY_FAILED"', workflow)
+        self.assertIn('"comment_to_run_status": "HOLD_UNCORRELATED"', workflow)
+        self.assertIn('"market_capture_status": "HOLD_UNVERIFIED"', workflow)
+        self.assertIn('"trade_action": "禁止交易"', workflow)
+        upload = workflow.split("      - name: Upload discovery artifact", 1)[1].split(
+            "      - name: Independent same-run identity", 1)[0]
+        self.assertIn("if-no-files-found: error", upload)
+
     def test_naive_time_and_bad_window_block(self):
         with self.assertRaises(ValueError):
             parse_time("2026-11-23T13:24:00")
