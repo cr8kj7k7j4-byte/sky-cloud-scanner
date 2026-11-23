@@ -49,7 +49,8 @@ jobs:
        github.event.issue.number == 363 &&
        github.event.comment.user.login == github.repository_owner &&
        github.event.comment.author_association == 'OWNER' &&
-       github.event.comment.body == 'Sky Swing 5D 快掃') ||
+       (github.event.comment.body == 'Sky Swing 5D 快掃' ||
+       github.event.comment.body == 'Sky 波段現在掃一次')) ||
       (github.event_name == 'push' &&
        (contains(toJSON(github.event.commits.*.added), 'scan_requests/swing5d/') ||
         contains(toJSON(github.event.commits.*.modified), 'scan_requests/swing5d/')))
@@ -65,7 +66,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt pytest
       - name: Test MIS coverage recovery
-        run: python -m pytest -q tests/test_official_mis_coverage.py tests/test_swing5d_publish_status.py
+        run: python -m pytest -q tests/test_official_mis_coverage.py tests/test_swing5d_publish_status.py tests/test_sky_command_router.py tests/test_swing_live_scanner.py
       - name: Reserve shared paid Fugle slot before any paid request
         id: guard
         env:
@@ -94,7 +95,7 @@ jobs:
           MAX_PRICE: "100"
           MIN_VOLUME: "500"
           MIN_TRADE_VALUE: "10000000"
-          SCAN_MODE: ${{ github.event_name == 'push' && 'swing5d' || inputs.mode || 'swing5d' }}
+          SCAN_MODE: ${{ github.event_name == 'push' && 'swing5d' || (github.event_name == 'issue_comment' && github.event.comment.body == 'Sky 波段現在掃一次' && 'swing') || (github.event_name == 'issue_comment' && github.event.comment.body == 'Sky Swing 5D 快掃' && 'swing5d') || inputs.mode || 'swing5d' }}
           TOP_N: ${{ inputs.top_n || '20' }}
           DEEP_N: ${{ inputs.deep_n || '8' }}
         run: |
@@ -105,7 +106,7 @@ jobs:
       - name: Verify scan output and publish summary
         if: steps.guard.outputs.allowed == 'true' && steps.verify_claim.outcome == 'success' && success()
         env:
-          SCAN_MODE: ${{ github.event_name == 'push' && 'swing5d' || inputs.mode || 'swing5d' }}
+          SCAN_MODE: ${{ github.event_name == 'push' && 'swing5d' || (github.event_name == 'issue_comment' && github.event.comment.body == 'Sky 波段現在掃一次' && 'swing') || (github.event_name == 'issue_comment' && github.event.comment.body == 'Sky Swing 5D 快掃' && 'swing5d') || inputs.mode || 'swing5d' }}
         run: |
           python - <<'PY'
           import json, os
@@ -149,8 +150,172 @@ jobs:
           path: output/swing_live/
           if-no-files-found: warn
           retention-days: 30
-      - name: Generate connector-readable Swing 5D status without main push
+      - name: Download and independently verify same-run Swing artifact (read-only)
         if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PAID_ALLOWED: ${{ steps.guard.outputs.allowed }}
+          CLAIM_OUTCOME: ${{ steps.claim.outcome }}
+          VERIFIED_OUTCOME: ${{ steps.verify_claim.outcome }}
+          SCAN_OUTCOME: ${{ steps.scan.outcome }}
+          SCAN_MODE: ${{ github.event_name == 'push' && 'swing5d' || (github.event_name == 'issue_comment' && github.event.comment.body == 'Sky 波段現在掃一次' && 'swing') || (github.event_name == 'issue_comment' && github.event.comment.body == 'Sky Swing 5D 快掃' && 'swing5d') || inputs.mode || 'swing5d' }}
+          REQUEST_ID: ${{ github.event.comment.id }}
+        run: |
+          python - <<'PY'
+          import json, os, subprocess
+          from pathlib import Path
+          from datetime import datetime
+          run_id = os.environ["GITHUB_RUN_ID"]
+          repo = os.environ["GITHUB_REPOSITORY"]
+          mode = os.environ.get("SCAN_MODE") or "UNKNOWN"
+          receipt = {
+              "schema": "SKY_SWING_SAME_RUN_READBACK_V1",
+              "status": "HOLD",
+              "run_id": run_id,
+              "head_sha": os.environ.get("GITHUB_SHA"),
+              "request_id": os.environ.get("REQUEST_ID") or None,
+              "mode": mode,
+              "production_baseline": "Sky Swing V1.0",
+              "v1_exact_rule_status": "BLOCKED_EXACT_RULE_SPEC",
+              "v1_1_status": "RESEARCH_ONLY",
+              "production_eligible": False,
+              "automatic_order": False,
+          }
+          try:
+              if (os.environ.get("PAID_ALLOWED") != "true"
+                  or os.environ.get("CLAIM_OUTCOME") != "success"
+                  or os.environ.get("VERIFIED_OUTCOME") != "success"):
+                  raise ValueError("PAID_RESERVATION_NOT_VERIFIED")
+              if os.environ.get("SCAN_OUTCOME") != "success":
+                  raise ValueError("SWING_SCAN_STEP_NOT_SUCCESS")
+              target = Path("/tmp/sky-swing-same-run")
+              target.mkdir(parents=True, exist_ok=True)
+              subprocess.run(
+                  ["gh", "run", "download", run_id, "--repo", repo,
+                   "--name", f"sky-swing-live-{run_id}", "--dir", str(target)],
+                  check=True, capture_output=True, text=True, timeout=90,
+              )
+              raw = subprocess.run(
+                  ["gh", "api", f"repos/{repo}/actions/runs/{run_id}/artifacts"],
+                  check=True, capture_output=True, text=True, timeout=30,
+              ).stdout
+              artifacts = json.loads(raw).get("artifacts", [])
+              artifact_name = f"sky-swing-live-{run_id}"
+              matches = [a for a in artifacts if a.get("name") == artifact_name and not a.get("expired")]
+              if len(matches) != 1:
+                  raise ValueError("SAME_RUN_ARTIFACT_ID_NOT_UNIQUE")
+              report_path = target / "latest_swing.json"
+              if mode == "swing5d":
+                  report_path = target / "latest_swing5d.json"
+              report = json.loads(report_path.read_text(encoding="utf-8"))
+              if report.get("mode") != mode:
+                  raise ValueError("ARTIFACT_MODE_MISMATCH")
+              if mode == "swing" and report.get("production_strategy") != "Sky Swing V1.0":
+                  raise ValueError("PRODUCTION_BASELINE_IDENTITY_MISMATCH")
+              generated = report.get("generated_at")
+              parsed = datetime.fromisoformat(generated)
+              universe_count = report.get("universe_count")
+              quote_count = report.get("quote_count")
+              candidate_count = report.get("candidate_count")
+              candidates = report.get("candidates") or []
+              if not all(isinstance(v, int) and not isinstance(v, bool) and v >= 0
+                         for v in (universe_count, quote_count, candidate_count)):
+                  raise ValueError("INVALID_COVERAGE_COUNTS")
+              if quote_count > universe_count or candidate_count != len(candidates):
+                  raise ValueError("COVERAGE_OR_CANDIDATE_COUNT_MISMATCH")
+              if report.get("observations_are_trade_signals") is not False:
+                  raise ValueError("OBSERVATION_SIGNAL_POLICY_MISSING")
+              if any(row.get("strategy_signal") is not False for row in candidates):
+                  raise ValueError("CANDIDATE_SIGNAL_NOT_FAIL_CLOSED")
+              if "禁止新進場" not in str(report.get("trade_decision", "")):
+                  raise ValueError("NO_TRADE_GUARD_MISSING")
+              receipt.update({
+                  "status": "PASS_ARTIFACT_INTEGRITY_RESEARCH_ONLY",
+                  "artifact_id": matches[0]["id"],
+                  "artifact_name": artifact_name,
+                  "data_timestamp": generated,
+                  "data_timezone": str(parsed.tzinfo),
+                  "universe_count": universe_count,
+                  "verified_quote_count": quote_count,
+                  "quote_coverage_pct": report.get("quote_coverage_pct"),
+                  "snapshot_coverage_pct": report.get("snapshot_coverage_pct"),
+                  "candidate_count": candidate_count,
+                  "market_data_gate": report.get("market_data_gate"),
+                  "operational_full_market_scan": report.get("operational_full_market_scan"),
+                  "strategy_status": report.get("strategy_status"),
+                  "observations_are_trade_signals": False,
+              })
+          except Exception as exc:
+              receipt["status"] = "HOLD_READBACK_FAILED"
+              receipt["reason"] = f"{type(exc).__name__}:{str(exc)[:180]}"
+          out = Path("output/swing_live_readback/receipt.json")
+          out.parent.mkdir(parents=True, exist_ok=True)
+          out.write_text(json.dumps(receipt, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          print(json.dumps(receipt, ensure_ascii=False))
+          if receipt["status"] != "PASS_ARTIFACT_INTEGRITY_RESEARCH_ONLY":
+              raise SystemExit("SWING_SAME_RUN_ARTIFACT_READBACK_NOT_VERIFIED")
+          PY
+      - name: Upload independent same-run Swing readback receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-swing-readback-${{ github.run_id }}
+          path: output/swing_live_readback/receipt.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Publish mobile-readable Swing result and safety status
+        if: always()
+        env:
+          SCAN_MODE: ${{ github.event_name == 'push' && 'swing5d' || (github.event_name == 'issue_comment' && github.event.comment.body == 'Sky 波段現在掃一次' && 'swing') || (github.event_name == 'issue_comment' && github.event.comment.body == 'Sky Swing 5D 快掃' && 'swing5d') || inputs.mode || 'swing5d' }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          mode = os.environ.get("SCAN_MODE") or "UNKNOWN"
+          report_path = Path(f"output/swing_live/latest_{mode}.json")
+          receipt_path = Path("output/swing_live_readback/receipt.json")
+          try:
+              report = json.loads(report_path.read_text(encoding="utf-8"))
+          except (OSError, ValueError, TypeError):
+              report = {}
+          try:
+              receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+          except (OSError, ValueError, TypeError):
+              receipt = {}
+          gate = report.get("market_data_gate", "UNKNOWN")
+          readback = receipt.get("status", "HOLD")
+          operational = report.get("operational_full_market_scan") is True
+          verdict = ("研究資料與同次 Artifact 讀回完成；全市場行情閘門通過，但非正式交易訊號"
+                     if readback == "PASS_ARTIFACT_INTEGRITY_RESEARCH_ONLY" and operational
+                     else "HOLD：資料／讀回／全市場驗證未完整通過，禁止新進場")
+          lines = [
+              f"## Sky 波段現在掃一次｜{verdict}", "",
+              f"- Run ID：`{os.environ.get('GITHUB_RUN_ID')}`",
+              f"- Commit：`{os.environ.get('GITHUB_SHA')}`",
+              f"- 模型基準：{report.get('production_strategy') or 'Research only'}",
+              f"- V1.0 規格狀態：{report.get('strategy_status', 'UNKNOWN')}",
+              f"- V1.1：Research only；不得升版",
+              f"- 資料時間（台北）：{report.get('generated_at', '待確認')}",
+              f"- 母池／有效報價：{report.get('universe_count', 'UNKNOWN')}／{report.get('quote_count', 'UNKNOWN')}",
+              f"- 快照觀察覆蓋率：{report.get('snapshot_coverage_pct', 'UNKNOWN')}%",
+              f"- 候選數：{report.get('candidate_count', 'UNKNOWN')}",
+              f"- 全市場資料閘門：{gate}",
+              f"- 同次 Artifact：{readback}",
+              f"- Artifact ID：{receipt.get('artifact_id', '待確認')}",
+              "- 交易資格：禁止新進場；觀察候選不是 V1.0 買進訊號",
+              "- 自動下單：停用",
+              "",
+              "| 股票 | 名稱 | 可驗證成交價 | 資料狀態 | 動作 |",
+              "|---|---|---:|---|---|",
+          ]
+          for row in (report.get("deep_candidates") or [])[:8]:
+              price = row.get("fugle_close") if row.get("data_status") == "VERIFIED_EXECUTED_TRADE" else "待確認"
+              lines.append(f"| {row.get('symbol','')} | {row.get('name','')} | {price} | {row.get('data_status','UNKNOWN')} | {row.get('candidate_action','觀察')} |")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as out:
+              out.write("\n".join(lines) + "\n")
+          PY
+      - name: Generate connector-readable Swing 5D status without main push
+        if: always() && (github.event_name == 'push' || github.event.comment.body == 'Sky Swing 5D 快掃' || inputs.mode == 'swing5d')
         run: python -m src.swing5d_publish_status --run-id "$GITHUB_RUN_ID"
       - name: Upload connector-readable same-run status artifact
         if: always()
