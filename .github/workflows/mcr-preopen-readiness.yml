@@ -11,7 +11,7 @@ on:
   # # Asia/Taipei 08:30, 08:45 and 08:55 on weekdays, before 09:00 opening.
   # - cron: '30,45,55 0 * * 1-5'
 permissions:
-  contents: read
+  contents: write  # GitHub atomic Claim only; no transactions
 concurrency:
   group: sky-mcr-preopen-readiness
   cancel-in-progress: false
@@ -33,6 +33,8 @@ jobs:
       - name: Probe Fugle paid batch source (3 bounded attempts, no orders)
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+          SKY_PAID_ATOMIC_ENFORCE: '1'
+          GH_TOKEN: ${{ github.token }}
         run: python -m research.mcr_preopen_readiness
       - name: Upload readiness receipt even on failure
         if: always()
