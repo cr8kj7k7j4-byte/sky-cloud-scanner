@@ -252,7 +252,11 @@ class PaidWorkflowWiringRegressionTests(unittest.TestCase):
         for path in self.WORKFLOWS:
             with self.subTest(path=path):
                 content = Path(path).read_text(encoding="utf-8")
-                self.assertIn("group: sky-fugle-paid-global-research-v1-live-wholemarket", content)
+                if path.endswith("/sky-chat-bridge.yml"):
+                    self.assertIn("format('sky-alert-readonly-{0}', github.event.comment.id)", content)
+                    self.assertIn("|| 'sky-fugle-paid-global-research-v1-live-wholemarket'", content)
+                else:
+                    self.assertIn("group: sky-fugle-paid-global-research-v1-live-wholemarket", content)
                 self.assertIn("cancel-in-progress: false", content)
 
     def test_paid_workflows_require_verified_claim_before_paid_execution(self):

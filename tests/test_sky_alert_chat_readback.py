@@ -63,6 +63,13 @@ class SkyAlertChatReadbackTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "AMBIGUOUS"):
                 find_source_json(root)
 
+    def test_readonly_alert_uses_unique_queue_without_changing_paid_guard(self):
+        workflow = Path(".github/workflows/sky-chat-bridge.yml").read_text(encoding="utf-8")
+        header = workflow.split("jobs:", 1)[0]
+        self.assertIn("format('sky-alert-readonly-{0}', github.event.comment.id)", header)
+        self.assertIn("'sky-fugle-paid-global-research-v1-live-wholemarket'", header)
+        self.assertIn("cancel-in-progress: false", header)
+
     def test_existing_workflow_only_owner_alert_job_never_paid(self):
         workflow = Path(".github/workflows/sky-chat-bridge.yml").read_text(encoding="utf-8")
         scan, alert = workflow.split("\n  alert_readonly:", 1)
