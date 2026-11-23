@@ -59,6 +59,24 @@ class TestW0RunDiscovery(unittest.TestCase):
         with self.assertRaises(ValueError):
             discover("owner/repo", "token", 7092354527, START, END, getter2)
 
+    def test_missing_or_inconsistent_artifact_count_fails_closed(self):
+        # A partial or malformed GitHub response is never complete evidence.
+        for artifact_response in (
+            {"artifacts": [{"id": 55, "name": "receipt"}]},
+            {"artifacts": [{"id": 55, "name": "receipt"}], "total_count": 2},
+            {"artifacts": [{"id": 55, "name": "receipt"}], "total_count": True},
+            {"artifacts": [], "total_count": -1},
+        ):
+            with self.subTest(artifact_response=artifact_response):
+                def getter(repo, token, endpoint):
+                    if endpoint.startswith("/issues/comments/"):
+                        return COMMENT
+                    if endpoint.startswith("/actions/runs?"):
+                        return {"workflow_runs": [RUN]}
+                    return artifact_response
+                with self.assertRaisesRegex(ValueError, "INCOMPLETE_ARTIFACT_LIST"):
+                    discover("owner/repo", "token", 7092354527, START, END, getter)
+
     def test_issue_comment_workflow_uses_current_event_identity(self):
         # Contract: a new issue comment must not silently audit an old comment.
         from pathlib import Path
