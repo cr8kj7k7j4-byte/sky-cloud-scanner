@@ -480,6 +480,32 @@ jobs:
           python -m scripts.sky_w0_run_discovery \
             --comment-id "$TARGET_COMMENT_ID" --start "$WINDOW_START" \
             --end "$WINDOW_END" --output output/w0_evidence/run_discovery.json
+      - name: Preserve failed discovery as no-trade evidence
+        if: always()
+        env:
+          DISCOVERY_OUTCOME: ${{ steps.discovery.outcome }}
+          TARGET_COMMENT_ID: ${{ github.event_name == 'issue_comment' && github.event.comment.id || inputs.w0_comment_id || '' }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p = Path("output/w0_evidence/run_discovery.json")
+          if not p.is_file():
+              p.parent.mkdir(parents=True, exist_ok=True)
+              p.write_text(json.dumps({
+                  "schema": "SKY_W0_RUN_DISCOVERY_V1",
+                  "status": "HOLD_DISCOVERY_FAILED",
+                  "error_type": "DISCOVERY_STEP_" + os.getenv("DISCOVERY_OUTCOME", "unknown").upper(),
+                  "target_comment_id": os.getenv("TARGET_COMMENT_ID") or None,
+                  "comment_to_run_status": "HOLD_UNCORRELATED",
+                  "market_capture_status": "HOLD_UNVERIFIED",
+                  "discovery_run_id": os.getenv("GITHUB_RUN_ID"),
+                  "discovery_head_sha": os.getenv("GITHUB_SHA"),
+                  "production_eligible": False,
+                  "automatic_order": False,
+                  "trade_action": "禁止交易",
+              }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          PY
       - name: Upload discovery artifact
         id: upload
         if: always()
@@ -487,7 +513,7 @@ jobs:
         with:
           name: sky-w0-discovery-${{ github.run_id }}-attempt-${{ github.run_attempt }}
           path: output/w0_evidence/run_discovery.json
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 90
       - name: Independent same-run identity and SHA256 readback
         if: steps.upload.outcome == 'success'
