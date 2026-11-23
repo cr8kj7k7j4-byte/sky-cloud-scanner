@@ -63,6 +63,18 @@ def test_stale_or_missing_or_low_coverage_snapshot_fails_closed():
         assert assess(r, s)["snapshot_screen_status"] == "HOLD_SNAPSHOT_EVIDENCE"
 
 
+
+def test_boolean_official_universe_size_rejected_even_when_coverage_looks_valid():
+    # bool is an int subclass; fake True coverage denominators must fail closed.
+    report, snapshot = evidence()
+    report["source_health"]["official_universe"] = {"twse": True, "tpex": True}
+    report["snapshot_exchange_counts"] = {"TWSE": 1, "TPEx": 1}
+    out = assess(report, snapshot)
+    assert out["snapshot_screen_status"] == "HOLD_SNAPSHOT_EVIDENCE"
+    assert out["candidate_trade_gate"].startswith("HOLD")
+    assert out["production_eligible"] is False
+
+
 def test_individual_execution_pass_does_not_enable_trade():
     report, snapshot = evidence()
     report["snapshot_individual_confirmation"] = [{
