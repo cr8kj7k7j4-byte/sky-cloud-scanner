@@ -98,6 +98,10 @@ def collect(symbol: str, now=None) -> dict:
         return result
     except Exception as exc:
         result.update({"status": "QUOTE_FETCH_FAILED", "error_type": type(exc).__name__})
+        # Only this allowlisted, credential-free failure code is safe to expose.
+        # Never serialize arbitrary provider exceptions, URLs, tokens or payloads.
+        if isinstance(exc, RuntimeError) and str(exc) == "DUPLICATE_PAID_FUGLE_ENDPOINT_BLOCKED":
+            result["block_reason"] = "DUPLICATE_PAID_FUGLE_ENDPOINT_BLOCKED"
         return result
 
 
