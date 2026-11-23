@@ -82,7 +82,11 @@ def discover(repo, token, comment_id, start, end, getter=github_json, max_pages=
                 raise ValueError("DUPLICATE_RUN_ID")
             seen_run_ids.add(listed_run_id)
             stamp = parse_time(run.get("created_at"))
-            if run.get("event") != "issue_comment" or not start <= stamp <= end:
+            # Only the existing Bridge can be a candidate for this #363 command.
+            # Runs from other workflows or before the comment cannot be linked.
+            if (run.get("event") != "issue_comment"
+                or run.get("path") != ".github/workflows/sky-chat-bridge.yml"
+                or not max(start, comment_time) <= stamp <= end):
                 continue
             run_id, head = run.get("id"), run.get("head_sha")
             if type(run_id) is not int or run_id <= 0 or not SHA.fullmatch(str(head or "")):
