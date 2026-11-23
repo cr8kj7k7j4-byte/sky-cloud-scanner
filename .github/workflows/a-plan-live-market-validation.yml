@@ -7,13 +7,10 @@ on:
   # schedule:
   # # Taiwan 09:20 weekday, UTC 01:20. Separate from 09:15/09:30 main scanner.
   # - cron: "20 1 * * 1-5"
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/a-plan-live-market-validation.yml"
+  # W0 #363: do not auto-trigger paid source validation on source edits.
 
 permissions:
-  contents: read
+  contents: write  # Only for atomic GitHub ref Claim before any Fugle request
 
 concurrency:
   group: sky-a-plan-live-market-validation
@@ -26,6 +23,8 @@ jobs:
     env:
       PYTHONPATH: .
       FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+      SKY_PAID_ATOMIC_ENFORCE: "1"
+      GH_TOKEN: ${{ github.token }}
       STRICT_OFFICIAL_MODE: "1"
       ALLOW_MIS_OTC_FALLBACK: "1"
       EXEC_ENFORCE_GATE: "1"
