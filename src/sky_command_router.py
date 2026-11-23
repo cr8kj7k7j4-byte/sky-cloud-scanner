@@ -106,7 +106,7 @@ _PATTERNS = [
         ),
     ),
     (
-        re.compile(r"^Sky\\s*波段現在掃一次$", re.I),
+        re.compile(r"^Sky\s*波段現在掃一次$", re.I),
         CommandRoute(
             "SKY_SWING_V10_LIVE_OBSERVATION", "WHOLE_MARKET_REALTIME_RESEARCH_ONLY", True, True, False,
             ".github/workflows/swing-live-scan.yml --mode swing",
