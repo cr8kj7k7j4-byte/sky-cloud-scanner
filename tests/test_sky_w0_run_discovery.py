@@ -228,7 +228,9 @@ class TestW0RunDiscovery(unittest.TestCase):
         # Contract: a new issue comment must not silently audit an old comment.
         from pathlib import Path
         workflow = Path(".github/workflows/sky-chat-bridge.yml").read_text(encoding="utf-8")
-        self.assertIn("github.event.comment.id || inputs.w0_comment_id", workflow)
+        self.assertIn("github.event.comment.id || inputs.w0_comment_id || ''", workflow)
+        self.assertNotIn("inputs.w0_comment_id || '7092354527'", workflow)
+        self.assertIn('test -n "$TARGET_COMMENT_ID" || { echo "W0_COMMENT_ID_REQUIRED" >&2; exit 1; }', workflow)
         self.assertIn("github.event.comment.created_at", workflow)
         self.assertIn('if [ -n "$COMMENT_EVENT_TIME" ]; then', workflow)
         # End must include possible post-comment Actions runs, never future timestamps.
