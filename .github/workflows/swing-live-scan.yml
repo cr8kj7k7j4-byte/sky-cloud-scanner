@@ -247,6 +247,13 @@ jobs:
               if "禁止新進場" not in str(report.get("trade_decision", "")):
                   raise ValueError("NO_TRADE_GUARD_MISSING")
               two_track = json.loads((target / "two_track_acceptance.json").read_text(encoding="utf-8"))
+              snapshot = json.loads((target / f"snapshot_observations_{mode}.json").read_text(encoding="utf-8"))
+              # Recompute both gates from independently downloaded source
+              # evidence rather than trusting a precomputed PASS string.
+              from src.swing_two_track_acceptance import assess
+              independently_recomputed = assess(report, snapshot)
+              if two_track != independently_recomputed:
+                  raise ValueError("TWO_TRACK_SAME_RUN_INDEPENDENT_RECOMPUTATION_MISMATCH")
               if (two_track.get("schema") != "SKY_SWING_TWO_TRACK_ACCEPTANCE_V1"
                   or two_track.get("snapshot_screen_status") != "PASS_SNAPSHOT_OBSERVATION_ONLY"
                   or two_track.get("production_eligible") is not False
