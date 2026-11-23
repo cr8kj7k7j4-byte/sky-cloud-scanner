@@ -64,7 +64,8 @@ def discover(repo, token, comment_id, start, end, getter=github_json, max_pages=
             artifact_response = getter(repo, token, "/actions/runs/" + str(run_id) + "/artifacts?per_page=100")
             artifacts = artifact_response.get("artifacts") if isinstance(artifact_response, dict) else None
             total = artifact_response.get("total_count") if isinstance(artifact_response, dict) else None
-            if not isinstance(artifacts, list) or (isinstance(total, int) and total > len(artifacts)):
+            if (not isinstance(artifacts, list) or type(total) is not int
+                or total != len(artifacts) or total < 0):
                 raise ValueError("INCOMPLETE_ARTIFACT_LIST")
             candidates.append({
                 "run_id": run_id, "workflow": run.get("name"), "workflow_id": run.get("workflow_id"),
