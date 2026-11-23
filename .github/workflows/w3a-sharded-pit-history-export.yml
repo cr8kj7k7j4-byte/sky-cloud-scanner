@@ -2,10 +2,7 @@ name: W3A Sharded PIT Intraday History Export
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/w3a-sharded-pit-history-export.yml"
+  # Manual-only: source pushes must never initiate paid historical shards.
 
 permissions:
   contents: write
