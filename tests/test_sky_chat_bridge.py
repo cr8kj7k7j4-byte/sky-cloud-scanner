@@ -72,6 +72,22 @@ class ChatScanBridgeTests(unittest.TestCase):
                 "read_only_no_orders": False,
             })
 
+    def test_issue_comment_command_binding_accepts_only_exact_allowlist(self):
+        from src.sky_chat_bridge import bind_issue_comment_command
+        for command in ("Sky 快掃", "Sky 當沖快掃"):
+            payload = {"command": "stale shared-file command"}
+            result = bind_issue_comment_command(payload, {"comment": {"body": command}})
+            self.assertIs(result, payload)
+            self.assertEqual(result["command"], command)
+        for command in ("Sky 全模型驗證", "Sky 當沖快掃 ", " Sky 當沖快掃", None):
+            with self.subTest(command=command):
+                with self.assertRaisesRegex(ValueError, "UNAUTHORIZED_SKY_CHAT_COMMAND"):
+                    bind_issue_comment_command(
+                        {"command": "Sky 快掃"}, {"comment": {"body": command}}
+                    )
+        with self.assertRaisesRegex(ValueError, "UNAUTHORIZED_SKY_CHAT_COMMAND"):
+            bind_issue_comment_command({"command": "Sky 快掃"}, {"comment": None})
+
     def test_request_good(self):
         self.assertEqual(validate_request({"command":"Sky 當沖現在掃一次","request_id":"chat-20261109-a","read_only_no_orders":True}),"chat-20261109-a")
 
