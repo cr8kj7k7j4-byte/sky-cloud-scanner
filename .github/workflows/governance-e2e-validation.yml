@@ -50,7 +50,7 @@ jobs:
 
   w0-cross-workflow-atomic-claim-proof:
     # Same-repository PR only. Grant write only to this zero-Fugle evidence job.
-    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.number == 689 && github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
