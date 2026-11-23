@@ -39,7 +39,7 @@ class TestW0RunDiscovery(unittest.TestCase):
         def getter(repo, token, endpoint):
             if endpoint.startswith("/issues/comments/"):
                 return COMMENT
-            return {"workflow_runs": [{**RUN, "event": "workflow_dispatch"}] * 100, "total_count": 300}
+            return {"workflow_runs": [{**RUN, "id": 9000000000 + n, "event": "workflow_dispatch"} for n in range(100)], "total_count": 300}
         result = discover("owner/repo", "token", 7092354527, START, END, getter, max_pages=2)
         self.assertEqual(result["status"], "HOLD_LISTING_INCOMPLETE")
 
@@ -133,7 +133,7 @@ class TestW0RunDiscovery(unittest.TestCase):
             if endpoint.startswith("/issues/comments/"):
                 return COMMENT
             if "&page=1&" in endpoint:
-                return {"workflow_runs": [{**RUN, "event": "workflow_dispatch"}] * 100,
+                return {"workflow_runs": [{**RUN, "id": 9000000000 + n, "event": "workflow_dispatch"} for n in range(100)],
                         "total_count": 150}
             return {"workflow_runs": [], "total_count": 151}
         with self.assertRaisesRegex(ValueError, "RUN_LIST_TOTAL_CHANGED"):
