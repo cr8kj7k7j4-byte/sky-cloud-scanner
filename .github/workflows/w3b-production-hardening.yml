@@ -67,6 +67,9 @@ jobs:
             tests/test_fugle_individual_execution_probe.py \
             tests/test_fugle_paid_otc_candidate_routing.py \
             tests/test_sky_daytrade_preopen_readiness.py
+      - name: Historical paid atomic download fail-closed regression (zero Fugle calls)
+        run: |
+          python -m pytest -q tests/test_download_expanded.py tests/test_history_paid_atomic_gate.py
       # Exact-HEAD Plan A tests must actually execute; generic CI green is insufficient.
       # Local fixtures only: no Fugle API, no new scan or trade action.
       - name: Plan A target contract and 5m regression
