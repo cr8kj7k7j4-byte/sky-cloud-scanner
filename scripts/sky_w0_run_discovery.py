@@ -143,6 +143,37 @@ def discover(repo, token, comment_id, start, end, getter=github_json, max_pages=
             "trade_action": "禁止交易"}
 
 
+def attest_current_trigger(repo, comment_id, event_name, event_path, run_id, head_sha):
+    """Attest only this running Bridge event, never historical candidate runs."""
+    hold = {"status": "HOLD_TRIGGER_EVENT_UNATTESTED"}
+    if (event_name != "issue_comment" or not event_path
+        or not isinstance(run_id, str) or not re.fullmatch(r"[1-9][0-9]*", run_id)
+        or not isinstance(head_sha, str) or not SHA.fullmatch(head_sha)):
+        return hold
+    try:
+        event = json.loads(Path(event_path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return hold
+    if not isinstance(event, dict):
+        return hold
+    comment = event.get("comment")
+    issue = event.get("issue")
+    repository = event.get("repository")
+    if (event.get("action") != "created"
+        or not isinstance(comment, dict)
+        or type(comment.get("id")) is not int or comment["id"] != comment_id
+        or comment.get("body") != "Sky #363 保全查核"
+        or not isinstance(comment.get("user"), dict)
+        or comment["user"].get("login") != repo.split("/", 1)[0]
+        or comment.get("author_association") != "OWNER"
+        or not isinstance(issue, dict) or issue.get("number") != 363
+        or not isinstance(repository, dict) or repository.get("full_name") != repo):
+        return hold
+    return {"status": "PASS_THIS_RUN_TRIGGER_EVENT_ATTESTED_RESEARCH_ONLY",
+            "trigger_comment_id": comment_id, "trigger_run_id": int(run_id),
+            "trigger_head_sha": head_sha}
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--comment-id", type=int, required=True)
@@ -163,6 +194,14 @@ def main():
     result["discovery_run_id"] = os.getenv("GITHUB_RUN_ID")
     result["discovery_head_sha"] = os.getenv("GITHUB_SHA")
     result["discovery_event"] = os.getenv("GITHUB_EVENT_NAME")
+    result["trigger_event_attestation"] = (
+        attest_current_trigger(os.getenv("GITHUB_REPOSITORY", ""),
+                               args.comment_id, os.getenv("GITHUB_EVENT_NAME", ""),
+                               os.getenv("GITHUB_EVENT_PATH", ""),
+                               os.getenv("GITHUB_RUN_ID", ""),
+                               os.getenv("GITHUB_SHA", ""))
+        if result.get("status") != "HOLD_DISCOVERY_FAILED" else
+        {"status": "HOLD_TRIGGER_EVENT_UNATTESTED"})
     path.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({"status": result["status"], "run_id": result.get("discovery_run_id")}))
 
