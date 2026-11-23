@@ -547,6 +547,27 @@ jobs:
               or obj.get("automatic_order") is not False
               or obj.get("trade_action")!="禁止交易"):
               raise SystemExit("W0_DISCOVERY_RUN_IDENTITY_INVALID")
+          attestation=obj.get("trigger_event_attestation")
+          if not isinstance(attestation,dict):
+              raise SystemExit("W0_DISCOVERY_TRIGGER_ATTESTATION_MISSING")
+          if os.environ.get("GITHUB_EVENT_NAME")=="issue_comment":
+              event=json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text(encoding="utf-8"))
+              comment=event.get("comment") or {}
+              issue=event.get("issue") or {}
+              repository=event.get("repository") or {}
+              if (attestation.get("status")!="PASS_THIS_RUN_TRIGGER_EVENT_ATTESTED_RESEARCH_ONLY"
+                  or attestation.get("trigger_comment_id")!=comment.get("id")
+                  or attestation.get("trigger_comment_id")!=obj.get("target_comment_id")
+                  or attestation.get("trigger_run_id")!=int(os.environ["GITHUB_RUN_ID"])
+                  or attestation.get("trigger_head_sha")!=os.environ["GITHUB_SHA"]
+                  or comment.get("body")!="Sky #363 保全查核"
+                  or comment.get("author_association")!="OWNER"
+                  or (comment.get("user") or {}).get("login")!=os.environ["GITHUB_REPOSITORY"].split("/")[0]
+                  or issue.get("number")!=363
+                  or repository.get("full_name")!=os.environ["GITHUB_REPOSITORY"]):
+                  raise SystemExit("W0_DISCOVERY_TRIGGER_ATTESTATION_MISMATCH")
+          elif attestation.get("status")!="HOLD_TRIGGER_EVENT_UNATTESTED":
+              raise SystemExit("W0_DISCOVERY_TRIGGER_EVENT_UNEXPECTED_PASS")
           receipt={"schema":"SKY_W0_DISCOVERY_EXTERNAL_READBACK_V1",
                    "status":"PASS_ARTIFACT_INTEGRITY_RESEARCH_ONLY",
                    "run_id":os.environ["GITHUB_RUN_ID"],"head_sha":os.environ["GITHUB_SHA"],
@@ -554,6 +575,8 @@ jobs:
                    "sha256":hashlib.sha256(readback).hexdigest(),
                    "market_capture_status":obj.get("market_capture_status"),
                    "comment_to_run_status":obj.get("comment_to_run_status"),
+                   "trigger_event_attestation_status":attestation.get("status"),
+                   "trigger_comment_id":attestation.get("trigger_comment_id"),
                    "production_eligible":False,"automatic_order":False,"trade_action":"禁止交易"}
           Path("output/w0_evidence_external/receipt.json").write_text(
               json.dumps(receipt,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")

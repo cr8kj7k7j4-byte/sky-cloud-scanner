@@ -295,6 +295,19 @@ class TestW0RunDiscovery(unittest.TestCase):
                         "owner/repo", 7092354527, *inputs)["status"],
                         "HOLD_TRIGGER_EVENT_UNATTESTED")
 
+    def test_independent_readback_requires_exact_same_run_event_attestation(self):
+        # Preserve distinct provenance: historical candidate Runs still remain HOLD.
+        workflow = Path(".github/workflows/sky-chat-bridge.yml").read_text(encoding="utf-8")
+        readback = workflow.split("      - name: Independent same-run identity and SHA256 readback", 1)[1]
+        readback = readback.split("      - name: Upload independent readback receipt", 1)[0]
+        self.assertIn('W0_DISCOVERY_TRIGGER_ATTESTATION_MISSING', readback)
+        self.assertIn('W0_DISCOVERY_TRIGGER_ATTESTATION_MISMATCH', readback)
+        self.assertIn('W0_DISCOVERY_TRIGGER_EVENT_UNEXPECTED_PASS', readback)
+        self.assertIn('attestation.get("trigger_comment_id")!=obj.get("target_comment_id")', readback)
+        self.assertIn('attestation.get("trigger_run_id")!=int(os.environ["GITHUB_RUN_ID"])', readback)
+        self.assertIn('attestation.get("trigger_head_sha")!=os.environ["GITHUB_SHA"]', readback)
+        self.assertIn('"trigger_event_attestation_status":attestation.get("status")', readback)
+
     def test_naive_time_and_bad_window_block(self):
         with self.assertRaises(ValueError):
             parse_time("2026-11-23T13:24:00")
