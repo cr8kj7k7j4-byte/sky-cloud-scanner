@@ -44,6 +44,7 @@ def discover(repo, token, comment_id, start, end, getter=github_json, max_pages=
     if comment_time > end:
         raise ValueError("COMMENT_AFTER_WINDOW")
     candidates, complete, listed_count, expected_total = [], False, 0, None
+    seen_run_ids = set()
     for page in range(1, max_pages + 1):
         query = urlencode({"per_page": 100, "page": page,
                            "created": start.strftime("%Y-%m-%dT%H:%M:%SZ") + ".." +
@@ -65,6 +66,12 @@ def discover(repo, token, comment_id, start, end, getter=github_json, max_pages=
         for run in batch:
             if not isinstance(run, dict):
                 raise ValueError("INVALID_RUN")
+            listed_run_id = run.get("id")
+            if type(listed_run_id) is not int or listed_run_id <= 0:
+                raise ValueError("INVALID_RUN_IDENTITY")
+            if listed_run_id in seen_run_ids:
+                raise ValueError("DUPLICATE_RUN_ID")
+            seen_run_ids.add(listed_run_id)
             stamp = parse_time(run.get("created_at"))
             if run.get("event") != "issue_comment" or not start <= stamp <= end:
                 continue
