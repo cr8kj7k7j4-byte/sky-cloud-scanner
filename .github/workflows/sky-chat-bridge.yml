@@ -493,8 +493,7 @@ jobs:
             if [ "$N" = 5 ]; then exit 1; fi
             sleep 5
           done
-          ARTIFACT_ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" \
-            --jq '.artifacts[] | select(.name == "sky-w0-discovery-" + env.GITHUB_RUN_ID + "-attempt-" + env.GITHUB_RUN_ATTEMPT) | .id' | head -1)
+          ARTIFACT_ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" | python -c 'import json,os,sys; a=json.load(sys.stdin)["artifacts"]; name="sky-w0-discovery-"+os.environ["GITHUB_RUN_ID"]+"-attempt-"+os.environ["GITHUB_RUN_ATTEMPT"]; hits=[x["id"] for x in a if x["name"]==name]; assert len(hits)==1, "DISCOVERY_ARTIFACT_AMBIGUOUS"; print(hits[0])')
           test -n "$ARTIFACT_ID"
           export ARTIFACT_ID
           python - <<'PY'
