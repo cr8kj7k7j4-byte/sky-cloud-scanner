@@ -45,7 +45,7 @@ def _snapshot_detail_consistent(report, snapshot, received):
     stamp = _time(snapshot.get("generated_at"))
     if (not isinstance(observed, list) or not observed or received is None
             or stamp is None or stamp.date() != received.date()
-            or abs((received - stamp).total_seconds()) > 180):
+            or not 0 <= (received - stamp).total_seconds() <= 180):
         return False
     n = len(observed)
     if (not isinstance(snapshot.get("observed_symbols"), int)
