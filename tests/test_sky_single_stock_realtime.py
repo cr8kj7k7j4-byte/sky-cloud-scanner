@@ -80,6 +80,25 @@ class SingleStockRealtimeTests(unittest.TestCase):
             result = collect("1569", NOW)
         self.assertEqual(result["status"], "DAY_TRADE_NOT_ELIGIBLE")
 
+    def test_duplicate_paid_endpoint_is_explicit_but_still_fail_closed(self):
+        with patch("src.sky_single_stock_realtime.fugle.get_quote",
+                   side_effect=RuntimeError("DUPLICATE_PAID_FUGLE_ENDPOINT_BLOCKED")):
+            result = collect("3717", NOW)
+        self.assertEqual(result["status"], "QUOTE_FETCH_FAILED")
+        self.assertEqual(result["block_reason"], "DUPLICATE_PAID_FUGLE_ENDPOINT_BLOCKED")
+        self.assertFalse(result["execution_authorized"])
+        self.assertFalse(result["live_order_enabled"])
+        self.assertIsNone(result["entry_trigger"])
+
+    def test_arbitrary_provider_errors_do_not_leak_into_receipt(self):
+        with patch("src.sky_single_stock_realtime.fugle.get_quote",
+                   side_effect=RuntimeError("secret-provider-details")):
+            result = collect("3717", NOW)
+        self.assertEqual(result["status"], "QUOTE_FETCH_FAILED")
+        self.assertEqual(result["error_type"], "RuntimeError")
+        self.assertNotIn("block_reason", result)
+        self.assertNotIn("secret-provider-details", str(result))
+
     def test_permission_failure(self):
         with patch("src.sky_single_stock_realtime.fugle.get_quote", side_effect=PermissionError()):
             result = collect("1569", NOW)
