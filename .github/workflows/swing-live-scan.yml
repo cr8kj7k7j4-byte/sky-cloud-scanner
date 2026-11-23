@@ -135,7 +135,7 @@ jobs:
           two_track = assess(data, snapshot)
           two_track_path = Path('output/swing_live/two_track_acceptance.json')
           two_track_path.write_text(
-              json.dumps(two_track, ensure_ascii=False, indent=2) + '\\n',
+              json.dumps(two_track, ensure_ascii=False, indent=2) + '\n',
               encoding='utf-8'
           )
           print('SNAPSHOT_SCREEN_STATUS:', two_track['snapshot_screen_status'])
@@ -150,13 +150,13 @@ jobs:
           summary = Path(os.environ['GITHUB_STEP_SUMMARY'])
           with summary.open('a', encoding='utf-8') as out:
               out.write(
-                  f"## {data.get('display_name')}｜Snapshot 研究觀察驗收通過\\n"
-                  f"資料時間：{data.get('generated_at')}\\n\\n"
-                  f"快照觀察覆蓋：{data.get('snapshot_coverage_pct')}%\\n\\n"
-                  f"逐股成交候選：{two_track['candidate_execution_status']}\\n\\n"
-                  f"原全市場成交認證：{two_track['full_market_execution_certification_status']}\\n\\n"
-                  f"成本／風控／策略核准：{two_track['candidate_trade_gate']}\\n\\n"
-                  "研究用途限定；禁止交易，沒有正式買進訊號。\\n"
+                  f"## {data.get('display_name')}｜Snapshot 研究觀察驗收通過\n"
+                  f"資料時間：{data.get('generated_at')}\n\n"
+                  f"快照觀察覆蓋：{data.get('snapshot_coverage_pct')}%\n\n"
+                  f"逐股成交候選：{two_track['candidate_execution_status']}\n\n"
+                  f"原全市場成交認證：{two_track['full_market_execution_certification_status']}\n\n"
+                  f"成本／風控／策略核准：{two_track['candidate_trade_gate']}\n\n"
+                  "研究用途限定；禁止交易，沒有正式買進訊號。\n"
               )
           PY
       - name: Upload result
