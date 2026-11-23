@@ -8,7 +8,7 @@ on:
       - ".github/workflows/w3a-sharded-pit-history-export.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   prepare:
@@ -74,6 +74,8 @@ jobs:
       - name: Download shard with conservative source pacing
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+          SKY_PAID_ATOMIC_ENFORCE: "1"
+          GH_TOKEN: ${{ github.token }}
         run: |
           printf -v SHARD "%02d" "${{ matrix.shard }}"
           python research/download_pit_history.py             --manifest "plan/research_data/pit_history_shards/manifest_shard_${SHARD}.json"             --out "research_data/pit_history"
