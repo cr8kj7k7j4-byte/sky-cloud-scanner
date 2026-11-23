@@ -52,6 +52,9 @@ def main():
 
     p=Path(args.manifest).parent/"pit_history_download_summary.json"
     p.write_text(json.dumps(summary,ensure_ascii=False,indent=2),encoding="utf-8")
+    failures = sum(not row["ok"] for row in summary)
+    if failures or not summary:
+        raise SystemExit(f"PIT_HISTORICAL_DOWNLOAD_INCOMPLETE: failed={failures} total={len(summary)}")
 
 
 if __name__=="__main__":
