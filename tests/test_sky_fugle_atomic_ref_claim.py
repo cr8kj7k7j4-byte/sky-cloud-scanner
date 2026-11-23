@@ -161,5 +161,70 @@ class AtomicClaimContractTests(unittest.TestCase):
             claim_ref("sky:paid:workflow:abc", 5981278)
 
 
+
+class HistoricalDownloadFailClosedCITests(unittest.TestCase):
+    """Existing zero-paid contract CI invokes this module directly."""
+    def _run_case(self, symbols, failures):
+        import json
+        import sys
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        from research import download_expanded
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = root / "manifest.json"
+            manifest.write_text(json.dumps({"sample": [{"symbol": s} for s in symbols]}),
+                                encoding="utf-8")
+            argv = ["download_expanded.py", "--manifest", str(manifest),
+                    "--from-date", "2026-01-01", "--to-date", "2026-01-02",
+                    "--out", str(root / "history")]
+            def fake_get_hist(symbol, *_args):
+                if symbol in failures:
+                    raise RuntimeError("MOCK_ATOMIC_DUPLICATE_BLOCKED")
+                return [{"close": 100}]
+            with patch.dict("os.environ", {"SKY_PAID_ATOMIC_ENFORCE": "1"}), \
+                 patch.object(sys, "argv", argv), \
+                 patch.object(download_expanded, "get_hist", side_effect=fake_get_hist):
+                if not symbols or failures:
+                    with self.assertRaisesRegex(SystemExit, "HISTORICAL_DOWNLOAD_INCOMPLETE"):
+                        download_expanded.main()
+                else:
+                    download_expanded.main()
+            summary = json.loads((root / "download_summary.json").read_text(encoding="utf-8"))
+            self.assertEqual(len(summary), len(symbols))
+            self.assertEqual(sum(not row["ok"] for row in summary),
+                             sum(s in failures for s in symbols))
+            return summary
+
+    def test_historical_all_success(self):
+        self.assertTrue(self._run_case(["1111", "2222"], set())[0]["ok"])
+
+    def test_historical_partial_failure(self):
+        rows = self._run_case(["1111", "2222"], {"2222"})
+        self.assertTrue(rows[0]["ok"])
+        self.assertFalse(rows[1]["ok"])
+        self.assertIn("MOCK_ATOMIC_DUPLICATE_BLOCKED", rows[1]["error"])
+
+    def test_historical_all_failed(self):
+        rows = self._run_case(["1111"], {"1111"})
+        self.assertFalse(rows[0]["ok"])
+
+    def test_historical_empty_manifest(self):
+        self.assertEqual(self._run_case([], set()), [])
+
+    def test_historical_atomic_guard_blocks_before_http(self):
+        from datetime import date
+        from unittest.mock import patch
+        from research.download_expanded import _request_chunk
+        called = []
+        with patch.dict("os.environ", {"SKY_PAID_ATOMIC_ENFORCE": "0"}):
+            with self.assertRaisesRegex(RuntimeError, "HISTORICAL_PAID_GUARD_REQUIRED"):
+                _request_chunk("1111", date(2026, 1, 1), date(2026, 1, 2),
+                               request_get=lambda *_a, **_kw: called.append(1))
+        self.assertEqual(called, [])
+
+
 if __name__ == "__main__":
     unittest.main()
