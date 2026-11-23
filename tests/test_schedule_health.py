@@ -3,9 +3,36 @@ import unittest
 from pathlib import Path
 from schedule_health import build_report, schedules, intraday_scan_slot_evidence
 from datetime import datetime, timezone
+from src.trading_calendar import scheduled_scan_window
 from zoneinfo import ZoneInfo
 
 class TestScheduleHealth(unittest.TestCase):
+    def test_late_scheduled_scan_blocks_paid_api_window(self):
+        taipei = ZoneInfo("Asia/Taipei")
+        for hour, minute in ((8, 59), (10, 26), (13, 20), (16, 42), (18, 41)):
+            with self.subTest(hour=hour, minute=minute):
+                gate = scheduled_scan_window(
+                    "schedule", datetime(2026, 11, 23, hour, minute, tzinfo=taipei))
+                self.assertFalse(gate["allowed"])
+                self.assertEqual(gate["status"], "BLOCK_LATE_OR_EARLY_SCHEDULE")
+        for hour, minute in ((9, 5), (9, 15), (9, 30), (9, 50), (10, 15), (10, 25)):
+            with self.subTest(hour=hour, minute=minute):
+                gate = scheduled_scan_window(
+                    "schedule", datetime(2026, 11, 23, hour, minute, tzinfo=taipei))
+                self.assertTrue(gate["allowed"])
+        self.assertTrue(scheduled_scan_window(
+            "workflow_dispatch", datetime(2026, 11, 23, 18, 41, tzinfo=taipei))["allowed"])
+        self.assertFalse(scheduled_scan_window("schedule", datetime(2026, 11, 23, 9, 5))["allowed"])
+
+    def test_scan_workflow_runs_delayed_gate_before_fugle_reservation(self):
+        wf = Path(".github/workflows/scan.yml").read_text(encoding="utf-8")
+        self.assertLess(wf.index("scheduled_scan_window"), wf.index("Reserve shared paid Fugle slot"))
+        self.assertLess(wf.index("scheduled_scan_window"), wf.index("FUGLE_API_KEY"))
+        self.assertIn('x["scheduled_time_gate"] = gate', wf)
+        self.assertIn('x["should_scan"] = False', wf)
+        self.assertIn("Scheduled scan outside canonical live window; paid API withheld.", wf)
+        self.assertIn("Verify delayed schedule guard offline (zero paid API)", wf)
+
     def test_inventory_finds_real_schedules_only(self):
         with tempfile.TemporaryDirectory() as d:
             Path(d,'a.yml').write_text("on:\n  schedule:\n    - cron: '5 1 * * 1-5'\n      timezone: Asia/Taipei\n")
