@@ -39,17 +39,14 @@ jobs:
           python - <<'PY'
           import json, os
           from pathlib import Path
-          from src.sky_chat_bridge import validate_request
+          from src.sky_chat_bridge import bind_issue_comment_command, validate_request
           p = Path("scan_requests/chat/latest.json")
           payload = json.loads(p.read_text(encoding="utf-8"))
           # For an issue-comment trigger, bind the exact authorized command to
           # this run before validation; never trust the shared file's stale alias.
           if os.environ.get("GITHUB_EVENT_NAME") == "issue_comment":
               event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text(encoding="utf-8"))
-              comment_body = (event.get("comment") or {}).get("body")
-              if comment_body not in ("Sky 快掃", "Sky 當沖快掃"):
-                  raise SystemExit("UNAUTHORIZED_SKY_CHAT_COMMAND")
-              payload["command"] = comment_body
+              payload = bind_issue_comment_command(payload, event)
           # Validate the event-bound command and the read-only policy before reserving paid API.
           validate_request(payload)
           run_id = os.environ["GITHUB_RUN_ID"]
