@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import date, datetime
+from datetime import date, datetime, time
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -73,6 +73,30 @@ def classify_date(target: date, rows: list[dict]) -> dict:
         "status":"OPEN_REGULAR_WEEKDAY",
         "matched":matches,
     }
+
+
+def scheduled_scan_window(event_name: str, checked_at: datetime) -> dict:
+    """Prevent delayed GitHub cron deliveries from spending paid API outside scan hours.
+
+    The cron payload identifies a group of slots, not an exact individual slot.
+    This guard is intentionally a conservative time window, not slot certification.
+    Manual dispatch is unchanged; data-quality and trading-day gates still apply.
+    """
+    if not isinstance(checked_at, datetime) or checked_at.tzinfo is None:
+        return {"allowed": False, "status": "HOLD_UNVERIFIED_CLOCK"}
+    local = checked_at.astimezone(TZ)
+    if event_name != "schedule":
+        return {"allowed": True, "status": "NOT_SCHEDULED",
+                "checked_at_tpe": local.isoformat()}
+    first = datetime.combine(local.date(), time(9, 5), tzinfo=TZ)
+    last = datetime.combine(local.date(), time(10, 25), tzinfo=TZ)
+    allowed = first <= local <= last
+    return {"allowed": allowed,
+            "status": "WITHIN_SCHEDULED_SCAN_WINDOW" if allowed else "BLOCK_LATE_OR_EARLY_SCHEDULE",
+            "checked_at_tpe": local.isoformat(),
+            "window_start_tpe": first.isoformat(),
+            "window_end_tpe": last.isoformat(),
+            "note": "Bounded execution window only; not proof of any individual cron slot."}
 
 
 def fetch_calendar(timeout: float=10.0) -> list[dict]:
