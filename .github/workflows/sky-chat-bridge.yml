@@ -8,13 +8,26 @@ on:
   issue_comment:
     types: [created]
   workflow_dispatch:
+    inputs:
+      w0_comment_id:
+        description: "Read-only W0 issue comment ID"
+        required: false
+        type: string
+      w0_start:
+        description: "UTC window start ISO 8601"
+        required: false
+        type: string
+      w0_end:
+        description: "UTC window end ISO 8601"
+        required: false
+        type: string
 permissions:
   contents: write
   actions: read
 concurrency:
   # Exact Sky 警戒 is a read-only artifact consumer; it must not queue against paid scans.
   # All other requests retain the existing shared paid API concurrency guard.
-  group: ${{ github.event_name == 'issue_comment' && github.event.comment.body == 'Sky 警戒' && format('sky-alert-readonly-{0}', github.event.comment.id) || 'sky-fugle-paid-global-research-v1-live-wholemarket' }}
+  group: "${{ (github.event_name == 'issue_comment' && github.event.comment.body == 'Sky 警戒' && format('sky-alert-readonly-{0}', github.event.comment.id)) || (github.event_name == 'issue_comment' && github.event.comment.body == 'Sky #363 保全查核' && format('sky-w0-readonly-{0}', github.event.comment.id)) || (github.event_name == 'workflow_dispatch' && inputs.w0_comment_id != '' && format('sky-w0-discovery-{0}', github.run_id)) || 'sky-fugle-paid-global-research-v1-live-wholemarket' }}"
   cancel-in-progress: false
 jobs:
   scan:
@@ -26,7 +39,8 @@ jobs:
        github.event.comment.author_association == 'OWNER' &&
        (github.event.comment.body == 'Sky 快掃' ||
         github.event.comment.body == 'Sky 當沖快掃'))) &&
-      github.event.comment.body != 'Sky 警戒'
+      github.event.comment.body != 'Sky 警戒' &&
+      (github.event_name != 'workflow_dispatch' || inputs.w0_comment_id == '')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -421,3 +435,135 @@ jobs:
           with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as f:
               f.write("\n".join(lines)+"\n")
           PY
+
+  w0_run_discovery:
+    # W0-only read-only reconciliation; never calls Fugle or starts scan job.
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.w0_comment_id != '') ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.number == 363 &&
+       github.event.comment.user.login == github.repository_owner &&
+       github.event.comment.author_association == 'OWNER' &&
+       github.event.comment.body == 'Sky #363 保全查核')
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+      actions: read
+      issues: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Offline read-only discovery tests
+        run: python -m unittest tests.test_sky_w0_run_discovery -v
+      - name: Discover runs and artifacts (no market API)
+        id: discovery
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_COMMENT_ID: ${{ github.event_name == 'issue_comment' && github.event.comment.id || inputs.w0_comment_id || '' }}
+          COMMENT_EVENT_TIME: ${{ github.event_name == 'issue_comment' && github.event.comment.created_at || '' }}
+          WINDOW_START: ${{ inputs.w0_start || '2026-11-23T05:20:00Z' }}
+          WINDOW_END: ${{ inputs.w0_end || '2026-11-23T05:30:00Z' }}
+        run: |
+          set -euo pipefail
+          # Missing identity must fail closed; never borrow an unrelated historical comment.
+          test -n "$TARGET_COMMENT_ID" || { echo "W0_COMMENT_ID_REQUIRED" >&2; exit 1; }
+          # Issue comments use their own identity and a bounded, past-only time window.
+          # Historical preservation remains available through explicit dispatch inputs.
+          if [ -n "$COMMENT_EVENT_TIME" ]; then
+            WINDOW_START="$(python -c 'import datetime,os; t=datetime.datetime.fromisoformat(os.environ["COMMENT_EVENT_TIME"].replace("Z","+00:00")); print((t-datetime.timedelta(minutes=10)).isoformat())')"
+            # Include runs started after the issue comment, but never search into the future.
+            WINDOW_END="$(python -c 'import datetime; print(datetime.datetime.now(datetime.timezone.utc).isoformat())')"
+          fi
+          python -m scripts.sky_w0_run_discovery \
+            --comment-id "$TARGET_COMMENT_ID" --start "$WINDOW_START" \
+            --end "$WINDOW_END" --output output/w0_evidence/run_discovery.json
+      - name: Preserve failed discovery as no-trade evidence
+        if: always()
+        env:
+          DISCOVERY_OUTCOME: ${{ steps.discovery.outcome }}
+          TARGET_COMMENT_ID: ${{ github.event_name == 'issue_comment' && github.event.comment.id || inputs.w0_comment_id || '' }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p = Path("output/w0_evidence/run_discovery.json")
+          if not p.is_file():
+              p.parent.mkdir(parents=True, exist_ok=True)
+              p.write_text(json.dumps({
+                  "schema": "SKY_W0_RUN_DISCOVERY_V1",
+                  "status": "HOLD_DISCOVERY_FAILED",
+                  "error_type": "DISCOVERY_STEP_" + os.getenv("DISCOVERY_OUTCOME", "unknown").upper(),
+                  "target_comment_id": os.getenv("TARGET_COMMENT_ID") or None,
+                  "comment_to_run_status": "HOLD_UNCORRELATED",
+                  "market_capture_status": "HOLD_UNVERIFIED",
+                  "discovery_run_id": os.getenv("GITHUB_RUN_ID"),
+                  "discovery_head_sha": os.getenv("GITHUB_SHA"),
+                  "production_eligible": False,
+                  "automatic_order": False,
+                  "trade_action": "禁止交易",
+              }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          PY
+      - name: Upload discovery artifact
+        id: upload
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-w0-discovery-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: output/w0_evidence/run_discovery.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Independent same-run identity and SHA256 readback
+        if: steps.upload.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/sky-w0-readback output/w0_evidence_external
+          for N in 1 2 3 4 5; do
+            if gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+              --name "sky-w0-discovery-$GITHUB_RUN_ID-attempt-$GITHUB_RUN_ATTEMPT" \
+              --dir /tmp/sky-w0-readback; then break; fi
+            if [ "$N" = 5 ]; then exit 1; fi
+            sleep 5
+          done
+          ARTIFACT_ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" | python -c 'import json,os,sys; a=json.load(sys.stdin)["artifacts"]; name="sky-w0-discovery-"+os.environ["GITHUB_RUN_ID"]+"-attempt-"+os.environ["GITHUB_RUN_ATTEMPT"]; hits=[x["id"] for x in a if x["name"]==name]; assert len(hits)==1, "DISCOVERY_ARTIFACT_AMBIGUOUS"; print(hits[0])')
+          test -n "$ARTIFACT_ID"
+          export ARTIFACT_ID
+          python - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          original=Path("output/w0_evidence/run_discovery.json").read_bytes()
+          readback=Path("/tmp/sky-w0-readback/run_discovery.json").read_bytes()
+          if hashlib.sha256(original).digest()!=hashlib.sha256(readback).digest():
+              raise SystemExit("W0_DISCOVERY_SHA256_MISMATCH")
+          obj=json.loads(readback)
+          if (obj.get("schema")!="SKY_W0_RUN_DISCOVERY_V1"
+              or obj.get("discovery_run_id")!=os.environ["GITHUB_RUN_ID"]
+              or obj.get("discovery_head_sha")!=os.environ["GITHUB_SHA"]
+              or obj.get("production_eligible") is not False
+              or obj.get("automatic_order") is not False
+              or obj.get("trade_action")!="禁止交易"):
+              raise SystemExit("W0_DISCOVERY_RUN_IDENTITY_INVALID")
+          receipt={"schema":"SKY_W0_DISCOVERY_EXTERNAL_READBACK_V1",
+                   "status":"PASS_ARTIFACT_INTEGRITY_RESEARCH_ONLY",
+                   "run_id":os.environ["GITHUB_RUN_ID"],"head_sha":os.environ["GITHUB_SHA"],
+                   "artifact_id":int(os.environ["ARTIFACT_ID"]),
+                   "sha256":hashlib.sha256(readback).hexdigest(),
+                   "market_capture_status":obj.get("market_capture_status"),
+                   "comment_to_run_status":obj.get("comment_to_run_status"),
+                   "production_eligible":False,"automatic_order":False,"trade_action":"禁止交易"}
+          Path("output/w0_evidence_external/receipt.json").write_text(
+              json.dumps(receipt,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+          print("W0_DISCOVERY_INDEPENDENT_READBACK",receipt["status"])
+          PY
+      - name: Upload independent readback receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-w0-discovery-readback-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: output/w0_evidence_external/receipt.json
+          if-no-files-found: warn
+          retention-days: 90
