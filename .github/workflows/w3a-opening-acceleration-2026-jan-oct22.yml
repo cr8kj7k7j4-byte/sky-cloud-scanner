@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   prepare:
@@ -46,6 +46,8 @@ jobs:
     env:
       PYTHONPATH: .
       FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+      SKY_PAID_ATOMIC_ENFORCE: "1"
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
