@@ -158,7 +158,7 @@ class DeepFiveMinTests(unittest.TestCase):
             self.assertIn("date",raw["data"][0])
             self.assertIn("close",raw["data"][0])
 
-    def test_raw_provider_average_retained_and_weighted_preview_is_observation_only(self):
+    def test_raw_provider_average_is_preserved_but_never_mislabeled_as_interval_vwap(self):
         def with_average(symbol, timeframe="5"):
             receipt = candles(symbol, timeframe)
             for index, bar in enumerate(receipt["data"]):
@@ -170,15 +170,17 @@ class DeepFiveMinTests(unittest.TestCase):
         for item in output["samples"]:
             self.assertEqual(item["raw_five_min_candles"]["data"][0]["average"], 20.0)
             preview = item["bar_average_weighted_observation"]
-            self.assertEqual(preview["status"], "BAR_AVERAGE_WEIGHTED_OBSERVATION_ONLY")
-            self.assertAlmostEqual(preview["weighted_average_observation"], 27.5)
+            self.assertEqual(preview["status"], "INTRADAY_AVERAGE_SEMANTICS_UNVERIFIED_NO_VWAP")
+            self.assertEqual(preview["average_semantics"], "NOT_DOCUMENTED_AS_INTERVAL_VWAP")
+            self.assertIsNone(preview["weighted_average_observation"])
             self.assertEqual(preview["completed_bar_count"], 6)
+            self.assertEqual(preview["completed_bars_with_finite_average"], 6)
             self.assertFalse(preview["point_in_time_certified"])
             self.assertFalse(preview["independent_tick_vwap_certified"])
             self.assertFalse(item["bar_timestamp_semantics_certified"])
             self.assertFalse(item["production_eligible"])
 
-    def test_bar_weighted_average_missing_bad_or_zero_input_fails_closed(self):
+    def test_unverified_average_semantics_never_produce_weighted_vwap(self):
         from src.sky_v14_ticker_candles_probe import research_bar_average_weighted_observation as diagnostic
         complete = [
             {"date": "2026-11-10T09:00:00+08:00", "average": 20.0, "volume": 100},
@@ -186,26 +188,22 @@ class DeepFiveMinTests(unittest.TestCase):
             {"date": "2026-11-10T09:10:00+08:00", "average": 1000.0, "volume": 100},
         ]
         early = datetime(2026, 11, 10, 9, 12, tzinfo=ZoneInfo("Asia/Taipei"))
-        valid = diagnostic(complete, now=early)
-        self.assertEqual(valid["completed_bar_count"], 2)
-        self.assertAlmostEqual(valid["weighted_average_observation"], 27.5)
-        for field, value in (("average", None), ("average", float("nan")),
-                             ("average", True), ("average", -3),
-                             ("volume", float("inf")), ("volume", True),
-                             ("volume", -1)):
-            rows = [dict(x) for x in complete]
-            rows[0][field] = value
-            with self.subTest(field=field, value=value):
-                result = diagnostic(rows, now=early)
-                self.assertIsNone(result["weighted_average_observation"])
-                self.assertFalse(result["independent_tick_vwap_certified"])
-        for rows in (
-            [dict(complete[0], volume=0), dict(complete[1], volume=0)],
-            [dict(complete[0]), dict(complete[1], average=None)],
-            [dict(complete[0], date="2026-11-10T09:00:00"), complete[1]],
-            [complete[0], dict(complete[1], date="2026-11-10T09:15:00+08:00")],
-        ):
-            self.assertIsNone(diagnostic(rows, now=early)["weighted_average_observation"])
+        cases = (complete,
+                 [dict(complete[0], average=None), complete[1], complete[2]],
+                 [dict(complete[0], average=float("nan")), complete[1], complete[2]],
+                 [dict(complete[0], average=True), complete[1], complete[2]],
+                 [dict(complete[0], average=-3), complete[1], complete[2]],
+                 [dict(complete[0], volume=float("inf")), complete[1], complete[2]],
+                 [dict(complete[0], volume=True), complete[1], complete[2]],
+                 [dict(complete[0], volume=-1), complete[1], complete[2]],
+                 [dict(complete[0], volume=0), dict(complete[1], volume=0)])
+        for rows in cases:
+            result = diagnostic(rows, now=early)
+            self.assertIsNone(result["weighted_average_observation"])
+            self.assertFalse(result["independent_tick_vwap_certified"])
+            self.assertFalse(result["point_in_time_certified"])
+            self.assertFalse(result["production_eligible"])
+            self.assertEqual(result["status"], "INTRADAY_AVERAGE_SEMANTICS_UNVERIFIED_NO_VWAP")
 
     def test_readback_rejects_wrong_sha_and_run_id(self):
         from unittest.mock import patch

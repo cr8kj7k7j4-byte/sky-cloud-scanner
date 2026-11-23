@@ -30,67 +30,53 @@ def positive_finite_number(value):
 
 
 def research_bar_average_weighted_observation(bars, *, now):
-    """Offline completed-bar diagnostic; never independently certifies tick VWAP.
+    """Preserve raw average but refuse to infer interval VWAP.
 
-    Fugle per-bar 'average' and 'volume' can support a bounded, after-close
-    bar-weighted observation. Missing/invalid averages, gaps, future bars,
-    zero total volume or naive timestamps must fail closed. Endpoint release
-    timing and trade-level PV remain unverified.
+    Fugle Historical Candles defines minute-bar average as cumulative
+    average price from market open. Intraday Candles labels its field only
+    as average price and does not establish interval-specific VWAP semantics.
+    Therefore average_i * volume_i is not a valid independent VWAP
+    reconstruction without an explicit provider contract. This diagnostic
+    intentionally never computes a weighted average.
     """
-    result = {
-        "status": "INSUFFICIENT_BAR_AVERAGE_EVIDENCE",
-        "source": "FUGLE_INTRADAY_CANDLES_BAR_AVERAGE_VOLUME",
+    valid_now = isinstance(now, datetime) and now.utcoffset() is not None
+    completed = 0
+    preserved_average_count = 0
+    if isinstance(bars, list) and valid_now:
+        prior = None
+        for bar in bars:
+            if not isinstance(bar, dict):
+                continue
+            try:
+                stamp = datetime.fromisoformat(str(bar["date"]).replace("Z", "+00:00"))
+                if stamp.utcoffset() is None:
+                    continue
+                stamp = stamp.astimezone(TPE)
+            except (KeyError, ValueError, TypeError, OverflowError):
+                continue
+            if (stamp.date() != now.astimezone(TPE).date() or stamp.minute % 5
+                    or stamp.second or stamp.microsecond
+                    or (prior is not None and stamp - prior != timedelta(minutes=5))):
+                prior = stamp
+                continue
+            prior = stamp
+            if stamp + timedelta(minutes=5) > now.astimezone(TPE):
+                continue
+            completed += 1
+            if positive_finite_number(bar.get("average")) is not None:
+                preserved_average_count += 1
+    return {
+        "status": "INTRADAY_AVERAGE_SEMANTICS_UNVERIFIED_NO_VWAP",
+        "source": "FUGLE_INTRADAY_CANDLES_AVERAGE_FIELD",
+        "average_semantics": "NOT_DOCUMENTED_AS_INTERVAL_VWAP",
+        "historical_minute_average_semantics": "CUMULATIVE_FROM_MARKET_OPEN",
         "weighted_average_observation": None,
-        "completed_bar_count": 0,
-        "completed_volume_lots": None,
+        "completed_bar_count": completed,
+        "completed_bars_with_finite_average": preserved_average_count,
         "point_in_time_certified": False,
         "independent_tick_vwap_certified": False,
         "production_eligible": False,
     }
-    if not isinstance(bars, list) or not bars or not isinstance(now, datetime) or now.utcoffset() is None:
-        return result
-    prior = None
-    numerator = []
-    denominator = []
-    for bar in bars:
-        if not isinstance(bar, dict):
-            return result
-        try:
-            stamp = datetime.fromisoformat(str(bar["date"]).replace("Z", "+00:00"))
-        except (KeyError, ValueError, TypeError, OverflowError):
-            return result
-        if stamp.utcoffset() is None:
-            return result
-        stamp = stamp.astimezone(TPE)
-        if (stamp.date() != now.astimezone(TPE).date() or stamp.minute % 5
-                or stamp.second or stamp.microsecond
-                or (prior is not None and stamp - prior != timedelta(minutes=5))):
-            return result
-        prior = stamp
-        if stamp + timedelta(minutes=5) > now.astimezone(TPE):
-            # Never use an unfinished/future candle in the observation.
-            continue
-        avg = positive_finite_number(bar.get("average"))
-        vol = bar.get("volume")
-        if (avg is None or isinstance(vol, bool) or not isinstance(vol, (int, float))
-                or not math.isfinite(vol) or vol < 0):
-            return result
-        numerator.append(avg * vol)
-        denominator.append(vol)
-    total_volume = math.fsum(denominator)
-    if not denominator or not math.isfinite(total_volume) or total_volume <= 0:
-        return result
-    average = math.fsum(numerator) / total_volume
-    if not math.isfinite(average) or average <= 0:
-        return result
-    return {
-        **result,
-        "status": "BAR_AVERAGE_WEIGHTED_OBSERVATION_ONLY",
-        "weighted_average_observation": average,
-        "completed_bar_count": len(denominator),
-        "completed_volume_lots": total_volume,
-    }
-
 
 def selected(stage2):
     if stage2.get("schema") != "SKY_STAGE2_BOUNDED_QUOTE_EVIDENCE_V1":
