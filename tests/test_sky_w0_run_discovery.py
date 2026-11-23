@@ -4,7 +4,9 @@ from scripts.sky_w0_run_discovery import discover, parse_time
 
 START = parse_time("2026-11-23T05:20:00Z")
 END = parse_time("2026-11-23T05:30:00Z")
-COMMENT = {"id": 7092354527, "created_at": "2026-11-23T05:22:23Z"}
+COMMENT = {"id": 7092354527, "created_at": "2026-11-23T05:22:23Z",
+           "issue_url": "https://api.github.com/repos/owner/repo/issues/363",
+           "user": {"login": "owner"}, "author_association": "OWNER"}
 RUN = {"id": 45119990000, "created_at": "2026-11-23T05:24:00Z",
        "event": "issue_comment", "name": "Sky Bridge", "workflow_id": 11,
        "status": "completed", "conclusion": "success",
@@ -26,6 +28,24 @@ class TestW0RunDiscovery(unittest.TestCase):
         self.assertEqual(result["market_capture_status"], "HOLD_UNVERIFIED")
         self.assertEqual(result["candidate_runs"][0]["artifacts"][0]["id"], 55)
         self.assertIs(result["automatic_order"], False)
+
+    def test_dispatch_comment_must_be_owner_on_canonical_issue(self):
+        invalid_sources = (
+            {"issue_url": "https://api.github.com/repos/owner/repo/issues/364"},
+            {"issue_url": "https://api.github.com/repos/other/repo/issues/363"},
+            {"user": {"login": "someone-else"}},
+            {"user": None},
+            {"author_association": "CONTRIBUTOR"},
+            {"author_association": None},
+        )
+        for invalid in invalid_sources:
+            with self.subTest(invalid=invalid):
+                def getter(repo, token, endpoint):
+                    if endpoint.startswith("/issues/comments/"):
+                        return {**COMMENT, **invalid}
+                    return {"workflow_runs": [], "total_count": 0}
+                with self.assertRaisesRegex(ValueError, "COMMENT_SOURCE_NOT_OWNER_363"):
+                    discover("owner/repo", "token", 7092354527, START, END, getter)
 
     def test_no_matching_issue_comment(self):
         def getter(repo, token, endpoint):
