@@ -101,6 +101,12 @@ def selected(stage2):
 
 def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sleep, now=None, evidence_candidates=None):
     now=now or datetime.now(TPE)
+    # Provider candle times are normalized to Asia/Taipei below. Normalize
+    # observation time to the same exchange-local calendar *before* comparing
+    # provider day fields or unfinished 5m bars. Naive clocks fail closed.
+    if not isinstance(now, datetime) or now.utcoffset() is None:
+        raise ValueError("OBSERVATION_TIME_REQUIRES_AWARE_DATETIME")
+    now=now.astimezone(TPE)
     if evidence_candidates is None:
         selected_rows=selected(stage2)
     else:
