@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - "scan_requests/swing5d/**"
+  # Authorized ChatGPT GitHub issue-comment request; no new Workflow or paid endpoint.
+  issue_comment:
+    types: [created]
   workflow_dispatch:
     inputs:
       mode:
@@ -39,9 +42,15 @@ jobs:
     # A cleanup push that only deletes consumed request files must never launch
     # another whole-market scan. Manual workflow_dispatch remains available.
     if: >-
-      github.event_name != 'push' ||
-      contains(toJSON(github.event.commits.*.added), 'scan_requests/swing5d/') ||
-      contains(toJSON(github.event.commits.*.modified), 'scan_requests/swing5d/')
+      (github.event_name == 'workflow_dispatch') ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.number == 363 &&
+       github.event.comment.user.login == github.repository_owner &&
+       github.event.comment.author_association == 'OWNER' &&
+       github.event.comment.body == 'Sky Swing 5D 快掃') ||
+      (github.event_name == 'push' &&
+       (contains(toJSON(github.event.commits.*.added), 'scan_requests/swing5d/') ||
+        contains(toJSON(github.event.commits.*.modified), 'scan_requests/swing5d/')))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -116,27 +125,14 @@ jobs:
           path: output/swing_live/
           if-no-files-found: warn
           retention-days: 30
-      - name: Publish connector-readable Swing 5D status
-        if: always() && github.ref == 'refs/heads/main'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          python -m src.swing5d_publish_status --run-id "$GITHUB_RUN_ID"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/SKY_SWING5D_LATEST_STATUS.json
-          if git diff --cached --quiet; then
-            echo "Swing 5D status unchanged"
-            exit 0
-          fi
-          git commit -m "ops: publish Swing 5D chat status [skip ci]"
-          for attempt in 1 2 3; do
-            git pull --rebase origin main
-            if git push origin HEAD:main; then
-              echo "SWING5D_STATUS_PUBLISHED"
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "SWING5D_STATUS_PUBLISH_FAILED"
-          exit 1
+      - name: Generate connector-readable Swing 5D status without main push
+        if: always()
+        run: python -m src.swing5d_publish_status --run-id "$GITHUB_RUN_ID"
+      - name: Upload connector-readable same-run status artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-swing5d-status-${{ github.run_id }}
+          path: docs/SKY_SWING5D_LATEST_STATUS.json
+          if-no-files-found: error
+          retention-days: 30
