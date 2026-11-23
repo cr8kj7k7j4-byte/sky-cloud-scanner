@@ -40,6 +40,15 @@ def discover(repo, token, comment_id, start, end, getter=github_json, max_pages=
     comment = getter(repo, token, "/issues/comments/" + str(comment_id))
     if not isinstance(comment, dict) or comment.get("id") != comment_id:
         raise ValueError("COMMENT_ID_MISMATCH")
+    # A dispatch-provided comment ID must refer to the canonical W0 issue
+    # and its repository owner, not merely match a timestamp or numeric ID.
+    author = comment.get("user")
+    expected_issue = "https://api.github.com/repos/" + repo + "/issues/363"
+    if (comment.get("issue_url") != expected_issue
+        or not isinstance(author, dict)
+        or author.get("login") != repo.split("/", 1)[0]
+        or comment.get("author_association") != "OWNER"):
+        raise ValueError("COMMENT_SOURCE_NOT_OWNER_363")
     comment_time = parse_time(comment.get("created_at"))
     if comment_time > end:
         raise ValueError("COMMENT_AFTER_WINDOW")
