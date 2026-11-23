@@ -28,6 +28,70 @@ def positive_finite_number(value):
     return number if math.isfinite(number) and number > 0 else None
 
 
+
+def research_bar_average_weighted_observation(bars, *, now):
+    """Offline completed-bar diagnostic; never independently certifies tick VWAP.
+
+    Fugle per-bar 'average' and 'volume' can support a bounded, after-close
+    bar-weighted observation. Missing/invalid averages, gaps, future bars,
+    zero total volume or naive timestamps must fail closed. Endpoint release
+    timing and trade-level PV remain unverified.
+    """
+    result = {
+        "status": "INSUFFICIENT_BAR_AVERAGE_EVIDENCE",
+        "source": "FUGLE_INTRADAY_CANDLES_BAR_AVERAGE_VOLUME",
+        "weighted_average_observation": None,
+        "completed_bar_count": 0,
+        "completed_volume_lots": None,
+        "point_in_time_certified": False,
+        "independent_tick_vwap_certified": False,
+        "production_eligible": False,
+    }
+    if not isinstance(bars, list) or not bars or not isinstance(now, datetime) or now.utcoffset() is None:
+        return result
+    prior = None
+    numerator = []
+    denominator = []
+    for bar in bars:
+        if not isinstance(bar, dict):
+            return result
+        try:
+            stamp = datetime.fromisoformat(str(bar["date"]).replace("Z", "+00:00"))
+        except (KeyError, ValueError, TypeError, OverflowError):
+            return result
+        if stamp.utcoffset() is None:
+            return result
+        stamp = stamp.astimezone(TPE)
+        if (stamp.date() != now.astimezone(TPE).date() or stamp.minute % 5
+                or stamp.second or stamp.microsecond
+                or (prior is not None and stamp - prior != timedelta(minutes=5))):
+            return result
+        prior = stamp
+        if stamp + timedelta(minutes=5) > now.astimezone(TPE):
+            # Never use an unfinished/future candle in the observation.
+            continue
+        avg = positive_finite_number(bar.get("average"))
+        vol = bar.get("volume")
+        if (avg is None or isinstance(vol, bool) or not isinstance(vol, (int, float))
+                or not math.isfinite(vol) or vol < 0):
+            return result
+        numerator.append(avg * vol)
+        denominator.append(vol)
+    total_volume = math.fsum(denominator)
+    if not denominator or not math.isfinite(total_volume) or total_volume <= 0:
+        return result
+    average = math.fsum(numerator) / total_volume
+    if not math.isfinite(average) or average <= 0:
+        return result
+    return {
+        **result,
+        "status": "BAR_AVERAGE_WEIGHTED_OBSERVATION_ONLY",
+        "weighted_average_observation": average,
+        "completed_bar_count": len(denominator),
+        "completed_volume_lots": total_volume,
+    }
+
+
 def selected(stage2):
     if stage2.get("schema") != "SKY_STAGE2_BOUNDED_QUOTE_EVIDENCE_V1":
         raise ValueError("BAD_STAGE2_SCHEMA")
@@ -109,7 +173,7 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                     "exchange":candles.get("exchange"),
                     "date":candles.get("date"),
                     "timeframe":candles.get("timeframe"),
-                    "data":[{key:bar.get(key) for key in ("date","open","high","low","close","volume")}
+                    "data":[{key:bar.get(key) for key in ("date","open","high","low","close","volume","average")}
                             for bar in bars if isinstance(bar,dict)][:100]
                             if isinstance(bars,list) else None,
                 }
@@ -228,6 +292,14 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                     "last_feature_bar_time_tpe":last_accepted_stamp.isoformat() if last_accepted_stamp else None,
                     "bar_timestamp_semantics_certified":False,
                     "feature_preview":features,
+                    "bar_average_weighted_observation":(
+                        research_bar_average_weighted_observation(bars, now=now)
+                        if source_identity_matches and actual_tf=="5" and cdate==day
+                           and not invalid_bar_sequence and rejected_future_bars==0
+                        else {"status":"INVALID_SOURCE_OR_BAR_SEQUENCE",
+                              "point_in_time_certified":False,
+                              "independent_tick_vwap_certified":False,
+                              "production_eligible":False}),
                     "avg_price_is_certified_vwap":False,
                     "official_bar_volume_unit":"整股張數（Fugle 官方 Intraday Candles 文件）",
                 })
