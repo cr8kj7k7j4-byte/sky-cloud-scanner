@@ -128,4 +128,4 @@ def test_model_validation_comment_bridge_is_owner_only_and_no_paid_scan():
     assert 'COMMAND="model_validation"' in raw
     assert '"request_id": ("issue-comment-" + os.environ["ISSUE_COMMENT_ID"]' in raw
     assert 'command = ("model_validation" if os.environ.get("EVENT_NAME") == "issue_comment"' in raw
-    assert raw.count("schedule:\\n") == 0  # Keep the former commented schedule paused.
+    assert not any(line.startswith("  schedule:") for line in raw.splitlines())  # Paused schedule stays paused.
