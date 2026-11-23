@@ -117,6 +117,20 @@ class CompletedRunWiringContractTests(unittest.TestCase):
         self.assertIn("calls_to_fugle", workflow)
         self.assertNotIn("secrets.FUGLE_API_KEY", workflow)
 
+    def test_exact_attempt_artifact_name_and_head_must_match(self):
+        from pathlib import Path
+        workflow = Path(".github/workflows/sky-independent-five-min-proof-tests.yml").read_text(encoding="utf-8")
+        producer = Path(".github/workflows/sky-chat-bridge.yml").read_text(encoding="utf-8")
+        self.assertIn('run_attempt = run.get("run_attempt")', workflow)
+        self.assertIn('name = f"sky-chat-{run_id}-attempt-{run_attempt}"', workflow)
+        self.assertIn("INVALID_SOURCE_RUN_ATTEMPT", workflow)
+        self.assertIn("SOURCE_ARTIFACT_RUN_OR_SHA_MISMATCH", workflow)
+        self.assertIn('source_run.get("head_sha") != run.get("head_sha")', workflow)
+        self.assertIn('receipt["source_artifact_name"] = name', workflow)
+        self.assertIn('receipt["source_run_attempt"] = run_attempt', workflow)
+        self.assertNotIn('name = f"sky-chat-{run_id}"', workflow)
+        self.assertIn('sky-chat-${{ github.run_id }}-attempt-${{ github.run_attempt }}', producer)
+
     def test_full_source_receipt_path_is_stable(self):
         from pathlib import Path
         workflow = Path(".github/workflows/sky-independent-five-min-proof-tests.yml").read_text(encoding="utf-8")

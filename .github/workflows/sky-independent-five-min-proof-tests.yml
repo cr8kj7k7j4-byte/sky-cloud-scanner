@@ -81,12 +81,23 @@ jobs:
               artifacts = json.loads(gh(
                   "api", f"repos/{repo}/actions/runs/{run_id}/artifacts?per_page=100"
               )).get("artifacts", [])
-              name = f"sky-chat-{run_id}"
+              # The existing sky-chat-bridge.yml uploads run_id + run_attempt.
+              # Never select an Artifact from another attempt/re-run.
+              run_attempt = run.get("run_attempt")
+              if type(run_attempt) is not int or run_attempt < 1:
+                  raise ValueError("INVALID_SOURCE_RUN_ATTEMPT")
+              name = f"sky-chat-{run_id}-attempt-{run_attempt}"
               matches = [a for a in artifacts if a.get("name") == name
                          and a.get("expired") is False]
               if len(matches) != 1:
                   raise ValueError("SOURCE_ARTIFACT_MISSING_OR_AMBIGUOUS")
               artifact = matches[0]
+              # Independent GitHub Artifact metadata must bind to the exact
+              # source run and HEAD, not a similarly named artifact.
+              source_run = artifact.get("workflow_run") or {}
+              if (str(source_run.get("id")) != str(run_id)
+                      or source_run.get("head_sha") != run.get("head_sha")):
+                  raise ValueError("SOURCE_ARTIFACT_RUN_OR_SHA_MISMATCH")
               directory = Path("/tmp/sky-independent-5m-source")
               directory.mkdir(parents=True, exist_ok=True)
               gh("run", "download", run_id, "--repo", repo,
@@ -96,6 +107,8 @@ jobs:
               checked = validate(payload, run=run, artifact=artifact)
               receipt["source_head_sha"] = run.get("head_sha")
               receipt["source_artifact_id"] = artifact.get("id")
+              receipt["source_run_attempt"] = run_attempt
+              receipt["source_artifact_name"] = name
               receipt["source_metadata_consistent"] = checked["source_metadata_consistent"]
               receipt["samples_count"] = len(checked["samples"])
               receipt["completed_bar_count"] = sum(
