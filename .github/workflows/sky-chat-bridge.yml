@@ -22,7 +22,8 @@ jobs:
       (github.event.issue.number == 363 &&
        github.event.comment.user.login == github.repository_owner &&
        github.event.comment.author_association == 'OWNER' &&
-       github.event.comment.body == 'Sky 快掃')
+       (github.event.comment.body == 'Sky 快掃' ||
+        github.event.comment.body == 'Sky 當沖快掃'))
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -38,10 +39,15 @@ jobs:
           python - <<'PY'
           import json, os
           from pathlib import Path
-          from src.sky_chat_bridge import validate_request
+          from src.sky_chat_bridge import bind_issue_comment_command, validate_request
           p = Path("scan_requests/chat/latest.json")
           payload = json.loads(p.read_text(encoding="utf-8"))
-          # Validate the original read-only command before changing identity.
+          # For an issue-comment trigger, bind the exact authorized command to
+          # this run before validation; never trust the shared file's stale alias.
+          if os.environ.get("GITHUB_EVENT_NAME") == "issue_comment":
+              event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text(encoding="utf-8"))
+              payload = bind_issue_comment_command(payload, event)
+          # Validate the event-bound command and the read-only policy before reserving paid API.
           validate_request(payload)
           run_id = os.environ["GITHUB_RUN_ID"]
           attempt = os.environ["GITHUB_RUN_ATTEMPT"]
