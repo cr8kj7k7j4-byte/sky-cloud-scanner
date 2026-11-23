@@ -103,6 +103,10 @@ def main():
     (Path(args.manifest).parent/"download_summary.json").write_text(
         json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8"
     )
+    # Preserve per-symbol diagnostics but never certify incomplete history as success.
+    failed = [row for row in summary if not row["ok"]]
+    if not summary or failed:
+        raise SystemExit(f"HISTORICAL_DOWNLOAD_INCOMPLETE: {len(failed)}/{len(summary)} failed")
 
 if __name__ == "__main__":
     main()
