@@ -109,7 +109,7 @@ def assess(report, snapshot):
             and isinstance(size, int) and not isinstance(size, bool) and size > 0
             and isinstance(pct, (int, float)) and not isinstance(pct, bool)
             and 80 <= pct <= 100
-            and all(isinstance(health.get(m), int) and health[m] > 0
+            and all(type(health.get(m)) is int and health[m] > 0
                     and isinstance(counts.get(ex), int)
                     and 0 <= counts[ex] <= health[m]
                     and 100 * counts[ex] / health[m] >= 70
