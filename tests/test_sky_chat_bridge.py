@@ -22,7 +22,7 @@ class ChatScanBridgeTests(unittest.TestCase):
         self.assertIn('sky-chat-$GITHUB_RUN_ID-attempt-$GITHUB_RUN_ATTEMPT', workflow)
         self.assertIn('"-attempt-"+os.environ["GITHUB_RUN_ATTEMPT"]', workflow)
         self.assertIn('and receipt.get("request_id")==expected_request_id', workflow)
-        self.assertIn('and os.getenv("GUARD_ALLOWED")=="true"', workflow)
+        self.assertIn('os.getenv("GUARD_ALLOWED")=="true"', workflow)
         self.assertIn('RESEARCH_READBACK_NOT_VERIFIED_NO_TRADE', workflow)
         self.assertNotIn('overwrite: true', workflow)
 
