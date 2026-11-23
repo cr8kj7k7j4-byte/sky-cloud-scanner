@@ -18,7 +18,9 @@ def test_broad_telegram_workflow_no_longer_fans_out_on_every_action_or_push():
 def test_deleting_consumed_scan_request_does_not_run_scanner():
     text = (WF / "swing-live-scan.yml").read_text(encoding="utf-8")
     job = text.split("\njobs:", 1)[1].split("\n    runs-on:", 1)[0]
-    assert "github.event_name != 'push'" in job
+    # The Swing job's push arm is restricted to added/modified request paths;
+    # deletion-only cleanup is deliberately excluded.
+    assert "github.event_name == 'push'" in job
     assert "github.event.commits.*.added" in job
     assert "github.event.commits.*.modified" in job
     assert "github.event.commits.*.removed" not in job
