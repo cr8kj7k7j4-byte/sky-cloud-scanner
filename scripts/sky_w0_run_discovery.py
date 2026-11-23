@@ -87,6 +87,16 @@ def discover(repo, token, comment_id, start, end, getter=github_json, max_pages=
             run_id, head = run.get("id"), run.get("head_sha")
             if type(run_id) is not int or run_id <= 0 or not SHA.fullmatch(str(head or "")):
                 raise ValueError("INVALID_RUN_IDENTITY")
+            # Run attempt and workflow identity are required to interpret a
+            # candidate event. Missing/boolean/nonpositive identifiers cannot
+            # be promoted to credible provenance even at research level.
+            attempt = run.get("run_attempt")
+            workflow_id = run.get("workflow_id")
+            workflow_name = run.get("name")
+            if (type(attempt) is not int or attempt <= 0
+                or type(workflow_id) is not int or workflow_id <= 0
+                or not isinstance(workflow_name, str) or not workflow_name.strip()):
+                raise ValueError("INVALID_WORKFLOW_RUN_METADATA")
             artifact_response = getter(repo, token, "/actions/runs/" + str(run_id) + "/artifacts?per_page=100")
             artifacts = artifact_response.get("artifacts") if isinstance(artifact_response, dict) else None
             total = artifact_response.get("total_count") if isinstance(artifact_response, dict) else None
@@ -103,10 +113,10 @@ def discover(repo, token, comment_id, start, end, getter=github_json, max_pages=
             if len({a["id"] for a in artifacts}) != len(artifacts):
                 raise ValueError("DUPLICATE_ARTIFACT_ID")
             candidates.append({
-                "run_id": run_id, "workflow": run.get("name"), "workflow_id": run.get("workflow_id"),
+                "run_id": run_id, "workflow": workflow_name, "workflow_id": workflow_id,
                 "event": run.get("event"), "status": run.get("status"),
                 "conclusion": run.get("conclusion"), "created_at": stamp.isoformat(),
-                "head_sha": head, "attempt": run.get("run_attempt"),
+                "head_sha": head, "attempt": attempt,
                 "artifacts": [{"id": a.get("id"), "name": a.get("name"), "digest": a.get("digest"),
                                "created_at": a.get("created_at"), "expired": a.get("expired")}
                               for a in artifacts if isinstance(a, dict)]
