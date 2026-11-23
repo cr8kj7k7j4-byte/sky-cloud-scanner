@@ -69,6 +69,7 @@ def test_individual_execution_pass_does_not_enable_trade():
         "symbol": "1234", "strategy_signal": False, "production_eligible": False,
         "data_status": "FRESH_EXECUTED_TRADE", "verified_executed_price": 52.0,
         "verified_executed_at": "2026-11-23T12:49:00+08:00",
+        "individual_checked_at_tpe": "2026-11-23T12:49:19+08:00",
     }]
     out = assess(report, snapshot)
     assert out["candidate_execution_status"] == "PASS_BOUNDED_INDIVIDUAL_EXECUTION_ONLY"
@@ -127,3 +128,25 @@ def test_snapshot_detail_integrity_and_capture_cutoff_fail_closed():
             s["data"][0]["symbol"] = ""
         assert assess(r, s)["snapshot_screen_status"] == "HOLD_SNAPSHOT_EVIDENCE"
         assert assess(r, s)["production_eligible"] is False
+
+
+def test_individual_checked_at_fails_closed():
+    """A2 uses the actual bounded quote check, never just a report-level timestamp."""
+    for checked, traded in (
+        (None, "2026-11-23T12:49:00+08:00"),
+        ("2026-11-23T12:49:19", "2026-11-23T12:49:00+08:00"),
+        ("2026-11-23T12:49:19+08:00", "2026-11-23T12:49:30+08:00"),
+        ("2026-11-23T12:53:01+08:00", "2026-11-23T12:49:00+08:00"),
+        ("2026-11-23T12:59:20+08:00", "2026-11-23T12:59:00+08:00"),
+        ("2026-11-24T09:00:00+08:00", "2026-11-24T08:59:59+08:00"),
+    ):
+        report, snapshot = evidence()
+        report["snapshot_individual_confirmation"] = [{
+            "symbol": "1234", "strategy_signal": False, "production_eligible": False,
+            "data_status": "FRESH_EXECUTED_TRADE", "verified_executed_price": 52.0,
+            "verified_executed_at": traded, "individual_checked_at_tpe": checked,
+        }]
+        out = assess(report, snapshot)
+        assert out["candidate_execution_status"] == "HOLD_CANDIDATE_EXECUTION_EVIDENCE"
+        assert out["candidate_trade_gate"].startswith("HOLD")
+        assert out["automatic_order"] is False
