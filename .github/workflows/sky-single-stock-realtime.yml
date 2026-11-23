@@ -6,6 +6,9 @@ on:
       - 'src/sky_single_stock_realtime.py'
       - 'tests/test_sky_single_stock_realtime.py'
       - '.github/workflows/sky-single-stock-realtime.yml'
+  # Existing single-stock collector; allow owner-authorized ChatGPT command via #363.
+  issue_comment:
+    types: [created]
   workflow_dispatch:
     inputs:
       symbol:
@@ -16,6 +19,13 @@ permissions:
   contents: write
 jobs:
   quote:
+    # Only #363 repository-owner single-stock commands may trigger a paid lookup.
+    if: >-
+      github.event_name != 'issue_comment' ||
+      (github.event.issue.number == 363 &&
+       github.event.comment.user.login == github.repository_owner &&
+       github.event.comment.author_association == 'OWNER' &&
+       startsWith(github.event.comment.body, 'Sky 當沖更新 '))
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
@@ -30,11 +40,39 @@ jobs:
         run: pip install -r requirements.txt
       - name: Test realtime gating without remote API
         run: python -m unittest tests.test_sky_single_stock_realtime -v
+      - name: Validate requested symbol without calling Fugle
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'issue_comment'
+        id: request
+        env:
+          MANUAL_SYMBOL: ${{ inputs.symbol }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          if os.environ["GITHUB_EVENT_NAME"] == "issue_comment":
+              event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text(encoding="utf-8"))
+              body = event["comment"]["body"]
+              match = re.fullmatch(r"Sky 當沖更新 ([0-9]{4,6})", body)
+              if match is None:
+                  raise SystemExit("INVALID_SINGLE_STOCK_COMMAND")
+              symbol = match.group(1)
+          else:
+              symbol = os.environ.get("MANUAL_SYMBOL", "")
+              if re.fullmatch(r"[0-9]{4,6}", symbol) is None:
+                  raise SystemExit("INVALID_SYMBOL")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write(f"symbol={symbol}\n")
+          print(f"VALIDATED_RESEARCH_ONLY_SYMBOL={symbol}")
+          PY
       - name: Collect Fugle quote (reference permitted; execution marked separately)
-        if: github.event_name == 'workflow_dispatch'
+        if: steps.request.outcome == 'success'
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
-          SYMBOL: ${{ inputs.symbol || '1569' }}
+          SYMBOL: ${{ steps.request.outputs.symbol }}
         run: |
           python -m src.sky_single_stock_realtime --symbol "$SYMBOL"
       - name: Upload quote evidence even when unavailable
