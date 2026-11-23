@@ -160,3 +160,14 @@ jobs:
           path: docs/SKY_SWING5D_LATEST_STATUS.json
           if-no-files-found: error
           retention-days: 30
+      - name: Fail closed when a paid reservation is unavailable
+        if: always()
+        env:
+          PAID_ALLOWED: ${{ steps.guard.outputs.allowed }}
+          CLAIM_OUTCOME: ${{ steps.claim.outcome }}
+          VERIFIED_OUTCOME: ${{ steps.verify_claim.outcome }}
+        run: |
+          if [ "$PAID_ALLOWED" != "true" ] || [ "$CLAIM_OUTCOME" != "success" ] || [ "$VERIFIED_OUTCOME" != "success" ]; then
+            echo "BLOCKED_PAID_FUGLE_RESERVATION_NO_TRADE"
+            exit 1
+          fi
