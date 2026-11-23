@@ -101,7 +101,7 @@ jobs:
           status = load_signal_date_guard(signal_date, datetime.now(ZoneInfo("Asia/Taipei")).date()) if signal_date else {"status": "MISSING_DAILY_HISTORY", "fresh": False}
           output = Path("output/swing_v11_live/preflight_gate.json")
           output.parent.mkdir(parents=True, exist_ok=True)
-          output.write_text(json.dumps({"schema":"SKY_V11_PREFLIGHT_V1","signal_date":signal_date,"cross_section":cross_section,"guard":status,"production_eligible":False,"automatic_order":False,"trade_action":"禁止交易"}, ensure_ascii=False, indent=2)+"\\n",encoding="utf-8")
+          output.write_text(json.dumps({"schema":"SKY_V11_PREFLIGHT_V1","signal_date":signal_date,"cross_section":cross_section,"guard":status,"production_eligible":False,"automatic_order":False,"trade_action":"禁止交易"}, ensure_ascii=False, indent=2)+"\n",encoding="utf-8")
           if status.get("status") != "PASS":
               raise SystemExit("BLOCKED_STALE_OR_UNVERIFIED_CANONICAL_DAILY_NO_PAID_API")
           PY
