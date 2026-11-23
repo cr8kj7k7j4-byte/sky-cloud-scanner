@@ -88,6 +88,9 @@ def test_workflow_uses_two_tracks_without_replacing_original_guard():
     from pathlib import Path
     yml = Path(".github/workflows/swing-live-scan.yml").read_text(encoding="utf-8")
     assert "from src.swing_two_track_acceptance import assess" in yml
+    assert "independently_recomputed = assess(report, snapshot)" in yml
+    assert "two_track != independently_recomputed" in yml
+    assert "TWO_TRACK_SAME_RUN_INDEPENDENT_RECOMPUTATION_MISMATCH" in yml
     assert "PASS_SNAPSHOT_OBSERVATION_ONLY" in yml
     assert "snapshot_screen_status" in yml
     assert "candidate_execution_status" in yml
