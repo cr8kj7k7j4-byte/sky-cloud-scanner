@@ -78,6 +78,14 @@ jobs:
           python-version: '3.12'
       - name: Install tested runtime HTTP dependency
         run: pip install requests
+      - name: Validate existing bridge workflow with pinned actionlint
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --network none \
+            -v "$GITHUB_WORKSPACE:/repo:ro" -w /repo \
+            rhysd/actionlint:1.7.12 -color=false \
+            .github/workflows/sky-chat-bridge.yml
       - name: Syntax-check bridge files
         run: python -m py_compile scripts/sky_chat_artifact_readback.py src/sky_scan_readback.py src/sky_chat_bridge.py src/fugle.py research/sky_fugle_atomic_ref_claim.py research/three_model_fugle_pipeline.py research/fugle_market_quality_audit.py research/fugle_2026_entitlement_probe.py src/sky_mcp_contract.py research/sky_snapshot_candidates.py src/sky_stage2_candidate_quotes.py src/sky_stage2_deep_quality.py src/sky_v14_ticker_candles_probe.py research/sky_candidate_e2e_chain.py research/sky_stage5_vwap_cost_evidence.py research/sky_stage5_breakout_antichase_evidence.py scripts/sky_w0_run_discovery.py
       - name: Run isolated contracts without paid credentials
