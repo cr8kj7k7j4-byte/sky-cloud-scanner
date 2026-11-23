@@ -472,7 +472,8 @@ jobs:
           # Historical preservation remains available through explicit dispatch inputs.
           if [ -n "$COMMENT_EVENT_TIME" ]; then
             WINDOW_START="$(python -c 'import datetime,os; t=datetime.datetime.fromisoformat(os.environ["COMMENT_EVENT_TIME"].replace("Z","+00:00")); print((t-datetime.timedelta(minutes=10)).isoformat())')"
-            WINDOW_END="$COMMENT_EVENT_TIME"
+            # Include runs started after the issue comment, but never search into the future.
+            WINDOW_END="$(python -c 'import datetime; print(datetime.datetime.now(datetime.timezone.utc).isoformat())')"
           fi
           python -m scripts.sky_w0_run_discovery \
             --comment-id "$TARGET_COMMENT_ID" --start "$WINDOW_START" \
