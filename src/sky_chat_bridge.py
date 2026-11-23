@@ -23,6 +23,18 @@ COLUMNS = ("股票代碼", "股票名稱", "即時價", "分類", "方向", "多
            "現在動作", "加碼價格", "停利價格")
 
 
+def bind_issue_comment_command(payload, event):
+    """Bind only exact OWNER-authorized issue-comment aliases to this run request."""
+    if not isinstance(payload, dict) or not isinstance(event, dict):
+        raise ValueError("UNAUTHORIZED_SKY_CHAT_COMMAND")
+    comment = event.get("comment")
+    command = comment.get("body") if isinstance(comment, dict) else None
+    if command not in ("Sky 快掃", "Sky 當沖快掃"):
+        raise ValueError("UNAUTHORIZED_SKY_CHAT_COMMAND")
+    payload["command"] = command
+    return payload
+
+
 def validate_request(payload):
     if not isinstance(payload, dict):
         raise ValueError("UNSUPPORTED_COMMAND")
