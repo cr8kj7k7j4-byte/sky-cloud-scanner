@@ -12,6 +12,20 @@ class ChatScanBridgeTests(unittest.TestCase):
         self.assertIn('receipt.get("production_eligible") is False', workflow)
         self.assertIn('receipt.get("automatic_order") is False', workflow)
 
+    def test_attempt_scoped_artifact_names_preserve_prior_readback(self):
+        from pathlib import Path
+        workflow = Path(".github/workflows/sky-chat-bridge.yml").read_text(encoding="utf-8")
+        # A rerun retains GITHUB_RUN_ID but increments GITHUB_RUN_ATTEMPT.
+        # Report and readback names must not collide with earlier attempts.
+        self.assertIn('name: sky-chat-${{ github.run_id }}-attempt-${{ github.run_attempt }}', workflow)
+        self.assertIn('name: sky-chat-external-readback-${{ github.run_id }}-attempt-${{ github.run_attempt }}', workflow)
+        self.assertIn('sky-chat-$GITHUB_RUN_ID-attempt-$GITHUB_RUN_ATTEMPT', workflow)
+        self.assertIn('"-attempt-"+os.environ["GITHUB_RUN_ATTEMPT"]', workflow)
+        self.assertIn('and receipt.get("request_id")==expected_request_id', workflow)
+        self.assertIn('os.getenv("GUARD_ALLOWED")=="true"', workflow)
+        self.assertIn('RESEARCH_READBACK_NOT_VERIFIED_NO_TRADE', workflow)
+        self.assertNotIn('overwrite: true', workflow)
+
     def test_failure_receipt_workflow_preserves_request_identity(self):
         from pathlib import Path
         workflow = Path(".github/workflows/sky-chat-bridge.yml").read_text(encoding="utf-8")

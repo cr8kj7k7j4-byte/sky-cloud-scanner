@@ -136,7 +136,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sky-chat-${{ github.run_id }}
+          name: sky-chat-${{ github.run_id }}-attempt-${{ github.run_attempt }}
           path: |
             output/chat_bridge/latest.json
             output/sky_quickscan_information/latest_13col.json
@@ -159,7 +159,7 @@ jobs:
           set -euo pipefail
           mkdir -p /tmp/sky-chat-readback output/chat_bridge_readback
           for ATTEMPT in 1 2 3 4 5; do
-            if gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "sky-chat-$GITHUB_RUN_ID" --dir /tmp/sky-chat-readback; then
+            if gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "sky-chat-$GITHUB_RUN_ID-attempt-$GITHUB_RUN_ATTEMPT" --dir /tmp/sky-chat-readback; then
               break
             fi
             if [ "$ATTEMPT" = 5 ]; then
@@ -169,7 +169,7 @@ jobs:
             sleep 5
           done
           HEAD_SHA=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --jq '.head_sha')
-          ARTIFACT_ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" | python -c 'import json,os,sys; a=json.load(sys.stdin)["artifacts"]; n="sky-chat-"+os.environ["GITHUB_RUN_ID"]; print(next((x["id"] for x in a if x["name"]==n), ""))')
+          ARTIFACT_ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" | python -c 'import json,os,sys; a=json.load(sys.stdin)["artifacts"]; n="sky-chat-"+os.environ["GITHUB_RUN_ID"]+"-attempt-"+os.environ["GITHUB_RUN_ATTEMPT"]; print(next((x["id"] for x in a if x["name"]==n), ""))')
           REQUEST_ID=$(python -c 'import json; print(json.load(open("scan_requests/chat/latest.json",encoding="utf-8"))["request_id"])')
           python -m scripts.sky_chat_artifact_readback \
             --directory /tmp/sky-chat-readback \
@@ -194,7 +194,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sky-chat-external-readback-${{ github.run_id }}
+          name: sky-chat-external-readback-${{ github.run_id }}-attempt-${{ github.run_attempt }}
           path: output/chat_bridge_readback/external_receipt.json
           if-no-files-found: error
           retention-days: 90
