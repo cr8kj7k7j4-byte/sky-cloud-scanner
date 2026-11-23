@@ -106,11 +106,11 @@ _PATTERNS = [
         ),
     ),
     (
-        re.compile(r"^Sky\s*波段現在掃一次$", re.I),
+        re.compile(r"^Sky\\s*波段現在掃一次$", re.I),
         CommandRoute(
-            "SKY_SWING_V11_LIVE_ALIAS", "WHOLE_MARKET_REALTIME_PLUS_CANONICAL_DAILY", True, True, False,
-            "src.swing_v11_live_scanner",
-            "Use Swing V1.1 live scanner; always publish timestamped split-scope research observations even when the frozen signal freshness fails. Research observations never imply Production eligibility, whole-market live coverage, or automatic orders."
+            "SKY_SWING_V10_LIVE_OBSERVATION", "WHOLE_MARKET_REALTIME_RESEARCH_ONLY", True, True, False,
+            ".github/workflows/swing-live-scan.yml --mode swing",
+            "Use the existing governed Swing observation runner only. Sky Swing V1.0 remains the unchanged Production baseline, but its exact executable rule specification is BLOCKED; this runner is observation/candidate evidence only, not a V1.0 signal. Swing V1.1 remains Research only. No buy authorization or automatic orders."
         ),
     ),
     (
