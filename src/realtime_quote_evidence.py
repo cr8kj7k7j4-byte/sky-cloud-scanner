@@ -158,7 +158,7 @@ def validate_whole_market_rows(universe, rows, now=None, *, min_coverage_pct=80.
                 price = 0.0
             age = (now - ts).total_seconds() if ts else None
             valid = (
-                price > 0 and ts is not None
+                price > 0 and row.get("isTrial") is not True and ts is not None
                 and str(row.get("quote_date") or "") == now.date().isoformat()
                 and ts.date() == now.date()
                 and age is not None and -30 <= age <= max_age_seconds
