@@ -320,6 +320,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Install existing project requirements (no market API)
+        run: pip install -r requirements.txt
       - name: Read-only alert tests
         run: python -m unittest tests.test_sky_alert_reader tests.test_sky_alert_chat_readback -v
       - name: Read existing scan Artifact, never request Fugle
