@@ -1,10 +1,7 @@
 name: W3A Opening Acceleration 2026 Jan-Sep 1m PIT Dataset
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/w3a-opening-acceleration-2026-jan-sep.yml"
+  # Historical paid 1m export: no automatic source-push dispatch.
   workflow_dispatch:
 
 permissions:
