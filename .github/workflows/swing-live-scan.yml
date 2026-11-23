@@ -88,6 +88,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: python -m research.sky_paid_fugle_api_guard --scope 'sky:live:wholemarket' --verify
       - name: Run whole-market live swing scan
+        id: scan
         if: steps.guard.outputs.allowed == 'true' && steps.verify_claim.outcome == 'success'
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
@@ -318,7 +319,7 @@ jobs:
         if: always() && (github.event_name == 'push' || github.event.comment.body == 'Sky Swing 5D 快掃' || inputs.mode == 'swing5d')
         run: python -m src.swing5d_publish_status --run-id "$GITHUB_RUN_ID"
       - name: Upload connector-readable same-run status artifact
-        if: always()
+        if: always() && (github.event_name == 'push' || github.event.comment.body == 'Sky Swing 5D 快掃' || inputs.mode == 'swing5d')
         uses: actions/upload-artifact@v4
         with:
           name: sky-swing5d-status-${{ github.run_id }}
