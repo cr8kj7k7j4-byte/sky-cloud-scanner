@@ -67,6 +67,15 @@ def discover(repo, token, comment_id, start, end, getter=github_json, max_pages=
             if (not isinstance(artifacts, list) or type(total) is not int
                 or total != len(artifacts) or total < 0):
                 raise ValueError("INCOMPLETE_ARTIFACT_LIST")
+            if any(
+                not isinstance(a, dict)
+                or type(a.get("id")) is not int or a["id"] <= 0
+                or not isinstance(a.get("name"), str) or not a["name"]
+                for a in artifacts
+            ):
+                raise ValueError("INVALID_ARTIFACT_IDENTITY")
+            if len({a["id"] for a in artifacts}) != len(artifacts):
+                raise ValueError("DUPLICATE_ARTIFACT_ID")
             candidates.append({
                 "run_id": run_id, "workflow": run.get("name"), "workflow_id": run.get("workflow_id"),
                 "event": run.get("event"), "status": run.get("status"),
