@@ -37,6 +37,42 @@ def _current_trade(confirmation, received):
     )
 
 
+def _snapshot_detail_consistent(report, snapshot, received):
+    """Check complete observation evidence without treating snapshots as executed trades."""
+    observed = snapshot.get("data")
+    stamp = _time(snapshot.get("generated_at"))
+    if (not isinstance(observed, list) or not observed or received is None
+            or stamp is None or stamp.date() != received.date()
+            or abs((received - stamp).total_seconds()) > 180):
+        return False
+    n = len(observed)
+    if (not isinstance(snapshot.get("observed_symbols"), int)
+            or isinstance(snapshot["observed_symbols"], bool)
+            or snapshot["observed_symbols"] != n
+            or not isinstance(report.get("unverified_snapshot_observation_count"), int)
+            or isinstance(report["unverified_snapshot_observation_count"], bool)
+            or report["unverified_snapshot_observation_count"] != n):
+        return False
+    symbols = set()
+    by_exchange = {"TWSE": 0, "TPEx": 0}
+    for row in observed:
+        if not isinstance(row, dict):
+            return False
+        symbol = row.get("symbol")
+        exchange = row.get("exchange")
+        if (not isinstance(symbol, str) or not symbol.strip()
+                or symbol in symbols or exchange not in by_exchange):
+            return False
+        symbols.add(symbol)
+        by_exchange[exchange] += 1
+    counts = report.get("snapshot_exchange_counts") or {}
+    return all(
+        isinstance(counts.get(ex), int) and not isinstance(counts[ex], bool)
+        and by_exchange[ex] <= counts[ex]
+        for ex in by_exchange
+    )
+
+
 def assess(report, snapshot):
     """Classify evidence, never promote individually verified trades to market coverage."""
     result = {
@@ -57,7 +93,8 @@ def assess(report, snapshot):
     counts = report.get("snapshot_exchange_counts") or {}
     size = report.get("universe_count")
     pct = report.get("snapshot_coverage_pct")
-    if (report_day and snapshot.get("source") == "Fugle bulk snapshot"
+    if (report_day and _snapshot_detail_consistent(report, snapshot, received)
+            and snapshot.get("source") == "Fugle bulk snapshot"
             and _day(snapshot.get("generated_at")) == report_day
             and snapshot.get("observed_symbols", 0) > 0
             and isinstance(snapshot.get("data"), list)
