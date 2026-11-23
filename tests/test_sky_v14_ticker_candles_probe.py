@@ -489,5 +489,71 @@ class DeepFiveMinTests(unittest.TestCase):
         ))
         self.assertFalse(x["official_v14_entry_eligible"])
 
+
+    def test_valid_quote_average_never_becomes_unverified_vwap_feature(self):
+        # Historical source artifacts had a numeric quote mean and a
+        # vwap_distance_pct preview even though no tick VWAP was authenticated.
+        x = run(stage2(), ticker_fn=ticker, candle_fn=candles,
+                sleep_fn=lambda _: None, now=NOW)
+        for row in x["samples"]:
+            self.assertIsNotNone(row["feature_preview"])
+            self.assertEqual(row["provider_quote_average_unverified"], 29.5)
+            self.assertIsNone(row["feature_preview"]["vwap_distance_pct"])
+            self.assertEqual(row["vwap_feature_status"],
+                             "HOLD_INDEPENDENT_TICK_VWAP_MISSING")
+            self.assertFalse(row["production_eligible"])
+
+    def test_bar_volume_unit_requires_both_regular_equity_types_and_lot(self):
+        def source_ticker(symbol):
+            return dict(ticker(symbol), type="EQUITY")
+        def source_candles(symbol, timeframe="5"):
+            return dict(candles(symbol, timeframe), type="EQUITY", market="TSE")
+        x = run(stage2(), ticker_fn=source_ticker, candle_fn=source_candles,
+                sleep_fn=lambda _: None, now=NOW)
+        for row in x["samples"]:
+            self.assertEqual(row["bar_volume_unit_contract_status"],
+                             "MATCH_FUGLE_REGULAR_EQUITY_1000_SHARES_PER_LOT")
+            self.assertEqual(row["bar_volume_share_multiplier"], 1000)
+            self.assertEqual(row["raw_five_min_candles"]["type"], "EQUITY")
+            self.assertEqual(row["raw_five_min_candles"]["market"], "TSE")
+            self.assertFalse(row["bar_volume_cross_source_reconciled"])
+            self.assertIsNone(row["feature_preview"]["vwap_distance_pct"])
+
+    def test_missing_or_oddlot_or_index_source_cannot_claim_regular_lots(self):
+        # Missing provider type, odd-lot, index, inconsistent type and
+        # non-standard board lot must not inherit the regular-stock 1000x.
+        cases = (
+            (None, None, 1000),
+            ("EQUITY", None, 1000),
+            (None, "EQUITY", 1000),
+            ("ODDLOT", "ODDLOT", 1000),
+            ("INDEX", "INDEX", 1000),
+            ("EQUITY", "ODDLOT", 1000),
+            ("EQUITY", "EQUITY", 1),
+            ("EQUITY", "EQUITY", True),
+        )
+        for ticker_type, candle_type, board_lot in cases:
+            def source_ticker(symbol):
+                result = dict(ticker(symbol), boardLot=board_lot)
+                if ticker_type is not None:
+                    result["type"] = ticker_type
+                return result
+            def source_candles(symbol, timeframe="5"):
+                result = candles(symbol, timeframe)
+                if candle_type is not None:
+                    result["type"] = candle_type
+                return result
+            with self.subTest(types=(ticker_type, candle_type, board_lot)):
+                x = run(stage2(), ticker_fn=source_ticker,
+                        candle_fn=source_candles,
+                        sleep_fn=lambda _: None, now=NOW)
+                for row in x["samples"]:
+                    self.assertEqual(row["bar_volume_unit_contract_status"],
+                                     "HOLD_SOURCE_TYPE_OR_BOARD_LOT_UNVERIFIED")
+                    self.assertIsNone(row["bar_volume_share_multiplier"])
+                    self.assertIsNone(row["official_bar_volume_unit"])
+                    self.assertFalse(row["bar_volume_cross_source_reconciled"])
+                    self.assertFalse(row["production_eligible"])
+
 if __name__=="__main__":
     unittest.main()
