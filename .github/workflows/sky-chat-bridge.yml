@@ -462,12 +462,14 @@ jobs:
         id: discovery
         env:
           GH_TOKEN: ${{ github.token }}
-          TARGET_COMMENT_ID: ${{ github.event_name == 'issue_comment' && github.event.comment.id || inputs.w0_comment_id || '7092354527' }}
+          TARGET_COMMENT_ID: ${{ github.event_name == 'issue_comment' && github.event.comment.id || inputs.w0_comment_id || '' }}
           COMMENT_EVENT_TIME: ${{ github.event_name == 'issue_comment' && github.event.comment.created_at || '' }}
           WINDOW_START: ${{ inputs.w0_start || '2026-11-23T05:20:00Z' }}
           WINDOW_END: ${{ inputs.w0_end || '2026-11-23T05:30:00Z' }}
         run: |
           set -euo pipefail
+          # Missing identity must fail closed; never borrow an unrelated historical comment.
+          test -n "$TARGET_COMMENT_ID" || { echo "W0_COMMENT_ID_REQUIRED" >&2; exit 1; }
           # Issue comments use their own identity and a bounded, past-only time window.
           # Historical preservation remains available through explicit dispatch inputs.
           if [ -n "$COMMENT_EVENT_TIME" ]; then
