@@ -35,6 +35,23 @@ def select_source(*, current_run_id: str):
     raise ValueError("NO_VERIFIED_EXISTING_SCAN_ARTIFACT")
 
 
+def find_source_json(target: Path) -> Path:
+    """Accept only documented layout variants of the same named source file.
+
+    upload-artifact may trim the common `output/` ancestor.  Never select
+    an unrelated JSON or substitute an unverified status-only receipt.
+    """
+    candidates = [
+        target / "output/sky_quickscan_information/full_universe.json",
+        target / "sky_quickscan_information/full_universe.json",
+        target / "full_universe.json",
+    ]
+    found = [path for path in candidates if path.is_file()]
+    if len(found) != 1:
+        raise ValueError("SOURCE_FULL_UNIVERSE_NOT_FOUND_OR_AMBIGUOUS")
+    return found[0]
+
+
 def make_receipt(source, *, run_id: str, run_attempt: str, head_sha: str,
                  comment_id: str, source_provenance: dict):
     evaluated = consume(source)
@@ -91,12 +108,7 @@ def run():
         ["gh", "run", "download", source_id, "--repo", REPO,
          "--name", name, "--dir", str(target)], check=True
     )
-    source_path = target / "output/sky_quickscan_information/full_universe.json"
-    # Upload-artifact flattens a single enclosing output prefix on some versions.
-    if not source_path.is_file():
-        source_path = target / "full_universe.json"
-    if not source_path.is_file():
-        raise ValueError("SOURCE_FULL_UNIVERSE_NOT_FOUND")
+    source_path = find_source_json(target)
     raw = source_path.read_bytes()
     source = json.loads(raw)
     provenance = {

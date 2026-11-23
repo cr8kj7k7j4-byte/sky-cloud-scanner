@@ -3,9 +3,10 @@ from datetime import datetime
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from research.sky_full_universe_information import build
-from scripts.sky_alert_chat_readback import make_receipt, select_source
+from scripts.sky_alert_chat_readback import make_receipt, select_source, find_source_json
 
 TZ = ZoneInfo("Asia/Taipei")
 
@@ -49,6 +50,18 @@ class SkyAlertChatReadbackTests(unittest.TestCase):
         with patch("scripts.sky_alert_chat_readback.gh_json", return_value={"workflow_runs": []}):
             with self.assertRaisesRegex(ValueError, "NO_VERIFIED_EXISTING_SCAN_ARTIFACT"):
                 select_source(current_run_id="1")
+
+    def test_artifact_relative_layout_is_resolved_without_guessing_other_files(self):
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            path = root / "sky_quickscan_information" / "full_universe.json"
+            path.parent.mkdir()
+            path.write_text("{}", encoding="utf-8")
+            self.assertEqual(find_source_json(root), path)
+            alt = root / "full_universe.json"
+            alt.write_text("{}", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "AMBIGUOUS"):
+                find_source_json(root)
 
     def test_existing_workflow_only_owner_alert_job_never_paid(self):
         workflow = Path(".github/workflows/sky-chat-bridge.yml").read_text(encoding="utf-8")
