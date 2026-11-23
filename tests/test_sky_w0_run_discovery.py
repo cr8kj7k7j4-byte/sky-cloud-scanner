@@ -17,7 +17,7 @@ class TestW0RunDiscovery(unittest.TestCase):
             if endpoint.startswith("/issues/comments/"):
                 return COMMENT
             if endpoint.startswith("/actions/runs?"):
-                return {"workflow_runs": [RUN]}
+                return {"workflow_runs": [RUN], "total_count": 1}
             return {"artifacts": [{"id": 55, "name": "receipt", "digest": "sha256:abc"}],
                     "total_count": 1}
         result = discover("owner/repo", "token", 7092354527, START, END, getter)
@@ -31,7 +31,7 @@ class TestW0RunDiscovery(unittest.TestCase):
         def getter(repo, token, endpoint):
             if endpoint.startswith("/issues/comments/"):
                 return COMMENT
-            return {"workflow_runs": [{**RUN, "event": "workflow_dispatch"}]}
+            return {"workflow_runs": [{**RUN, "event": "workflow_dispatch"}], "total_count": 1}
         result = discover("owner/repo", "token", 7092354527, START, END, getter)
         self.assertEqual(result["status"], "HOLD_NO_MATCHING_RUN")
 
@@ -39,7 +39,7 @@ class TestW0RunDiscovery(unittest.TestCase):
         def getter(repo, token, endpoint):
             if endpoint.startswith("/issues/comments/"):
                 return COMMENT
-            return {"workflow_runs": [{**RUN, "event": "workflow_dispatch"}] * 100}
+            return {"workflow_runs": [{**RUN, "event": "workflow_dispatch"}] * 100, "total_count": 300}
         result = discover("owner/repo", "token", 7092354527, START, END, getter, max_pages=2)
         self.assertEqual(result["status"], "HOLD_LISTING_INCOMPLETE")
 
@@ -48,14 +48,14 @@ class TestW0RunDiscovery(unittest.TestCase):
             if endpoint.startswith("/issues/comments/"):
                 return COMMENT
             if endpoint.startswith("/actions/runs?"):
-                return {"workflow_runs": [RUN]}
+                return {"workflow_runs": [RUN], "total_count": 1}
             return {"artifacts": [], "total_count": 2}
         with self.assertRaises(ValueError):
             discover("owner/repo", "token", 7092354527, START, END, getter)
         def getter2(repo, token, endpoint):
             if endpoint.startswith("/issues/comments/"):
                 return COMMENT
-            return {"workflow_runs": [{**RUN, "head_sha": None}]}
+            return {"workflow_runs": [{**RUN, "head_sha": None}], "total_count": 1}
         with self.assertRaises(ValueError):
             discover("owner/repo", "token", 7092354527, START, END, getter2)
 
@@ -72,7 +72,7 @@ class TestW0RunDiscovery(unittest.TestCase):
                     if endpoint.startswith("/issues/comments/"):
                         return COMMENT
                     if endpoint.startswith("/actions/runs?"):
-                        return {"workflow_runs": [RUN]}
+                        return {"workflow_runs": [RUN], "total_count": 1}
                     return artifact_response
                 with self.assertRaisesRegex(ValueError, "INCOMPLETE_ARTIFACT_LIST"):
                     discover("owner/repo", "token", 7092354527, START, END, getter)
@@ -95,12 +95,49 @@ class TestW0RunDiscovery(unittest.TestCase):
                     if endpoint.startswith("/issues/comments/"):
                         return COMMENT
                     if endpoint.startswith("/actions/runs?"):
-                        return {"workflow_runs": [RUN]}
+                        return {"workflow_runs": [RUN], "total_count": 1}
                     return {"artifacts": artifacts, "total_count": len(artifacts)}
                 with self.assertRaisesRegex(
                     ValueError, "INVALID_ARTIFACT_IDENTITY|DUPLICATE_ARTIFACT_ID"
                 ):
                     discover("owner/repo", "token", 7092354527, START, END, getter)
+
+    def test_run_list_total_contract_fail_closed(self):
+        for payload in (
+            {"workflow_runs": []},
+            {"workflow_runs": [], "total_count": True},
+            {"workflow_runs": [], "total_count": -1},
+            {"workflow_runs": [RUN], "total_count": 0},
+        ):
+            with self.subTest(payload=payload):
+                def getter(repo, token, endpoint):
+                    if endpoint.startswith("/issues/comments/"):
+                        return COMMENT
+                    return payload
+                with self.assertRaisesRegex(
+                    ValueError, "INVALID_RUN_LIST_TOTAL|RUN_LIST_TOTAL_MISMATCH"
+                ):
+                    discover("owner/repo", "token", 7092354527, START, END, getter)
+
+    def test_short_run_page_cannot_claim_complete_listing(self):
+        def getter(repo, token, endpoint):
+            if endpoint.startswith("/issues/comments/"):
+                return COMMENT
+            return {"workflow_runs": [], "total_count": 2}
+        result = discover("owner/repo", "token", 7092354527, START, END, getter)
+        self.assertEqual(result["status"], "HOLD_LISTING_INCOMPLETE")
+        self.assertIs(result["listing_complete"], False)
+
+    def test_run_list_total_change_between_pages_fails_closed(self):
+        def getter(repo, token, endpoint):
+            if endpoint.startswith("/issues/comments/"):
+                return COMMENT
+            if "page=1" in endpoint:
+                return {"workflow_runs": [{**RUN, "event": "workflow_dispatch"}] * 100,
+                        "total_count": 150}
+            return {"workflow_runs": [], "total_count": 151}
+        with self.assertRaisesRegex(ValueError, "RUN_LIST_TOTAL_CHANGED"):
+            discover("owner/repo", "token", 7092354527, START, END, getter)
 
     def test_issue_comment_workflow_uses_current_event_identity(self):
         # Contract: a new issue comment must not silently audit an old comment.
