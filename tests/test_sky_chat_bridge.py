@@ -56,9 +56,8 @@ class ChatScanBridgeTests(unittest.TestCase):
         self.assertIn("github.event.comment.author_association == 'OWNER'", workflow)
         self.assertIn("github.event.comment.body == 'Sky 快掃'", workflow)
         self.assertIn("github.event.comment.body == 'Sky 當沖快掃'", workflow)
-        self.assertIn('comment_body not in ("Sky 快掃", "Sky 當沖快掃")', workflow)
-        self.assertIn('payload["command"] = comment_body', workflow)
-        self.assertLess(workflow.index('payload["command"] = comment_body'),
+        self.assertIn("payload = bind_issue_comment_command(payload, event)", workflow)
+        self.assertLess(workflow.index("payload = bind_issue_comment_command(payload, event)"),
                         workflow.index("validate_request(payload)"))
         self.assertEqual(validate_request({
             "command": "Sky 當沖快掃",
