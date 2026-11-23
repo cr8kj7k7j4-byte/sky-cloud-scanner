@@ -28,6 +28,42 @@ class CanonicalFugleRequestTests(unittest.TestCase):
         self.assertNotEqual(key("GET", "/snapshot/quotes/TSE?type=COMMONSTOCK"),
                             key("GET", "/snapshot/quotes/OTC?type=COMMONSTOCK"))
 
+    def test_isnormal_only_valid_for_intraday_tickers(self):
+        tse = key("GET", "/intraday/tickers?type=EQUITY&market=TSE&isNormal=true")
+        otc = key("GET", "/intraday/tickers?isNormal=true&market=OTC&type=EQUITY")
+        self.assertNotEqual(tse, otc)
+        self.assertEqual(
+            tse, key("GET", "/intraday/tickers",
+                     parameters={"market": "TSE", "isNormal": "true", "type": "EQUITY"}))
+        self.assertNotEqual(
+            tse, key("GET", "/intraday/tickers?type=EQUITY&market=TSE&isNormal=false"))
+        for url in (
+            "/intraday/quote/2330?isNormal=true",
+            "/historical/candles/2330?isNormal=true",
+            "/intraday/tickers?isNormal=TRUE",
+            "/intraday/tickers?isNormal=1",
+            "/intraday/tickers?isNormal=maybe",
+            "/intraday/tickers?isNormal=true&unexpected=1",
+        ):
+            with self.subTest(url=url):
+                with self.assertRaisesRegex(ValueError, "INVALID_PARAMETER"):
+                    key("GET", url)
+
+    def test_isnormal_ignores_type_for_paid_request_identity(self):
+        # Official Fugle tickers contract: isNormal forces EQUITY and ignores type.
+        for normal in ("true", "false"):
+            with self.subTest(isNormal=normal):
+                base = f"/intraday/tickers?market=TSE&isNormal={normal}"
+                self.assertEqual(key("GET", base),
+                                 key("GET", base + "&type=EQUITY"))
+                self.assertEqual(key("GET", base),
+                                 key("GET", base + "&type=INDEX"))
+                self.assertNotEqual(key("GET", base),
+                                    key("GET", f"/intraday/tickers?market=OTC&isNormal={normal}"))
+        # Without isNormal the type filter is significant and must remain distinct.
+        self.assertNotEqual(key("GET", "/intraday/tickers?market=TSE&type=EQUITY"),
+                            key("GET", "/intraday/tickers?market=TSE&type=INDEX"))
+
     def test_invalid_empty_parameter_containers_fail_closed(self):
         for invalid in ([], (), "", 0, False):
             with self.subTest(parameters=repr(invalid)):

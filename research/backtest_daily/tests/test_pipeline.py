@@ -54,8 +54,237 @@ class FetchHelperTests(unittest.TestCase):
         import unittest.mock as mock
         err = fetch_fugle_daily.urllib.error.HTTPError(
             "u", 404, "Not Found", {}, io.BytesIO(b""))
-        with mock.patch.object(fetch_fugle_daily.urllib.request, "urlopen", side_effect=err):
+        with mock.patch.dict(os.environ, {"SKY_PAID_ATOMIC_ENFORCE": "1"}), \
+             mock.patch.object(fetch_fugle_daily, "guard_fugle_request") as claim, \
+             mock.patch.object(fetch_fugle_daily.urllib.request, "urlopen", side_effect=err):
             self.assertEqual(fetch_fugle_daily.fetch_chunk("3717", "2024-09-01", "2024-12-31", "k"), [])
+            claim.assert_called_once()
+
+    def test_missing_atomic_enforcement_never_touches_network(self):
+        import unittest.mock as mock
+        with mock.patch.dict(os.environ, {"SKY_PAID_ATOMIC_ENFORCE": ""}), \
+             mock.patch.object(fetch_fugle_daily.urllib.request, "urlopen") as network:
+            with self.assertRaisesRegex(RuntimeError, "HISTORICAL_PAID_GUARD_REQUIRED"):
+                fetch_fugle_daily.fetch_chunk("2330", "2025-01-01", "2025-12-31", "key")
+            network.assert_not_called()
+
+    def test_429_never_retries_after_one_atomic_claim(self):
+        import io
+        import unittest.mock as mock
+        err = fetch_fugle_daily.urllib.error.HTTPError(
+            "u", 429, "Too Many Requests", {}, io.BytesIO(b""))
+        with mock.patch.dict(os.environ, {"SKY_PAID_ATOMIC_ENFORCE": "1"}), \
+             mock.patch.object(fetch_fugle_daily, "guard_fugle_request") as claim, \
+             mock.patch.object(fetch_fugle_daily.urllib.request, "urlopen", side_effect=err) as network:
+            with self.assertRaisesRegex(RuntimeError, "HTTP 429"):
+                fetch_fugle_daily.fetch_chunk("2330", "2025-01-01", "2025-12-31", "key")
+            claim.assert_called_once()
+            network.assert_called_once()
+
+    def test_competing_claim_denial_blocks_http(self):
+        import unittest.mock as mock
+        with mock.patch.dict(os.environ, {"SKY_PAID_ATOMIC_ENFORCE": "1"}), \
+             mock.patch.object(fetch_fugle_daily, "guard_fugle_request",
+                               side_effect=RuntimeError("DUPLICATE_PAID_FUGLE_ENDPOINT_BLOCKED")), \
+             mock.patch.object(fetch_fugle_daily.urllib.request, "urlopen") as network:
+            with self.assertRaisesRegex(RuntimeError, "DUPLICATE_PAID_FUGLE_ENDPOINT_BLOCKED"):
+                fetch_fugle_daily.fetch_chunk("2330", "2025-01-01", "2025-12-31", "key")
+            network.assert_not_called()
+
+    def test_two_workflows_compete_through_real_fetch_guard_with_mock_http(self):
+        """Two concurrent entrypoint calls must result in ONE mock HTTP only."""
+        from concurrent.futures import ThreadPoolExecutor
+        from threading import Barrier, Lock
+        from unittest import mock
+        import io
+
+        from research import sky_fugle_atomic_ref_claim as atomic
+
+        barrier = Barrier(2)
+        lock = Lock()
+        claimed = set()
+
+        def fake_github_create_ref(repo, token):
+            self.assertEqual(repo, "example/sky")
+            self.assertEqual(token, "mock-token")
+            barrier.wait(timeout=5)
+
+            def create(ref, sha):
+                with lock:
+                    if ref in claimed:
+                        return {"status": 422, "existing": True}
+                    claimed.add(ref)
+                    return {"status": 201, "ref": ref}
+
+            return create
+
+        class MockResponse:
+            status = 200
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def read(self):
+                return b'{"data": [{"date": "2025-01-03"}]}'
+
+        responses = []
+
+        def mock_urlopen(req, timeout=30):
+            responses.append(req.full_url)
+            return MockResponse()
+
+        def runner(_):
+            try:
+                return ("won", fetch_fugle_daily.fetch_chunk(
+                    "2330", "2025-01-01", "2025-12-31", "mock-api-key"))
+            except RuntimeError as error:
+                return ("blocked", str(error))
+
+        env = {"SKY_PAID_ATOMIC_ENFORCE": "1",
+               "GITHUB_REPOSITORY": "example/sky",
+               "GH_TOKEN": "mock-token",
+               "GITHUB_SHA": "a" * 40}
+        with mock.patch.dict(os.environ, env), \
+             mock.patch.object(atomic, "github_create_ref", side_effect=fake_github_create_ref), \
+             mock.patch.object(fetch_fugle_daily.urllib.request, "urlopen",
+                               side_effect=mock_urlopen) as http:
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                a = pool.submit(runner, "A")
+                b = pool.submit(runner, "B")
+                outcomes = [a.result(timeout=8), b.result(timeout=8)]
+        self.assertCountEqual([outcome[0] for outcome in outcomes], ["won", "blocked"])
+        self.assertEqual(next(v for kind, v in outcomes if kind == "blocked"),
+                         "DUPLICATE_PAID_FUGLE_ENDPOINT_BLOCKED")
+        self.assertEqual(len(claimed), 1)
+        self.assertEqual(http.call_count, 1)
+        self.assertEqual(len(responses), 1)
+
+    def test_universe_missing_enforcement_blocks_first_market_http(self):
+        from unittest import mock
+        with mock.patch.dict(os.environ, {"SKY_PAID_ATOMIC_ENFORCE": ""}), \
+             mock.patch.object(fetch_fugle_daily, "guard_fugle_request") as claim, \
+             mock.patch.object(fetch_fugle_daily.urllib.request, "urlopen") as network:
+            with self.assertRaisesRegex(RuntimeError, "HISTORICAL_PAID_GUARD_REQUIRED"):
+                fetch_fugle_daily.list_universe("fake-key")
+            claim.assert_not_called()
+            network.assert_not_called()
+
+    def test_universe_duplicate_claim_blocks_first_market_http(self):
+        from unittest import mock
+        with mock.patch.dict(os.environ, {"SKY_PAID_ATOMIC_ENFORCE": "1"}), \
+             mock.patch.object(fetch_fugle_daily, "guard_fugle_request",
+                               side_effect=RuntimeError("DUPLICATE_PAID_FUGLE_ENDPOINT_BLOCKED")) as claim, \
+             mock.patch.object(fetch_fugle_daily.urllib.request, "urlopen") as network:
+            with self.assertRaisesRegex(RuntimeError, "DUPLICATE_PAID_FUGLE_ENDPOINT_BLOCKED"):
+                fetch_fugle_daily.list_universe("fake-key")
+            claim.assert_called_once()
+            network.assert_not_called()
+
+    def test_universe_separate_tse_otc_claims_before_mock_http(self):
+        from unittest import mock
+        import json
+
+        class Response:
+            def __init__(self, symbol):
+                self.symbol = symbol
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def read(self):
+                payload = {"data": [{"symbol": self.symbol, "type": "EQUITY"}]}
+                return json.dumps(payload).encode("utf-8")
+
+        claimed = []
+        requested = []
+
+        def claim(url):
+            claimed.append(url)
+
+        def fake_urlopen(req, timeout=30):
+            requested.append(req.full_url)
+            self.assertIn(req.full_url, claimed)
+            return Response("2330" if "market=TSE" in req.full_url else "6488")
+
+        with mock.patch.dict(os.environ, {"SKY_PAID_ATOMIC_ENFORCE": "1"}), \
+             mock.patch.object(fetch_fugle_daily, "guard_fugle_request",
+                               side_effect=claim), \
+             mock.patch.object(fetch_fugle_daily.urllib.request, "urlopen",
+                               side_effect=fake_urlopen) as network, \
+             mock.patch.object(fetch_fugle_daily.time, "sleep") as sleep:
+            symbols = fetch_fugle_daily.list_universe("fake-key")
+        self.assertEqual(symbols, ["2330", "6488"])
+        self.assertEqual(network.call_count, 2)
+        self.assertEqual(len(claimed), 2)
+        self.assertEqual(set(claimed), set(requested))
+        self.assertNotEqual(claimed[0], claimed[1])
+        self.assertEqual(sleep.call_count, 2)
+
+    def test_universe_real_canonical_claim_then_mock_http(self):
+        """Integrate the real shared canonical guard; never contact Fugle."""
+        import json
+        from unittest import mock
+        from research import sky_fugle_atomic_ref_claim as atomic
+
+        refs = set()
+        claimed_urls = []
+        requested = []
+
+        def create_ref(repo, token):
+            self.assertEqual((repo, token), ("example/sky", "mock-token"))
+
+            def create(ref, sha):
+                if ref in refs:
+                    return {"status": 422, "existing": True}
+                refs.add(ref)
+                return {"status": 201, "ref": ref}
+            return create
+
+        class Response:
+            def __init__(self, symbol):
+                self.symbol = symbol
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def read(self):
+                return json.dumps({"data": [
+                    {"symbol": self.symbol, "type": "EQUITY"}]}).encode("utf-8")
+
+        def fake_http(req, timeout=30):
+            # The real atomic claim must already exist before every HTTP call.
+            requested.append(req.full_url)
+            self.assertEqual(len(refs), len(requested))
+            return Response("2330" if "market=TSE" in req.full_url else "6488")
+
+        env = {
+            "SKY_PAID_ATOMIC_ENFORCE": "1",
+            "GITHUB_REPOSITORY": "example/sky",
+            "GH_TOKEN": "mock-token",
+            "GITHUB_SHA": "a" * 40,
+        }
+        with mock.patch.dict(os.environ, env), \
+             mock.patch.object(atomic, "github_create_ref", side_effect=create_ref), \
+             mock.patch.object(fetch_fugle_daily.urllib.request, "urlopen",
+                               side_effect=fake_http) as http, \
+             mock.patch.object(fetch_fugle_daily.time, "sleep"):
+            self.assertEqual(fetch_fugle_daily.list_universe("mock-key"), ["2330", "6488"])
+            # A repeated same-market request must be denied before paid HTTP.
+            with self.assertRaisesRegex(RuntimeError, "DUPLICATE_PAID_FUGLE_ENDPOINT_BLOCKED"):
+                fetch_fugle_daily.list_universe("mock-key")
+
+        self.assertEqual(len(refs), 2)
+        self.assertEqual(http.call_count, 2)
+        self.assertEqual(len(requested), 2)
 
     def test_chunks_are_under_one_year(self):
         from datetime import date
