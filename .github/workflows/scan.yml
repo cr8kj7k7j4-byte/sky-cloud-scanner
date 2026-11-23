@@ -72,6 +72,8 @@ jobs:
             sky-monitor-state-
       - name: Install dependencies
         run: pip install -r requirements.txt
+      - name: Verify delayed schedule guard offline (zero paid API)
+        run: python -m unittest tests.test_schedule_health -v
       - name: Check TWSE trading calendar
         id: calendar
         shell: bash
@@ -82,6 +84,18 @@ jobs:
           import json
           from pathlib import Path
           x=json.loads(Path("output/trading_calendar_status.json").read_text(encoding="utf-8"))
+          import os
+          from datetime import datetime, timezone
+          from src.trading_calendar import scheduled_scan_window
+          gate = scheduled_scan_window(os.environ.get("GITHUB_EVENT_NAME",""),
+                                       datetime.now(timezone.utc))
+          x["scheduled_time_gate"] = gate
+          if gate["allowed"] is not True:
+              x["should_scan"] = False
+          Path("output/trading_calendar_status.json").write_text(
+              json.dumps(x, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          if gate["allowed"] is not True:
+              raise SystemExit("Scheduled scan outside canonical live window; paid API withheld.")
           if x.get("source_status") != "PASS":
               raise SystemExit("Official trading calendar unavailable; scan withheld.")
           print("true" if x.get("should_scan") is True else "false")
