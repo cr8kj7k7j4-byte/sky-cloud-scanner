@@ -75,6 +75,10 @@ jobs:
       - name: Plan A target contract and 5m regression
         run: |
           python -m pytest -q tests/test_swing_two_track_acceptance.py tests/test_sky_v14_ticker_candles_probe.py
+      # Retain the exact-SHA Stage 5 source-audit CI from merged PR #690.
+      # Offline fixtures only; never call Fugle or certify live VWAP.
+      - name: Fugle Stage 5 trade-page source audit regression (zero paid API)
+        run: python -m pytest -q tests/test_sky_stage5_vwap_cost_evidence.py
       - name: Production E2E
         run: pytest -q tests/test_production_e2e_acceptance.py
 
