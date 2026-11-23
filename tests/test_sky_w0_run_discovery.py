@@ -8,7 +8,8 @@ COMMENT = {"id": 7092354527, "created_at": "2026-11-23T05:22:23Z",
            "issue_url": "https://api.github.com/repos/owner/repo/issues/363",
            "user": {"login": "owner"}, "author_association": "OWNER"}
 RUN = {"id": 45119990000, "created_at": "2026-11-23T05:24:00Z",
-       "event": "issue_comment", "name": "Sky Bridge", "workflow_id": 11,
+       "event": "issue_comment", "path": ".github/workflows/sky-chat-bridge.yml",
+       "name": "Sky Bridge", "workflow_id": 11,
        "status": "completed", "conclusion": "success",
        "run_attempt": 1, "head_sha": "a" * 40}
 
@@ -46,6 +47,21 @@ class TestW0RunDiscovery(unittest.TestCase):
                     return {"workflow_runs": [], "total_count": 0}
                 with self.assertRaisesRegex(ValueError, "COMMENT_SOURCE_NOT_OWNER_363"):
                     discover("owner/repo", "token", 7092354527, START, END, getter)
+
+    def test_other_workflow_and_pre_comment_runs_are_not_candidates(self):
+        for invalid in (
+            {"path": ".github/workflows/other.yml"},
+            {"path": None},
+            {"created_at": "2026-11-23T05:21:00Z"},
+        ):
+            with self.subTest(invalid=invalid):
+                def getter(repo, token, endpoint):
+                    if endpoint.startswith("/issues/comments/"):
+                        return COMMENT
+                    return {"workflow_runs": [{**RUN, **invalid}], "total_count": 1}
+                result = discover("owner/repo", "token", 7092354527, START, END, getter)
+                self.assertEqual(result["status"], "HOLD_NO_MATCHING_RUN")
+                self.assertEqual(result["candidate_runs"], [])
 
     def test_no_matching_issue_comment(self):
         def getter(repo, token, endpoint):
