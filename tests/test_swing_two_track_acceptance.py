@@ -109,7 +109,7 @@ def test_snapshot_detail_integrity_and_capture_cutoff_fail_closed():
     report, snapshot = evidence()
     assert assess(report, snapshot)["snapshot_screen_status"] == "PASS_SNAPSHOT_OBSERVATION_ONLY"
     for change in ("wrong_report_count", "wrong_file_count", "duplicate", "wrong_market",
-                   "different_day", "late_capture", "future_capture", "missing_symbol"):
+                   "different_day", "late_capture", "future_capture", "near_future_capture", "missing_symbol"):
         r, s = deepcopy(report), deepcopy(snapshot)
         if change == "wrong_report_count":
             r["unverified_snapshot_observation_count"] = 2
@@ -127,6 +127,9 @@ def test_snapshot_detail_integrity_and_capture_cutoff_fail_closed():
             s["generated_at"] = "2026-11-23T12:45:00+08:00"
         elif change == "future_capture":
             s["generated_at"] = "2026-11-23T12:53:30+08:00"
+        elif change == "near_future_capture":
+            # Even a one-second post-report snapshot violates point-in-time causality.
+            s["generated_at"] = "2026-11-23T12:49:20+08:00"
         elif change == "missing_symbol":
             s["data"][0]["symbol"] = ""
         assert assess(r, s)["snapshot_screen_status"] == "HOLD_SNAPSHOT_EVIDENCE"
