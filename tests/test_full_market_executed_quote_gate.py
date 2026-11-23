@@ -129,3 +129,20 @@ def test_trial_or_stale_bulk_snapshot_not_counted_as_reference():
     ]
     result = validate_whole_market_rows(universe(), rows, NOW)
     assert result["snapshot_reference_count"] == 0
+
+
+def test_fugle_trial_timestamp_cannot_certify_trade():
+    rows = [
+        {
+            "symbol": item["symbol"],
+            "quote_source": "Fugle bulk snapshot",
+            "last": 40,
+            "quote_date": NOW.date().isoformat(),
+            "last_trade_timestamp": NOW.isoformat(),
+            "isTrial": True,
+        }
+        for item in universe()
+    ]
+    result = validate_whole_market_rows(universe(), rows, NOW)
+    assert result["valid_quote_count"] == 0
+    assert result["valid_whole_market_operational"] is False
