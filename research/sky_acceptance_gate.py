@@ -18,7 +18,7 @@ COMMANDS = {
     "Sky 快掃": "SKY_QUICK_SCAN",
     "Sky 當沖現在掃一次": "SKY_DAYTRADE_SCAN",
     "Sky 當沖更新 2330": "SKY_SINGLE_STOCK_UPDATE",
-    "Sky 波段現在掃一次": "SKY_SWING_V11_LIVE_ALIAS",
+    "Sky 波段現在掃一次": "SKY_SWING_V10_LIVE_OBSERVATION",
     "Sky Swing 5D 快掃": "SKY_SWING_5D",
     "Sky 警戒": "SKY_ALERT_WHOLE_MARKET_OBSERVATION",
     "Sky 持倉監控": "SKY_MONITOR",

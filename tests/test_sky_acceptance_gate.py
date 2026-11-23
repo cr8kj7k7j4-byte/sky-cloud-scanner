@@ -55,6 +55,7 @@ def test_invalid_records_container_fails_closed(tmp_path):
 
 
 def test_existing_route_contracts_do_not_create_production_rights():
+    assert COMMANDS["Sky 波段現在掃一次"] == "SKY_SWING_V10_LIVE_OBSERVATION"
     report = inspect(Path("."))
     assert len(report["routes"]) == len(COMMANDS)
     assert report["technical_route_and_registry_status"] == "PASS_STATIC_AUDIT"

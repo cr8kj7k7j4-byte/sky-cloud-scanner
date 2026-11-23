@@ -39,11 +39,27 @@ def test_unknown_current_sky_command_fails_closed():
     assert route.execution_target == "ROUTER_REVIEW_REQUIRED"
 
 
-def test_sky_swing_now_aliases_v11_intraday_overlay():
+def test_sky_swing_now_routes_to_governed_v10_observation_only():
     route = route_command("Sky 波段現在掃一次")
-    assert route.command_family == "SKY_SWING_V11_LIVE_ALIAS"
-    assert route.execution_target == "src.swing_v11_live_scanner"
-    assert route.data_mode == "WHOLE_MARKET_REALTIME_PLUS_CANONICAL_DAILY"
+    assert route.command_family == "SKY_SWING_V10_LIVE_OBSERVATION"
+    assert route.execution_target == ".github/workflows/swing-live-scan.yml --mode swing"
+    assert route.data_mode == "WHOLE_MARKET_REALTIME_RESEARCH_ONLY"
+    assert route.realtime_required is True
+    assert route.whole_market_required is True
+    assert "exact executable rule specification is BLOCKED" in route.notes
+    assert "Swing V1.1 remains Research only" in route.notes
+
+
+def test_swing_now_workflow_is_owner_only_on_w0_issue():
+    from pathlib import Path
+    workflow = Path(".github/workflows/swing-live-scan.yml").read_text(encoding="utf-8")
+    assert "github.event.issue.number == 363" in workflow
+    assert "github.event.comment.user.login == github.repository_owner" in workflow
+    assert "github.event.comment.author_association == 'OWNER'" in workflow
+    assert "github.event.comment.body == 'Sky 波段現在掃一次'" in workflow
+    assert "github.event.comment.body == 'Sky Swing 5D 快掃'" in workflow
+    assert "sky-fugle-paid-global-research-v1-live-wholemarket" in workflow
+    assert "SKY_PAID_ATOMIC_ENFORCE: \"1\"" in workflow
 
 
 def test_sky_swing_quick_scan_remains_broad_candidate_scan():
