@@ -4,6 +4,9 @@ on:
     branches: [main]
     paths:
       - 'scan_requests/chat/latest.json'
+  # Reuse existing bridge for an explicitly authorized #363 ChatGPT command.
+  issue_comment:
+    types: [created]
   workflow_dispatch:
 permissions:
   contents: write
@@ -13,6 +16,13 @@ concurrency:
   cancel-in-progress: false
 jobs:
   scan:
+    # Only the repository owner may request exactly Sky 快掃 on #363.
+    if: >-
+      github.event_name != 'issue_comment' ||
+      (github.event.issue.number == 363 &&
+       github.event.comment.user.login == github.repository_owner &&
+       github.event.comment.author_association == 'OWNER' &&
+       github.event.comment.body == 'Sky 快掃')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -21,8 +31,8 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install -r requirements.txt
-      - name: Assign a unique request ID to each manual research scan
-        if: github.event_name == 'workflow_dispatch'
+      - name: Assign a unique request ID to each authorized on-demand research scan
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'issue_comment'
         shell: bash
         run: |
           python - <<'PY'
@@ -38,7 +48,7 @@ jobs:
           if not run_id.isdecimal() or not attempt.isdecimal():
               raise SystemExit("INVALID_MANUAL_RUN_IDENTITY")
           payload["request_id"] = f"manual-sky-{run_id}-{attempt}"
-          payload["reason"] = "Manual GitHub Actions research-only scan; no orders"
+          payload["reason"] = "Authorized on-demand GitHub Actions research-only scan; no orders"
           p.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
           print("MANUAL_RESEARCH_REQUEST_ID:" + payload["request_id"])
           PY
