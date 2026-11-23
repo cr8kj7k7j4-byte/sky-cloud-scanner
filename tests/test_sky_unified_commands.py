@@ -113,14 +113,11 @@ def test_live_market_guard_taiwan_hours():
 def test_model_validation_comment_bridge_is_owner_only_and_no_paid_scan():
     """Prevent arbitrary issue comments from dispatching research checks."""
     from pathlib import Path
-    import yaml
 
     raw = Path(".github/workflows/sky-unified-commands.yml").read_text(encoding="utf-8")
-    parsed = yaml.safe_load(raw)
-    # PyYAML's YAML 1.1 can read 'on' as True; retain original event source audit.
     assert "issue_comment:" in raw
     assert "types: [created]" in raw
-    guard = parsed["jobs"]["unified"]["if"]
+    guard = raw.split("    if: >-", 1)[1].split("    runs-on:", 1)[0]
     assert "github.event.issue.number == 363" in guard
     assert "github.event.comment.user.login == github.repository_owner" in guard
     assert "github.event.comment.author_association == 'OWNER'" in guard
