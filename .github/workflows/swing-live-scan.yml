@@ -28,7 +28,7 @@ on:
         default: "8"
 
 permissions:
-  contents: read
+  contents: write
   actions: read
 
 concurrency:
