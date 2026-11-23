@@ -84,7 +84,7 @@ jobs:
           mkdir -p shard_output
           printf -v SHARD "%02d" "${{ matrix.shard }}"
           cp "plan/research_data/pit_history_shards/manifest_shard_${SHARD}.json" shard_output/
-          cp plan/research_data/pit_history_shards/pit_history_download_summary.json shard_output/
+          cp "plan/research_data/pit_history_shards/pit_history_download_summary.json" shard_output/
           cp -r research_data/pit_history shard_output/history
           tar -czf "pit-history-shard-${{ matrix.shard }}.tar.gz" shard_output
       - uses: actions/upload-artifact@v4
