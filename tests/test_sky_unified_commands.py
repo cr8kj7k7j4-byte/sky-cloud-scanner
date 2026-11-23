@@ -108,3 +108,24 @@ def test_live_market_guard_taiwan_hours():
     assert market_session_open(datetime(2026, 11, 4, 13, 29, tzinfo=tz))
     assert not market_session_open(datetime(2026, 11, 4, 13, 30, tzinfo=tz))
     assert not market_session_open(datetime(2026, 11, 7, 10, 0, tzinfo=tz))
+
+
+def test_model_validation_comment_bridge_is_owner_only_and_no_paid_scan():
+    """Prevent arbitrary issue comments from dispatching research checks."""
+    from pathlib import Path
+    import yaml
+
+    raw = Path(".github/workflows/sky-unified-commands.yml").read_text(encoding="utf-8")
+    parsed = yaml.safe_load(raw)
+    # PyYAML's YAML 1.1 can read 'on' as True; retain original event source audit.
+    assert "issue_comment:" in raw
+    assert "types: [created]" in raw
+    guard = parsed["jobs"]["unified"]["if"]
+    assert "github.event.issue.number == 363" in guard
+    assert "github.event.comment.user.login == github.repository_owner" in guard
+    assert "github.event.comment.author_association == 'OWNER'" in guard
+    assert "github.event.comment.body == 'Sky 全模型驗證'" in guard
+    assert 'COMMAND="model_validation"' in raw
+    assert '"request_id": ("issue-comment-" + os.environ["ISSUE_COMMENT_ID"]' in raw
+    assert 'command = ("model_validation" if os.environ.get("EVENT_NAME") == "issue_comment"' in raw
+    assert raw.count("schedule:\\n") == 0  # Keep the former commented schedule paused.
