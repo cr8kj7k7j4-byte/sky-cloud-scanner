@@ -66,7 +66,9 @@ class TestW0RunDiscovery(unittest.TestCase):
         self.assertIn("github.event.comment.id || inputs.w0_comment_id", workflow)
         self.assertIn("github.event.comment.created_at", workflow)
         self.assertIn('if [ -n "$COMMENT_EVENT_TIME" ]; then', workflow)
-        self.assertIn('WINDOW_END="$COMMENT_EVENT_TIME"', workflow)
+        # End must include possible post-comment Actions runs, never future timestamps.
+        self.assertIn('datetime.datetime.now(datetime.timezone.utc)', workflow)
+        self.assertNotIn('WINDOW_END="$COMMENT_EVENT_TIME"', workflow)
         self.assertIn('datetime.timedelta(minutes=10)', workflow)
 
     def test_naive_time_and_bad_window_block(self):
