@@ -139,6 +139,34 @@ class TestW0RunDiscovery(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "RUN_LIST_TOTAL_CHANGED"):
             discover("owner/repo", "token", 7092354527, START, END, getter)
 
+    def test_duplicate_run_ids_fail_closed(self):
+        for records in (
+            [RUN, RUN],
+            [RUN, {**RUN, "event": "workflow_dispatch"}],
+        ):
+            with self.subTest(records=records):
+                def getter(repo, token, endpoint):
+                    if endpoint.startswith("/issues/comments/"):
+                        return COMMENT
+                    if endpoint.startswith("/actions/runs?"):
+                        return {"workflow_runs": records, "total_count": len(records)}
+                    return {"artifacts": [], "total_count": 0}
+                with self.assertRaisesRegex(ValueError, "DUPLICATE_RUN_ID"):
+                    discover("owner/repo", "token", 7092354527, START, END, getter)
+
+    def test_duplicate_run_id_across_pages_fails_closed(self):
+        def getter(repo, token, endpoint):
+            if endpoint.startswith("/issues/comments/"):
+                return COMMENT
+            if "&page=1&" in endpoint:
+                return {"workflow_runs": [{**RUN, "event": "workflow_dispatch"}] +
+                        [{**RUN, "id": 9000000000 + n, "event": "workflow_dispatch"}
+                         for n in range(99)], "total_count": 101}
+            return {"workflow_runs": [{**RUN, "event": "workflow_dispatch"}],
+                    "total_count": 101}
+        with self.assertRaisesRegex(ValueError, "DUPLICATE_RUN_ID"):
+            discover("owner/repo", "token", 7092354527, START, END, getter)
+
     def test_issue_comment_workflow_uses_current_event_identity(self):
         # Contract: a new issue comment must not silently audit an old comment.
         from pathlib import Path
