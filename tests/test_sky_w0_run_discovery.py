@@ -82,6 +82,24 @@ class TestW0RunDiscovery(unittest.TestCase):
         with self.assertRaises(ValueError):
             discover("owner/repo", "token", 7092354527, START, END, getter2)
 
+    def test_incomplete_workflow_run_metadata_fails_closed(self):
+        for invalid in (
+            {"run_attempt": None}, {"run_attempt": 0},
+            {"run_attempt": True}, {"run_attempt": "1"},
+            {"workflow_id": None}, {"workflow_id": 0},
+            {"workflow_id": True}, {"workflow_id": "11"},
+            {"name": None}, {"name": ""}, {"name": "  "},
+        ):
+            with self.subTest(invalid=invalid):
+                def getter(repo, token, endpoint):
+                    if endpoint.startswith("/issues/comments/"):
+                        return COMMENT
+                    if endpoint.startswith("/actions/runs?"):
+                        return {"workflow_runs": [{**RUN, **invalid}], "total_count": 1}
+                    return {"artifacts": [], "total_count": 0}
+                with self.assertRaisesRegex(ValueError, "INVALID_WORKFLOW_RUN_METADATA"):
+                    discover("owner/repo", "token", 7092354527, START, END, getter)
+
     def test_missing_or_inconsistent_artifact_count_fails_closed(self):
         # A partial or malformed GitHub response is never complete evidence.
         for artifact_response in (
