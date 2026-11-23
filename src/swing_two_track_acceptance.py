@@ -5,19 +5,36 @@ This module never approves a trade, a full-market executed feed or Production.
 from __future__ import annotations
 
 from datetime import datetime
+import math
 from zoneinfo import ZoneInfo
 
 TPE = ZoneInfo("Asia/Taipei")
 
 
-def _day(value):
+def _time(value):
     try:
         stamp = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-        if stamp.utcoffset() is not None:
-            return stamp.astimezone(TPE).date().isoformat()
+        return stamp.astimezone(TPE) if stamp.utcoffset() is not None else None
     except (TypeError, ValueError, OverflowError):
-        pass
-    return None
+        return None
+
+
+def _day(value):
+    stamp = _time(value)
+    return stamp.date().isoformat() if stamp is not None else None
+
+
+def _current_trade(confirmation, received):
+    price = confirmation.get("verified_executed_price")
+    traded = _time(confirmation.get("verified_executed_at"))
+    return (
+        confirmation.get("data_status") == "FRESH_EXECUTED_TRADE"
+        and isinstance(price, (float, int)) and not isinstance(price, bool)
+        and math.isfinite(price) and price > 0
+        and traded is not None and received is not None
+        and traded.date() == received.date()
+        and 0 <= (received - traded).total_seconds() <= 180
+    )
 
 
 def assess(report, snapshot):
@@ -34,6 +51,7 @@ def assess(report, snapshot):
     }
     if not isinstance(report, dict) or not isinstance(snapshot, dict):
         return result
+    received = _time(report.get("generated_at"))
     report_day = _day(report.get("generated_at"))
     health = (report.get("source_health") or {}).get("official_universe") or {}
     counts = report.get("snapshot_exchange_counts") or {}
@@ -67,12 +85,8 @@ def assess(report, snapshot):
                     and x.get("strategy_signal") is False
                     and x.get("production_eligible") is False
                     for x in confirmations)
-            and any(x.get("data_status") == "FRESH_EXECUTED_TRADE"
-                    and isinstance(x.get("verified_executed_price"), (float, int))
-                    and not isinstance(x.get("verified_executed_price"), bool)
-                    and x["verified_executed_price"] > 0
-                    and _day(x.get("verified_executed_at")) == report_day
-                    for x in confirmations)):
+            and any(_current_trade(x, received)
+            for x in confirmations)):
         result["candidate_execution_status"] = "PASS_BOUNDED_INDIVIDUAL_EXECUTION_ONLY"
     # Keep the original canonical market gate entirely independent of observations.
     if (report.get("operational_full_market_scan") is True
