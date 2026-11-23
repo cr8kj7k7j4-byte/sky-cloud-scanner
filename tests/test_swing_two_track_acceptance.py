@@ -16,13 +16,14 @@ def evidence():
         "quote_scope": "PARTIAL_EXECUTED_LIVE",
         "market_data_gate": "BLOCKED_EXTERNAL_DATA_NO_TRADE",
         "snapshot_individual_confirmation": [],
+        "unverified_snapshot_observation_count": 1,
     }
     snapshot = {
         "generated_at": "2026-11-23T12:49:19+08:00",
         "source": "Fugle bulk snapshot",
         "observed_symbols": 1,
         "data": [{
-            "symbol": "1234", "source": "Fugle bulk snapshot",
+            "symbol": "1234", "exchange": "TWSE", "source": "Fugle bulk snapshot",
             "snapshot_date": "2026-11-23",
             "strategy_signal": False, "production_eligible": False,
         }],
@@ -98,3 +99,31 @@ def test_workflow_uses_two_tracks_without_replacing_original_guard():
     assert "PASS_OPERATIONAL_WHOLE_MARKET_LIVE_RESEARCH_ONLY" in yml
     assert "HOLD_FULL_STRATEGY_AND_RISK_NOT_VERIFIED" in yml
     assert "sky-fugle-paid-global-research-v1-live-wholemarket" in yml
+
+
+def test_snapshot_detail_integrity_and_capture_cutoff_fail_closed():
+    report, snapshot = evidence()
+    assert assess(report, snapshot)["snapshot_screen_status"] == "PASS_SNAPSHOT_OBSERVATION_ONLY"
+    for change in ("wrong_report_count", "wrong_file_count", "duplicate", "wrong_market",
+                   "different_day", "late_capture", "future_capture", "missing_symbol"):
+        r, s = deepcopy(report), deepcopy(snapshot)
+        if change == "wrong_report_count":
+            r["unverified_snapshot_observation_count"] = 2
+        elif change == "wrong_file_count":
+            s["observed_symbols"] = 2
+        elif change == "duplicate":
+            s["data"].append(deepcopy(s["data"][0]))
+            s["observed_symbols"] = 2
+            r["unverified_snapshot_observation_count"] = 2
+        elif change == "wrong_market":
+            s["data"][0]["exchange"] = "UNKNOWN"
+        elif change == "different_day":
+            s["generated_at"] = "2026-11-22T12:49:19+08:00"
+        elif change == "late_capture":
+            s["generated_at"] = "2026-11-23T12:45:00+08:00"
+        elif change == "future_capture":
+            s["generated_at"] = "2026-11-23T12:53:30+08:00"
+        elif change == "missing_symbol":
+            s["data"][0]["symbol"] = ""
+        assert assess(r, s)["snapshot_screen_status"] == "HOLD_SNAPSHOT_EVIDENCE"
+        assert assess(r, s)["production_eligible"] is False
