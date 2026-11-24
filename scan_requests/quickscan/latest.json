@@ -4,12 +4,18 @@
   "max_price_twd": 100,
   "source": "Fugle paid bulk + TWSE MIS supplemental; timestamps validated independently",
   "execution": "read_only_no_orders",
-  "approval": "User explicitly requested immediate full-market scan acceptance on 2026-11-10",
+  "approval": "User explicitly authorized W0 #363 one-time formal scan acceptance on 2026-11-24",
   "purpose": "Trading-session acceptance: confirm paid Fugle all-market reference counts, live executed timestamps, source and coverage audit, scan gate, complete 13-column artifact",
   "research_info_visible_when_trade_blocked": true,
   "information_first": true,
   "user_trade_discretion": true,
-  "scan_trigger_reason": "user_new_full_market_scan_acceptance_20261110_0900_tpe",
-  "validation_target": "same_run_all_market_fugle_coverage_execution_verification_and_13col",
-  "read_only_no_trades": true
+  "scan_trigger_reason": "w0_363_single_formal_scan_after_pr699_20261124_1316_tpe",
+  "validation_target": "same_run_main_9201b70_20261124_plan_a_5m_source_inventory_original_fail_closed_gate",
+  "read_only_no_trades": true,
+  "requested_at_tpe": "2026-11-24T13:16:10+08:00",
+  "expected_main_sha": "9201b70ba8cebbd14447e7ce34d94f94b09f3b8d",
+  "research_only": true,
+  "production_eligible": false,
+  "automatic_order": false,
+  "trade_action": "禁止交易"
 }
