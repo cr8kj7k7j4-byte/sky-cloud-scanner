@@ -335,7 +335,7 @@ jobs:
               "note":"Presence and hashes do not prove source semantics, freshness, 5m PIT, units or VWAP. Missing evidence remains HOLD."
           }
           target=root / "same_run_source_inventory.json"
-          target.write_text(json.dumps(receipt,ensure_ascii=False,indent=2)+"\\n",encoding="utf-8")
+          target.write_text(json.dumps(receipt,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
           print("W0_SOURCE_INVENTORY_WRITTEN:",target)
           for name,item in results.items():
               print(name,item["status"])
