@@ -127,3 +127,27 @@ def test_workflow_only_joins_existing_evidence_and_uploads_same_run():
     assert "BLOCKED_EXTERNAL_DATA: full-market actual executed quotes not verified" in wf
     assert "sky-fugle-paid-global-research-v1-live-wholemarket" in wf
     assert "run: python -m unittest tests.test_sky_paid_fugle_api_guard -v" in wf
+
+def test_formal_scan_reuses_bounded_five_min_without_unreserved_api():
+    """Existing source probe is evidence-only and must follow the shared Claim."""
+    from pathlib import Path
+    wf = Path(".github/workflows/scan.yml").read_text(encoding="utf-8")
+    anchor = "Preserve bounded two-market Fugle 5m evidence inside current paid Claim"
+    assert wf.count(anchor) == 1
+    start = wf.index(anchor)
+    end = wf.index("      - name: Join MCR research observations", start)
+    step = wf[start:end]
+    assert "steps.guard.outputs.allowed == 'true'" in step
+    assert "steps.verify_claim.outcome == 'success'" in step
+    assert "SKY_PAID_ATOMIC_ENFORCE: '1'" in step
+    assert "select_symbols(report, limit=2)" in step
+    assert 'observations) != 2' in step
+    assert '"TWSE", "TPEx"' in step
+    assert "existing_five_min_probe(" in step
+    assert "evidence_candidates=candidates" in step
+    assert 'receipt.get("stage2_quote_verified") is not False' in step
+    assert "v14_ticker_5m_evidence.json" in step
+    assert wf.index("Independently verify paid reservation") < start
+    assert start < wf.index("Preserve same-run raw-source availability manifest")
+    assert start < wf.index("Verify operational market coverage")
+    assert "BLOCKED_EXTERNAL_DATA: full-market actual executed quotes not verified" in wf
