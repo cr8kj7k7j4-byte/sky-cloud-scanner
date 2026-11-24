@@ -141,6 +141,9 @@ jobs:
           STRICT_OFFICIAL_MODE: "1"
           ALLOW_MIS_OTC_FALLBACK: "0"
           SKY_FUGLE_ONLY_MARKETDATA: "1"
+          # P0-R/P0-X: missing slippage, spread, liquidity or RR must fail closed.
+          # Keep the default research engine unchanged; enforce on canonical live scan.
+          EXEC_ENFORCE_GATE: "1"
           ACCOUNT_EQUITY: ${{ vars.ACCOUNT_EQUITY || '500000' }}
           RISK_PER_TRADE_PCT: ${{ vars.RISK_PER_TRADE_PCT || '0.01' }}
           DAILY_LOSS_LIMIT_PCT: ${{ vars.DAILY_LOSS_LIMIT_PCT || '0.02' }}

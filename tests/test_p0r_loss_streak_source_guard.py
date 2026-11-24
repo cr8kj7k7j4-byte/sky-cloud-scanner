@@ -55,5 +55,39 @@ class LossStreakSourceGuardTests(unittest.TestCase):
                 self.assertNotIn(name + ": ${{ vars." + name + " || '0' }}", workflow)
 
 
+    def test_canonical_scan_enforces_execution_cost_gate(self):
+        # In src/config.py the generic research default is disabled.  The
+        # canonical scan must explicitly opt in to the stricter live gate.
+        workflow = (ROOT / ".github" / "workflows" / "scan.yml").read_text(encoding="utf-8")
+        scanner_step = workflow.split("      - name: Run scanner", 1)[1].split(
+            "      - name: Publish all MCR research observations", 1
+        )[0]
+        self.assertIn('EXEC_ENFORCE_GATE: "1"', scanner_step)
+        self.assertEqual(scanner_step.count("EXEC_ENFORCE_GATE:"), 1)
+
+    def test_cost_gate_blocks_unverified_inputs_and_low_after_cost_rr(self):
+        from src.execution_engine import ExecutionCostPolicy, evaluate_execution_rr, execution_gate
+
+        incomplete = evaluate_execution_rr(
+            entry=50, stop=48.5, target=53,
+            policy=ExecutionCostPolicy(enforce_gate=True),
+        )
+        self.assertEqual(execution_gate(incomplete), (False, "EXECUTION_INPUT_REQUIRED"))
+        self.assertIsNone(incomplete["execution_adjusted_rr"])
+
+        expensive = evaluate_execution_rr(
+            entry=50, stop=48.5, target=53,
+            policy=ExecutionCostPolicy(
+                buy_commission_rate=0.001, sell_commission_rate=0.001,
+                sell_tax_rate=0.003, entry_slippage_bps=10,
+                exit_slippage_bps=10, spread_bps=20,
+                liquidity_penalty_bps=5, min_execution_rr=1.95,
+                enforce_gate=True,
+            ),
+        )
+        self.assertEqual(expensive["status"], "COMPLETE")
+        self.assertEqual(execution_gate(expensive), (False, "EXECUTION_RR_BELOW_MINIMUM"))
+
+
 if __name__ == "__main__":
     unittest.main()
