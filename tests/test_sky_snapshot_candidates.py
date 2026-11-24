@@ -31,6 +31,20 @@ class StageOneSnapshotTests(unittest.TestCase):
         self.assertTrue(all(x["classification"] == "未分級" for x in r["candidates"]))
         self.assertTrue(all(not x["executed_trade_verified"] for x in r["candidates"]))
 
+    def test_upstream_fresh_status_does_not_promote_snapshot_into_trade(self):
+        # Even a forged / stale upstream execution label cannot turn A1 into A2.
+        row = self.row(
+            "1101", data_status="FRESH_EXECUTED_TRADE",
+            last_trade_time="2026-11-10T09:11:59+08:00",
+        )
+        result = screen(self.report([row]))
+        self.assertEqual(result["candidate_count"], 1)
+        candidate = result["candidates"][0]
+        self.assertIs(candidate["executed_trade_verified"], False)
+        self.assertIs(candidate["production_eligible"], False)
+        self.assertEqual(candidate["candidate_scope"], "STAGE1_OBSERVATION_ONLY")
+        self.assertEqual(candidate["action"], "等待")
+
     def test_stale_and_trial_and_price_and_volume_blocked(self):
         rows = [self.row("1101", snapshot_source_date="2026-11-09"),
                 self.row("1102", snapshot_is_trial=True),
