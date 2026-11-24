@@ -133,6 +133,7 @@ def validate_whole_market_rows(universe, rows, now=None, *, min_coverage_pct=80.
     accepted = {}
     snapshot_reference = {}
     rejection = {}
+    snapshot_trade_time_status = {exchange: {} for exchange in target}
     for row in rows:
         symbol = str(row.get("symbol") or "")
         meta = by_symbol.get(symbol)
@@ -151,12 +152,27 @@ def validate_whole_market_rows(universe, rows, now=None, *, min_coverage_pct=80.
             if (reference_price > 0 and str(row.get("quote_date") or "") == now.date().isoformat()
                     and row.get("isTrial") is not True):
                 snapshot_reference[symbol] = row
-            ts = timestamp_tpe(row.get("last_trade_timestamp"))
+            raw_trade_time = row.get("last_trade_timestamp")
+            ts = timestamp_tpe(raw_trade_time)
             try:
                 price = float(row.get("last"))
             except (ValueError, TypeError):
                 price = 0.0
             age = (now - ts).total_seconds() if ts else None
+            if raw_trade_time is None or raw_trade_time == "":
+                time_status = "MISSING_LAST_TRADE_TIME"
+            elif ts is None:
+                time_status = "INVALID_LAST_TRADE_TIME"
+            elif ts.date() != now.date():
+                time_status = "WRONG_TRADE_DATE"
+            elif age < -30:
+                time_status = "FUTURE_LAST_TRADE_TIME"
+            elif age > max_age_seconds:
+                time_status = "STALE_LAST_TRADE_TIME"
+            else:
+                time_status = "WITHIN_TRADE_TIME_WINDOW"
+            exchange_status = snapshot_trade_time_status[meta["exchange"]]
+            exchange_status[time_status] = exchange_status.get(time_status, 0) + 1
             valid = (
                 price > 0 and row.get("isTrial") is not True and ts is not None
                 and str(row.get("quote_date") or "") == now.date().isoformat()
@@ -202,6 +218,7 @@ def validate_whole_market_rows(universe, rows, now=None, *, min_coverage_pct=80.
             for k in target
         },
         "rejected": rejection,
+        "fugle_snapshot_trade_time_status_by_exchange": snapshot_trade_time_status,
         "data_time": now.isoformat(),
         "quote_scope": "WHOLE_MARKET_EXECUTED_LIVE" if passed else "PARTIAL_EXECUTED_LIVE",
         "otc_mis_is_official_tpex_live": False,
