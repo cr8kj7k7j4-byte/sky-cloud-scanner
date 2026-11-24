@@ -57,6 +57,93 @@ def workflow_info(path: Path) -> dict:
     }
 
 
+
+def reuse_first_fallback_contract(repo_root: Path) -> dict:
+    """Static REUSE_FIRST/FALLBACK_PROVIDER_FIRST safety inventory only.
+
+    A passing static check never certifies live Fugle permission, claim
+    concurrency, executed-trade freshness, PIT or Production eligibility.
+    Reuse existing canonical implementation; do not introduce a controller.
+    """
+    required_sources = {
+        "registry": "SKY_SYSTEM_REGISTRY_V2_1.md",
+        "canonical_scan": ".github/workflows/scan.yml",
+        "plan_a_acceptance": "research/sky_intraday_plan_a_two_track_acceptance.py",
+        "five_minute_probe": "src/sky_v14_ticker_candles_probe.py",
+        "trades_vwap_reviewer": "research/sky_stage5_vwap_cost_evidence.py",
+        "paid_claim_guard": "research/sky_paid_fugle_api_guard.py",
+        "research_freeze": "research/RESEARCH_FREEZE_REGISTRY.md",
+        "validation_protocol": "docs/SKY_VALIDATION_PROTOCOL_V1_0.md",
+    }
+    texts = {}
+    failures = []
+    for name, relpath in required_sources.items():
+        try:
+            texts[name] = (repo_root / relpath).read_text(encoding="utf-8")
+        except (OSError, UnicodeError):
+            failures.append("MISSING_CANONICAL_SOURCE:" + relpath)
+            texts[name] = ""
+
+    checks = {
+        "governance_policy": all(
+            token in texts["registry"]
+            for token in ("SKY_W0_REUSE_FIRST_FALLBACK_V1", "REUSE_FIRST",
+                          "FALLBACK_PROVIDER_FIRST", "EVIDENCE_BEFORE_PASS",
+                          "REJECT_DUPLICATE", "NO_TRADE")
+        ),
+        "single_paid_claim_before_scanner": all(
+            step in texts["canonical_scan"] for step in (
+                "Reserve shared paid Fugle slot before any paid observations",
+                "Independently verify paid reservation",
+                "steps.verify_claim.outcome == 'success'",
+                "SKY_PAID_ATOMIC_ENFORCE: '1'",
+            )
+        ),
+        "two_track_plan_a_and_source_inventory": all(
+            step in texts["canonical_scan"] for step in (
+                "Record separate Plan A A1 snapshot and A2 candidate acceptance",
+                "Preserve same-run raw-source availability manifest",
+                "Verify operational market coverage",
+            )
+        ),
+        "five_minute_provider_semantics_fail_closed": all(
+            step in texts["five_minute_probe"] for step in (
+                '"bar_timestamp_semantics_certified":False',
+                '"bar_volume_cross_source_reconciled":False',
+                '"avg_price_is_certified_vwap":False',
+            )
+        ),
+        "tick_vwap_source_not_self_certified": all(
+            step in texts["trades_vwap_reviewer"] for step in (
+                '"source_provenance_certified": False',
+                '"quote_cutoff_pit_certified": False',
+                '"vwap_certified": False',
+                '"production_eligible": False',
+            )
+        ),
+    }
+    scanner = texts["canonical_scan"].split("      - name: Run scanner", 1)
+    scanner_body = scanner[1].split(
+        "      - name: Publish all MCR research observations", 1
+    )[0] if len(scanner) == 2 else ""
+    checks["canonical_scan_execution_cost_gate"] = (
+        scanner_body.count('EXEC_ENFORCE_GATE: "1"') == 1
+        and 'SKY_FUGLE_ONLY_MARKETDATA: "1"' in scanner_body
+    )
+    failures.extend("REUSE_FIRST_CONTRACT_DRIFT:" + name
+                    for name, passed in checks.items() if not passed)
+    return {
+        "schema": "SKY_W0_REUSE_FIRST_FALLBACK_STATIC_CONTRACT_V1",
+        "scope": "STATIC_RESEARCH_GOVERNANCE_NOT_LIVE_SOURCE_CERTIFICATION",
+        "checked_sources": required_sources,
+        "checks": checks,
+        "failures": failures,
+        "live_fugle_entitlement_verified": False,
+        "same_run_live_data_verified": False,
+        "production_eligible": False,
+    }
+
+
 def audit(root: Path) -> dict:
     workflows = sorted(root.glob("*.yml")) + sorted(root.glob("*.yaml"))
     records = [workflow_info(p) for p in workflows]
@@ -112,6 +199,9 @@ def audit(root: Path) -> dict:
 def main() -> int:
     root = Path(".github/workflows")
     result = audit(root)
+    reuse_contract = reuse_first_fallback_contract(Path("."))
+    result["reuse_first_fallback_static_contract"] = reuse_contract
+    result["failures"].extend(reuse_contract["failures"])
     output = Path("output/w0_workflow_dedup_audit.json")
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -120,6 +210,7 @@ def main() -> int:
         "scheduled_workflows": result["scheduled_workflows"],
         "shared_cron_groups_need_review": len(result["shared_crons_review_only"]),
         "paid_workflows_need_owner_review": result["potential_unprotected_paid_workflows_review_only"],
+        "reuse_first_contract_checks": reuse_contract["checks"],
         "failures": result["failures"],
         "audit_file": str(output),
     }, ensure_ascii=False))
