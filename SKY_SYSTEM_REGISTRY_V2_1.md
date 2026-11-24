@@ -114,6 +114,20 @@ Any material gate failure blocks Promotion. No chat window, notebook, branch, or
 - Major governance changes must be written back to GitHub.
 - W0 does not absorb bulk repetitive backtesting; that remains delegated to W1 / W2.
 
+## W0 REUSE_FIRST / FALLBACK_PROVIDER_FIRST / EVIDENCE_BEFORE_PASS (2026-11-24)
+<!-- SKY_W0_REUSE_FIRST_FALLBACK_V1 -->
+
+**適用範圍：** W0～W7、日內與波段 Production 基線及研究分支、Fugle/TWSE/TPEx、CI、Actions、Artifact、手機 E2E。唯一工程主線仍為 [#363](https://github.com/cr8kj7k7j4-byte/sky-cloud-scanner/issues/363)；只有 W0 可寫 GitHub 工程程式、PR、Workflow 與驗收決策。既有研究與正常運作功能不得因本政策刪除或重寫。
+
+1. **REUSE_FIRST / KEEP：** 每項工作先讀當時的 main SHA、#363、OPEN/MERGED PR、Workflow/CI、真實 Run/attempt/event/HEAD SHA、Logs、Artifact/Digest、既有研究註冊表與 Freeze Registry。若現有功能等效且證據完整，直接繼承，標記 KEEP 或 REJECT_DUPLICATE，不建立第二個實作、排程、付費探針或回測。
+2. **FALLBACK_PROVIDER_FIRST：** 主要路線因 API 缺欄位、權限、資料時段、Rate Limit、缺歷史資料或服務不可用而受阻時，先保留原始錯誤與來源證據、查官方資料能力及本帳戶實際權限；未確定時標記 HOLD_PROVIDER_CONFIRMATION。優先評估**已授權的同供應商官方替代 Endpoint／模式及現有快取/Artifact**，其次才評估有來源契約與授權的其他供應商。替代方案若不能等價滿足原母體、PIT、成交、量、VWAP、風控及付費 Claim，必須維持 HOLD/NO_TRADE，不直接轉正。
+3. **ONE_FIX_ONE_OWNER：** 只有有原始重現證據、可定位為 CLIENT_INTEGRATION_DEFECT 且未被既有 PR 修補的問題，才由 W0 使用一個問題編號與最小 PR 修改；其他狀態分類為 PROVIDER_UNSUPPORTED、ENTITLEMENT_OR_RATE_LIMIT、PROVIDER_DATA_OR_DOCUMENTATION_ISSUE、TRANSIENT_FAILURE 或 INSUFFICIENT_DATA，不捏造程式修復。
+4. **EVIDENCE_BEFORE_PASS：** 修改後分別查 Exact-SHA CI、W0 單人可追溯自審、main 合併、新正式 Run、同次 Artifact 與獨立讀回。必須區分 push/schedule/issue_comment/workflow_dispatch；任何來源、封棒、成交量、VWAP、Claim 並發、手機結果鏈缺一步，維持 HOLD。策略前瞻正期望值及 Production 授權另審，不以 CI 或 fixture PASS 替代。
+5. **ANTI_DUPLICATE / NO_TRADE：** 不重啟已封存策略或模擬帳本、不買資料方案、不增重複排程、不自動下單、不追高、不向下攤平、不放寬停損。未知真實持倉/日損/連續停損不得視為零；無合格標的就禁止新進場。
+6. **FAST_PATH：** W0 優先盤後可驗證的缺口及同次證據鏈；W3A 查行情能力與 entitlement、W3B 查正式 Run/Artifact/手機、W6 查 5m/成交量/VWAP、W4 唯讀獨立驗收。每小時最多 20 個子輪次只是上限，無新缺口即停止；不得以輪數替代已完成工作或憑空聲稱持續背景修復。
+
+**靜態 CI 範圍：** 既有 governance-e2e 的 W0 去重稽核可驗證核心檔案仍存在、正式 scan.yml 的費用/付費 Claim/來源 Gate 與本政策不被刪除。它**不能**替代 Fugle 即時授權、API 成交紀錄、真正並發唯一性、策略驗證或 Production 審查。
+
 ## Hard governance rules
 - Research cannot bypass P0-C or P0-R.
 - News and event evidence are not direct trade signals.
