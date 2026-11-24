@@ -1,9 +1,10 @@
 """W0 anti-duplicate static workflow contracts; no network, paid API, or orders."""
 import tempfile
 import unittest
+import shutil
 from pathlib import Path
 
-from scripts.sky_workflow_dedup_audit import audit, workflow_info, SCAN_CRONS
+from scripts.sky_workflow_dedup_audit import audit, workflow_info, SCAN_CRONS, reuse_first_fallback_contract
 
 
 def workflow(name, crons=(), *, main=False):
@@ -61,6 +62,74 @@ class WorkflowDedupAuditTests(unittest.TestCase):
         result = audit(self.root)
         self.assertEqual(result["failures"], [])
         self.assertEqual(len(result["shared_crons_review_only"]), 1)
+
+
+    def test_reuse_first_static_contract_on_actual_repository(self):
+        repo = Path(__file__).resolve().parents[1]
+        result = reuse_first_fallback_contract(repo)
+        self.assertEqual(result["failures"], [])
+        self.assertTrue(all(result["checks"].values()))
+        # Static contract never claims provider authorization or live E2E.
+        self.assertFalse(result["live_fugle_entitlement_verified"])
+        self.assertFalse(result["same_run_live_data_verified"])
+        self.assertFalse(result["production_eligible"])
+
+    def _copy_contract_fixture(self, destination):
+        source = Path(__file__).resolve().parents[1]
+        for relpath in reuse_first_fallback_contract(source)["checked_sources"].values():
+            target = destination / relpath
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source / relpath, target)
+
+    def test_missing_execution_gate_blocks_existing_governance_ci(self):
+        with tempfile.TemporaryDirectory() as folder:
+            repo = Path(folder)
+            self._copy_contract_fixture(repo)
+            workflow = repo / ".github/workflows/scan.yml"
+            workflow.write_text(
+                workflow.read_text(encoding="utf-8").replace(
+                    'EXEC_ENFORCE_GATE: "1"', 'EXEC_ENFORCE_GATE: "0"', 1
+                ), encoding="utf-8"
+            )
+            self.assertIn(
+                "REUSE_FIRST_CONTRACT_DRIFT:canonical_scan_execution_cost_gate",
+                reuse_first_fallback_contract(repo)["failures"],
+            )
+
+    def test_claim_or_source_semantics_regression_blocks_governance(self):
+        with tempfile.TemporaryDirectory() as folder:
+            repo = Path(folder)
+            self._copy_contract_fixture(repo)
+            claim_wf = repo / ".github/workflows/scan.yml"
+            claim_wf.write_text(
+                claim_wf.read_text(encoding="utf-8").replace(
+                    "Independently verify paid reservation",
+                    "Skip paid reservation verification",
+                    1,
+                ), encoding="utf-8"
+            )
+            candle = repo / "src/sky_v14_ticker_candles_probe.py"
+            candle.write_text(
+                candle.read_text(encoding="utf-8").replace(
+                    '"bar_timestamp_semantics_certified":False',
+                    '"bar_timestamp_semantics_certified":True',
+                    1,
+                ), encoding="utf-8"
+            )
+            failures = reuse_first_fallback_contract(repo)["failures"]
+            self.assertIn("REUSE_FIRST_CONTRACT_DRIFT:single_paid_claim_before_scanner", failures)
+            self.assertIn("REUSE_FIRST_CONTRACT_DRIFT:five_minute_provider_semantics_fail_closed", failures)
+
+    def test_missing_required_canonical_source_fails_closed(self):
+        with tempfile.TemporaryDirectory() as folder:
+            repo = Path(folder)
+            self._copy_contract_fixture(repo)
+            (repo / "research/sky_intraday_plan_a_two_track_acceptance.py").unlink()
+            failures = reuse_first_fallback_contract(repo)["failures"]
+            self.assertIn(
+                "MISSING_CANONICAL_SOURCE:research/sky_intraday_plan_a_two_track_acceptance.py",
+                failures,
+            )
 
 
 if __name__ == "__main__":
