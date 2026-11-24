@@ -74,7 +74,7 @@ jobs:
       # Local fixtures only: no Fugle API, no new scan or trade action.
       - name: Plan A target contract and 5m regression
         run: |
-          python -m pytest -q tests/test_swing_two_track_acceptance.py tests/test_sky_snapshot_candidates.py tests/test_sky_v14_ticker_candles_probe.py
+          python -m pytest -q tests/test_swing_two_track_acceptance.py tests/test_sky_snapshot_candidates.py tests/test_sky_v14_ticker_candles_probe.py tests/test_sky_intraday_plan_a_two_track_acceptance.py
       # Retain the exact-SHA Stage 5 source-audit CI from merged PR #690.
       # Offline fixtures only; never call Fugle or certify live VWAP.
       - name: Fugle Stage 5 trade-page source audit regression (zero paid API)

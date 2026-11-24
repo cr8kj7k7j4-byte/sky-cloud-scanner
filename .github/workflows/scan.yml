@@ -276,6 +276,11 @@ jobs:
           receipt.write_text(json.dumps(status,ensure_ascii=False,indent=2)+chr(10))
           print('MCR_RECEIPT',status['mcr_observation_count'],status['mcr_with_observed_price'],status['mcr_fresh_executed_count'])
           PY
+      - name: Record separate Plan A A1 snapshot and A2 candidate acceptance (zero paid API)
+        if: always()
+        run: |
+          python -m research.sky_intraday_plan_a_two_track_acceptance
+          cat output/sky_quickscan_information/intraday_plan_a_two_track_acceptance.json >> "$GITHUB_STEP_SUMMARY"
       - name: Preserve same-run raw-source availability manifest (zero paid API)
         if: always()
         shell: bash
