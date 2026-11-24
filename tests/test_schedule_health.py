@@ -1,7 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
-from schedule_health import build_report, schedules, intraday_scan_slot_evidence
+from research.schedule_health import build_report, schedules, intraday_scan_slot_evidence
 from datetime import datetime, timezone
 from src.trading_calendar import scheduled_scan_window
 from zoneinfo import ZoneInfo
