@@ -84,7 +84,10 @@ def screen(report: dict, *, max_price: float = MAX_PRICE_TWD) -> dict:
             "snapshot_date": row["snapshot_source_date"],
             "snapshot_observed_at": row.get("snapshot_observed_at"),
             "last_trade_time": row.get("last_trade_time"),
-            "executed_trade_verified": row.get("data_status") == "FRESH_EXECUTED_TRADE",
+            # A1 is observation-only. Even an upstream status label cannot
+            # promote Snapshot time/price into individually verified execution.
+            # A2 must independently authenticate Fugle lastTrade.price/time.
+            "executed_trade_verified": False,
             "candidate_scope": "STAGE1_OBSERVATION_ONLY",
             "classification": "未分級",
             "action": "等待",
