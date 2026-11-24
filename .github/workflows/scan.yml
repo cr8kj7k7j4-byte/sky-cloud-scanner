@@ -276,6 +276,70 @@ jobs:
           receipt.write_text(json.dumps(status,ensure_ascii=False,indent=2)+chr(10))
           print('MCR_RECEIPT',status['mcr_observation_count'],status['mcr_with_observed_price'],status['mcr_fresh_executed_count'])
           PY
+      - name: Preserve same-run raw-source availability manifest (zero paid API)
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          # This inventory is provenance diagnostics only, not a source
+          # certification, a live-trading gate, or evidence of an API call.
+          root = Path("output/sky_quickscan_information")
+          root.mkdir(parents=True, exist_ok=True)
+          sources = {
+              "operational_snapshot_gate": Path("output/latest.json"),
+              "full_market_reference": root / "full_universe.json",
+              "individual_executed_trade_samples": root / "fugle_execution_samples.json",
+              "five_minute_candle_probe": root / "v14_ticker_5m_evidence.json",
+              "independent_tick_trades_vwap_receipt": root / "independent_trades_vwap_evidence.json",
+          }
+          results = {}
+          for category, path in sources.items():
+              item = {"path":path.as_posix(), "status":"HOLD_SOURCE_NOT_CAPTURED",
+                      "raw_provider_source_certified":False}
+              if path.is_file():
+                  data = path.read_bytes()
+                  item.update({"byte_count":len(data),
+                               "sha256":hashlib.sha256(data).hexdigest()})
+                  try:
+                      parsed = json.loads(data)
+                      if not isinstance(parsed, (dict, list)):
+                          raise ValueError("JSON_ROOT_NOT_OBJECT_OR_ARRAY")
+                      item["status"]="FILE_PRESENT_NOT_SOURCE_CERTIFIED"
+                      if isinstance(parsed,dict):
+                          for key in ("data_time","observed_at","quote_observed_at",
+                                      "captured_at","candles_received_at_tpe"):
+                              if isinstance(parsed.get(key),str):
+                                  item[key]=parsed[key]
+                  except (ValueError,UnicodeDecodeError):
+                      item["status"]="HOLD_INVALID_JSON"
+              results[category]=item
+          receipt={
+              "schema":"SKY_W0_SAME_RUN_SOURCE_INVENTORY_V1",
+              "run_id":os.environ.get("GITHUB_RUN_ID"),
+              "run_attempt":os.environ.get("GITHUB_RUN_ATTEMPT"),
+              "head_sha":os.environ.get("GITHUB_SHA"),
+              "event_name":os.environ.get("GITHUB_EVENT_NAME"),
+              "generated_at_utc":datetime.now(timezone.utc).isoformat(),
+              "source_inventory":results,
+              "five_minute_pit_certified":False,
+              "volume_units_certified":False,
+              "independent_tick_vwap_certified":False,
+              "production_eligible":False,
+              "trade_action":"禁止交易",
+              "note":"Presence and hashes do not prove source semantics, freshness, 5m PIT, units or VWAP. Missing evidence remains HOLD."
+          }
+          target=root / "same_run_source_inventory.json"
+          target.write_text(json.dumps(receipt,ensure_ascii=False,indent=2)+"\\n",encoding="utf-8")
+          print("W0_SOURCE_INVENTORY_WRITTEN:",target)
+          for name,item in results.items():
+              print(name,item["status"])
+          PY
       - name: Verify operational market coverage
         if: steps.calendar.outputs.should_scan == 'true' && steps.guard.outputs.allowed == 'true' && steps.verify_claim.outcome == 'success'
         run: |
