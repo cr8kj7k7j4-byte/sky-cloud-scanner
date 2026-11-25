@@ -123,3 +123,36 @@ def test_swing_quick_scan_alias_is_exact_owner_only_and_swing_mode():
     assert "id: scan" in workflow
     assert "SCAN_OUTCOME: ${{ steps.scan.outcome }}" in workflow
     assert "automatic_order" in workflow
+
+
+def test_w0_shortcuts_are_classified_without_claiming_execution():
+    cases = {
+        "SKY維持率": ("SKY_MARGIN_MAINTENANCE_RESEARCH", False),
+        "SKY當沖": ("SKY_DAYTRADE_SCAN", True),
+        "SKY波段": ("SKY_SWING_V10_LIVE_OBSERVATION", True),
+        "SKY盤中掃描": ("SKY_DAYTRADE_SCAN", True),
+        "SKY盤後分析": ("SKY_POSTMARKET_RESEARCH", False),
+        "SKY系統狀態": ("SKY_UNIFIED_SYSTEM_HEALTH", False),
+        "SKY工程修復": ("SKY_W0_ENGINEERING_REVIEW", False),
+        "SKY正式驗收": ("SKY_SEVEN_LAYER_ACCEPTANCE", False),
+    }
+    for name, (family, realtime) in cases.items():
+        route = route_command(name)
+        assert route.command_family == family
+        assert route.realtime_required is realtime
+        assert route.command_family != "SKY_UNRECOGNIZED"
+
+
+def test_margin_ratio_is_never_marked_trade_ready_without_verified_source():
+    route = route_command("Sky 維持率")
+    assert route.data_mode == "RESEARCH_ONLY_SOURCE_UNVERIFIED"
+    assert route.execution_target == "HOLD_PROVIDER_AND_SOURCE_CONFIRMATION"
+    assert "No live" in route.notes
+    assert route.whole_market_required is True
+
+
+def test_unregistered_current_command_still_fails_closed():
+    route = route_command("SKY未知更新")
+    assert route.command_family == "SKY_UNRECOGNIZED"
+    assert route.execution_target == "ROUTER_REVIEW_REQUIRED"
+
