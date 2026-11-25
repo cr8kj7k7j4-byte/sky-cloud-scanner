@@ -36,6 +36,24 @@ def classify_date(target: date, rows: list[dict]) -> dict:
         if d==iso:
             matches.append(dict(row))
 
+    # Contradictory rows for a single official date must never be interpreted
+    # as an explicit open session merely because the opening row came first.
+    evidence = [
+        " ".join([str(row.get("Name") or ""), str(row.get("Description") or "")])
+        for row in matches
+    ]
+    has_open = any(any(marker in entry for marker in OPEN_MARKERS)
+                   for entry in evidence)
+    has_closed = any(any(marker in entry for marker in CLOSED_MARKERS)
+                     for entry in evidence)
+    if has_open and has_closed:
+        return {
+            "date": iso,
+            "market_open": False,
+            "status": "HOLD_OFFICIAL_CALENDAR_CONFLICT",
+            "matched": matches,
+        }
+
     for row in matches:
         text=" ".join([
             str(row.get("Name") or ""),
@@ -137,8 +155,11 @@ def check_trading_day(target: date | None=None) -> dict:
             raise ValueError("TWSE_HOLIDAY_TARGET_YEAR_NOT_VERIFIED")
         result=classify_date(target,rows)
         result["source"]=TWSE_HOLIDAY_URL
-        result["source_status"]="PASS"
-        result["should_scan"]=bool(result["market_open"])
+        result["source_status"]=(
+            "HOLD" if result["status"] == "HOLD_OFFICIAL_CALENDAR_CONFLICT"
+            else "PASS"
+        )
+        result["should_scan"]=bool(result["market_open"]) and result["source_status"] == "PASS"
         result["fail_open"]=False
         return result
     except Exception as exc:
