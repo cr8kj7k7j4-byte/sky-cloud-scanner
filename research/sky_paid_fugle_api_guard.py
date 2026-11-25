@@ -197,7 +197,9 @@ def verify_uploaded_reservation(scope: str, run_id: str, now: datetime,
     remote = download(artifact_id)
     if not isinstance(remote, dict):
         raise RuntimeError("INVALID_REMOTE_CLAIM_DOCUMENT")
-    for key in ("schema", "status", "claim_nonce", "scope_hash", "slot", "run_id"):
+    for key in ("schema", "status", "reason", "claim_nonce", "scope_hash",
+                "slot", "run_id", "checked_at_utc", "production_eligible",
+                "automatic_order"):
         if remote.get(key) != local.get(key):
             raise RuntimeError("ARTIFACT_CLAIM_CONTENT_MISMATCH_" + key)
     return name
