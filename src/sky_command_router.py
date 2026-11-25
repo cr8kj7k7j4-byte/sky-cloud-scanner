@@ -30,7 +30,7 @@ SKY_MARGIN_PRESENTATION = "SKY_MOBILE_TABLE_V1_0"
 def watchlist_for_command(command: str) -> tuple[str, ...] | None:
     """Explicit candidate universe; never implies verified data or dispatch."""
     normalized = " ".join((command or "").strip().split())
-    if re.fullmatch(r"Sky\\s*維持率", normalized, re.I):
+    if re.fullmatch(r"Sky\s*維持率", normalized, re.I):
         return SKY_MARGIN_WATCHLIST
     return None
 
