@@ -20,7 +20,12 @@ def _roc_to_iso(value: str) -> str | None:
     if len(s)!=7 or not s.isdigit():
         return None
     year=int(s[:3])+1911
-    return f"{year:04d}-{s[3:5]}-{s[5:7]}"
+    iso=f"{year:04d}-{s[3:5]}-{s[5:7]}"
+    try:
+        date.fromisoformat(iso)
+    except ValueError:
+        return None
+    return iso
 
 
 def classify_date(target: date, rows: list[dict]) -> dict:
@@ -122,6 +127,14 @@ def check_trading_day(target: date | None=None) -> dict:
     target=target or datetime.now(TZ).date()
     try:
         rows=fetch_calendar()
+        # A well-formed calendar for the wrong year cannot certify the
+        # requested session. It may be a cached/stale official response.
+        dated_rows = [
+            _roc_to_iso(row.get("Date")) for row in rows
+            if isinstance(row, dict)
+        ]
+        if not any(d and int(d[:4]) == target.year for d in dated_rows):
+            raise ValueError("TWSE_HOLIDAY_TARGET_YEAR_NOT_VERIFIED")
         result=classify_date(target,rows)
         result["source"]=TWSE_HOLIDAY_URL
         result["source_status"]="PASS"
