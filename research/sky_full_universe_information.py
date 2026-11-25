@@ -296,7 +296,7 @@ def build(universe, snapshots, checked_at, errors=None, excluded_research_symbol
     report["excluded_research_symbols"] = sorted(excluded_for_ranking)
     report["excluded_research_symbol_count"] = len(excluded_for_ranking)
     report["research_universe_count"] = len(rows) - sum(
-        x["excluded_from_research_ranking"] for x in rows)
+        x["excluded_from_research_ranking"] for x in rows
     )
     report["official_universe_count_before_research_exclusion"] = len(rows)
     apply_query_validity(report, mode="INTRADAY_INFORMATION")
