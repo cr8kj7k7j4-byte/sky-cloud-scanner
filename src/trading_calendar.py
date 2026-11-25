@@ -113,7 +113,7 @@ def fetch_calendar(timeout: float=10.0) -> list[dict]:
     # empty or contains no usable schedule records.  Never certify a weekday
     # from an unverified empty response.
     rows = [dict(x) for x in payload if isinstance(x,dict)]
-    if not rows:
+    if not rows or not any(_roc_to_iso(x.get("Date")) for x in rows):
         raise ValueError("TWSE_HOLIDAY_EMPTY_OR_INVALID_PAYLOAD")
     return rows
 
