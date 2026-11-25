@@ -94,14 +94,10 @@ def mark_observation_only(report: dict) -> dict:
     )
     report["postmarket_valid_query_count"] = report["information_query_valid_count"]
     report["postmarket_valid_query_pct_research"] = (
-        round(100 * report["information_query_valid_count"] /
-              report["research_universe_count"], 2)
-        if type(report.get("research_universe_count")) is int
-        and report["research_universe_count"] > 0
-        else report["information_query_valid_pct_official"]
+        report["information_query_valid_pct_research"]
     )
     report["postmarket_valid_query_research_complete"] = (
-        report["information_query_hold_count"] == 0
+        report["information_query_research_complete"]
         and report["source_status"] == "OBSERVATION_ONLY"
     )
     report["postmarket_zero_volume_interpretation"] = (
