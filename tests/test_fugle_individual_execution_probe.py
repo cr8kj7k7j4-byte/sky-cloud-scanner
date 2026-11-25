@@ -54,9 +54,15 @@ class TestFugleIndividualProbe(unittest.TestCase):
                 price, _, status = fugle_executed_trade(quote, now=now)
                 self.assertIsNone(price)
                 self.assertEqual(status, "MISSING_EXECUTED_LAST_PRICE")
-                report = verify_samples(source(), now=now,
-                                        quote_fetch=lambda _: quote)
+                def provider(symbol):
+                    return {"symbol": symbol,
+                            "market": "TSE" if int(symbol) % 2 == 0 else "OTC",
+                            "date": now.date().isoformat(),
+                            "lastTrade": {"time": timestamp, "price": bad}}
+                report = verify_samples(source(), now=now, quote_fetch=provider)
                 self.assertEqual(report["verified_fresh_executed_count"], 0)
+                self.assertTrue(all(row["status"] == "MISSING_EXECUTED_LAST_PRICE"
+                                    for row in report["rows"]))
                 self.assertFalse(report["production_eligible"])
 
     def test_close_time_is_not_last_trade(self):
