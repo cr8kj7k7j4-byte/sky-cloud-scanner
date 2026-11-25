@@ -15,6 +15,16 @@ class TestSky13Col(unittest.TestCase):
                 "universe_count": len(items), "observed_price_count": len(items),
                 "fresh_executed_count": 0, "all_symbols": items}
 
+    def test_full_universe_alert_is_always_no_trade_even_with_forged_action(self):
+        """Snapshot-only information must not show an actionable instruction."""
+        from research.sky_full_universe_information import alert_row, project_required_fields
+        row = {"symbol": "1101", "name": "台泥", "last_price": 31.2,
+               "data_status": "UNVERIFIED_EXECUTION_TIME"}
+        self.assertEqual(project_required_fields(row)["現在動作"], "禁止交易")
+        self.assertEqual(alert_row(row)[10], "禁止交易")
+        row["required_fields"] = dict(project_required_fields(row), **{"現在動作": "買進"})
+        self.assertEqual(alert_row(row)[10], "禁止交易")
+
     def test_unverified_price_never_called_live(self):
         item = {"symbol": "1101", "name": "台泥", "last_price": 31.2,
                 "data_status": "UNVERIFIED_EXECUTION_TIME"}
