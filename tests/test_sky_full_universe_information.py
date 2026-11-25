@@ -23,7 +23,13 @@ def test_all_symbols_preserved_and_info_visible_despite_trade_block():
     report = build(U, snapshots, NOW)
     assert len(report["all_symbols"]) == 3
     assert report["observed_price_count"] == 2
-    assert report["fresh_executed_count"] == 1
+    assert report["fresh_executed_count"] == 0
+    assert report["by_exchange"]["TWSE"]["fresh_executed"] == 0
+    assert report["all_symbols"][0]["data_status"] == "SNAPSHOT_REPORTED_TRADE_TIME_UNVERIFIED_A2"
+    assert report["all_symbols"][0]["last_price"] == 43
+    assert report["all_symbols"][0]["required_fields"]["即時價"] is None
+    assert report["all_symbols"][0]["required_fields"]["最近觀察價（可能延遲）"] == 43
+    assert report["snapshot_cannot_certify_individual_executions"] is True
     assert report["by_exchange"]["TPEx"]["fresh_executed"] == 0
     assert report["trade_decision"].startswith("🔴")
     assert report["ranked_observations"][0]["symbol"] == "1001"
