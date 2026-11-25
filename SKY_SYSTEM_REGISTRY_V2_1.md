@@ -266,3 +266,43 @@ regressions: `tests/test_sky_postmarket_observation.py`. Intraday scanners
 and Production models keep their stricter original gates. Change of trading
 eligibility requires a separately reviewed W0/P0-G approval and authentic
 executed-quote evidence; this policy alone is not such approval.
+
+## W0 #363 amendment — full official-universe query checks in BOTH market sessions (2026-11-26)
+
+**Scope:** all W0–W7 analyses, intraday and postmarket whole-market research
+displays, mobile reports, paid-provider evidence and acceptance.  This section
+supersedes the earlier postmarket-only scope where they conflict.
+
+For **every officially listed TWSE/TPEx symbol**, the information layer must
+attempt matching against the two existing bulk Fugle Snapshot responses.
+Research/trading exclusions remain **listed and audited in the information
+report**, but cannot reduce the formal stock denominator or be counted as
+successful queries if no response actually exists. Exclusion still prevents
+ranking/entry; a full-market QUERY is not trading authorization.
+
+Valid source-date-matched provider row with an observed price:
+`VALID_QUERY_WITH_OBSERVED_PRICE`. Returned non-trial Fugle symbol row with
+explicit numeric zero reported volume and no observed price:
+`VALID_QUERY_ZERO_REPORTED_VOLUME_NO_PRICE`. Both count as a completed
+**information query**, but the latter does NOT count as observed price or
+fresh/executed-trade certification. In intraday information mode, the source
+date must equal the local observation trading date; in postmarket research,
+date must be parseable, no later than the observation date, and retained
+explicitly as a **provider source date**, not falsely described as execution
+time.
+
+Missing symbol response, unknown/bool volume, trial quote, invalid provider
+response, future/mismatched source date, or other failure:
+`HOLD_UNVERIFIED_INFORMATION_QUERY`. Never infer no trading/halt merely from
+volume=0 without official confirmation. No request or coverage manipulation
+to force PASS.
+
+Canonical reusable classifier `research/sky_query_validity.py` is invoked
+by `research/sky_full_universe_information.py` (intraday information)
+and `research/sky_postmarket_observation.py` (postmarket). Preserve separate:
+full official information-query coverage, research-scope query coverage,
+observed-price coverage, and A2 independently verified fresh executions.
+The existing paid Claim, cache, A1/A2 fail-close, 5m PIT, VWAP, P0-R,
+`NO_TRADE` and Production promotion gates are unchanged.
+Regression: `tests/test_sky_query_validity.py`, existing postmarket tests;
+W3B exact-HEAD CI is mandatory. Do not duplicate Workflow/cron/provider calls.

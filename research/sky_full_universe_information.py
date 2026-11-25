@@ -14,6 +14,7 @@ from zoneinfo import ZoneInfo
 from src.fugle import snapshot_quotes
 from src.official import load_official_universe
 from src.realtime_quote_evidence import timestamp_tpe
+from research.sky_query_validity import apply_query_validity
 
 TZ = ZoneInfo("Asia/Taipei")
 OUTPUT_DIR = Path("output/sky_quickscan_information")
@@ -42,6 +43,9 @@ def filter_research_universe(universe):
 
 
 def numeric(value):
+    # Provider JSON boolean is not a measured zero-volume observation.
+    if isinstance(value, bool):
+        return None
     try:
         result = float(value)
         if result != result or result in (float("inf"), float("-inf")):
@@ -146,7 +150,7 @@ def project_required_fields(row):
     return fields
 
 
-def build(universe, snapshots, checked_at, errors=None):
+def build(universe, snapshots, checked_at, errors=None, excluded_research_symbols=()):
     by_exchange = {"TWSE": {}, "TPEx": {}}
     statuses = {"TWSE": "MISSING", "TPEx": "MISSING"}
     for exchange, market in MARKET.items():
@@ -211,7 +215,11 @@ def build(universe, snapshots, checked_at, errors=None):
         row = record(meta, q, date, checked_at)
         row["required_fields"] = project_required_fields(row)
         rows.append(row)
-    eligible = [x for x in rows if x["last_price"] is not None and x["last_price"] <= 100]
+    excluded_for_ranking = set(excluded_research_symbols)
+    eligible = [x for x in rows if x["last_price"] is not None and x["last_price"] <= 100
+                and x["symbol"] not in excluded_for_ranking]
+    for row in rows:
+        row["excluded_from_research_ranking"] = row["exchange"] == "TWSE" and row["symbol"] in excluded_for_ranking
     candidates = sorted(
         eligible, key=lambda x: (
             x["change_pct"] is not None, x["change_pct"] if x["change_pct"] is not None else float("-inf"),
@@ -283,6 +291,15 @@ def build(universe, snapshots, checked_at, errors=None):
                  "Unverified and stale observations are labelled per symbol. "
                  "No model inference, entry, target, or score is fabricated."),
     }
+    # In both trading-hours and after-hours information output, valid query
+    # coverage is separate from A2 fresh executed-trade verification.
+    report["excluded_research_symbols"] = sorted(excluded_for_ranking)
+    report["excluded_research_symbol_count"] = len(excluded_for_ranking)
+    report["research_universe_count"] = len(rows) - sum(
+        x["excluded_from_research_ranking"] for x in rows
+    )
+    report["official_universe_count_before_research_exclusion"] = len(rows)
+    apply_query_validity(report, mode="INTRADAY_INFORMATION")
     return report
 
 
@@ -323,6 +340,10 @@ def summary(report):
         "# Sky 警戒｜全市場資訊觀察（非正式交易訊號）", "",
         f"查詢時間：{report['checked_at_tpe']}",
         f"官方母池：{report['universe_count']} 檔；有價格觀察：{report['observed_price_count']} 檔",
+        f"有效資訊查詢：{report['information_query_valid_count']} 檔；"
+        f"零成交量且無價格但有效查詢：{report['information_query_zero_volume_no_price_count']} 檔；"
+        f"正式母體有效查詢率：{report['information_query_valid_pct_official']}%；"
+        f"交易認證依舊獨立，不以有效查詢替代。",
         f"其中無逐筆成交時間仍保留觀察價：{report['snapshot_reference_without_trade_time_count']} 檔",
         f"逐檔新鮮成交驗證：{report['fresh_executed_count']} 檔（{report['fresh_executed_pct']:.1f}%）",
         f"價格 ≤100 元的觀察名單：{report['priced_under_100_count']} 檔", "",
@@ -357,7 +378,9 @@ def summary(report):
 def main():
     checked_at = datetime.now(TZ)
     universe, status = load_official_universe()
-    universe, excluded_research_symbols = filter_research_universe(universe)
+    _, excluded_research_symbols = filter_research_universe(universe)
+    # Information report includes EVERY official symbol. Research exclusion
+    # applies only to ranking/trading, not to the query denominator.
     snapshots = {}
     errors = {}
     for market in MARKET.values():
@@ -365,10 +388,11 @@ def main():
             snapshots[market] = snapshot_quotes(market)
         except Exception as exc:
             errors[market] = type(exc).__name__
-    report = build(universe, snapshots, checked_at, errors)
+    report = build(universe, snapshots, checked_at, errors,
+                   excluded_research_symbols=excluded_research_symbols)
     report["excluded_research_symbols"] = excluded_research_symbols
     report["excluded_research_symbol_count"] = len(excluded_research_symbols)
-    report["official_universe_count_before_research_exclusion"] = len(universe) + len(excluded_research_symbols)
+    report["official_universe_count_before_research_exclusion"] = len(universe)
     report["official_universe_warnings"] = status.get("warnings", [])
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     (OUTPUT_DIR / "full_universe.json").write_text(

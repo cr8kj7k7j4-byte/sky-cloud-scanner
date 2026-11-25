@@ -8,6 +8,7 @@ import json
 from datetime import date, datetime
 from pathlib import Path
 
+from research.sky_query_validity import apply_query_validity
 from research.sky_full_universe_information import (
     OUTPUT_DIR, main as read_full_universe, project_required_fields, summary,
 )
@@ -71,95 +72,36 @@ def mark_observation_only(report: dict) -> dict:
     report["postmarket_missing_price_by_exchange"] = counts
     report["postmarket_zero_reported_volume_no_price_count"] = zero_volume_no_price
 
-    # Canonical cross-system observation contract (research only):
-    # a returned Fugle symbol row with verified source date and EXPLICIT numeric
-    # zero volume + no observed price is a VALID QUERY, not a VALID PRICE.
-    # No snapshot row, unknown volume, stale/unverified source date or trial
-    # data must never receive this positive query classification.
-    by_symbol = {
-        (row.get("exchange"), row.get("symbol")): row
-        for row in report.get("all_symbols") or [] if isinstance(row, dict)
-    }
-    checked_at = report.get("checked_at_tpe")
-    try:
-        observation_date = datetime.fromisoformat(checked_at).date()
-    except (TypeError, ValueError):
-        observation_date = None
-
-    def verified_snapshot_row(row):
-        market = row.get("exchange")
-        metadata = (report.get("snapshot_integrity") or {}).get(market) or {}
-        source_date = metadata.get("snapshot_date")
-        try:
-            actual_date = date.fromisoformat(source_date)
-        except (TypeError, ValueError):
-            return False
-        return (
-            market in ("TWSE", "TPEx")
-            and (report.get("snapshot_status") or {}).get(market) == "RETURNED"
-            and metadata.get("api_response_valid") is True
-            and observation_date is not None and actual_date <= observation_date
-            and row.get("snapshot_source_date") == source_date
-            and row.get("source") == "Fugle paid bulk snapshot"
-            and row.get("snapshot_is_trial") is False
-        )
-
-    valid_price_queries = 0
-    valid_zero_volume_queries = 0
+    # Share one information-query classifier with INTRADAY_INFORMATION.
+    # Preserve all official symbols; research exclusions are rank-only.
+    apply_query_validity(report, mode="POSTMARKET_RESEARCH_ONLY")
     for row in report.get("all_symbols") or []:
-        if not isinstance(row, dict):
-            continue
-        status = "HOLD_UNVERIFIED_POSTMARKET_QUERY"
-        if verified_snapshot_row(row):
-            if row.get("last_price") is not None:
-                status = "VALID_QUERY_WITH_OBSERVED_PRICE"
-                valid_price_queries += 1
-            elif type(row.get("volume")) in (int, float) and row["volume"] == 0:
-                status = "VALID_QUERY_ZERO_REPORTED_VOLUME_NO_PRICE"
-                valid_zero_volume_queries += 1
-        row["postmarket_query_status"] = status
-        row["postmarket_query_valid"] = status.startswith("VALID_QUERY_")
-        # A valid QUERY is never sufficient for execution or price certification.
-        row["postmarket_price_valid"] = status == "VALID_QUERY_WITH_OBSERVED_PRICE"
+        row["postmarket_query_status"] = row["information_query_status"]
+        row["postmarket_query_valid"] = row["information_query_valid"]
+        row["postmarket_price_valid"] = row["information_observed_price_valid"]
         row["postmarket_executed_trade_certified"] = False
-        row["production_eligible"] = False
-        row["trade_signal"] = False
-
     for item in report.get("missing_price_diagnostics") or []:
-        if not isinstance(item, dict):
-            continue
-        row = by_symbol.get((item.get("exchange"), item.get("symbol"))) or {}
-        item["postmarket_query_status"] = row.get(
-            "postmarket_query_status", "HOLD_UNVERIFIED_POSTMARKET_QUERY"
-        )
-        item["postmarket_query_valid"] = (
-            item["postmarket_query_status"] == "VALID_QUERY_ZERO_REPORTED_VOLUME_NO_PRICE"
-            and type(item.get("reported_volume")) in (int, float)
-            and item["reported_volume"] == 0
-        )
+        item["postmarket_query_status"] = item["information_query_status"]
+        item["postmarket_query_valid"] = item["information_query_valid"]
         item["postmarket_price_valid"] = False
         item["official_trading_status"] = "UNVERIFIED"
 
-    research_total = report.get("universe_count")
-    valid_query_count = valid_price_queries + valid_zero_volume_queries
-    report["postmarket_valid_query_with_price_count"] = valid_price_queries
-    report["postmarket_valid_query_zero_volume_no_price_count"] = valid_zero_volume_queries
-    report["postmarket_valid_query_count"] = valid_query_count
+    report["postmarket_valid_query_with_price_count"] = (
+        report["information_query_with_price_count"]
+    )
+    report["postmarket_valid_query_zero_volume_no_price_count"] = (
+        report["information_query_zero_volume_no_price_count"]
+    )
+    report["postmarket_valid_query_count"] = report["information_query_valid_count"]
     report["postmarket_valid_query_pct_research"] = (
-        round(100 * valid_query_count / research_total, 2)
-        if type(research_total) is int and research_total > 0 else None
+        report["information_query_valid_pct_research"]
     )
     report["postmarket_valid_query_research_complete"] = (
-        type(research_total) is int
-        and research_total > 0
-        and len(report.get("all_symbols") or []) == research_total
-        and valid_query_count == research_total
+        report["information_query_research_complete"]
         and report["source_status"] == "OBSERVATION_ONLY"
     )
     report["postmarket_zero_volume_interpretation"] = (
-        "Provider-reported volume is zero; query response accepted, but actual "
-        "absence of all trading, halt status, price and trade time are not "
-        "independently certified. Exclude from trade candidates."
+        report["information_query_provenance_note"]
     )
     report["postmarket_coverage_denominator_official"] = (
         report.get("official_universe_count_before_research_exclusion")
@@ -191,14 +133,14 @@ def main() -> None:
     latest += (
         "\n## 盤後研究查詢有效性（不等於有效成交或有效價格）\n"
         f"- 已完成有效查詢：{report['postmarket_valid_query_count']}/"
-        f"{report['universe_count']} 檔（研究範圍）\n"
+        f"{report['universe_count']} 檔（正式全市場資訊母體）\n"
         f"- 有價格觀察：{report['postmarket_valid_query_with_price_count']} 檔\n"
         f"- 回報成交量 0、無觀察價格、來源已認證："
         f"{report['postmarket_valid_query_zero_volume_no_price_count']} 檔"
         "（有效查詢／非有效價格／禁止交易）\n"
         f"- 正式全市場分母：{report.get('official_universe_count_before_research_exclusion')} 檔；"
         f"研究排除：{report.get('excluded_research_symbol_count')} 檔"
-        "（排除股不計為已完成查詢）\n"
+        "（已查資訊，仍排除交易／研究排名）\n"
     )
     (OUTPUT_DIR / "latest.md").write_text(latest, encoding="utf-8")
     receipt = {
@@ -215,6 +157,11 @@ def main() -> None:
         "postmarket_valid_query_zero_volume_no_price_count":
             report.get("postmarket_valid_query_zero_volume_no_price_count"),
         "postmarket_valid_query_count": report.get("postmarket_valid_query_count"),
+        "information_query_full_universe_complete":
+            report.get("information_query_full_universe_complete"),
+        "information_query_official_denominator":
+            report.get("information_query_official_denominator"),
+        "information_query_hold_count": report.get("information_query_hold_count"),
         "postmarket_valid_query_pct_research":
             report.get("postmarket_valid_query_pct_research"),
         "postmarket_valid_query_research_complete":
