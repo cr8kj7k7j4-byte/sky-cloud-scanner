@@ -4,7 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from src.risk_engine import RiskPolicy, drawdown_state, evaluate_trade, position_size
+from src.risk_engine import RiskPolicy, drawdown_state, evaluate_trade, position_size, evaluate_candidate
 
 
 def main():
@@ -90,3 +90,34 @@ def test_long_stop_above_entry_is_never_tradable():
         assert position_size(50, stop, 500000, policy=policy) == 0
     # A valid below-entry protective stop retains ordinary sizing behaviour.
     assert position_size(50, 48.5, 500000, policy=policy) > 0
+
+
+def test_account_context_nonfinite_and_negative_exposure_never_approves_entry():
+    """P0-R: malformed account context cannot be treated as a flat book."""
+    candidate = {"entry": 50, "stop": 48.5, "target": 55, "grade": "A+"}
+    verified = {
+        "account_equity": 500000, "daily_pnl": 0.0, "open_risk": 0.0,
+        "concurrent_positions": 0, "correlated_open_risk": 0.0,
+        "drawdown_pct": 0.0, "consecutive_losses": 0,
+    }
+    assert evaluate_candidate(candidate, verified)["status"] == "ALLOW"
+    for key, value in (
+        ("daily_pnl", float("nan")),
+        ("open_risk", float("nan")),
+        ("open_risk", -1.0),
+        ("correlated_open_risk", -1.0),
+        ("drawdown_pct", -0.01),
+        ("concurrent_positions", -1),
+        ("consecutive_losses", -1),
+        ("consecutive_losses", 0.5),
+        ("account_equity", float("inf")),
+        ("account_equity", True),
+    ):
+        result = evaluate_candidate(candidate, {**verified, key: value})
+        assert result["status"] == "RISK_INPUT_INVALID", (key, value, result)
+        assert result["portfolio_allowed"] is False
+        assert result["recommended_shares"] == 0
+        assert key in result["required_inputs"]
+    # A verified loss is negative daily P&L; never reject valid reported losses.
+    valid_loss = evaluate_candidate(candidate, {**verified, "daily_pnl": -3000.0})
+    assert valid_loss["status"] == "ALLOW"

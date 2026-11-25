@@ -257,6 +257,45 @@ def evaluate_candidate(candidate, portfolio_context, policy=None):
             "execution_adjusted_rr": None,
             "execution_status": "EXECUTION_INPUT_REQUIRED",
         }
+    # Explicitly supplied account data can still be invalid. NaN, infinity,
+    # negative exposures and negative position/loss counts must never silently
+    # become zero available risk or qualify an otherwise tradable candidate.
+    account_values = ("account_equity",) + required_account_inputs
+    invalid = []
+    for name in account_values:
+        raw = portfolio_context.get(name)
+        if raw is None:
+            continue  # Existing missing-input gate (or equity gate) applies.
+        try:
+            value = float(raw)
+            valid = not isinstance(raw, bool) and math.isfinite(value)
+            if name != "daily_pnl" and value < 0:
+                valid = False
+            if name in ("concurrent_positions", "consecutive_losses") and (
+                not value.is_integer()
+            ):
+                valid = False
+        except (TypeError, ValueError, OverflowError):
+            valid = False
+        if not valid:
+            invalid.append(name)
+    if invalid:
+        return {
+            "status": "RISK_INPUT_INVALID",
+            "portfolio_allowed": False,
+            "state": "UNKNOWN",
+            "required_inputs": invalid,
+            "reasons": ["帳戶風控資料無效、非有限值或負數，停止新進場（P0-R）"],
+            "recommended_shares": 0,
+            "risk_budget": 0.0,
+            "remaining_daily_risk_budget": 0.0,
+            "remaining_portfolio_heat": 0.0,
+            "net_rr": None,
+            "gross_rr": None,
+            "fee_tax_adjusted_rr": None,
+            "execution_adjusted_rr": None,
+            "execution_status": "EXECUTION_INPUT_REQUIRED",
+        }
     return evaluate_trade(
         entry=candidate.get("entry", candidate.get("last")),
         stop=candidate.get("stop"),
