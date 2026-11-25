@@ -108,7 +108,8 @@ def _a2(report, probe):
             price, ts = row.get("latest_executed_price"), _clock(row.get("last_trade_time"))
             if (not isinstance(price, (float, int)) or isinstance(price, bool)
                     or not 0 < price < float("inf") or ts is None or ts.date() != stamp.date()
-                    or not -30 <= (stamp - ts).total_seconds() <= 180):
+                    # Reject trades later than the A2 observation (PIT).
+                    or not 0 <= (stamp - ts).total_seconds() <= 180):
                 return "HOLD_INVALID_LAST_TRADE_PRICE_TIME"
             valid += 1
     if probe.get("verified_fresh_executed_count") != valid:
