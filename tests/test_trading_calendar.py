@@ -72,3 +72,36 @@ def test_calendar_verified_open_or_closed_still_obeys_official_evidence(monkeypa
     assert open_day["source_status"] == "PASS"
     assert closed_day["should_scan"] is False
     assert closed_day["source_status"] == "PASS"
+
+
+def test_official_calendar_empty_success_payload_blocks_paid_scan(monkeypatch):
+    from src import trading_calendar
+    class FakeResponse:
+        def raise_for_status(self):
+            pass
+        def json(self):
+            return []
+    monkeypatch.setattr(trading_calendar.requests, "get",
+                        lambda *_args, **_kwargs: FakeResponse())
+    result = trading_calendar.check_trading_day(date(2026, 11, 26))
+    assert result["should_scan"] is False
+    assert result["market_open"] is False
+    assert result["fail_open"] is False
+    assert result["source_status"] == "HOLD"
+    assert result["status"] == "HOLD_OFFICIAL_CALENDAR_UNAVAILABLE"
+    assert "TWSE_HOLIDAY_EMPTY_OR_INVALID_PAYLOAD" in result["error"]
+
+
+def test_official_calendar_invalid_rows_block_paid_scan(monkeypatch):
+    from src import trading_calendar
+    class FakeResponse:
+        def raise_for_status(self):
+            pass
+        def json(self):
+            return [None, 123, "invalid"]
+    monkeypatch.setattr(trading_calendar.requests, "get",
+                        lambda *_args, **_kwargs: FakeResponse())
+    result = trading_calendar.check_trading_day(date(2026, 11, 26))
+    assert result["should_scan"] is False
+    assert result["source_status"] == "HOLD"
+    assert "TWSE_HOLIDAY_EMPTY_OR_INVALID_PAYLOAD" in result["error"]
