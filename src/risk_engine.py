@@ -56,7 +56,8 @@ def position_size(entry, stop, account_equity, state="NORMAL", policy=None):
     stop = float(stop)
     equity = _non_negative(account_equity)
 
-    if equity <= 0 or entry <= 0:
+    # Long-only sizing: a stop at/above the entry is not downside protection.
+    if equity <= 0 or entry <= 0 or stop <= 0 or stop >= entry:
         return 0
     per_share_risk = abs(entry - stop)
     if per_share_risk <= 0:
@@ -125,6 +126,8 @@ def evaluate_trade(
     target = float(target)
     if entry <= 0 or stop <= 0 or target <= 0:
         reasons.append("價格輸入必須大於 0")
+    if stop >= entry:
+        reasons.append("做多停損價必須低於進場價（P0-R）")
 
     unit_risk = abs(entry - stop)
     reward = target - entry
