@@ -1,4 +1,4 @@
-from src.sky_command_router import route_command
+from src.sky_command_router import route_command, presentation_for_command, watchlist_for_command
 
 
 def test_whole_market_realtime_routes():
@@ -148,7 +148,27 @@ def test_margin_ratio_is_never_marked_trade_ready_without_verified_source():
     assert route.data_mode == "RESEARCH_ONLY_SOURCE_UNVERIFIED"
     assert route.execution_target == "HOLD_PROVIDER_AND_SOURCE_CONFIRMATION"
     assert "No live" in route.notes
-    assert route.whole_market_required is True
+    assert route.whole_market_required is False
+
+
+def test_margin_watchlist_and_project_mobile_presentation_contract():
+    symbols = watchlist_for_command("SKY維持率")
+    assert symbols == (
+        "2337", "6217", "3362", "8045", "8043", "2233",
+        "5464", "4764", "1587", "3447", "2230", "6994",
+    )
+    assert len(symbols) == len(set(symbols)) == 12
+    removed_over_100 = {
+        "4979", "8039", "8358", "3026", "3363",
+        "3532", "3211", "8021", "6683",
+    }
+    assert not removed_over_100.intersection(symbols)
+    assert watchlist_for_command("SKY當沖") is None
+    assert presentation_for_command("SKY維持率") == "SKY_MOBILE_TABLE_V1_0"
+    route = route_command("SKY維持率")
+    assert route.data_mode == "RESEARCH_ONLY_SOURCE_UNVERIFIED"
+    assert route.whole_market_required is False
+    assert route.execution_target == "HOLD_PROVIDER_AND_SOURCE_CONFIRMATION"
 
 
 def test_unregistered_current_command_still_fails_closed():

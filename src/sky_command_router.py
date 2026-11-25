@@ -18,6 +18,25 @@ class CommandRoute:
         return asdict(self)
 
 
+# W0 #363: 2026-11-25 verified close <= 100 TWD; user-directed removal
+# of nine >100 TWD symbols from the previous 21-symbol research watchlist.
+# Historical evidence remains in GitHub. No live runner or automatic trading.
+# Future trade eligibility STILL requires freshly verified <=100 TWD price.
+SKY_MARGIN_WATCHLIST = (
+    "2337", "6217", "3362", "8045", "8043", "2233",
+    "5464", "4764", "1587", "3447", "2230", "6994",
+)
+SKY_MARGIN_PRESENTATION = "SKY_MOBILE_TABLE_V1_0"
+
+
+def watchlist_for_command(command: str) -> tuple[str, ...] | None:
+    """Explicit candidate universe; never implies verified data or dispatch."""
+    normalized = " ".join((command or "").strip().split())
+    if re.fullmatch(r"Sky\s*維持率", normalized, re.I):
+        return SKY_MARGIN_WATCHLIST
+    return None
+
+
 # W0 #363: Conversation aliases are classified here, not GitHub dispatch hooks.
 # Never imply that a matching name has passed live E2E or that a new
 # margin-maintenance data provider/runner is authorized.
@@ -26,7 +45,8 @@ _SHORTCUT_PATTERNS = [
         re.compile(r"^Sky\s*維持率$", re.I),
         CommandRoute(
             "SKY_MARGIN_MAINTENANCE_RESEARCH", "RESEARCH_ONLY_SOURCE_UNVERIFIED",
-            False, True, False, "HOLD_PROVIDER_AND_SOURCE_CONFIRMATION",
+            False, False, False, "HOLD_PROVIDER_AND_SOURCE_CONFIRMATION",
+            "User-defined 12-symbol <=100 TWD (2026-11-25 close) list only;  "
             "Candidate research only: financing maintenance ratio below 120%, "
             "foreign/investment-trust net buying over 50 lots, price <=100 TWD, "
             "capital <=3 billion TWD and volume >=100 lots except limit-down. "
@@ -325,6 +345,8 @@ def presentation_for_command(command: str) -> str | None:
     table. Position updates may append position/P&L details after the table.
     """
     normalized = " ".join((command or "").strip().split())
+    if watchlist_for_command(normalized) is not None:
+        return SKY_MARGIN_PRESENTATION
     if normalized.lower().startswith("sky") and "更新" in normalized:
         return UPDATE_PRESENTATION
     return None
