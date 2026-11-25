@@ -80,19 +80,23 @@ def scheduled_scan_window(event_name: str, checked_at: datetime) -> dict:
 
     The cron payload identifies a group of slots, not an exact individual slot.
     This guard is intentionally a conservative time window, not slot certification.
-    Manual dispatch is unchanged; data-quality and trading-day gates still apply.
+    Manual or push-triggered paid scans must remain inside TWSE intraday hours.
+    Data-quality and trading-day gates remain independent and fail closed.
     """
     if not isinstance(checked_at, datetime) or checked_at.tzinfo is None:
         return {"allowed": False, "status": "HOLD_UNVERIFIED_CLOCK"}
     local = checked_at.astimezone(TZ)
-    if event_name != "schedule":
-        return {"allowed": True, "status": "NOT_SCHEDULED",
+    if event_name not in {"schedule", "workflow_dispatch", "push"}:
+        return {"allowed": False, "status": "BLOCK_UNRECOGNIZED_SCAN_EVENT",
                 "checked_at_tpe": local.isoformat()}
-    first = datetime.combine(local.date(), time(9, 5), tzinfo=TZ)
-    last = datetime.combine(local.date(), time(10, 25), tzinfo=TZ)
+    scheduled = event_name == "schedule"
+    first = datetime.combine(local.date(), time(9, 5) if scheduled else time(9, 0), tzinfo=TZ)
+    last = datetime.combine(local.date(), time(10, 25) if scheduled else time(13, 30), tzinfo=TZ)
     allowed = first <= local <= last
     return {"allowed": allowed,
-            "status": "WITHIN_SCHEDULED_SCAN_WINDOW" if allowed else "BLOCK_LATE_OR_EARLY_SCHEDULE",
+            "status": ("WITHIN_SCHEDULED_SCAN_WINDOW" if scheduled else "WITHIN_MANUAL_INTRADAY_WINDOW")
+                      if allowed else ("BLOCK_LATE_OR_EARLY_SCHEDULE" if scheduled
+                                      else "BLOCK_OUTSIDE_MANUAL_INTRADAY_WINDOW"),
             "checked_at_tpe": local.isoformat(),
             "window_start_tpe": first.isoformat(),
             "window_end_tpe": last.isoformat(),
