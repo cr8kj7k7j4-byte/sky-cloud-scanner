@@ -1,15 +1,18 @@
 {
   "schema": "SKY_POSTMARKET_REQUEST_V1",
   "mode": "postmarket_observation",
-  "requested_at_tpe": "2026-11-26T04:49:00+08:00",
+  "requested_at_tpe": "2026-11-26T04:59:00+08:00",
   "requested_for_last_completed_market_session": "2026-11-25",
   "data_use": "OBSERVATION_ONLY",
   "trade_action": "禁止交易",
-  "request_origin": "W0 #363 immediate user-requested postmarket full-universe scan",
+  "request_origin": "W0 #363 one bounded retry after #709 YAML job-condition fix; user confirmed prior run #144 zero seconds no jobs",
   "required_markets": [
     "TWSE",
     "TPEx"
   ],
   "production_eligible": false,
-  "auto_order": false
+  "auto_order": false,
+  "retry_of_failed_workflow_run_number": 144,
+  "retry_reason": "PRE_JOB_YAML_CONDITION_TRUNCATED_NO_FUGLE_CALL",
+  "research_only": true
 }
