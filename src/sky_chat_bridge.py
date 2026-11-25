@@ -67,7 +67,7 @@ def validate_report(report):
             raise ValueError("DUPLICATE_OR_MISSING_SYMBOL")
         seen.add(symbol)
         if row.get("現在動作") not in RESEARCH_ACTIONS:
-            raise ValueError("RESEARCH_TRADE_ACTION_NOT_ALLOWED")
+            raise ValueError("RESEARCH_ENTRY_NOT_ALLOWED")
         if row.get("正式交易資格") is not False:
             raise ValueError("ROW_PRODUCTION_ELIGIBILITY_NOT_FALSE")
     if report.get("universe_count") != len(rows):
