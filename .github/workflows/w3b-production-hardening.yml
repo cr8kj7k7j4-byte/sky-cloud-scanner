@@ -55,6 +55,7 @@ jobs:
             tests/test_risk_engine.py \
             tests/test_p0r_loss_streak_source_guard.py \
             tests/test_schedule_health.py \
+            tests/test_trading_calendar.py \
             tests/test_sky_postmarket_observation.py \
             tests/test_sky_query_validity.py \
             tests/test_p0l_canonical_ledger.py \
