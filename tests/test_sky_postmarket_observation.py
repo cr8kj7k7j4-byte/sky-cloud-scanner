@@ -51,11 +51,11 @@ class TestPostmarketObservation(unittest.TestCase):
         self.assertIn("default: intraday", wf)
         self.assertIn("- postmarket_observation", wf)
         self.assertIn(
-            "if: github.event_name != 'workflow_dispatch' || inputs.mode != 'postmarket_observation'",
+            "if: (github.event_name != 'workflow_dispatch' || inputs.mode != 'postmarket_observation') &&",
             wf,
         )
         self.assertIn(
-            "if: github.event_name == 'workflow_dispatch' && inputs.mode == 'postmarket_observation'",
+            "if: (github.event_name == 'workflow_dispatch' && inputs.mode == 'postmarket_observation') ||",
             wf,
         )
         self.assertIn("Reserve existing cross-workflow Fugle claim", wf)
