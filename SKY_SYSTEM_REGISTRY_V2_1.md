@@ -231,3 +231,38 @@ Canonical contract: `docs/SKY_REALTIME_COMMAND_CONTRACT_V1_0.md`.
 - 所有包含「更新」的 Sky 指令統一使用 `SKY_MOBILE_TABLE_V1_0`。
 - 單檔更新、Swing 5D 更新、波段更新、快掃更新、持倉更新皆適用。
 - 持倉特有損益欄位可追加於主表後，不得取代或改寫主表。
+
+## Canonical postmarket zero-volume query contract — 2026-11-26 / W0 #363
+
+**Global rule for data display, report, mobile readback, W3A/W3B/W4/W6 evidence and postmarket research**:
+`VALID_QUERY_ZERO_REPORTED_VOLUME_NO_PRICE` means the provider returned a
+traceable, date-certified Fugle TSE/OTC bulk Snapshot row for a stock,
+`last_price = null`, and **explicit numeric** `reported_volume = 0`.
+This is a **valid completed information query** (with zero reported volume),
+**not** a verified price or actual-execution certification. The observation
+does not prove a trading halt, no off-venue trade, or verified market status.
+Data must identify the source date separately from the observation time.
+
+Eligibility requires returned exchange Snapshot, verified provider response and
+source date no later than observation date, a matching stock Snapshot row,
+non-trial data and a genuinely numeric zero volume. Missing Snapshot row,
+unknown/boolean volume, provider/date mismatch or unsupported source must
+remain `HOLD_UNVERIFIED_POSTMARKET_QUERY`, **not valid**.
+
+Keep three distinct denominators:
+1. **Formal whole-market stock universe** (includes excluded research stocks);
+2. Research-observed universe with explicit exclusion list;
+3. Valid information queries within research scope = priced observations +
+   validated provider-zero-volume/no-price observations.
+
+**Never** convert zero-volume/no-price to valid observed price, last executed
+trade, A2 fresh quote, VWAP, A+ trade candidate, buy quantity or trading
+permission. Never shrink the formal stock-universe denominator to enhance
+coverage. Preserve `OBSERVATION_ONLY`/`NO_TRADE`, P0-R, atomic Fugle paid
+Claim, rate limits and genuine trade-time/volume provenance checks.
+
+Canonical implementation: `research/sky_postmarket_observation.py`;
+regressions: `tests/test_sky_postmarket_observation.py`. Intraday scanners
+and Production models keep their stricter original gates. Change of trading
+eligibility requires a separately reviewed W0/P0-G approval and authentic
+executed-quote evidence; this policy alone is not such approval.

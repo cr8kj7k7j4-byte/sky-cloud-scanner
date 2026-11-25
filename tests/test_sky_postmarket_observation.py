@@ -99,6 +99,89 @@ class TestPostmarketObservation(unittest.TestCase):
         self.assertEqual(got["postmarket_observed_price_pct_official_denominator"], 25.0)
         self.assertFalse(got["production_eligible"])
 
+    def _verified_market_query_report(self):
+        report = self._report()
+        report["checked_at_tpe"] = "2026-11-26T05:01:03+08:00"
+        report["universe_count"] = 2
+        report["observed_price_count"] = 1
+        report["official_universe_count_before_research_exclusion"] = 3
+        for market in ("TWSE", "TPEx"):
+            report["snapshot_integrity"][market]["api_response_valid"] = True
+        report["all_symbols"] = [
+            {
+                "symbol": "2330", "exchange": "TWSE",
+                "source": "Fugle paid bulk snapshot",
+                "snapshot_source_date": "2026-11-25",
+                "snapshot_is_trial": False, "last_price": 100.0,
+                "volume": 500.0, "data_status": "SNAPSHOT_DATE_NOT_TODAY",
+            },
+            {
+                "symbol": "2235", "exchange": "TPEx",
+                "source": "Fugle paid bulk snapshot",
+                "snapshot_source_date": "2026-11-25",
+                "snapshot_is_trial": False, "last_price": None,
+                "volume": 0.0, "data_status": "SNAPSHOT_DATE_NOT_TODAY",
+            },
+        ]
+        report["missing_price_diagnostics"] = [
+            {"symbol": "2235", "exchange": "TPEx", "reported_volume": 0.0,
+             "data_status": "SNAPSHOT_DATE_NOT_TODAY"}
+        ]
+        return report
+
+    def test_zero_volume_without_price_is_valid_query_but_not_price(self):
+        report = mark_observation_only(self._verified_market_query_report())
+        self.assertEqual(report["postmarket_valid_query_with_price_count"], 1)
+        self.assertEqual(report["postmarket_valid_query_zero_volume_no_price_count"], 1)
+        self.assertEqual(report["postmarket_valid_query_count"], 2)
+        self.assertEqual(report["postmarket_valid_query_pct_research"], 100.0)
+        self.assertTrue(report["postmarket_valid_query_research_complete"])
+        # Official denominator remains 3, not research-only 2.
+        self.assertEqual(report["postmarket_coverage_denominator_official"], 3)
+        self.assertEqual(report["all_symbols"][1]["postmarket_query_status"],
+                         "VALID_QUERY_ZERO_REPORTED_VOLUME_NO_PRICE")
+        self.assertTrue(report["all_symbols"][1]["postmarket_query_valid"])
+        self.assertFalse(report["all_symbols"][1]["postmarket_price_valid"])
+        self.assertFalse(report["all_symbols"][1]["postmarket_executed_trade_certified"])
+        self.assertFalse(report["all_symbols"][1]["trade_signal"])
+        self.assertFalse(report["all_symbols"][1]["production_eligible"])
+        self.assertTrue(report["missing_price_diagnostics"][0]["postmarket_query_valid"])
+        self.assertEqual(report["missing_price_diagnostics"][0]["official_trading_status"],
+                         "UNVERIFIED")
+
+    def test_missing_volume_or_absent_snapshot_row_never_count_valid(self):
+        for invalid in ("unknown_volume", "no_snapshot_row", "trial", "wrong_date",
+                        "invalid_source", "no_market_response", "future_date", "bool_volume"):
+            with self.subTest(invalid=invalid):
+                report = self._verified_market_query_report()
+                row = report["all_symbols"][1]
+                diag = report["missing_price_diagnostics"][0]
+                if invalid == "unknown_volume":
+                    row["volume"] = None
+                    diag["reported_volume"] = None
+                elif invalid == "no_snapshot_row":
+                    row["source"] = "NO_SNAPSHOT_ROW"
+                elif invalid == "trial":
+                    row["snapshot_is_trial"] = True
+                elif invalid == "wrong_date":
+                    row["snapshot_source_date"] = "2026-11-24"
+                elif invalid == "invalid_source":
+                    row["source"] = "UNVERIFIED_WEB"
+                elif invalid == "no_market_response":
+                    report["snapshot_status"]["TPEx"] = "MISSING"
+                elif invalid == "future_date":
+                    report["snapshot_integrity"]["TPEx"]["snapshot_date"] = "2026-11-27"
+                    row["snapshot_source_date"] = "2026-11-27"
+                elif invalid == "bool_volume":
+                    row["volume"] = False
+                got = mark_observation_only(report)
+                self.assertEqual(got["postmarket_valid_query_zero_volume_no_price_count"], 0)
+                self.assertEqual(got["postmarket_valid_query_count"], 1)
+                self.assertFalse(got["postmarket_valid_query_research_complete"])
+                self.assertFalse(got["all_symbols"][1]["postmarket_query_valid"])
+                self.assertFalse(got["missing_price_diagnostics"][0]["postmarket_query_valid"])
+                self.assertFalse(got["production_eligible"])
+
     def test_missing_market_does_not_count_as_full_market_scan(self):
         report = self._report()
         report["snapshot_status"]["TPEx"] = "MISSING"
