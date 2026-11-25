@@ -21,6 +21,9 @@ OUTPUT = Path("output/chat_bridge")
 COLUMNS = ("股票代碼", "股票名稱", "即時價", "分類", "方向", "多方評分",
            "空方評分", "買進觸發", "最高接受價", "停損／失效",
            "現在動作", "加碼價格", "停利價格")
+# Research-only reports cannot issue ANY position-changing instruction.
+# Reuse exactly this allowlist during same-run independent Artifact readback.
+RESEARCH_ACTIONS = frozenset({"觀察", "等待", "禁止交易"})
 
 
 def bind_issue_comment_command(payload, event):
@@ -63,8 +66,8 @@ def validate_report(report):
         if not symbol or symbol in seen:
             raise ValueError("DUPLICATE_OR_MISSING_SYMBOL")
         seen.add(symbol)
-        if row.get("現在動作") in ("買進", "加碼"):
-            raise ValueError("RESEARCH_ENTRY_NOT_ALLOWED")
+        if row.get("現在動作") not in RESEARCH_ACTIONS:
+            raise ValueError("RESEARCH_TRADE_ACTION_NOT_ALLOWED")
         if row.get("正式交易資格") is not False:
             raise ValueError("ROW_PRODUCTION_ELIGIBILITY_NOT_FALSE")
     if report.get("universe_count") != len(rows):
