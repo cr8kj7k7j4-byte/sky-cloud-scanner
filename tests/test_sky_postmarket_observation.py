@@ -45,6 +45,23 @@ class TestPostmarketObservation(unittest.TestCase):
             self.assertEqual(row["required_fields"]["現在動作"], "禁止交易")
         self.assertEqual(report["by_exchange"]["TWSE"]["fresh_executed"], 0)
 
+    def test_existing_workflow_dispatch_requires_explicit_postmarket_mode(self):
+        from pathlib import Path
+        wf = Path(".github/workflows/scan.yml").read_text(encoding="utf-8")
+        self.assertIn("default: intraday", wf)
+        self.assertIn("- postmarket_observation", wf)
+        self.assertIn(
+            "if: github.event_name != 'workflow_dispatch' || inputs.mode != 'postmarket_observation'",
+            wf,
+        )
+        self.assertIn(
+            "if: github.event_name == 'workflow_dispatch' && inputs.mode == 'postmarket_observation'",
+            wf,
+        )
+        self.assertIn("Reserve existing cross-workflow Fugle claim", wf)
+        self.assertIn("SKY_PAID_ATOMIC_ENFORCE: '1'", wf)
+        self.assertIn("python -m research.sky_postmarket_observation", wf)
+
     def test_missing_market_does_not_count_as_full_market_scan(self):
         report = self._report()
         report["snapshot_status"]["TPEx"] = "MISSING"
