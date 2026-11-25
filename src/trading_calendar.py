@@ -12,7 +12,7 @@ TZ=ZoneInfo("Asia/Taipei")
 TWSE_HOLIDAY_URL="https://openapi.twse.com.tw/v1/holidaySchedule/holidaySchedule"
 
 OPEN_MARKERS=("開始交易","最後交易")
-CLOSED_MARKERS=("放假","市場無交易")
+CLOSED_MARKERS=("放假","補假","市場無交易")
 
 
 def _roc_to_iso(value: str) -> str | None:
