@@ -154,11 +154,15 @@ def test_margin_ratio_is_never_marked_trade_ready_without_verified_source():
 def test_margin_watchlist_and_project_mobile_presentation_contract():
     symbols = watchlist_for_command("SKY維持率")
     assert symbols == (
-        "4979", "8039", "2337", "8358", "3026", "3363", "3532",
-        "3211", "8021", "6683", "6217", "3362", "8045", "8043",
-        "2233", "5464", "4764", "1587", "3447", "2230", "6994",
+        "2337", "6217", "3362", "8045", "8043", "2233",
+        "5464", "4764", "1587", "3447", "2230", "6994",
     )
-    assert len(symbols) == len(set(symbols)) == 21
+    assert len(symbols) == len(set(symbols)) == 12
+    removed_over_100 = {
+        "4979", "8039", "8358", "3026", "3363",
+        "3532", "3211", "8021", "6683",
+    }
+    assert not removed_over_100.intersection(symbols)
     assert watchlist_for_command("SKY當沖") is None
     assert presentation_for_command("SKY維持率") == "SKY_MOBILE_TABLE_V1_0"
     route = route_command("SKY維持率")
