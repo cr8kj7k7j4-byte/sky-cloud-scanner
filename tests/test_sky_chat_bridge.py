@@ -155,7 +155,7 @@ class ChatScanBridgeTests(unittest.TestCase):
                 report = {"schema": "SKY_DAYTRADE_13COL_RESEARCH_V2",
                           "rows": [row], "row_count": 1, "universe_count": 1,
                           "production_eligible": False}
-                with self.assertRaisesRegex(ValueError, "RESEARCH_TRADE_ACTION_NOT_ALLOWED"):
+                with self.assertRaisesRegex(ValueError, "RESEARCH_ENTRY_NOT_ALLOWED"):
                     validate_report(report)
 
     def test_research_report_allows_safe_observation_actions(self):
