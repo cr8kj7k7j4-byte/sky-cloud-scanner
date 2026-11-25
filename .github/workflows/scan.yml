@@ -16,6 +16,7 @@ on:
     paths:
       - 'scan_requests/mcr/now.json'
       - 'scan_requests/quickscan/latest.json'
+      - 'scan_requests/postmarket/now.json'
   # Canonical five scheduled research scans restored 2026-11-22.
   # UTC (+8 Asia/Taipei): weekdays at 09:05, 09:15, 09:30, 09:50, 10:15.
   # Official TWSE calendar, paid API reservation and fail-closed data gates
@@ -34,7 +35,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   scan:
-    if: github.event_name != 'workflow_dispatch' || inputs.mode != 'postmarket_observation'
+    if: (github.event_name != 'workflow_dispatch' || inputs.mode != 'postmarket_observation') && (github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'W0 #363: request postmarket full-universe observation'))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -460,7 +461,7 @@ jobs:
 
   postmarket:
     name: Fugle postmarket full-universe observation (NO_TRADE)
-    if: github.event_name == 'workflow_dispatch' && inputs.mode == 'postmarket_observation'
+    if: (github.event_name == 'workflow_dispatch' && inputs.mode == 'postmarket_observation') || (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'W0 #363: request postmarket full-universe observation'))
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -472,6 +473,18 @@ jobs:
           cache-dependency-path: requirements.txt
       - name: Install dependencies
         run: pip install -r requirements.txt
+      - name: Validate explicit postmarket push request before paid claim
+        if: github.event_name == 'push'
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x = json.loads(Path('scan_requests/postmarket/now.json').read_text(encoding='utf-8'))
+          assert isinstance(x, dict) and x.get('schema') == 'SKY_POSTMARKET_REQUEST_V1'
+          assert x.get('mode') == 'postmarket_observation' and x.get('trade_action') == '禁止交易'
+          assert isinstance(x.get('requested_at_tpe'), str) and x['requested_at_tpe']
+          print('POSTMARKET_RESEARCH_REQUEST_VALIDATED')
+          PY
       - name: Verify postmarket and paid-claim safety contracts offline
         run: |
           python -m unittest tests.test_sky_postmarket_observation tests.test_sky_paid_fugle_api_guard -v
