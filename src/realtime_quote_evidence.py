@@ -7,6 +7,7 @@ confirmed same-day executed trade.
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+import math
 from zoneinfo import ZoneInfo
 
 TPE = ZoneInfo("Asia/Taipei")
@@ -52,8 +53,10 @@ def fugle_executed_trade(quote, now=None, *, max_age_seconds=120):
     if raw is None:
         raw = quote.get("lastPrice")
     try:
+        if isinstance(raw, bool):
+            raise ValueError()
         price = float(raw)
-        if price <= 0:
+        if not math.isfinite(price) or price <= 0:
             raise ValueError()
     except (TypeError, ValueError):
         return None, None, "MISSING_EXECUTED_LAST_PRICE"
@@ -146,8 +149,13 @@ def validate_whole_market_rows(universe, rows, now=None, *, min_coverage_pct=80.
             # Snapshot reference coverage does NOT require lastTrade.time.
             # It is deliberately separate from verified executed-trade coverage.
             try:
-                reference_price = float(row.get("last"))
-            except (ValueError, TypeError):
+                raw_reference = row.get("last")
+                if isinstance(raw_reference, bool):
+                    raise ValueError()
+                reference_price = float(raw_reference)
+                if not math.isfinite(reference_price):
+                    reference_price = 0.0
+            except (ValueError, TypeError, OverflowError):
                 reference_price = 0.0
             if (reference_price > 0 and str(row.get("quote_date") or "") == now.date().isoformat()
                     and row.get("isTrial") is not True):
@@ -155,8 +163,13 @@ def validate_whole_market_rows(universe, rows, now=None, *, min_coverage_pct=80.
             raw_trade_time = row.get("last_trade_timestamp")
             ts = timestamp_tpe(raw_trade_time)
             try:
-                price = float(row.get("last"))
-            except (ValueError, TypeError):
+                raw_price = row.get("last")
+                if isinstance(raw_price, bool):
+                    raise ValueError()
+                price = float(raw_price)
+                if not math.isfinite(price):
+                    price = 0.0
+            except (ValueError, TypeError, OverflowError):
                 price = 0.0
             age = (now - ts).total_seconds() if ts else None
             if raw_trade_time is None or raw_trade_time == "":
