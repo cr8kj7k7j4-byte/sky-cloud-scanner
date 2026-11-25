@@ -76,6 +76,29 @@ class TestPostmarketObservation(unittest.TestCase):
         self.assertIn("x.get('trade_action') == '禁止交易'", wf)
         self.assertLess(wf.index("Validate explicit postmarket push request"), wf.index("Reserve existing cross-workflow Fugle claim"))
 
+    def test_postmarket_missing_price_distinguishes_date_from_no_price(self):
+        report = self._report()
+        report["official_universe_count_before_research_exclusion"] = 4
+        report["observed_price_count"] = 1
+        report["missing_price_count"] = 2
+        report["missing_price_diagnostics"] = [
+            {"symbol": "X", "exchange": "TWSE", "reported_volume": 0.0,
+             "data_status": "SNAPSHOT_DATE_NOT_TODAY"},
+            {"symbol": "Y", "exchange": "TPEx", "reported_volume": None,
+             "data_status": "SNAPSHOT_DATE_NOT_TODAY"},
+        ]
+        got = mark_observation_only(report)
+        a, b = got["missing_price_diagnostics"]
+        self.assertEqual(a["data_status"], "POSTMARKET_NO_OBSERVED_PRICE")
+        self.assertEqual(a["intraday_diagnostic_status_before_postmarket"], "SNAPSHOT_DATE_NOT_TODAY")
+        self.assertEqual(a["postmarket_reason"], "ZERO_REPORTED_VOLUME_NO_OBSERVED_PRICE")
+        self.assertEqual(b["postmarket_reason"], "NO_OBSERVED_PRICE_CAUSE_UNVERIFIED")
+        self.assertEqual(got["postmarket_missing_price_by_exchange"], {"TWSE": 1, "TPEx": 1})
+        self.assertEqual(got["postmarket_zero_reported_volume_no_price_count"], 1)
+        self.assertEqual(got["postmarket_coverage_denominator_official"], 4)
+        self.assertEqual(got["postmarket_observed_price_pct_official_denominator"], 25.0)
+        self.assertFalse(got["production_eligible"])
+
     def test_missing_market_does_not_count_as_full_market_scan(self):
         report = self._report()
         report["snapshot_status"]["TPEx"] = "MISSING"
