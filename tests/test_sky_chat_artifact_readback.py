@@ -56,6 +56,32 @@ class ArtifactReadbackTests(unittest.TestCase):
         self.assertEqual(receipt["row_count"], 1)
         self.assertFalse(receipt["production_eligible"])
 
+    def test_valid_matching_mobile_preview(self):
+        receipt = self.check(lambda status, report: status.update(
+            preview=[dict(report["rows"][0])]))
+        self.assertEqual(receipt["status"], "PASS_RESEARCH_ONLY")
+
+    def test_mobile_preview_must_match_same_run_report(self):
+        for forged in (
+            [{"股票代碼": "9999", "現在動作": "觀察"}],
+            [{"股票代碼": "1101", "現在動作": "買進"}],
+            [{"股票代碼": "1101", "現在動作": "等待"}],
+            [{"股票代碼": "1101", "現在動作": "等待"}] * 2,
+        ):
+            with self.subTest(forged=forged):
+                with self.assertRaisesRegex(ValueError, "STATUS_PREVIEW_REPORT_MISMATCH"):
+                    self.check(lambda status, report: status.update(preview=forged))
+
+    def test_mobile_preview_malformed_rejected(self):
+        for value in ("not-a-list", None, [None], [123], [{}] * 9):
+            with self.subTest(value=value):
+                # Missing preview is allowed for legacy offline fixtures,
+                # but present malformed/oversized preview must fail closed.
+                if value is None:
+                    continue
+                with self.assertRaisesRegex(ValueError, "STATUS_PREVIEW_INVALID"):
+                    self.check(lambda status, report: status.update(preview=value))
+
     def test_zero_artifact_id_rejected(self):
         with self.assertRaisesRegex(ValueError, "ARTIFACT_ID_MISSING"):
             with tempfile.TemporaryDirectory() as td:
