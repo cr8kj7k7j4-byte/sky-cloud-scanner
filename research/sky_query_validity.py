@@ -53,6 +53,8 @@ def apply_query_validity(report: dict, *, mode: str) -> dict:
         raise ValueError("INVALID_INFORMATION_QUERY_MODE")
     rows = report.get("all_symbols") or []
     counts = {"price": 0, "zero_volume_no_price": 0, "hold": 0}
+    research_valid = 0
+    research_total = 0
     market_counts = {
         market: {"valid_queries": 0, "zero_volume_no_price": 0, "hold": 0}
         for market in ("TWSE", "TPEx")
@@ -77,6 +79,10 @@ def apply_query_validity(report: dict, *, mode: str) -> dict:
             else "hold"
         )
         counts[bucket] += 1
+        if row.get("excluded_from_research_ranking") is not True:
+            research_total += 1
+            if bucket != "hold":
+                research_valid += 1
         if row.get("exchange") in market_counts:
             m = market_counts[row["exchange"]]
             if bucket == "hold":
@@ -111,6 +117,15 @@ def apply_query_validity(report: dict, *, mode: str) -> dict:
     report["information_query_zero_volume_no_price_count"] = counts["zero_volume_no_price"]
     report["information_query_valid_count"] = valid
     report["information_query_hold_count"] = counts["hold"]
+    report["information_query_research_valid_count"] = research_valid
+    report["information_query_research_denominator"] = research_total
+    report["information_query_valid_pct_research"] = (
+        round(100 * research_valid / research_total, 2) if research_total else None
+    )
+    report["information_query_research_complete"] = (
+        research_total > 0 and research_valid == research_total
+        and len(rows) == total
+    )
     report["information_query_market_counts"] = market_counts
     report["information_query_official_denominator"] = official
     report["information_query_valid_pct_official"] = (
