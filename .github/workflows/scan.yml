@@ -35,7 +35,9 @@ concurrency:
   cancel-in-progress: false
 jobs:
   scan:
-    if: (github.event_name != 'workflow_dispatch' || inputs.mode != 'postmarket_observation') && (github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'W0 #363: request postmarket full-universe observation'))
+    if: >-
+      (github.event_name != 'workflow_dispatch' || inputs.mode != 'postmarket_observation') &&
+      (github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'W0 #363: request postmarket full-universe observation'))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -461,7 +463,9 @@ jobs:
 
   postmarket:
     name: Fugle postmarket full-universe observation (NO_TRADE)
-    if: (github.event_name == 'workflow_dispatch' && inputs.mode == 'postmarket_observation') || (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'W0 #363: request postmarket full-universe observation'))
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.mode == 'postmarket_observation') ||
+      (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'W0 #363: request postmarket full-universe observation'))
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
