@@ -65,6 +65,8 @@ def record(meta, payload, source_date, checked_at):
         "change_pct": None, "volume": None, "last_trade_time": None,
         "time_age_seconds": None, "snapshot_observed_at": None,
         "snapshot_source_date": source_date or None, "snapshot_is_trial": False,
+        "last_trade_time_certified": False,
+        "last_trade_time_provenance": "BULK_SNAPSHOT_REPORTED_UNVERIFIED_A2",
         "research_only": True,
         "production_eligible": False, "trade_signal": False,
     }
@@ -114,7 +116,10 @@ def record(meta, payload, source_date, checked_at):
     elif payload.get("isTrial") is True:
         result["data_status"] = "TRIAL_QUOTE"
     else:
-        result["data_status"] = "FRESH_EXECUTED_TRADE"
+        # A1 bulk Snapshot may report a lastTrade timestamp, but it cannot
+        # independently certify the per-symbol execution required by A2.
+        # Retain provider time as unverified research evidence only.
+        result["data_status"] = "SNAPSHOT_REPORTED_TRADE_TIME_UNVERIFIED_A2"
     return result
 
 
@@ -240,7 +245,7 @@ def build(universe, snapshots, checked_at, errors=None, excluded_research_symbol
         by_market[exchange]["fresh_executed_pct"] = round(
             100 * by_market[exchange]["fresh_executed"] / len(subset), 1) if subset else 0.0
     # Missing prices, returned symbols, and executed-trade timestamps are
-    # separate measures; never promote Snapshot coverage to live execution.
+    # separate measures; A1 bulk Snapshot alone is NEVER A2 certification.
     missing_price_rows = [x for x in rows if x["last_price"] is None]
     missing_price_diagnostics = [
         {"symbol": x["symbol"], "name": x["name"],
@@ -271,6 +276,7 @@ def build(universe, snapshots, checked_at, errors=None, excluded_research_symbol
         "quote_execution_certified_count": 0,
         "quote_execution_certification_pct": None,
         "quote_execution_certification_status": "NOT_SAMPLED_IN_SNAPSHOT_STAGE",
+        "snapshot_cannot_certify_individual_executions": True,
         "observed_price_count": sum(x["last_price"] is not None for x in rows),
         "snapshot_reference_requires_last_trade_time": False,
         "snapshot_reference_without_trade_time_count": sum(
