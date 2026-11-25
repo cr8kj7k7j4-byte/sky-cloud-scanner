@@ -43,6 +43,9 @@ def filter_research_universe(universe):
 
 
 def numeric(value):
+    # Provider JSON boolean is not a measured zero-volume observation.
+    if isinstance(value, bool):
+        return None
     try:
         result = float(value)
         if result != result or result in (float("inf"), float("-inf")):
