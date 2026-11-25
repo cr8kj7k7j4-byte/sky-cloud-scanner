@@ -98,7 +98,7 @@ def test_official_calendar_invalid_rows_block_paid_scan(monkeypatch):
         def raise_for_status(self):
             pass
         def json(self):
-            return [None, 123, "invalid"]
+            return [None, 123, "invalid", {"Name": "not a dated holiday"}]
     monkeypatch.setattr(trading_calendar.requests, "get",
                         lambda *_args, **_kwargs: FakeResponse())
     result = trading_calendar.check_trading_day(date(2026, 11, 26))
