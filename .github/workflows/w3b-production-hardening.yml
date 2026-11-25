@@ -73,6 +73,8 @@ jobs:
             tests/test_full_market_executed_quote_gate.py \
             tests/test_fugle_paid_otc_candidate_routing.py \
             tests/test_sky_daytrade_preopen_readiness.py
+      - name: Paid Fugle remote Claim integrity regression (zero Fugle calls)
+        run: python -m pytest -q tests/test_sky_paid_fugle_api_guard.py
       - name: Historical paid atomic download fail-closed regression (zero Fugle calls)
         run: |
           python -m pytest -q tests/test_download_expanded.py tests/test_history_paid_atomic_gate.py tests/test_download_pit_history_failclosed.py

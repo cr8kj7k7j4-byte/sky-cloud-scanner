@@ -209,6 +209,28 @@ class FugleGuardTests(unittest.TestCase):
                     "sky:mock:same", "424242", self.now + timedelta(seconds=301),
                     local, lookup, lambda aid: dict(local))
 
+    def test_remote_claim_metadata_tampering_is_rejected(self):
+        """A matching nonce alone must not certify altered claim safety fields."""
+        with TemporaryDirectory() as td:
+            _, name, local = prepare("sky:mock:same", self.now, lambda n: [],
+                                      "424242", Path(td))
+            artifact = {"id": 91, "workflow_run": {"id": 424242}, "expired": False}
+            for key, altered_value in (
+                ("checked_at_utc", "2026-11-11T05:09:00+00:00"),
+                ("production_eligible", True),
+                ("automatic_order", True),
+                ("reason", "UNVERIFIED"),
+            ):
+                with self.subTest(key=key):
+                    remote = dict(local, **{key: altered_value})
+                    with self.assertRaisesRegex(
+                        RuntimeError, "ARTIFACT_CLAIM_CONTENT_MISMATCH_" + key
+                    ):
+                        verify_uploaded_reservation(
+                            "sky:mock:same", "424242", self.now, local,
+                            lambda candidate: [artifact] if candidate == name else [],
+                            lambda aid: remote)
+
     def test_competing_workflow_claim_fails_closed_before_paid_call(self):
         with TemporaryDirectory() as td:
             _, name, local = prepare("sky:mock:same", self.now, lambda n: [],
