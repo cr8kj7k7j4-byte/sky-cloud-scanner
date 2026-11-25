@@ -65,6 +65,8 @@ def record(meta, payload, source_date, checked_at):
         "change_pct": None, "volume": None, "last_trade_time": None,
         "time_age_seconds": None, "snapshot_observed_at": None,
         "snapshot_source_date": source_date or None, "snapshot_is_trial": False,
+        "last_trade_time_certified": False,
+        "last_trade_time_provenance": "BULK_SNAPSHOT_REPORTED_UNVERIFIED_A2",
         "research_only": True,
         "production_eligible": False, "trade_signal": False,
     }
