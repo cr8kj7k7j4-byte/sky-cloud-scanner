@@ -9,7 +9,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from src.sky_chat_bridge import COLUMNS
+from src.sky_chat_bridge import COLUMNS, RESEARCH_ACTIONS
 from src.sky_scan_readback import validate_scan_readback
 
 
@@ -51,7 +51,7 @@ def verify_download(root: Path, *, run_id: str, request_id: str,
         if not symbol or symbol in seen:
             raise ValueError("REPORT_DUPLICATE_OR_MISSING_SYMBOL")
         seen.add(symbol)
-        if row.get("正式交易資格") is not False or row.get("現在動作") in ("買進", "加碼"):
+        if row.get("正式交易資格") is not False or row.get("現在動作") not in RESEARCH_ACTIONS:
             raise ValueError("REPORT_TRADE_GATE_VIOLATION")
     if report.get("production_eligible") is not False:
         raise ValueError("REPORT_PRODUCTION_ELIGIBLE")
