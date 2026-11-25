@@ -66,6 +66,7 @@ jobs:
             tests/test_sky_13col_report.py \
             tests/test_sky_13col_artifact_integrity.py \
             tests/test_fugle_individual_execution_probe.py \
+            tests/test_full_market_executed_quote_gate.py \
             tests/test_fugle_paid_otc_candidate_routing.py \
             tests/test_sky_daytrade_preopen_readiness.py
       - name: Historical paid atomic download fail-closed regression (zero Fugle calls)
