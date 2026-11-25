@@ -80,15 +80,24 @@ class LegacyPaidWorkflowW0GuardContracts(unittest.TestCase):
         self.assertIn("if: ${{ false }}", content)
         self.assertIn("legacy pinned SHA has no verified per-request atomic Claim", content)
 
-    def test_real_claim_race_is_limited_to_pr689_and_two_existing_workflows(self):
+    def test_real_claim_race_is_bounded_to_one_off_pr_branch_in_two_workflows(self):
+        """Both existing workflows prove one PR HEAD only, never all PRs."""
         for name in ("governance-e2e-validation.yml",
                      "w3b-production-hardening.yml"):
             with self.subTest(workflow=name):
                 content = self._workflow(name)
-                self.assertIn("w0-cross-workflow-atomic-claim-proof:", content)
-                self.assertIn("github.event.pull_request.number == 689", content)
+                self.assertEqual(content.count("w0-cross-workflow-atomic-claim-proof:"), 1)
+                self.assertIn("github.event_name == 'pull_request'", content)
+                self.assertIn(
+                    "startsWith(github.event.pull_request.head.ref, 'w0-363-claim-race-proof-')",
+                    content)
+                self.assertIn(
+                    "github.event.pull_request.head.repo.full_name == github.repository",
+                    content)
+                self.assertNotIn("github.event.pull_request.number == 689", content)
                 self.assertIn("sky_w0_cross_workflow_claim_evidence.py", content)
                 self.assertIn("sky-w0-claim-race-", content)
+                self.assertIn("contents: write", content)
 
 
 if __name__ == "__main__":
