@@ -12,7 +12,7 @@ TZ=ZoneInfo("Asia/Taipei")
 TWSE_HOLIDAY_URL="https://openapi.twse.com.tw/v1/holidaySchedule/holidaySchedule"
 
 OPEN_MARKERS=("開始交易","最後交易")
-CLOSED_MARKERS=("放假","市場無交易")
+CLOSED_MARKERS=("放假","補假","市場無交易")
 
 
 def _roc_to_iso(value: str) -> str | None:
@@ -123,17 +123,17 @@ def check_trading_day(target: date | None=None) -> dict:
         result["fail_open"]=False
         return result
     except Exception as exc:
-        # Calendar unavailability must not silently suppress a real trading day.
-        # Fall back to weekday semantics and preserve the source failure.
-        weekday_open=target.weekday()<5
+        # An unknown official trading day must NEVER release the paid API gate.
+        # A weekday is not evidence that TWSE is open (holiday/makeup closure).
+        # Keep the upstream failure visible for W0 diagnosis, not as a PASS.
         return {
             "date":target.isoformat(),
-            "market_open":weekday_open,
-            "should_scan":weekday_open,
-            "status":"CALENDAR_SOURCE_ERROR_FALLBACK_WEEKDAY",
+            "market_open":False,
+            "should_scan":False,
+            "status":"HOLD_OFFICIAL_CALENDAR_UNAVAILABLE",
             "source":TWSE_HOLIDAY_URL,
-            "source_status":"WARN",
-            "fail_open":True,
+            "source_status":"HOLD",
+            "fail_open":False,
             "error":f"{type(exc).__name__}: {exc}",
             "matched":[],
         }

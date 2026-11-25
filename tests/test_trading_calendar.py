@@ -41,3 +41,34 @@ def test_weekend_defaults_closed():
     out=classify_date(date(2026,10,24),[])
     assert out["market_open"] is False
     assert out["status"]=="CLOSED_WEEKEND"
+
+
+def test_calendar_provider_failure_never_releases_paid_scan(monkeypatch):
+    from src import trading_calendar
+    def unavailable(*_args, **_kwargs):
+        raise TimeoutError("official calendar timeout")
+    monkeypatch.setattr(trading_calendar, "fetch_calendar", unavailable)
+    for day in (date(2026, 11, 26), date(2026, 11, 28)):
+        result = trading_calendar.check_trading_day(day)
+        assert result["date"] == day.isoformat()
+        assert result["market_open"] is False
+        assert result["should_scan"] is False
+        assert result["fail_open"] is False
+        assert result["source_status"] == "HOLD"
+        assert result["status"] == "HOLD_OFFICIAL_CALENDAR_UNAVAILABLE"
+        assert "TimeoutError" in result["error"]
+
+
+def test_calendar_verified_open_or_closed_still_obeys_official_evidence(monkeypatch):
+    from src import trading_calendar
+    monkeypatch.setattr(trading_calendar, "fetch_calendar", lambda: [
+        {"Name": "農曆春節後開始交易日", "Date": "1150223",
+         "Description": "農曆春節後開始交易。"},
+        {"Name": "紀念日補假", "Date": "1151026", "Description": "補假。"},
+    ])
+    open_day = trading_calendar.check_trading_day(date(2026, 2, 23))
+    closed_day = trading_calendar.check_trading_day(date(2026, 10, 26))
+    assert open_day["should_scan"] is True
+    assert open_day["source_status"] == "PASS"
+    assert closed_day["should_scan"] is False
+    assert closed_day["source_status"] == "PASS"
