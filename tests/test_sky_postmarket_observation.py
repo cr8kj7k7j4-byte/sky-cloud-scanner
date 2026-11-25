@@ -51,16 +51,26 @@ class TestPostmarketObservation(unittest.TestCase):
         self.assertIn("default: intraday", wf)
         self.assertIn("- postmarket_observation", wf)
         self.assertIn(
-            "if: github.event_name != 'workflow_dispatch' || inputs.mode != 'postmarket_observation'",
+            "if: (github.event_name != 'workflow_dispatch' || inputs.mode != 'postmarket_observation') &&",
             wf,
         )
         self.assertIn(
-            "if: github.event_name == 'workflow_dispatch' && inputs.mode == 'postmarket_observation'",
+            "if: (github.event_name == 'workflow_dispatch' && inputs.mode == 'postmarket_observation') ||",
             wf,
         )
         self.assertIn("Reserve existing cross-workflow Fugle claim", wf)
         self.assertIn("SKY_PAID_ATOMIC_ENFORCE: '1'", wf)
         self.assertIn("python -m research.sky_postmarket_observation", wf)
+
+    def test_explicit_postmarket_push_does_not_activate_intraday_scan(self):
+        from pathlib import Path
+        wf = Path(".github/workflows/scan.yml").read_text(encoding="utf-8")
+        self.assertIn("scan_requests/postmarket/now.json", wf)
+        self.assertIn("startsWith(github.event.head_commit.message, 'W0 #363: request postmarket full-universe observation')", wf)
+        self.assertIn("github.event_name != 'push' || !startsWith(", wf)
+        self.assertIn("x.get('schema') == 'SKY_POSTMARKET_REQUEST_V1'", wf)
+        self.assertIn("x.get('trade_action') == '禁止交易'", wf)
+        self.assertLess(wf.index("Validate explicit postmarket push request"), wf.index("Reserve existing cross-workflow Fugle claim"))
 
     def test_missing_market_does_not_count_as_full_market_scan(self):
         report = self._report()
