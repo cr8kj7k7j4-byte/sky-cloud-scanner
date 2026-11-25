@@ -19,7 +19,11 @@ class SkyAlertReaderTest(unittest.TestCase):
 
     def test_current_report_never_authorizes_trade(self):
         result = consume(self.report, now=self.now + timedelta(seconds=30))
-        self.assertEqual(result["freshness_status"], "CURRENT_REPORT_OBSERVATION_ONLY")
+        # A1 bulk Snapshot never certifies executed trades even if its reported
+        # lastTrade clock looks current; the reader must fail closed.
+        self.assertEqual(result["freshness_status"], "NO_VERIFIED_EXECUTIONS")
+        self.assertTrue(result["observation_available"])
+        self.assertEqual(result["fresh_executed_count_at_read"], 0)
         self.assertFalse(result["production_eligible"])
         self.assertEqual(result["action"], "禁止交易")
 
