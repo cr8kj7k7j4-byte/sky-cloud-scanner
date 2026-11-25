@@ -148,3 +148,14 @@ def test_research_exclusion_keeps_source_universe_and_market_scope_unchanged():
     assert excluded == ["2237"]
     assert len(input_rows) == 3
     assert filtered == input_rows[1:]
+
+
+def test_full_universe_alert_action_stays_no_trade_with_forged_field():
+    """Never turn unverified Snapshot observations into actionable alerts."""
+    from research.sky_full_universe_information import alert_row, project_required_fields
+    row = {"symbol": "1101", "name": "台泥", "last_price": 31.2,
+           "data_status": "UNVERIFIED_EXECUTION_TIME"}
+    assert project_required_fields(row)["現在動作"] == "禁止交易"
+    assert alert_row(row)[10] == "禁止交易"
+    row["required_fields"] = dict(project_required_fields(row), **{"現在動作": "買進"})
+    assert alert_row(row)[10] == "禁止交易"
