@@ -146,6 +146,28 @@ class ChatScanBridgeTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"UNSAFE_REQUEST_ID"):
             validate_request({"command":"Sky 當沖現在掃一次","request_id":"../../../../../tmp","read_only_no_orders":True})
 
+
+    def test_research_report_rejects_any_position_changing_action(self):
+        for action in ("買進", "加碼", "減碼", "續抱", "停損", "退出", "BUY", None):
+            with self.subTest(action=action):
+                row = {key: "待確認" for key in COLUMNS}
+                row.update({"股票代碼": "1101", "現在動作": action, "正式交易資格": False})
+                report = {"schema": "SKY_DAYTRADE_13COL_RESEARCH_V2",
+                          "rows": [row], "row_count": 1, "universe_count": 1,
+                          "production_eligible": False}
+                with self.assertRaisesRegex(ValueError, "RESEARCH_TRADE_ACTION_NOT_ALLOWED"):
+                    validate_report(report)
+
+    def test_research_report_allows_safe_observation_actions(self):
+        for action in ("觀察", "等待", "禁止交易"):
+            with self.subTest(action=action):
+                row = {key: "待確認" for key in COLUMNS}
+                row.update({"股票代碼": "1101", "現在動作": action, "正式交易資格": False})
+                report = {"schema": "SKY_DAYTRADE_13COL_RESEARCH_V2",
+                          "rows": [row], "row_count": 1, "universe_count": 1,
+                          "production_eligible": False}
+                self.assertEqual(len(validate_report(report)), 1)
+
     def test_report(self):
         row={key:"待確認" for key in COLUMNS}
         row.update({"股票代碼": "1101", "現在動作": "等待", "正式交易資格": False})
