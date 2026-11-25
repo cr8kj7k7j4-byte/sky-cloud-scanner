@@ -89,6 +89,31 @@ def test_a2_rejects_unrelated_or_fabricated_fresh_trade():
         assert result["production_eligible"] is False
 
 
+
+def test_a2_future_trade_within_legacy_clock_skew_is_rejected_by_pit():
+    """A report cannot certify a trade which occurred after its observation."""
+    whole, probe, operational = data()
+    observed = datetime.fromisoformat(probe["checked_at_tpe"])
+    # The lower-level parser historically tolerates <=30s future clock skew.
+    # This A2 acceptance gate must remain strictly causal.
+    altered = deepcopy(probe)
+    altered["rows"][0]["last_trade_time"] = (observed + timedelta(seconds=5)).isoformat()
+    assert altered["rows"][0]["status"] == "FRESH_EXECUTED_TRADE"
+    result = assess(whole, altered, operational)
+    assert result["candidate_execution_status"] == "HOLD_INVALID_LAST_TRADE_PRICE_TIME"
+    assert result["production_eligible"] is False
+    assert result["trade_action"] == "禁止交易"
+
+
+def test_a2_equal_observation_timestamp_does_not_look_ahead():
+    whole, probe, operational = data()
+    altered = deepcopy(probe)
+    altered["rows"][0]["last_trade_time"] = altered["checked_at_tpe"]
+    result = assess(whole, altered, operational)
+    assert result["candidate_execution_status"] == EXECUTION
+    assert result["production_eligible"] is False
+
+
 def test_a2_not_inferred_from_snapshot_refresh_or_last_price():
     whole, probe, operational = data()
     altered = deepcopy(probe)
