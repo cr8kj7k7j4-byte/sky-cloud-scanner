@@ -18,11 +18,13 @@ class CommandRoute:
         return asdict(self)
 
 
-# W0 #363: User-specified SKY維持率 scope (21 distinct symbols). No live runner.
+# W0 #363: 2026-11-25 verified close <= 100 TWD; user-directed removal
+# of nine >100 TWD symbols from the previous 21-symbol research watchlist.
+# Historical evidence remains in GitHub. No live runner or automatic trading.
+# Future trade eligibility STILL requires freshly verified <=100 TWD price.
 SKY_MARGIN_WATCHLIST = (
-    "4979", "8039", "2337", "8358", "3026", "3363", "3532",
-    "3211", "8021", "6683", "6217", "3362", "8045", "8043",
-    "2233", "5464", "4764", "1587", "3447", "2230", "6994",
+    "2337", "6217", "3362", "8045", "8043", "2233",
+    "5464", "4764", "1587", "3447", "2230", "6994",
 )
 SKY_MARGIN_PRESENTATION = "SKY_MOBILE_TABLE_V1_0"
 
@@ -44,7 +46,7 @@ _SHORTCUT_PATTERNS = [
         CommandRoute(
             "SKY_MARGIN_MAINTENANCE_RESEARCH", "RESEARCH_ONLY_SOURCE_UNVERIFIED",
             False, False, False, "HOLD_PROVIDER_AND_SOURCE_CONFIRMATION",
-            "User-defined 21-symbol watchlist only (not whole market). "
+            "User-defined 12-symbol <=100 TWD (2026-11-25 close) list only;  "
             "Candidate research only: financing maintenance ratio below 120%, "
             "foreign/investment-trust net buying over 50 lots, price <=100 TWD, "
             "capital <=3 billion TWD and volume >=100 lots except limit-down. "
