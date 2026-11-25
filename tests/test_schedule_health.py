@@ -20,8 +20,20 @@ class TestScheduleHealth(unittest.TestCase):
                 gate = scheduled_scan_window(
                     "schedule", datetime(2026, 11, 23, hour, minute, tzinfo=taipei))
                 self.assertTrue(gate["allowed"])
-        self.assertTrue(scheduled_scan_window(
-            "workflow_dispatch", datetime(2026, 11, 23, 18, 41, tzinfo=taipei))["allowed"])
+        for event in ("workflow_dispatch", "push"):
+            for hour, minute in ((8, 59), (13, 31), (18, 41)):
+                with self.subTest(event=event, hour=hour, minute=minute):
+                    gate = scheduled_scan_window(
+                        event, datetime(2026, 11, 23, hour, minute, tzinfo=taipei))
+                    self.assertFalse(gate["allowed"])
+                    self.assertEqual(gate["status"], "BLOCK_OUTSIDE_MANUAL_INTRADAY_WINDOW")
+            for hour, minute in ((9, 0), (10, 15), (13, 30)):
+                with self.subTest(event=event, hour=hour, minute=minute):
+                    gate = scheduled_scan_window(
+                        event, datetime(2026, 11, 23, hour, minute, tzinfo=taipei))
+                    self.assertTrue(gate["allowed"])
+        self.assertFalse(scheduled_scan_window(
+            "issue_comment", datetime(2026, 11, 23, 10, 0, tzinfo=taipei))["allowed"])
         self.assertFalse(scheduled_scan_window("schedule", datetime(2026, 11, 23, 9, 5))["allowed"])
 
     def test_scan_workflow_runs_delayed_gate_before_fugle_reservation(self):
