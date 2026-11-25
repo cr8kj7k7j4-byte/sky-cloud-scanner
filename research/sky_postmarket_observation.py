@@ -189,16 +189,16 @@ def main() -> None:
     path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     latest = summary(report)
     latest += (
-        "\\n## 盤後研究查詢有效性（不等於有效成交或有效價格）\\n"
+        "\n## 盤後研究查詢有效性（不等於有效成交或有效價格）\n"
         f"- 已完成有效查詢：{report['postmarket_valid_query_count']}/"
-        f"{report['universe_count']} 檔（研究範圍）\\n"
-        f"- 有價格觀察：{report['postmarket_valid_query_with_price_count']} 檔\\n"
+        f"{report['universe_count']} 檔（研究範圍）\n"
+        f"- 有價格觀察：{report['postmarket_valid_query_with_price_count']} 檔\n"
         f"- 回報成交量 0、無觀察價格、來源已認證："
         f"{report['postmarket_valid_query_zero_volume_no_price_count']} 檔"
-        "（有效查詢／非有效價格／禁止交易）\\n"
+        "（有效查詢／非有效價格／禁止交易）\n"
         f"- 正式全市場分母：{report.get('official_universe_count_before_research_exclusion')} 檔；"
         f"研究排除：{report.get('excluded_research_symbol_count')} 檔"
-        "（排除股不計為已完成查詢）\\n"
+        "（排除股不計為已完成查詢）\n"
     )
     (OUTPUT_DIR / "latest.md").write_text(latest, encoding="utf-8")
     receipt = {
