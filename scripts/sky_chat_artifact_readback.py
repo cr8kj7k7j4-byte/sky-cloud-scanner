@@ -55,6 +55,22 @@ def verify_download(root: Path, *, run_id: str, request_id: str,
             raise ValueError("REPORT_TRADE_GATE_VIOLATION")
     if report.get("production_eligible") is not False:
         raise ValueError("REPORT_PRODUCTION_ELIGIBLE")
+    # A mobile preview cannot be attested independently of its downloaded
+    # canonical rows: the same-run status must not inject a different stock,
+    # action or price while the full 13-column report passes validation.
+    preview = status.get("preview")
+    if preview is not None:
+        if not isinstance(preview, list) or len(preview) > 8:
+            raise ValueError("STATUS_PREVIEW_INVALID")
+        by_symbol = {str(row["股票代碼"]): row for row in rows}
+        preview_symbols = set()
+        for item in preview:
+            if not isinstance(item, dict):
+                raise ValueError("STATUS_PREVIEW_INVALID")
+            symbol = str(item.get("股票代碼") or "")
+            if symbol not in by_symbol or symbol in preview_symbols or item != by_symbol[symbol]:
+                raise ValueError("STATUS_PREVIEW_REPORT_MISMATCH")
+            preview_symbols.add(symbol)
     return {
         "schema": "SKY_CHAT_EXTERNAL_ARTIFACT_READBACK_V1",
         "status": "PASS_RESEARCH_ONLY",
