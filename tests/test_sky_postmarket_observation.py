@@ -50,14 +50,18 @@ class TestPostmarketObservation(unittest.TestCase):
         wf = Path(".github/workflows/scan.yml").read_text(encoding="utf-8")
         self.assertIn("default: intraday", wf)
         self.assertIn("- postmarket_observation", wf)
-        self.assertIn(
-            "if: (github.event_name != 'workflow_dispatch' || inputs.mode != 'postmarket_observation') &&",
-            wf,
-        )
-        self.assertIn(
-            "if: (github.event_name == 'workflow_dispatch' && inputs.mode == 'postmarket_observation') ||",
-            wf,
-        )
+        # Read the parsed YAML value: '#363' must not truncate an unquoted if condition.
+        import yaml
+        parsed = yaml.load(wf, Loader=yaml.BaseLoader)
+        intraday_if = parsed["jobs"]["scan"]["if"]
+        postmarket_if = parsed["jobs"]["postmarket"]["if"]
+        prefix = "W0 #363: request postmarket full-universe observation"
+        self.assertEqual(intraday_if.count(prefix), 1)
+        self.assertEqual(postmarket_if.count(prefix), 1)
+        self.assertIn("!startsWith(", intraday_if)
+        self.assertIn("startsWith(", postmarket_if)
+        self.assertIn("inputs.mode != 'postmarket_observation'", intraday_if)
+        self.assertIn("inputs.mode == 'postmarket_observation'", postmarket_if)
         self.assertIn("Reserve existing cross-workflow Fugle claim", wf)
         self.assertIn("SKY_PAID_ATOMIC_ENFORCE: '1'", wf)
         self.assertIn("python -m research.sky_postmarket_observation", wf)
