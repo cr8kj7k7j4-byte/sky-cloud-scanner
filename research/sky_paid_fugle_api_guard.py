@@ -158,6 +158,12 @@ def verify_uploaded_reservation(scope: str, run_id: str, now: datetime,
         raise RuntimeError("INVALID_LOCAL_CLAIM")
     if local.get("status") != "CLAIM_REQUIRED_BEFORE_PAID_API":
         raise RuntimeError("LOCAL_RESERVATION_NOT_ALLOWED")
+    # ZIP equality is not sufficient: a mutually altered local/remote receipt
+    # must never override the research-only, no-auto-order safety contract.
+    if local.get("reason") != "CLEAR":
+        raise RuntimeError("INVALID_LOCAL_CLAIM_REASON")
+    if local.get("production_eligible") is not False or local.get("automatic_order") is not False:
+        raise RuntimeError("INVALID_LOCAL_CLAIM_SAFETY_FLAGS")
     if local.get("run_id") != run_id or not run_id:
         raise RuntimeError("CLAIM_RUN_MISMATCH")
     if not isinstance(local.get("claim_nonce"), str) or len(local["claim_nonce"]) != 32:

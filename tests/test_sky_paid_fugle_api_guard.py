@@ -209,6 +209,32 @@ class FugleGuardTests(unittest.TestCase):
                     "sky:mock:same", "424242", self.now + timedelta(seconds=301),
                     local, lookup, lambda aid: dict(local))
 
+    def test_matching_local_and_remote_safety_flag_tampering_is_rejected(self):
+        """Equal ZIP and local receipts cannot override research-only safety."""
+        with TemporaryDirectory() as td:
+            _, name, claim = prepare("sky:mock:same", self.now, lambda n: [],
+                                      "424242", Path(td))
+            artifact = {"id": 91, "workflow_run": {"id": 424242}, "expired": False}
+            for changed in (
+                {"production_eligible": True},
+                {"automatic_order": True},
+                {"production_eligible": None},
+                {"automatic_order": None},
+            ):
+                with self.subTest(changed=changed):
+                    altered = dict(claim, **changed)
+                    with self.assertRaisesRegex(RuntimeError, "INVALID_LOCAL_CLAIM_SAFETY_FLAGS"):
+                        verify_uploaded_reservation(
+                            "sky:mock:same", "424242", self.now, altered,
+                            lambda candidate: [artifact] if candidate == name else [],
+                            lambda aid: dict(altered))
+            altered = dict(claim, reason="UNVERIFIED")
+            with self.assertRaisesRegex(RuntimeError, "INVALID_LOCAL_CLAIM_REASON"):
+                verify_uploaded_reservation(
+                    "sky:mock:same", "424242", self.now, altered,
+                    lambda candidate: [artifact] if candidate == name else [],
+                    lambda aid: dict(altered))
+
     def test_remote_claim_metadata_tampering_is_rejected(self):
         """A matching nonce alone must not certify altered claim safety fields."""
         with TemporaryDirectory() as td:
