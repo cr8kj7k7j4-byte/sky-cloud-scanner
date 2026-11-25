@@ -50,6 +50,8 @@ def main() -> None:
         "head_sha": None,
         "claim_ref": None,
         "status": "HOLD_UNVERIFIED_REAL_RACE",
+        "claim_request_started_at_utc": None,
+        "claim_request_finished_at_utc": None,
         "no_fugle_api_requests": True,
         "paid_calls": 0,
         "research_only": True,
@@ -78,7 +80,11 @@ def main() -> None:
             raise RuntimeError("GITHUB_TOKEN_REQUIRED")
         # REAL GitHub POST git/refs; 422 is accepted only after exact GET
         # verifies the same ref. No retries and NO Fugle HTTP calls.
-        won = try_claim(ref, sha, github_create_ref(repository, token))
+        record["claim_request_started_at_utc"] = datetime.now(timezone.utc).isoformat()
+        try:
+            won = try_claim(ref, sha, github_create_ref(repository, token))
+        finally:
+            record["claim_request_finished_at_utc"] = datetime.now(timezone.utc).isoformat()
         record["status"] = "CREATED_201_WINNER" if won else "EXISTS_422_VERIFIED_LOSER"
     except Exception as exc:
         record["error_type"] = type(exc).__name__
