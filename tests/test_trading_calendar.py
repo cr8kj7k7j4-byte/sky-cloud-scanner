@@ -131,3 +131,35 @@ def test_invalid_roc_calendar_date_cannot_verify_trading_year(monkeypatch):
     assert got["should_scan"] is False
     assert got["source_status"] == "HOLD"
     assert "TWSE_HOLIDAY_TARGET_YEAR_NOT_VERIFIED" in got["error"]
+
+
+def test_official_same_date_conflicting_open_and_closed_rows_hold(monkeypatch):
+    from src import trading_calendar
+    rows = [
+        {"Date": "1151126", "Name": "開始交易日", "Description": "開始交易"},
+        {"Date": "1151126", "Name": "補假公告", "Description": "市場無交易"},
+    ]
+    # Evidence order must not influence whether a paid claim is released.
+    for evidence in (rows, list(reversed(rows))):
+        classified = classify_date(date(2026, 11, 26), evidence)
+        assert classified["status"] == "HOLD_OFFICIAL_CALENDAR_CONFLICT"
+        assert classified["market_open"] is False
+        assert len(classified["matched"]) == 2
+        monkeypatch.setattr(trading_calendar, "fetch_calendar", lambda: evidence)
+        result = trading_calendar.check_trading_day(date(2026, 11, 26))
+        assert result["should_scan"] is False
+        assert result["market_open"] is False
+        assert result["source_status"] == "HOLD"
+        assert result["status"] == "HOLD_OFFICIAL_CALENDAR_CONFLICT"
+        assert result["fail_open"] is False
+
+
+def test_official_single_row_conflicting_markers_hold(monkeypatch):
+    from src import trading_calendar
+    monkeypatch.setattr(trading_calendar, "fetch_calendar", lambda: [
+        {"Date": "1151126", "Name": "開始交易", "Description": "補假"}
+    ])
+    result = trading_calendar.check_trading_day(date(2026, 11, 26))
+    assert result["should_scan"] is False
+    assert result["source_status"] == "HOLD"
+    assert result["status"] == "HOLD_OFFICIAL_CALENDAR_CONFLICT"
