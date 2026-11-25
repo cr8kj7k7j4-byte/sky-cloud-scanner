@@ -18,6 +18,92 @@ class CommandRoute:
         return asdict(self)
 
 
+# W0 #363: Conversation aliases are classified here, not GitHub dispatch hooks.
+# Never imply that a matching name has passed live E2E or that a new
+# margin-maintenance data provider/runner is authorized.
+_SHORTCUT_PATTERNS = [
+    (
+        re.compile(r"^Sky\s*維持率$", re.I),
+        CommandRoute(
+            "SKY_MARGIN_MAINTENANCE_RESEARCH", "RESEARCH_ONLY_SOURCE_UNVERIFIED",
+            False, True, False, "HOLD_PROVIDER_AND_SOURCE_CONFIRMATION",
+            "Candidate research only: financing maintenance ratio below 120%, "
+            "foreign/investment-trust net buying over 50 lots, price <=100 TWD, "
+            "capital <=3 billion TWD and volume >=100 lots except limit-down. "
+            "Requires independently verified ratio, institutional flows, volume, "
+            "universe/date, and authorized Fugle price confirmation. No live "
+            "GitHub command runner or buy eligibility has been certified."
+        ),
+    ),
+    (
+        re.compile(r"^Sky\s*當沖$", re.I),
+        CommandRoute(
+            "SKY_DAYTRADE_SCAN", "WHOLE_MARKET_REALTIME", True, True, False,
+            "src.main (existing scanner; trigger not implied)",
+            "Conversation alias only. Enforce A1/A2, actual executed-trade "
+            "timestamps and P0-R; E2E not yet certified."
+        ),
+    ),
+    (
+        re.compile(r"^Sky\s*波段$", re.I),
+        CommandRoute(
+            "SKY_SWING_V10_LIVE_OBSERVATION",
+            "WHOLE_MARKET_REALTIME_RESEARCH_ONLY", True, True, False,
+            ".github/workflows/swing-live-scan.yml --mode swing (existing observation)",
+            "Conversation alias only. Swing V1.0 rule executable remains BLOCKED; "
+            "Swing V1.1 is Research; no verified entry authorization."
+        ),
+    ),
+    (
+        re.compile(r"^Sky\s*盤中掃描$", re.I),
+        CommandRoute(
+            "SKY_DAYTRADE_SCAN", "WHOLE_MARKET_REALTIME", True, True, False,
+            ".github/workflows/scan.yml (existing governed scanner)",
+            "Conversation alias only; schedule/dispatch and live evidence "
+            "require independent verification. No automatic orders."
+        ),
+    ),
+    (
+        re.compile(r"^Sky\s*盤後分析$", re.I),
+        CommandRoute(
+            "SKY_POSTMARKET_RESEARCH", "POSTMARKET_OBSERVATION_ONLY",
+            False, True, False,
+            ".github/workflows/scan.yml --mode postmarket_observation",
+            "Requires verified official close/date, authorized source coverage "
+            "and same-run Artifact; no intraday trade timestamp or buy signal."
+        ),
+    ),
+    (
+        re.compile(r"^Sky\s*系統狀態$", re.I),
+        CommandRoute(
+            "SKY_UNIFIED_SYSTEM_HEALTH", "OPERATIONAL_EVIDENCE",
+            False, False, False,
+            "sky-unified-commands.yml: system_health (existing mode)",
+            "Conversation alias only. Read actual Run/SHA/Artifact; unknown "
+            "checks stay UNKNOWN. This is not an Actions trigger."
+        ),
+    ),
+    (
+        re.compile(r"^Sky\s*工程修復$", re.I),
+        CommandRoute(
+            "SKY_W0_ENGINEERING_REVIEW", "W0_GOVERNED_REPAIR",
+            False, False, False, "GitHub issue #363 W0 only",
+            "Conversation request, NOT a GitHub workflow command. W0 must "
+            "recheck current main, PRs and ownership before any writes."
+        ),
+    ),
+    (
+        re.compile(r"^Sky\s*正式驗收$", re.I),
+        CommandRoute(
+            "SKY_SEVEN_LAYER_ACCEPTANCE", "EVIDENCE_REVIEW_ONLY",
+            False, False, False, "GitHub issue #363 W4 evidence / W0 decision",
+            "Conversation alias only. Verify seven gates separately; "
+            "CI PASS is not live E2E, strategy validation or Production approval."
+        ),
+    ),
+]
+
+
 _PATTERNS = [
     (
         re.compile(r"^Sky\s*(?:全市場即時行情|全市場即時行情檢查)$", re.I),
@@ -188,7 +274,7 @@ _PATTERNS = [
 
 def route_command(command: str) -> CommandRoute:
     normalized = " ".join((command or "").strip().split())
-    for pattern, route in _PATTERNS:
+    for pattern, route in _SHORTCUT_PATTERNS + _PATTERNS:
         if pattern.match(normalized):
             return route
 
