@@ -100,6 +100,20 @@ class ArtifactReadbackTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "REPORT_MISSING_13_COLUMNS"):
             self.check(lambda status, report: report["rows"][0].pop("停利價格"))
 
+
+    def test_all_trade_actions_rejected_in_independent_readback(self):
+        for action in ("買進", "加碼", "減碼", "續抱", "停損", "退出", "BUY", None):
+            with self.subTest(action=action):
+                with self.assertRaisesRegex(ValueError, "REPORT_TRADE_GATE_VIOLATION"):
+                    self.check(lambda status, report: report["rows"][0].update(現在動作=action))
+
+    def test_safe_actions_preserve_research_only_readback(self):
+        for action in ("觀察", "等待", "禁止交易"):
+            with self.subTest(action=action):
+                receipt = self.check(lambda status, report: report["rows"][0].update(現在動作=action))
+                self.assertEqual(receipt["status"], "PASS_RESEARCH_ONLY")
+                self.assertEqual(receipt["trade_action"], "禁止交易")
+
     def test_buy_action_rejected(self):
         with self.assertRaisesRegex(ValueError, "REPORT_TRADE_GATE_VIOLATION"):
             self.check(lambda status, report: report["rows"][0].update(現在動作="買進"))
