@@ -109,7 +109,13 @@ def fetch_calendar(timeout: float=10.0) -> list[dict]:
     payload=r.json()
     if not isinstance(payload,list):
         raise ValueError("TWSE holiday payload is not a list")
-    return [dict(x) for x in payload if isinstance(x,dict)]
+    # A successful HTTP status is not evidence if the official payload is
+    # empty or contains no usable schedule records.  Never certify a weekday
+    # from an unverified empty response.
+    rows = [dict(x) for x in payload if isinstance(x,dict)]
+    if not rows:
+        raise ValueError("TWSE_HOLIDAY_EMPTY_OR_INVALID_PAYLOAD")
+    return rows
 
 
 def check_trading_day(target: date | None=None) -> dict:
