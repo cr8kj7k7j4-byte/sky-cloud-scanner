@@ -69,6 +69,23 @@ def test_bulk_snapshot_without_last_trade_clock_cannot_count_as_live():
     assert result["valid_quote_count"] == 0
 
 
+def test_invalid_fugle_snapshot_prices_cannot_inflate_a1_or_execution_coverage():
+    for invalid in (float("nan"), float("inf"), float("-inf"),
+                    "NaN", "Infinity", "1e309", True):
+        payload = {
+            "symbol": "1001",
+            "quote_source": "Fugle bulk snapshot",
+            "last": invalid,
+            "quote_date": NOW.date().isoformat(),
+            "last_trade_timestamp": int(NOW.timestamp() * 1_000_000),
+            "isTrial": False,
+        }
+        result = validate_whole_market_rows(universe(), [payload], NOW)
+        assert result["snapshot_reference_count"] == 0
+        assert result["valid_quote_count"] == 0
+        assert result["valid_whole_market_operational"] is False
+
+
 def test_bulk_snapshot_with_actual_trade_clock_is_eligible():
     payload = {
         "symbol": "1001", "quote_source": "Fugle bulk snapshot",
