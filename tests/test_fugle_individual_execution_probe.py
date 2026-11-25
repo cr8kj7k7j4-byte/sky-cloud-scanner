@@ -40,6 +40,25 @@ class TestFugleIndividualProbe(unittest.TestCase):
         self.assertFalse(report["full_market_executed_certified"])
         self.assertFalse(report["production_eligible"])
 
+    def test_nonfinite_or_boolean_paid_last_trade_is_rejected(self):
+        """A current timestamp cannot make NaN, Inf or bool an executed price."""
+        from src.realtime_quote_evidence import fugle_executed_trade
+        now = datetime(2026, 11, 9, 10, 0, tzinfo=TPE)
+        timestamp = int(now.timestamp() * 1000)
+        for bad in (float("nan"), float("inf"), float("-inf"),
+                    "NaN", "Infinity", "1e309", True, False):
+            with self.subTest(price=repr(bad)):
+                quote = {"symbol": "1002", "market": "TSE",
+                         "date": now.date().isoformat(),
+                         "lastTrade": {"time": timestamp, "price": bad}}
+                price, _, status = fugle_executed_trade(quote, now=now)
+                self.assertIsNone(price)
+                self.assertEqual(status, "MISSING_EXECUTED_LAST_PRICE")
+                report = verify_samples(source(), now=now,
+                                        quote_fetch=lambda _: quote)
+                self.assertEqual(report["verified_fresh_executed_count"], 0)
+                self.assertFalse(report["production_eligible"])
+
     def test_close_time_is_not_last_trade(self):
         now = datetime(2026, 11, 9, 10, 0, tzinfo=TPE)
         def fake(symbol):
