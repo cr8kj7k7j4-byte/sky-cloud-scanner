@@ -105,3 +105,29 @@ def test_official_calendar_invalid_rows_block_paid_scan(monkeypatch):
     assert result["should_scan"] is False
     assert result["source_status"] == "HOLD"
     assert "TWSE_HOLIDAY_EMPTY_OR_INVALID_PAYLOAD" in result["error"]
+
+
+def test_stale_official_calendar_year_never_certifies_target_day(monkeypatch):
+    from src import trading_calendar
+    monkeypatch.setattr(trading_calendar, "fetch_calendar", lambda: [
+        {"Date": "1141026", "Name": "prior year closure", "Description": "補假。"}
+    ])
+    got = trading_calendar.check_trading_day(date(2026, 11, 26))
+    assert got["source_status"] == "HOLD"
+    assert got["status"] == "HOLD_OFFICIAL_CALENDAR_UNAVAILABLE"
+    assert got["should_scan"] is False
+    assert got["fail_open"] is False
+    assert "TWSE_HOLIDAY_TARGET_YEAR_NOT_VERIFIED" in got["error"]
+
+
+def test_invalid_roc_calendar_date_cannot_verify_trading_year(monkeypatch):
+    from src import trading_calendar
+    assert _roc_to_iso("1150231") is None
+    assert _roc_to_iso("1151330") is None
+    monkeypatch.setattr(trading_calendar, "fetch_calendar", lambda: [
+        {"Date": "1150231", "Name": "impossible day"}
+    ])
+    got = trading_calendar.check_trading_day(date(2026, 11, 26))
+    assert got["should_scan"] is False
+    assert got["source_status"] == "HOLD"
+    assert "TWSE_HOLIDAY_TARGET_YEAR_NOT_VERIFIED" in got["error"]
