@@ -335,7 +335,7 @@ def alert_row(row):
         fields.get("買進觸發") or "待確認",
         fields.get("最高接受價") or "待確認",
         fields.get("停損／失效") or "待確認",
-        "等待",
+        "禁止交易",
         fields.get("加碼價格") or "待確認",
         fields.get("停利價格") or "待確認",
     ]
