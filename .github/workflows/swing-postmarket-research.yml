@@ -6,6 +6,8 @@ on:
       - ".github/workflows/swing-postmarket-research.yml"
       - "src/sky_swing_historical_reader.py"
       - "tests/test_swing_postmarket_review.py"
+      - "src/sky_swing_zip_provenance.py"
+      - "tests/test_sky_swing_zip_provenance.py"
   # PAUSED on 2026-11-10 by user request: formerly scheduled trigger.
   # schedule:
   # - cron: "0 16 * * 1-5"
@@ -84,6 +86,7 @@ jobs:
         if: always()
         run: |
           python -m unittest discover -s tests -p 'test_swing_postmarket_review.py'
+          python -m unittest discover -s tests -p 'test_sky_swing_zip_provenance.py'
           python -m unittest discover -s tests -p 'test_swing_postmarket_command_route.py'
       - name: Preserve calendar and scan evidence
         if: always() && github.event_name != 'pull_request'
