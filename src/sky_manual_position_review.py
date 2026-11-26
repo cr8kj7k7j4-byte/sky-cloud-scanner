@@ -203,8 +203,9 @@ def review_manual_positions(
             )
         rows.append({
             "股票": symbol, "現價": price, "方向": "既有持股（多方）",
-            "多方評分": None, "空方評分": None, "買進觸發": None,
-            "最高接受價": None, "停損／失效": stop,
+            "多方評分": None, "空方評分": None,
+            "買進觸發": "不適用（既有持股）",
+            "最高接受價": "不適用（既有持股）", "停損／失效": stop,
             "分類": "X" if breached else "HOLD",
             "現在動作": "停損" if breached else "等待",
             "欄位缺失原因": field_reasons,
