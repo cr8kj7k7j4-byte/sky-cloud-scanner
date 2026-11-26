@@ -199,3 +199,18 @@ def test_outcome_and_ledger_are_reproducible():
     assert ledger["net_pnl"] < ledger["gross_pnl"]
     assert ledger["r_multiple"] is not None
     assert ledger["holding_minutes"] == 30.0
+
+
+def test_margin_command_observation_contract_stays_fail_closed():
+    """Exercise margin route in the existing Exact-SHA acceptance Workflow."""
+    from src.sky_command_router import route_command, watchlist_for_command
+
+    route = route_command("SKY維持率")
+    assert route.command_family == "SKY_MARGIN_MAINTENANCE_RESEARCH"
+    assert route.data_mode == "RESEARCH_ONLY_ESTIMATE_DISCLOSED"
+    assert route.whole_market_required is True
+    assert route.execution_target == "HOLD_MARGIN_RUNNER_NOT_VERIFIED"
+    assert "P0-R" in route.notes and "No live margin runner" in route.notes
+    symbols = watchlist_for_command("SKY維持率")
+    assert len(symbols) == len(set(symbols)) == 16
+    assert {"3040", "6558", "3207", "3322"} <= set(symbols)
