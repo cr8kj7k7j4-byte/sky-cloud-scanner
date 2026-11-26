@@ -98,3 +98,25 @@ def test_existing_uncaptured_source_cannot_be_claimed_missing(tmp_path):
     (tmp_path / "output/absent.json").write_text("unexpected", encoding="utf-8")
     with pytest.raises(ValueError, match="SOURCE_MISSING_STATUS_MISMATCH"):
         check(tmp_path)
+
+
+def test_all_sources_missing_rejected_instead_of_success(tmp_path):
+    source, path, inv = fixture(tmp_path)
+    source.unlink()
+    inv["source_inventory"]["snapshot"] = {
+        "path": "output/latest.json",
+        "status": "HOLD_SOURCE_NOT_CAPTURED",
+        "raw_provider_source_certified": False,
+    }
+    path.write_text(json.dumps(inv), encoding="utf-8")
+    with pytest.raises(ValueError, match="NO_SOURCE_BYTES_VERIFIED"):
+        check(tmp_path)
+
+
+def test_empty_file_is_still_verifiable_bytes(tmp_path):
+    source, path, inv = fixture(tmp_path)
+    source.write_bytes(b"")
+    inv["source_inventory"]["snapshot"]["byte_count"] = 0
+    inv["source_inventory"]["snapshot"]["sha256"] = hashlib.sha256(b"").hexdigest()
+    path.write_text(json.dumps(inv), encoding="utf-8")
+    assert check(tmp_path)["verified_file_count"] == 1
