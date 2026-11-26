@@ -7,6 +7,34 @@ def test_sky_minimal_single_stock_command_requires_certified_quote():
     assert route.realtime_required is True
     assert route.symbol_required is True
     assert "HOLD/NO_TRADE" in route.notes
+    assert route.data_mode == "SESSION_ADAPTIVE_SINGLE_STOCK_RESEARCH"
+    assert "sky_daytrade_session_policy" in route.execution_target
+    assert "verified complete-session historical" in route.execution_target
+
+
+def test_single_stock_3717_off_hours_requires_historical_source_and_no_dispatch():
+    route = route_command("Sky 分析 3717")
+    assert route.command_family == "SKY_SINGLE_STOCK_UPDATE"
+    assert route.symbol_required and not route.whole_market_required
+    assert route.data_mode == "SESSION_ADAPTIVE_SINGLE_STOCK_RESEARCH"
+    assert "same-run SHA/Artifact/Digest" in route.notes
+    assert "no automatic dispatch" in route.execution_target
+    assert "Private broker holdings" in route.notes
+    assert "HOLD/NO_TRADE" in route.notes
+    assert presentation_for_command("Sky 分析 3717") == "SKY_MOBILE_TABLE_V1_0"
+
+
+def test_live_single_stock_updates_remain_realtime_and_independent():
+    route = route_command("Sky 波段更新 3717")
+    assert route.data_mode == "SINGLE_STOCK_REALTIME"
+    assert route.realtime_required
+    assert "Fugle" in route.execution_target
+
+
+def test_unverified_single_stock_cannot_fall_back_to_public_history():
+    route = route_command("Sky 分析 3717")
+    assert "No stale quote becomes current" in route.notes
+    assert "Missing evidence stays HOLD/NO_TRADE" in route.notes
 
 
 def test_sky_minimal_position_review_never_assumes_broker_holdings():

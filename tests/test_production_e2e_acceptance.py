@@ -240,6 +240,18 @@ def test_margin_a2_saved_quote_bridge_no_network_contract():
     assert result.wasSuccessful(), "MARGIN_A2_BRIDGE_TESTS_FAILED"
 
 
+def test_margin_source_join_eight_cases_in_existing_acceptance():
+    """Exercise the real multi-source integration logic in existing PR CI."""
+    import io
+    import unittest
+    suite = unittest.defaultTestLoader.loadTestsFromName(
+        "tests.test_sky_margin_source_join.MarginSourceJoinTests"
+    )
+    result = unittest.TextTestRunner(stream=io.StringIO(), verbosity=2).run(suite)
+    assert result.testsRun == 8, "MARGIN_JOIN_TEST_DISCOVERY_INCOMPLETE"
+    assert result.wasSuccessful(), "MARGIN_JOIN_TESTS_FAILED"
+
+
 def test_daytrade_cross_session_historical_readback_regression_in_acceptance():
     """Existing Exact-SHA acceptance CI runs complete historical source/capture tests."""
     import unittest
