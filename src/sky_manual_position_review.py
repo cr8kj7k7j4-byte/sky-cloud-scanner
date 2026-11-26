@@ -17,8 +17,8 @@ from .risk_engine import RiskPolicy
 TPE = timezone(timedelta(hours=8))
 POSITION_LINE = re.compile(
     r"^(?P<symbol>\d{4,6})\s+"
-    r"(?P<quantity>\d+(?:,\d{3})*)(?P<unit>股|張)\s+"
-    r"(?:成本|均價)\s*(?P<cost>\d+(?:\.\d+)?)"
+    r"(?P<quantity>\d+(?:,\d{3})*)\s*(?P<unit>股|張)\s+"
+    r"(?:平均成本|成本|均價)\s*(?P<cost>\d+(?:\.\d+)?)"
     r"(?:\s+停損\s*(?P<stop>\d+(?:\.\d+)?))?\s*$"
 )
 ACCOUNT_FIELDS = (
