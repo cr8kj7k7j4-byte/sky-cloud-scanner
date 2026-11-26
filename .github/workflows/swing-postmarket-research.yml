@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - ".github/workflows/swing-postmarket-research.yml"
+      - "src/sky_swing_historical_reader.py"
+      - "tests/test_swing_postmarket_review.py"
   # PAUSED on 2026-11-10 by user request: formerly scheduled trigger.
   # schedule:
   # - cron: "0 16 * * 1-5"
