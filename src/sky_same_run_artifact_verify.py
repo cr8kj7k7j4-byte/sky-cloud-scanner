@@ -87,6 +87,10 @@ def verify_downloaded_inventory(
         if entry.get("byte_count") != len(raw):
             raise ValueError("SOURCE_SIZE_MISMATCH")
         checked += 1
+    # A manifest with only missing sources has validated zero file bytes.
+    # Never label that as a successful same-run integrity readback.
+    if checked == 0:
+        raise ValueError("NO_SOURCE_BYTES_VERIFIED")
     return {
         "status": "SAME_RUN_BYTES_VERIFIED_RESEARCH_ONLY",
         "run_id": expected_run_id,
