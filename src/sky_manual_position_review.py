@@ -182,6 +182,7 @@ def review_manual_positions(
                 (field == "account_equity" and number <= 0)):
             invalid.append(field)
     rows = []
+    broker = parsed.get("broker_evidence", {})
     reasons = list(parsed["errors"])
     if missing:
         reasons.append("HOLD_MISSING_ACCOUNT_CONTEXT")
@@ -207,6 +208,17 @@ def review_manual_positions(
         shares = position["shares"]
         cost = position["average_cost"]
         stop = position["stop"]
+        trade_type = position["trade_type"]
+        # Broker evidence and loan variables are independent from the P0-R
+        # account inputs and from Fugle A2. Never infer financing cash or debt.
+        if trade_type == "MARGIN_FINANCING":
+            for key, reason in (
+                ("margin_loan_balance", "HOLD_MARGIN_LOAN_BALANCE_"),
+                ("margin_own_cash", "HOLD_MARGIN_OWN_CASH_"),
+                ("margin_maintenance_ratio_pct", "HOLD_MARGIN_MAINTENANCE_RATIO_"),
+            ):
+                if broker.get(key) is None:
+                    reasons.append(reason + symbol)
         price, trade_time = _verified_quote(quotes.get(symbol), symbol, now)
         if price is None:
             reasons.append("HOLD_A2_EXECUTED_TRADE_" + symbol)
@@ -222,6 +234,18 @@ def review_manual_positions(
         else:
             risk_sum += remaining_risk
         breached = price is not None and stop is not None and price <= stop
+        # Screenshot is a manual, undated observation. Its arithmetic is NOT
+        # the verified current quote, financing account return, or net P&L.
+        screenshot_price = broker.get("screenshot_price") if len(parsed["positions"]) == 1 else None
+        screenshot_gross = (
+            round((screenshot_price - cost) * shares, 2)
+            if screenshot_price is not None else None
+        )
+        broker_pnl = broker.get("broker_estimated_pnl") if len(parsed["positions"]) == 1 else None
+        screenshot_to_broker_gap = (
+            round(screenshot_gross - broker_pnl, 2)
+            if screenshot_gross is not None and broker_pnl is not None else None
+        )
         # Explain each unavailable cell without inventing a score, entry or exit.
         field_reasons = {
             "多方評分": "未執行符合條件的正式多方模型；持股損益不依賴新進場評分",
@@ -255,7 +279,23 @@ def review_manual_positions(
             "買進觸發說明": "不適用（既有持股）",
             "最高接受價說明": "不適用（既有持股）",
             "目標價": None, "成本後RR": None,
-            "股數": shares, "平均成本": cost, "未實現毛損益": gross_pnl,
+            "交易方式": trade_type, "股數": shares, "平均成本": cost,
+            "股票原始成交總額": round(cost * shares, 2),
+            "融資自備款": (broker.get("margin_own_cash") if trade_type == "MARGIN_FINANCING" else None),
+            "融資餘額": (broker.get("margin_loan_balance") if trade_type == "MARGIN_FINANCING" else None),
+            "融資維持率%": (broker.get("margin_maintenance_ratio_pct") if trade_type == "MARGIN_FINANCING" else None),
+            "券商截圖市價（未認證）": screenshot_price,
+            "截圖價差毛損益（未扣費）": screenshot_gross,
+            "券商預估損益（原值）": broker_pnl,
+            "券商預估報酬率%（原值）": (
+                broker.get("broker_estimated_return_pct") if len(parsed["positions"]) == 1 else None
+            ),
+            "截圖毛損益減券商預估損益（差額原因未認證）": screenshot_to_broker_gap,
+            "券商截圖行情狀態": (
+                "USER_PROVIDED_UNDATED_REFERENCE_NOT_A2"
+                if screenshot_price is not None else "MISSING_SCREENSHOT_REFERENCE"
+            ),
+            "未實現毛損益": gross_pnl,
             "未實現毛報酬率%": pnl_pct, "目前價至停損風險": remaining_risk,
             "來源成交時間Asia/Taipei": trade_time,
             "費稅後淨損益": None,
@@ -263,6 +303,19 @@ def review_manual_positions(
             "減碼條件": "風險或集中度超出限制時人工評估減碼",
             "退出條件": "有效成交價觸及或跌破已知停損",
         })
+        if trade_type == "MARGIN_FINANCING":
+            if broker.get("margin_loan_balance") is None:
+                field_reasons["融資餘額"] = "缺券商實際融資借款餘額，不能從成交總額反推"
+            if broker.get("margin_own_cash") is None:
+                field_reasons["融資自備款"] = "缺券商實際自備款，不以券商報酬率倒推"
+            if broker.get("margin_maintenance_ratio_pct") is None:
+                field_reasons["融資維持率%"] = "缺券商實際維持率／抵押品價值，不能用股價自行估算"
+            field_reasons["券商預估報酬率%（原值）"] = (
+                "融資報酬率分母及券商費用口徑未獨立認證；原值僅供對帳"
+            )
+            field_reasons["費稅後淨損益"] = (
+                "融資費率、利息、實際融資餘額與券商估價口徑尚未完整認證"
+            )
         if remaining_risk is not None and remaining_risk > single_risk_limit:
             reasons.append("SINGLE_POSITION_RISK_EXCEEDED_" + symbol)
         if cost * shares > position_cost_limit:
@@ -287,6 +340,8 @@ def review_manual_positions(
             field: "未提供真實帳戶資料（不得視為零）" for field in missing
         } | {field: "數值無效或不符合 P0-R 欄位規格" for field in invalid},
         "risk_total_twd": round(risk_sum, 2) if full_risk and rows else None,
+        "broker_evidence_status": "USER_ENTERED_SCREENSHOT_UNVERIFIED",
+        "broker_evidence": broker,
         "risk_certified": False, "new_entry_allowed": False,
         "p0r_policy": "EXISTING_RISK_POLICY_CLAMPED_TO_USER_CAPS",
         "portfolio_allowed": False, "reasons": list(dict.fromkeys(reasons)),
