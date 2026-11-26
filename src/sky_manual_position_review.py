@@ -50,6 +50,8 @@ def parse_manual_positions(message: str) -> dict:
     lines = [line.strip() for line in message.splitlines() if line.strip()]
     if lines and lines[0] == "Sky 持股檢查":
         lines.pop(0)
+    elif lines and lines[0].startswith("Sky 持股檢查 "):
+        lines[0] = lines[0][len("Sky 持股檢查 "):].strip()
     errors = []
     positions = []
     seen = set()
@@ -84,11 +86,15 @@ def _verified_quote(quote: Any, symbol: str, now: datetime) -> tuple[float | Non
     """Never treat snapshot capture/lastUpdated as a real last executed trade."""
     if not isinstance(quote, dict) or quote.get("symbol") != symbol:
         return None, None
+    # A live holding may cost >100 TWD or be ineligible for *new* daytrade.
+    # The collector exposes separate actual lastTrade.price observation evidence.
     if (quote.get("source") != "Fugle MarketData API /intraday/quote"
-            or quote.get("executed_trade_verified") is not True
-            or quote.get("status") != "REALTIME_QUOTE_VERIFIED"):
+            or quote.get("position_trade_observed") is not True
+            or quote.get("status") not in (
+                "REALTIME_QUOTE_VERIFIED", "PRICE_CAP_EXCEEDED",
+                "DAY_TRADE_NOT_ELIGIBLE", "DISPOSITION_NO_NEW_ENTRY")):
         return None, None
-    price = _number(quote.get("last_price"))
+    price = _number(quote.get("last_trade_price"))
     when = quote.get("last_trade_tpe")
     if price is None or price <= 0 or not isinstance(when, str):
         return None, None
