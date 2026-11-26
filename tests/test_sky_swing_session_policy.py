@@ -41,6 +41,16 @@ class SwingSessionPolicyTests(unittest.TestCase):
         self.assertFalse(report["historical_artifact_verified"])
         self.assertEqual(report["status"], "HOLD_EVIDENCE")
 
+    def test_command_is_always_accepted_without_claiming_data_available(self):
+        for hour in (4, 9, 12, 14, 23):
+            for trading_day in (True, False, None):
+                report = swing_session_policy(self.at(hour), trading_day_verified=trading_day)
+                self.assertTrue(report["command_accepted"])
+                self.assertEqual(report["command_availability"], "ALL_SESSIONS")
+                self.assertFalse(report["report_available"])
+                self.assertEqual(report["status"], "HOLD_EVIDENCE")
+                self.assertFalse(report["new_entry_authorized"])
+
     def test_swing_quick_scan_retains_existing_scanner_without_dispatch(self):
         route = route_command("Sky 波段快掃")
         self.assertEqual(route.data_mode, "SESSION_ADAPTIVE_SWING_RESEARCH")
