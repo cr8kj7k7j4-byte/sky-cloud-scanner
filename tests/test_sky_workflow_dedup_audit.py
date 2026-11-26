@@ -21,7 +21,7 @@ class WorkflowDedupAuditTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name)
-        (self.root / "scan.yml").write_text(workflow("scan.yml", SCAN_CRONS, main=True), encoding="utf-8")
+        (self.root / "scan.yml").write_text(workflow("scan.yml", main=True), encoding="utf-8")
 
     def tearDown(self):
         self.temp.cleanup()
@@ -29,7 +29,16 @@ class WorkflowDedupAuditTests(unittest.TestCase):
     def test_canonical_scan_is_accepted(self):
         result = audit(self.root)
         self.assertEqual(result["failures"], [])
-        self.assertEqual(result["scheduled_workflows"], 1)
+        self.assertEqual(result["scheduled_workflows"], 0)
+
+    def test_reactivating_retired_canonical_cron_is_rejected(self):
+        (self.root / "scan.yml").write_text(
+            workflow("scan.yml", SCAN_CRONS, main=True), encoding="utf-8"
+        )
+        self.assertIn(
+            "RETIRED_CANONICAL_SCAN_SCHEDULE_REACTIVATED",
+            audit(self.root)["failures"],
+        )
 
     def test_no_false_schedule_from_comment(self):
         path = self.root / "other.yml"

@@ -318,18 +318,16 @@ class PaidWorkflowWiringRegressionTests(unittest.TestCase):
                 self.assertIn("path: output/fugle_api_guard/claim.json", content)
                 self.assertLess(content.index("id: guard"), content.index("id: verify_claim"))
 
-    def test_scan_has_only_the_five_canonical_weekday_slots(self):
-        # W0 restored the official five scheduled research scans on 11/22.
-        # Forbid any extra or duplicated cron entries.
-        import re
+    def test_scan_formal_cron_is_retired_but_manual_path_remains(self):
+        # W0 #363 user decision on 2026-11-26: no formal timed scans.
+        # Guard against accidental cron reactivation while preserving
+        # manual dispatch, paid Claim verification and fail-closed safety.
         content = Path(self.WORKFLOWS[0]).read_text(encoding="utf-8")
-        self.assertEqual(content.count("\n  schedule:\n"), 1)
         header = content.split("\npermissions:\n", 1)[0]
-        self.assertIn("\n  schedule:\n", header)
-        schedules = header.split("\n  schedule:\n", 1)[1]
-        crons = re.findall(r'^\s+- cron:\s*"([^"]+)"\s*$', schedules, re.MULTILINE)
-        self.assertEqual(crons, ["5,15,30,50 1 * * 1-5", "15 2 * * 1-5"])
-        self.assertEqual(len(crons), len(set(crons)))
+        self.assertNotIn("\n  schedule:\n", header)
+        self.assertNotIn("- cron:", header)
+        self.assertIn("\n  workflow_dispatch:", header)
+        self.assertIn("\n  push:", header)
 
 
 if __name__ == "__main__":
