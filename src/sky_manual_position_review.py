@@ -191,7 +191,7 @@ def review_manual_positions(
         }
         if price is None:
             field_reasons["現價"] = (
-                "缺同股 Fugle Individual Quote 真實 lastTrade.price/time、"
+                "缺同股 Fugle A2 Individual Quote 真實 lastTrade.price/time、"
                 "交易日或120秒內成交認證；參考價/快照不可代替"
             )
             field_reasons["未實現毛損益"] = "缺已認證成交價；不以收盤/快照價計算"
