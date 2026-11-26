@@ -301,3 +301,20 @@ def test_reject_finance_metadata_without_finance_symbol_and_bad_roi_unit():
     assert "INVALID_POSITION_LINE" in parse_manual_positions(
         "3717 融資 1000股 成本17.4\n未知欄位 1234"
     )["errors"]
+
+
+def test_3717_existing_review_to_mobile_adapter_keeps_not_applicable_and_no_trade():
+    """Reuse existing anonymized regression fixture, not a provider or phone run."""
+    from src.sky_mobile_table import render_manual_position_report
+
+    report = render_manual_position_report(MARGIN_3717, now=NOW)
+    row = report["rows"][0]
+    assert row["買進觸發"] == "不適用（既有持股）"
+    assert row["最高接受價"] == "不適用（既有持股）"
+    assert row["停損／失效"] == "未設定（缺使用者停損）"
+    assert row["現價"] == "—"
+    assert "A2" in row["欄位缺失原因"]["現價"]
+    assert report["status"] == "HOLD"
+    assert report["action"] == "禁止交易"
+    assert report["source_review"]["rows"][0]["成本後RR"] is None
+    assert report["mobile_e2e_verified"] is False
