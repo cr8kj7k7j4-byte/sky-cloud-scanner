@@ -198,9 +198,14 @@ _PATTERNS = [
     (
         re.compile(r"^Sky\s*當沖(?:現在掃一次|快掃)$", re.I),
         CommandRoute(
-            "SKY_DAYTRADE_SCAN", "WHOLE_MARKET_REALTIME", True, True, False,
-            "src.main",
-            "Canonical intraday whole-market scanner."
+            "SKY_DAYTRADE_SCAN", "SESSION_ADAPTIVE_DAYTRADE_RESEARCH", True, True, False,
+            "src.sky_daytrade_session_policy.daytrade_session_policy (selection only); "
+            "src.main (existing governed live scanner)",
+            "One command for premarket, intraday, postmarket and non-trading-day "
+            "research. Trading day and latest complete session require verified "
+            "source evidence; outside live session read only historical artifact. "
+            "Intraday entry still requires Fugle A1/A2, strategy, cost and P0-R. "
+            "This route does not dispatch GitHub or certify mobile E2E."
         ),
     ),
     (
@@ -222,9 +227,14 @@ _PATTERNS = [
     (
         re.compile(r"^Sky\s*波段快掃$", re.I),
         CommandRoute(
-            "SKY_SWING_SCAN", "WHOLE_MARKET_REALTIME", True, True, False,
-            "src.swing_live_scanner --mode swing",
-            "Broad swing candidate generation only; not an executable V1.1 entry decision."
+            "SKY_SWING_SCAN", "SESSION_ADAPTIVE_SWING_RESEARCH", True, True, False,
+            "src.sky_swing_session_policy.swing_session_policy (selection only); "
+            "src.swing_live_scanner --mode swing (existing guarded live scan)",
+            "Premarket/postmarket/nontrading periods may use only separately verified "
+            "complete-session historical evidence, never a fabricated live price. "
+            "Existing live Workflow requires independently validated calendar, paid "
+            "Claim and Fugle evidence. Swing V1.0 executable rule remains BLOCKED; "
+            "V1.1 is Research. No dispatch, entry authorization or automatic orders."
         ),
     ),
     (
