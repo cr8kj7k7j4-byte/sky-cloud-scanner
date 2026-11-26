@@ -90,7 +90,7 @@ class TestSky13Col(unittest.TestCase):
         row = projection(item, plan)
         self.assertIn("32.00", row["買進觸發"])
         self.assertIn("31.00", row["停損／失效"])
-        self.assertEqual(row["加碼價格"], "不適用（未授權加碼）")
+        self.assertEqual(row["加碼價格"], "待確認")
         self.assertEqual(row["現在動作"], "等待")
         self.assertEqual(projection(item)["買進觸發"], "待確認（缺同次策略計畫）")
 
