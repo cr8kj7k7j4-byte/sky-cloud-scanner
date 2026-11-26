@@ -312,7 +312,7 @@ def render_manual_position_report(
     display = [header, separator]
     for row in rows:
         display.append("| " + " | ".join(
-            str(row[c]).replace("|", "／").replace("\\n", " ") for c in COLUMNS
+            str(row[c]).replace("|", "／").replace("\n", " ") for c in COLUMNS
         ) + " |")
     if not rows:
         display.append("| 缺合格持股輸入 | — | — | — | — | — | — | — | HOLD | 等待 |")
@@ -326,7 +326,7 @@ def render_manual_position_report(
         "status": reviewed["status"],
         "action": reviewed["action"],
         "rows": rows,
-        "markdown": "\\n".join(display),
+        "markdown": "\n".join(display),
         "source_review": reviewed,
         "live_a2_certified": all(row.get("現價") != "—" for row in rows) and bool(rows),
         "new_entry_allowed": False,
