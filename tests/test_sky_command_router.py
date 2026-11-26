@@ -118,7 +118,7 @@ def test_swing_quick_scan_alias_is_exact_owner_only_and_swing_mode():
     assert "github.event.comment.body == 'Sky 波段現在掃一次'" in guard
     assert "sky-fugle-paid-global-research-v1-live-wholemarket" in workflow
     # All four mode expressions (scanner, gate, readback, mobile summary) must agree.
-    assert workflow.count("github.event.comment.body == 'Sky 波段快掃'") == 5
+    assert workflow.count("github.event.comment.body == 'Sky 波段快掃'") == 6
     assert workflow.count("&& 'swing')") == 4
     assert "id: scan" in workflow
     assert "SCAN_OUTCOME: ${{ steps.scan.outcome }}" in workflow
@@ -176,3 +176,20 @@ def test_unregistered_current_command_still_fails_closed():
     assert route.command_family == "SKY_UNRECOGNIZED"
     assert route.execution_target == "ROUTER_REVIEW_REQUIRED"
 
+
+
+def test_unrelated_issue_comments_cannot_evict_pending_paid_scans():
+    from pathlib import Path
+
+    swing = Path(".github/workflows/swing-live-scan.yml").read_text(encoding="utf-8")
+    v11 = Path(".github/workflows/swing-v11-live-scan.yml").read_text(encoding="utf-8")
+    bridge = Path(".github/workflows/sky-chat-bridge.yml").read_text(encoding="utf-8")
+    assert "sky-swing-ignored-{0}" in swing
+    assert "sky-swing-v11-ignored-{0}" in v11
+    assert "sky-chat-ignored-{0}" in bridge
+    for workflow in (swing, v11, bridge):
+        concurrency = workflow.split("concurrency:", 1)[1].split("jobs:", 1)[0]
+        assert "github.run_id" in concurrency
+        assert "sky-fugle-paid-global-research-v1-live-wholemarket" in concurrency
+        assert "cancel-in-progress: false" in concurrency
+        assert "github.event.comment.author_association == 'OWNER'" in concurrency

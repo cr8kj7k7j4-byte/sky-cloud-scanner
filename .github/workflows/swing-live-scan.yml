@@ -33,7 +33,10 @@ permissions:
 
 concurrency:
   # Same paid whole-market lane as canonical scan.yml and sky-chat-bridge.yml.
-  group: sky-fugle-paid-global-research-v1-live-wholemarket
+  # A nonmatching issue comment must not replace a pending paid scan
+  # before jobs.if can skip it. Only an authorized exact Swing command
+  # participates in the shared paid whole-market lane.
+  group: ${{ (github.event_name == 'issue_comment' && !(github.event.issue.number == 363 && github.event.comment.user.login == github.repository_owner && github.event.comment.author_association == 'OWNER' && (github.event.comment.body == 'Sky Swing 5D 快掃' || github.event.comment.body == 'Sky 波段現在掃一次' || github.event.comment.body == 'Sky 波段快掃')) && format('sky-swing-ignored-{0}', github.run_id)) || 'sky-fugle-paid-global-research-v1-live-wholemarket' }}
   cancel-in-progress: false
 
 jobs:
