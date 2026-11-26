@@ -32,5 +32,9 @@ def test_live_scanner_disables_rejected_breakout_by_default():
     cfg = (ROOT / "src" / "config.py").read_text(encoding="utf-8")
     main = (ROOT / "src" / "main.py").read_text(encoding="utf-8")
     assert 'P0S_5M_BREAKOUT_ENABLED = _b("P0S_5M_BREAKOUT_ENABLED", "0")' in cfg
-    assert "if P0S_5M_BREAKOUT_ENABLED" in main
-    assert '"verdict": P0S_OOS_VERDICT' in main
+    # V5.4 removes the live 5m deep dive entirely; its rejected strategy
+    # must not be restored merely to satisfy a historical source-text test.
+    assert 'get_candles(row["symbol"], "5")' not in main
+    assert "HOLD_LIVE_5M_VWAP_DISABLED" in main
+    assert '"production_eligible": False' in main
+    assert '"trade_action": "禁止交易"' in main
