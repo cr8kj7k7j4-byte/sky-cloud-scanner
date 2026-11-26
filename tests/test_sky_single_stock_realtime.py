@@ -14,6 +14,23 @@ def epoch_us(dt):
 
 
 class SingleStockRealtimeTests(unittest.TestCase):
+    def test_minimal_single_stock_owner_comment_is_strictly_bound(self):
+        # The existing paid quote Workflow is reused; no new runner or cron.
+        import re
+        from pathlib import Path
+        path = Path(__file__).resolve().parents[1] / ".github/workflows/sky-single-stock-realtime.yml"
+        source = path.read_text(encoding="utf-8")
+        self.assertIn("github.event.issue.number == 363", source)
+        self.assertIn("github.event.comment.author_association == 'OWNER'", source)
+        self.assertIn("startsWith(github.event.comment.body, 'Sky 分析 ')", source)
+        match = re.search(r'match = re.fullmatch\(r"([^"]+)"', source)
+        self.assertIsNotNone(match)
+        matcher = re.compile(match.group(1))
+        for command in ("Sky 分析 2330", "Sky 當沖更新 2330", "Sky 波段更新 2330"):
+            self.assertEqual(matcher.fullmatch(command).group(1), "2330")
+        for command in ("Sky 分析", "Sky 分析 2330 任意", "Sky 分析 abc", "Sky 分析 2330\\nSKY_FAKE"):
+            self.assertIsNone(matcher.fullmatch(command))
+
     def sample(self, minutes=0):
         t = NOW - timedelta(minutes=minutes)
         quote = {"date": "2026-11-03", "lastPrice": 92.2,
