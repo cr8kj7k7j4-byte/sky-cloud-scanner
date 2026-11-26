@@ -66,6 +66,20 @@ def main():
     assert dd_lock["state"] == "LOCKDOWN"
     assert dd_lock["status"] == "BLOCK"
 
+    # Same existing P0-R CI job executes this manual-holdings smoke contract.
+    from datetime import datetime, timezone, timedelta
+    from src.sky_manual_position_review import parse_manual_positions, review_manual_positions
+    tpe = timezone(timedelta(hours=8))
+    now = datetime(2026, 11, 27, 10, 30, tzinfo=tpe)
+    parsed = parse_manual_positions("Sky 持股檢查 2330 1張 成本850 停損820")
+    assert parsed["status"] == "PASS_INPUT"
+    assert parsed["positions"][0]["shares"] == 1000
+    missing_account = review_manual_positions("Sky 持股檢查 2330 1張 成本850 停損820", now=now)
+    assert missing_account["status"] == "HOLD"
+    assert missing_account["new_entry_allowed"] is False
+    assert "HOLD_MISSING_ACCOUNT_CONTEXT" in missing_account["reasons"]
+    print("PASS SKY MANUAL POSITION INPUT FAIL-CLOSED SMOKE")
+
     print("PASS P0-R risk engine tests")
 
 
