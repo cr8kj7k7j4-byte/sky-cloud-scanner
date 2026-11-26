@@ -433,114 +433,17 @@ def run():
         top = rank_screening_candidates(passed)[:TOP_N]
         st["top100"] = top
 
-        # Deep-dive enough rows to fill DEEP_DIVE_N verified, non-rejected
-        # candidates. Confirmed limit-up / non-day-tradable names do not consume
-        # the effective candidate quota.
+        # V5.4: the live deep-dive strategy requires retired intraday inputs.
+        # Keep its screening results as observations; A2 evidence is collected
+        # independently by the existing scheduled verification step.
         deep = []
         rejected = []
-        unverified = []
+        unverified = [
+            {**row, "flags": ["HOLD_LIVE_5M_VWAP_DISABLED"], "classification_cap": "A",
+             "trade_action": "禁止交易", "production_eligible": False}
+            for row in top[:20]
+        ]
         monitor_decisions = []
-        probe_limit = min(len(top), max(DEEP_DIVE_N * 4, DEEP_DIVE_N))
-
-        for row in top[:probe_limit]:
-            try:
-                ks = get_candles(row["symbol"], "5")
-                item = enrich_candidate_context(
-                    row,
-                    get_ticker(row["symbol"]),
-                    get_quote(row["symbol"]),
-                    ks,
-                )
-                item["strategy_id"] = PRODUCTION_STRATEGY_ID
-                item["strategy_version"] = PRODUCTION_STRATEGY_VERSION
-                item["system_version"] = SYSTEM_VERSION
-                item["scanner_version"] = SCANNER_VERSION
-                item["historical_full_rule_replay_status"] = HISTORICAL_REPLAY_STATUS
-                item["classification_cap"] = (
-                    "A"
-                    if not st["full_market_scan"]
-                    else "A+ eligible only after all gates"
-                )
-
-                x_flags = [f for f in item.get("flags", []) if str(f).startswith("X:")]
-                if x_flags:
-                    rejected.append(item)
-                    continue
-
-                features = build_features(
-                    item,
-                    ks.get("data", []) if isinstance(ks, dict) else [],
-                    market_return_pct=None,
-                ).to_dict()
-                regime = detect_regime(
-                    index_change_pct=None,
-                    breadth_pct=None,
-                    volatility_pct=features.get("volatility_5"),
-                )
-                preds = baseline_model_predictions(features, horizon_days=5)
-                ml = ensemble(preds, regime.label)
-                ml["models"] = [p.to_dict() for p in preds]
-                ml["regime"] = regime.to_dict()
-                ml["explainability"] = explain(features, ml)
-                ml["validation"] = evaluate_validation_gate()
-                item["features"] = features
-                item["ml"] = ml
-                item["market_intelligence"] = st["market_intelligence"]
-                item["event_risk"] = st["event_risk"]
-                item["structured_evidence_ledger"] = build_structured_evidence_ledger(
-                    item, now.isoformat()
-                )
-
-                strategy_plan = (
-                    build_breakout_plan(item, ks)
-                    if P0S_5M_BREAKOUT_ENABLED
-                    else None
-                )
-                item = apply_plan(item, strategy_plan)
-                item["p0s_5m_breakout"] = {
-                    "enabled": bool(P0S_5M_BREAKOUT_ENABLED),
-                    "verdict": P0S_OOS_VERDICT,
-                    "production_eligible": False,
-                }
-
-                risk = evaluate_candidate(item, portfolio_context, policy)
-                risk["status_zh"] = RISK_STATUS_ZH.get(risk["status"], risk["status"])
-                risk["state_zh"] = RISK_STATE_ZH.get(risk["state"], risk["state"])
-                item["risk"] = risk
-
-                monitor = evaluate_monitor_state(
-                    item,
-                    previous_state=previous_monitor_state.get(
-                        str(item.get("symbol") or "")
-                    ),
-                )
-                item["monitor"] = monitor.to_dict()
-                monitor_decisions.append(monitor)
-
-                evidence_items = market_evidence_from_candidate(item, now.isoformat())
-                evidence_ledger = build_knowledge_evidence_ledger(
-                    evidence_items,
-                    max_age_hours=1.0,
-                    now=now,
-                )
-                item["evidence_ledger"] = evidence_ledger
-                item["agent_orchestration"] = orchestrate(item, evidence_ledger)
-                item["decision"] = evaluate_decision(item).to_dict()
-                deep.append(item)
-                if len(deep) >= DEEP_DIVE_N:
-                    break
-
-            except PermissionError as e:
-                item = dict(row)
-                item["flags"] = [f"Fugle深查權限不足:{e}"]
-                item["classification_cap"] = "A"
-                unverified.append(item)
-
-            except Exception as e:
-                item = dict(row)
-                item["flags"] = [f"Fugle深查失敗:{type(e).__name__}"]
-                item["classification_cap"] = "A"
-                unverified.append(item)
 
         st["deep"] = deep
         st["deep_rejected"] = rejected[:20]
