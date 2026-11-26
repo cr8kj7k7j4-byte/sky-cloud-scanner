@@ -127,7 +127,7 @@ def test_manual_position_mobile_adapter_preserves_not_applicable_and_missing_rea
     tz = timezone(timedelta(hours=8))
     # Anonymous financing fixture: no real portfolio is transmitted or stored.
     result = render_manual_position_report(
-        "Sky 持股檢查\\n9999 融資 1,000股 平均成本10.00",
+        "Sky 持股檢查\n9999 融資 1,000股 平均成本10.00",
         now=datetime(2026, 11, 27, 10, 30, tzinfo=tz),
     )
     assert result["status"] == "HOLD"
