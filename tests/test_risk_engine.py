@@ -121,3 +121,38 @@ def test_account_context_nonfinite_and_negative_exposure_never_approves_entry():
     # A verified loss is negative daily P&L; never reject valid reported losses.
     valid_loss = evaluate_candidate(candidate, {**verified, "daily_pnl": -3000.0})
     assert valid_loss["status"] == "ALLOW"
+
+
+def test_nonfinite_or_malformed_trade_price_fails_closed():
+    """Direct evaluation never approves or crashes for invalid prices/equity."""
+    inputs = {
+        "entry": 50, "stop": 48.5, "target": 55,
+        "account_equity": 500000, "daily_pnl": 0,
+        "open_risk": 0, "concurrent_positions": 0,
+        "correlated_open_risk": 0, "drawdown_pct": 0,
+        "consecutive_losses": 0, "grade": "A+",
+    }
+    for name, bad in (
+        ("entry", float("nan")),
+        ("stop", float("inf")),
+        ("target", float("-inf")),
+        ("entry", "not-a-price"),
+        ("account_equity", float("inf")),
+        ("target", True),
+    ):
+        result = evaluate_trade(**{**inputs, name: bad})
+        assert result["status"] == "RISK_INPUT_INVALID", (name, bad, result)
+        assert result["portfolio_allowed"] is False
+        assert result["recommended_shares"] == 0
+        assert name in result["required_inputs"]
+    # Direct sizing must fail closed without raising floor(nan)/floor(inf).
+    for args in (
+        (float("nan"), 48.5, 500000),
+        (50, float("inf"), 500000),
+        (50, 48.5, float("inf")),
+        ("bad-price", 48.5, 500000),
+        (True, 48.5, 500000),
+    ):
+        assert position_size(*args) == 0
+    # Positive control: ordinary finite prices and proper stop remain valid.
+    assert position_size(50, 48.5, 500000, policy=RiskPolicy(lot_size=1000)) == 1000
