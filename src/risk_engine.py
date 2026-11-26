@@ -25,6 +25,17 @@ def _non_negative(value):
     return max(0.0, float(value or 0.0))
 
 
+def _finite_number(value):
+    """Return a valid numeric scalar or None; reject NaN/inf/boolean inputs."""
+    if isinstance(value, bool):
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    return number if math.isfinite(number) else None
+
+
 def drawdown_state(drawdown_pct=0.0, consecutive_losses=0, policy=None):
     policy = policy or RiskPolicy()
     dd = _non_negative(drawdown_pct)
@@ -52,9 +63,14 @@ def effective_risk_per_trade_pct(state, policy=None):
 
 def position_size(entry, stop, account_equity, state="NORMAL", policy=None):
     policy = policy or RiskPolicy()
-    entry = float(entry)
-    stop = float(stop)
-    equity = _non_negative(account_equity)
+    entry = _finite_number(entry)
+    stop = _finite_number(stop)
+    equity = _finite_number(account_equity)
+    # Position sizing is callable independently of evaluate_candidate:
+    # malformed prices/equity must never reach floor() or create shares.
+    if entry is None or stop is None or equity is None:
+        return 0
+    equity = max(0.0, equity)
 
     # Long-only sizing: a stop at/above the entry is not downside protection.
     if equity <= 0 or entry <= 0 or stop <= 0 or stop >= entry:
@@ -96,6 +112,33 @@ def evaluate_trade(
     for name, value in (("entry", entry), ("stop", stop), ("target", target)):
         if value is None:
             required.append(name)
+
+    # Direct evaluate_trade callers also require finite numeric prices.
+    # This is separate from account-context validation in evaluate_candidate.
+    invalid = [
+        name for name, value in (
+            ("entry", entry), ("stop", stop), ("target", target),
+            ("account_equity", account_equity),
+        )
+        if value is not None and _finite_number(value) is None
+    ]
+    if invalid:
+        return {
+            "status": "RISK_INPUT_INVALID",
+            "portfolio_allowed": False,
+            "state": "UNKNOWN",
+            "required_inputs": invalid,
+            "reasons": ["價格或資金輸入無效、非有限值，停止新進場（P0-R）"],
+            "recommended_shares": 0,
+            "risk_budget": 0.0,
+            "remaining_daily_risk_budget": 0.0,
+            "remaining_portfolio_heat": 0.0,
+            "net_rr": None,
+            "gross_rr": None,
+            "fee_tax_adjusted_rr": None,
+            "execution_adjusted_rr": None,
+            "execution_status": "EXECUTION_INPUT_REQUIRED",
+        }
 
     equity = _non_negative(account_equity)
     if equity <= 0:
