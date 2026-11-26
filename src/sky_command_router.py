@@ -296,7 +296,7 @@ def route_command(command: str) -> CommandRoute:
     normalized = " ".join((command or "").strip().split())
 
     # W0 #363 minimal mobile commands: classify only, never assert live success.
-    if re.fullmatch(r"Sky\\s*分析\\s+\\d{4,6}", normalized, re.I):
+    if re.fullmatch(r"Sky\s*分析\s+\d{4,6}", normalized, re.I):
         return CommandRoute(
             "SKY_SINGLE_STOCK_UPDATE", "SINGLE_STOCK_REALTIME",
             True, False, True,
@@ -304,7 +304,7 @@ def route_command(command: str) -> CommandRoute:
             "A1 observation cannot certify an A2 execution. Missing certified quote, "
             "timestamp, trigger or cost-adjusted risk evidence stays HOLD/NO_TRADE."
         )
-    if re.fullmatch(r"Sky\\s*持股檢查(?:\\s+.*)?", normalized, re.I):
+    if re.fullmatch(r"Sky\s*持股檢查(?:\s+.*)?", normalized, re.I):
         return CommandRoute(
             "SKY_POSITION_REVIEW", "USER_POSITION_EVIDENCE_REQUIRED",
             False, False, False,
