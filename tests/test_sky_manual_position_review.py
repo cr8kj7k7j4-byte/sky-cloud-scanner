@@ -144,3 +144,10 @@ def test_single_position_1r_limit_is_reported():
     result = review_manual_positions(TEXT, quotes={"2330": quote()},
                                      account_context=account(), now=NOW)
     assert "SINGLE_POSITION_RISK_EXCEEDED_2330" in result["reasons"]
+
+
+def test_manual_average_cost_with_spaces_supported():
+    parsed = parse_manual_positions("Sky 持股檢查\n2330 1 張 平均成本 850 停損 820")
+    assert parsed["status"] == "PASS_INPUT"
+    assert parsed["positions"][0]["shares"] == 1000
+    assert parsed["positions"][0]["average_cost"] == 850
