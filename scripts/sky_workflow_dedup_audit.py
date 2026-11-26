@@ -152,8 +152,10 @@ def audit(root: Path) -> dict:
     canonical = by_name.get(CANONICAL_SCAN)
     if canonical is None:
         failures.append("CANONICAL_SCAN_WORKFLOW_MISSING")
-    elif tuple(canonical["cron_utc"]) != SCAN_CRONS:
-        failures.append("CANONICAL_FIVE_SCAN_SCHEDULE_DRIFT")
+    elif canonical["active_schedule"]:
+        # W0 #363: the user retired all formal timed intraday scans.
+        # Any reintroduced cron must fail governance; manual dispatch remains valid.
+        failures.append("RETIRED_CANONICAL_SCAN_SCHEDULE_REACTIVATED")
     for r in records:
         if r["file"] != CANONICAL_SCAN:
             if set(r["cron_utc"]) & set(SCAN_CRONS):
