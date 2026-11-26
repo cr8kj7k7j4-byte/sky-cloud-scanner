@@ -308,10 +308,10 @@ def route_command(command: str) -> CommandRoute:
         return CommandRoute(
             "SKY_POSITION_REVIEW", "USER_POSITION_EVIDENCE_REQUIRED",
             False, False, False,
-            "HOLD_USER_POSITION_EVIDENCE",
-            "No broker positions are connected or presumed. Require user-provided "
-            "actual symbol, quantity, cost, stop and realized P&L before risk review; "
-            "verify Fugle quote separately; never place orders."
+            "src.sky_manual_position_review.review_manual_positions (offline; no GitHub trigger)",
+            "User-supplied positions and account state only; no broker connection. "
+            "Inject already-authorized Fugle individual lastTrade evidence only. "
+            "Missing stop, account P&L or trade time stays HOLD; no automatic orders."
         )
     for pattern, route in _SHORTCUT_PATTERNS + _PATTERNS:
         if pattern.match(normalized):
