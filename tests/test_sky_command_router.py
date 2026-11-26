@@ -12,9 +12,10 @@ def test_sky_minimal_single_stock_command_requires_certified_quote():
 def test_sky_minimal_position_review_never_assumes_broker_holdings():
     route = route_command("Sky 持股檢查")
     assert route.command_family == "SKY_POSITION_REVIEW"
-    assert route.execution_target == "HOLD_USER_POSITION_EVIDENCE"
+    assert "src.sky_manual_position_review.review_manual_positions" in route.execution_target
     assert route.realtime_required is False
-    assert "No broker positions" in route.notes
+    assert "no GitHub trigger" in route.execution_target
+    assert "no broker connection" in route.notes.lower()
 
 
 def test_whole_market_realtime_routes():
