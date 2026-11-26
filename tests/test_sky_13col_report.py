@@ -62,8 +62,8 @@ class TestSky13Col(unittest.TestCase):
         self.assertIsInstance(row["多方評分"], int)
         self.assertIsInstance(row["空方評分"], int)
         self.assertIn("觀察價 31.50，未驗證", row["即時價"])
-        self.assertEqual(row["買進觸發"], "待確認")
-        self.assertEqual(row["停利價格"], "待確認")
+        self.assertEqual(row["買進觸發"], "待確認（缺同次策略計畫）")
+        self.assertEqual(row["停利價格"], "待確認（缺同次策略計畫）")
         self.assertEqual(row["分類"], "X")
 
     def test_stale_date_cannot_show_paid_observed_price_as_today(self):
@@ -90,9 +90,9 @@ class TestSky13Col(unittest.TestCase):
         row = projection(item, plan)
         self.assertIn("32.00", row["買進觸發"])
         self.assertIn("31.00", row["停損／失效"])
-        self.assertEqual(row["加碼價格"], "待確認")
+        self.assertEqual(row["加碼價格"], "不適用（未授權加碼）")
         self.assertEqual(row["現在動作"], "等待")
-        self.assertEqual(projection(item)["買進觸發"], "待確認")
+        self.assertEqual(projection(item)["買進觸發"], "待確認（缺同次策略計畫）")
 
     def test_13col_json_uses_labeled_snapshot_collection_clock(self):
         from research.sky_13col_report import main
@@ -114,6 +114,33 @@ class TestSky13Col(unittest.TestCase):
             self.assertEqual(row["資料時間"], item["snapshot_observed_at"])
             self.assertEqual(row["資料時間類型"], "快照擷取時間")
             self.assertFalse(row["正式交易資格"])
+            self.assertIn("買進觸發", row["欄位缺失原因"])
+            self.assertIsNone(row["成本後RR"])
+
+    def test_missing_reason_distinguishes_provider_model_plan_and_cost(self):
+        from research.sky_13col_report import missing_field_reasons
+        item = {"symbol": "1101", "source": "Fugle paid bulk snapshot",
+                "data_status": "UNVERIFIED_EXECUTION_TIME",
+                "last_price": 31.5}
+        reasons = missing_field_reasons(item)
+        self.assertIn("A2", reasons["即時價"])
+        self.assertIn("OHLC", reasons["多方評分"])
+        self.assertIn("strategy_plan", reasons["買進觸發"])
+        self.assertIn("滑價", reasons["成本後RR"])
+        self.assertEqual(projection(item)["停損／失效"], "待確認（缺同次策略計畫）")
+
+    def test_verified_plan_removes_plan_gap_but_not_cost_certification(self):
+        from research.sky_13col_report import missing_field_reasons
+        item = {"symbol": "1101", "source": "Fugle paid bulk snapshot",
+                "data_status": "FRESH_EXECUTED_TRADE", "last_price": 31.5}
+        plan = {"trigger": 32, "max_entry": 32.2, "stop": 31, "target": 34}
+        reasons = missing_field_reasons(item, plan)
+        self.assertNotIn("即時價", reasons)
+        self.assertNotIn("買進觸發", reasons)
+        self.assertIn("成本後RR", reasons)
+        row = projection(item, plan)
+        self.assertIn("32.00", row["買進觸發"])
+        self.assertEqual(row["現在動作"], "等待")
 
     def test_nan_never_published(self):
         item = {"symbol": "1101", "last_price": float("nan"),
