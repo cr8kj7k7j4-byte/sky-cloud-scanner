@@ -1,6 +1,22 @@
 from src.sky_command_router import route_command, presentation_for_command, watchlist_for_command
 
 
+def test_sky_minimal_single_stock_command_requires_certified_quote():
+    route = route_command("Sky 分析 2330")
+    assert route.command_family == "SKY_SINGLE_STOCK_UPDATE"
+    assert route.realtime_required is True
+    assert route.symbol_required is True
+    assert "HOLD/NO_TRADE" in route.notes
+
+
+def test_sky_minimal_position_review_never_assumes_broker_holdings():
+    route = route_command("Sky 持股檢查")
+    assert route.command_family == "SKY_POSITION_REVIEW"
+    assert route.execution_target == "HOLD_USER_POSITION_EVIDENCE"
+    assert route.realtime_required is False
+    assert "No broker positions" in route.notes
+
+
 def test_whole_market_realtime_routes():
     for cmd in [
         "Sky 快掃",
