@@ -12,7 +12,6 @@ from pathlib import Path
 
 from research.sky_snapshot_candidates import screen as screen_stage1
 from src.sky_stage2_candidate_quotes import verify as verify_stage2
-from src.sky_v14_ticker_candles_probe import run as probe_v14_candles
 from research.sky_candidate_e2e_chain import write as write_candidate_chain
 from src.sky_scan_readback import canonical_command, validate_scan_readback
 
@@ -89,7 +88,9 @@ def diagnose_five_minute_path(stage1, stage2, stage3):
     samples = stage3.get("samples") or []
     if not isinstance(exclusions, dict):
         exclusions = {}
-    if candidates == 0:
+    if stage3.get("status") == "DISABLED_V5_4":
+        reason = "DISABLED_V5_4"
+    elif candidates == 0:
         reason = ("NON_TRADING_SESSION" if exclusions.get("NON_TRADING_WEEKEND", 0) or
                   exclusions.get("NON_TRADING_HOLIDAY", 0) else "NO_STAGE1_CANDIDATES")
     elif attempts == 0:
@@ -166,6 +167,8 @@ def make_status(request_id, report=None, error=None, observation=None, stage1=No
         mobile_notice = "研究快掃失敗；禁止交易"
     elif report_status != "REPORT_READY_RESEARCH_ONLY":
         mobile_notice = "研究報告資料不完整；禁止交易：" + report_status
+    elif stage3.get("status") == "DISABLED_V5_4":
+        mobile_notice = "研究報告可讀；正式快掃已停用即時五分K與獨立VWAP，禁止交易"
     elif five_minute_diagnostic["reason_code"] == "FIVE_MINUTE_OBSERVED_RESEARCH_ONLY":
         mobile_notice = "已取得研究用五分鐘K棒；完整策略仍未驗收，禁止交易"
     else:
@@ -192,9 +195,11 @@ def make_status(request_id, report=None, error=None, observation=None, stage1=No
         "stage2_elapsed_seconds": stage2.get("elapsed_seconds"),
         "stage2_max_plan_quota_inferred": False,
         "five_minute_diagnostic": five_minute_diagnostic,
+        "live_five_minute_requests": "DISABLED_V5_4",
+        "independent_tick_vwap_requests": "DISABLED_V5_4",
         "v14_ticker_5m_attempted_api_requests": stage3.get("attempted_api_requests", 0),
         "v14_ticker_5m_samples": (stage3.get("samples") or [])[:2],
-        "v14_ticker_5m_artifact": "output/sky_quickscan_information/v14_ticker_5m_evidence.json" if stage3 else None,
+        "v14_ticker_5m_artifact": "output/sky_quickscan_information/v14_ticker_5m_evidence.json" if stage3.get("samples") else None,
         "v14_full_rule_validation_complete": False,
         "candidate_chain_artifact": "output/sky_quickscan_information/candidate_e2e_chain.json" if stage4 else None,
         "candidate_chain_stage2_verified": stage4.get("stage2_quote_verified_count", 0),
@@ -272,9 +277,12 @@ def main():
         stage2 = verify_stage2(stage1)
         Path("output/sky_quickscan_information/stage2_quote_evidence.json").write_text(
             json.dumps(stage2, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        stage3 = probe_v14_candles(stage2)
-        Path("output/sky_quickscan_information/v14_ticker_5m_evidence.json").write_text(
-            json.dumps(stage3, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        stage3 = {
+            "schema": "SKY_V14_TICKER_5M_RESEARCH_PROVENANCE_V1",
+            "status": "DISABLED_V5_4",
+            "production_eligible": False,
+            "samples": [],
+        }
         stage4 = write_candidate_chain(stage1, stage2, stage3,
             "output/sky_quickscan_information/candidate_e2e_chain.json")
     except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired, json.JSONDecodeError) as exc:

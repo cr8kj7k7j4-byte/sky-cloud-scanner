@@ -114,10 +114,14 @@ Any material gate failure blocks Promotion. No chat window, notebook, branch, or
 - Major governance changes must be written back to GitHub.
 - W0 does not absorb bulk repetitive backtesting; that remains delegated to W1 / W2.
 
+## V5.4 正式當沖與手機快掃（2026-11-26）
+
+依 #363 決議，保留 A1 Snapshot 初篩、A2 逐股真實成交認證及原子 Claim。正式當沖和手機快掃停用即時五分 K／獨立逐筆 VWAP 請求和探針，且這兩項退出正式掃描工程驗收。既有歷史資料與離線研究保留。依賴停用資料的策略維持 HOLD／NO_TRADE，Snapshot、average 或 A2 均不得替代策略所需資料。正式掃描仍須同次 Artifact 及獨立讀回。
+
 ## Fugle monthly subscription vs operational duplicate control (2026-11-26)
 <!-- FUGLE_MONTHLY_SUBSCRIPTION_POLICY_V1 -->
 
-**使用者已確認 Fugle 為包月付費方案。** Sky 不得把每次必要的行情 API 查詢預設為「額外按次收費」，也不得僅為避免臆測的單次費用而拒絕已授權、符合速率與配額限制、具有資料認證必要性的候選逐股 A2／5m／VWAP 補查。包月價格與權限、速率、配額仍以帳戶實際方案及 Fugle 官方資訊為準；包月**不代表無限 API 呼叫**。
+**使用者已確認 Fugle 為包月付費方案。** Sky 不得把每次必要的行情 API 查詢預設為「額外按次收費」，也不得僅為避免臆測的單次費用而拒絕已授權、符合速率與配額限制、具有資料認證必要性的候選逐股 A2 補查。包月價格與權限、速率、配額仍以帳戶實際方案及 Fugle 官方資訊為準；包月**不代表無限 API 呼叫**。
 
 **付費 Claim 是跨 Workflow 的操作防重與競爭保護，不是按次計費開關。** 保留既有共享 concurrency、原子 Claim、nonce／Artifact 獨立驗證、同次快取及失敗時 fail-closed。若遭 DUPLICATE_BLOCKED，先核對 run ID、scope、時間窗與現存 Claim／原始回應，確認是否為真正重複工作；不得因包月就取消並發防重或在未知實際 entitlement 時無界重試。
 

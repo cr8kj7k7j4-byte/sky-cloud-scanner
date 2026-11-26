@@ -232,46 +232,6 @@ jobs:
           assert x["full_market_executed_certified"] is False
           assert x["production_eligible"] is False
           PY
-      - name: Preserve bounded two-market Fugle 5m evidence inside current paid Claim
-        if: always() && steps.calendar.outputs.should_scan == 'true' && steps.guard.outputs.allowed == 'true' && steps.verify_claim.outcome == 'success'
-        continue-on-error: true
-        env:
-          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
-          SKY_FUGLE_ONLY_MARKETDATA: '1'
-          SKY_PAID_ATOMIC_ENFORCE: '1'
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          from datetime import datetime
-          from zoneinfo import ZoneInfo
-          from research.sky_fugle_individual_execution_probe import select_symbols
-          from src.sky_v14_ticker_candles_probe import run as existing_five_min_probe
-
-          # Reuse an existing same-run paid snapshot and the pre-verified global
-          # atomic claim; do not start a second whole-market or quote scan.
-          source = Path("output/sky_quickscan_information/full_universe.json")
-          if not source.is_file():
-              raise SystemExit("HOLD_NO_SAME_RUN_SNAPSHOT_FOR_FIVE_MIN")
-          report = json.loads(source.read_text(encoding="utf-8"))
-          observations = select_symbols(report, limit=2)
-          if len(observations) != 2 or {market for market, _ in observations} != {"TWSE", "TPEx"}:
-              raise SystemExit("HOLD_NO_VALID_TWO_MARKET_RESEARCH_SAMPLE")
-          candidates = [{"exchange": market, "symbol": symbol}
-                        for market, symbol in observations]
-          receipt = existing_five_min_probe(
-              None,
-              evidence_candidates=candidates,
-              now=datetime.now(ZoneInfo("Asia/Taipei")),
-          )
-          if receipt.get("production_eligible") is not False or receipt.get("stage2_quote_verified") is not False:
-              raise SystemExit("HOLD_UNSAFE_FIVE_MIN_RESEARCH_RECEIPT")
-          out = Path("output/sky_quickscan_information/v14_ticker_5m_evidence.json")
-          out.parent.mkdir(parents=True, exist_ok=True)
-          out.write_text(json.dumps(receipt, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-          print("BOUNDED_FIVE_MIN_SAME_RUN_RESEARCH_ONLY", out, receipt.get("run_id"))
-          PY
       - name: Join MCR research observations to available all-market information
         if: always()
         continue-on-error: true
@@ -388,6 +348,8 @@ jobs:
               "event_name":os.environ.get("GITHUB_EVENT_NAME"),
               "generated_at_utc":datetime.now(timezone.utc).isoformat(),
               "source_inventory":results,
+              "live_five_minute_requests":"DISABLED_V5_4",
+              "independent_tick_vwap_requests":"DISABLED_V5_4",
               "five_minute_pit_certified":False,
               "volume_units_certified":False,
               "independent_tick_vwap_certified":False,
