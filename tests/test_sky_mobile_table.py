@@ -118,3 +118,44 @@ def test_partial_market_observation_is_visible_but_never_an_entry_signal():
     assert row["最高接受價"] == "—"
     assert row["停損／失效"] == "—"
     assert "禁止新進場" in row["買進觸發"]
+
+
+def test_manual_position_mobile_adapter_preserves_not_applicable_and_missing_reasons():
+    from datetime import datetime, timedelta, timezone
+    from src.sky_mobile_table import render_manual_position_report
+
+    tz = timezone(timedelta(hours=8))
+    # Anonymous financing fixture: no real portfolio is transmitted or stored.
+    result = render_manual_position_report(
+        "Sky 持股檢查\\n9999 融資 1,000股 平均成本10.00",
+        now=datetime(2026, 11, 27, 10, 30, tzinfo=tz),
+    )
+    assert result["status"] == "HOLD"
+    assert result["source_review"]["reasons"]
+    assert result["rows"][0]["買進觸發"] == "不適用（既有持股）"
+    assert result["rows"][0]["最高接受價"] == "不適用（既有持股）"
+    assert result["rows"][0]["停損／失效"] == "未設定（缺使用者停損）"
+    assert result["rows"][0]["現價"] == "—"
+    assert result["rows"][0]["多方評分"] == "—"
+    assert result["rows"][0]["空方評分"] == "—"
+    assert "A2" in result["rows"][0]["欄位缺失原因"]["現價"]
+    assert "不適用（既有持股）" in result["markdown"]
+    assert result["live_a2_certified"] is False
+    assert result["new_entry_allowed"] is False
+    assert result["mobile_e2e_verified"] is False
+    assert result["github_run_id"] is None
+    assert result["automatic_orders"] is False
+
+
+def test_manual_position_mobile_adapter_rejects_empty_and_incomplete_input():
+    from datetime import datetime, timedelta, timezone
+    from src.sky_mobile_table import render_manual_position_report
+
+    tz = timezone(timedelta(hours=8))
+    result = render_manual_position_report(
+        "Sky 持股檢查", now=datetime(2026, 11, 27, tzinfo=tz)
+    )
+    assert result["status"] == "HOLD"
+    assert result["rows"] == []
+    assert "缺合格持股輸入" in result["markdown"]
+    assert result["action"] == "禁止交易"
