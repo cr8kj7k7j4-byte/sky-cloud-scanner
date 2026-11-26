@@ -79,6 +79,18 @@ def main():
     assert missing_account["new_entry_allowed"] is False
     assert "HOLD_MISSING_ACCOUNT_CONTEXT" in missing_account["reasons"]
     print("PASS SKY MANUAL POSITION INPUT FAIL-CLOSED SMOKE")
+    # Reuse the EXISTING P0-R CI Workflow to run the full new offline suite.
+    # All test functions in this file are no-argument, no-network pytest-style.
+    import tests.test_sky_manual_position_review as position_suite
+    cases = [
+        getattr(position_suite, name)
+        for name in sorted(dir(position_suite))
+        if name.startswith("test_") and callable(getattr(position_suite, name))
+    ]
+    assert len(cases) >= 10, "Manual position suite unexpectedly incomplete"
+    for test in cases:
+        test()
+    print("PASS SKY MANUAL POSITION FULL OFFLINE SUITE:", len(cases))
 
     print("PASS P0-R risk engine tests")
 
