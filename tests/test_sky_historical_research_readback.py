@@ -90,8 +90,68 @@ class HistoricalResearchReadbackTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             fixture(root)
-            with self.assertRaisesRegex(ValueError, "HISTORICAL_SESSION_DATE_MISMATCH"):
+            with self.assertRaisesRegex(ValueError, "HISTORICAL_SOURCE_SESSION_MISMATCH"):
                 read(root, verified_complete_session_date="2026-11-25")
+
+    def test_next_day_capture_keeps_prior_verified_session(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source, path, report, inventory = fixture(root)
+            report["checked_at_tpe"] = "2026-11-27T05:01:00+08:00"
+            report["all_symbols"][0]["snapshot_observed_at"] = "2026-11-27T05:00:00+08:00"
+            raw = json.dumps(report, ensure_ascii=False).encode("utf-8")
+            source.write_bytes(raw)
+            entry = inventory["source_inventory"]["full_market_reference"]
+            entry["sha256"] = hashlib.sha256(raw).hexdigest()
+            entry["byte_count"] = len(raw)
+            path.write_text(json.dumps(inventory, ensure_ascii=False), encoding="utf-8")
+            got = read(root)
+            self.assertEqual(got["source_session_date"], DATE)
+            self.assertEqual(got["capture_date_tpe"], "2026-11-27")
+            self.assertFalse(got["live_quote_certified"])
+            self.assertFalse(got["new_entry_authorized"])
+
+    def test_capture_before_verified_source_session_rejected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source, path, report, inventory = fixture(root)
+            report["checked_at_tpe"] = "2026-11-25T20:00:00+08:00"
+            raw = json.dumps(report, ensure_ascii=False).encode("utf-8")
+            source.write_bytes(raw)
+            entry = inventory["source_inventory"]["full_market_reference"]
+            entry["sha256"] = hashlib.sha256(raw).hexdigest()
+            entry["byte_count"] = len(raw)
+            path.write_text(json.dumps(inventory, ensure_ascii=False), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "HISTORICAL_CAPTURE_BEFORE_SESSION"):
+                read(root)
+
+    def test_row_observation_after_capture_rejected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source, path, report, inventory = fixture(root)
+            report["all_symbols"][0]["snapshot_observed_at"] = "2026-11-27T05:01:00+08:00"
+            raw = json.dumps(report, ensure_ascii=False).encode("utf-8")
+            source.write_bytes(raw)
+            entry = inventory["source_inventory"]["full_market_reference"]
+            entry["sha256"] = hashlib.sha256(raw).hexdigest()
+            entry["byte_count"] = len(raw)
+            path.write_text(json.dumps(inventory, ensure_ascii=False), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "HISTORICAL_ROW_CAPTURE_TIME_INVALID"):
+                read(root)
+
+    def test_missing_row_source_session_rejected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source, path, report, inventory = fixture(root)
+            del report["all_symbols"][0]["snapshot_source_date"]
+            raw = json.dumps(report, ensure_ascii=False).encode("utf-8")
+            source.write_bytes(raw)
+            entry = inventory["source_inventory"]["full_market_reference"]
+            entry["sha256"] = hashlib.sha256(raw).hexdigest()
+            entry["byte_count"] = len(raw)
+            path.write_text(json.dumps(inventory, ensure_ascii=False), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "HISTORICAL_SOURCE_SESSION_MISMATCH"):
+                read(root)
 
     def test_tampered_bytes_rejected(self):
         with tempfile.TemporaryDirectory() as temp:

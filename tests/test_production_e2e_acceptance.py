@@ -250,3 +250,16 @@ def test_margin_source_join_eight_cases_in_existing_acceptance():
     result = unittest.TextTestRunner(stream=io.StringIO(), verbosity=2).run(suite)
     assert result.testsRun == 8, "MARGIN_JOIN_TEST_DISCOVERY_INCOMPLETE"
     assert result.wasSuccessful(), "MARGIN_JOIN_TESTS_FAILED"
+
+
+def test_daytrade_cross_session_historical_readback_regression_in_acceptance():
+    """Existing Exact-SHA acceptance CI runs complete historical source/capture tests."""
+    import unittest
+    from tests import test_sky_historical_research_readback
+
+    suite = unittest.TestLoader().loadTestsFromModule(test_sky_historical_research_readback)
+    assert suite.countTestCases() >= 10, "HISTORICAL_SOURCE_TEST_DISCOVERY_INCOMPLETE"
+    result = unittest.TestResult()
+    suite.run(result)
+    assert result.testsRun == suite.countTestCases()
+    assert result.wasSuccessful(), repr(result.failures + result.errors)

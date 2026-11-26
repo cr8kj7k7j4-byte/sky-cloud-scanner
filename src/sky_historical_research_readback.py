@@ -70,8 +70,10 @@ def read_complete_session_research(
         stamp = datetime.fromisoformat(checked)
     except ValueError as exc:
         raise ValueError("INVALID_HISTORICAL_DATA_TIME") from exc
-    if stamp.tzinfo is None or stamp.astimezone(TPE).date() != session_date:
-        raise ValueError("HISTORICAL_SESSION_DATE_MISMATCH")
+    # Capture time can be later than the officially certified source session.
+    # Never relabel a prior-session Snapshot as an execution on capture day.
+    if stamp.tzinfo is None or stamp.astimezone(TPE).date() < session_date:
+        raise ValueError("HISTORICAL_CAPTURE_BEFORE_SESSION")
     rows = report.get("all_symbols")
     count = report.get("universe_count")
     if (not isinstance(rows, list) or not rows or type(count) is not int
@@ -86,7 +88,7 @@ def read_complete_session_research(
             raise ValueError("INVALID_OR_DUPLICATE_HISTORICAL_SYMBOL")
         symbols.add(symbol)
         source_date = item.get("snapshot_source_date")
-        if source_date is not None and source_date != verified_complete_session_date:
+        if source_date != verified_complete_session_date:
             raise ValueError("HISTORICAL_SOURCE_SESSION_MISMATCH")
         observed = item.get("snapshot_observed_at")
         if observed is not None:
@@ -94,9 +96,12 @@ def read_complete_session_research(
                 observed_time = datetime.fromisoformat(observed)
             except (TypeError, ValueError) as exc:
                 raise ValueError("INVALID_HISTORICAL_ROW_TIME") from exc
+            # Observed-at is a capture timestamp, not the source trade date.
+            # It must not precede the certified session or exceed report capture.
             if (observed_time.tzinfo is None
-                    or observed_time.astimezone(TPE).date() != session_date):
-                raise ValueError("HISTORICAL_ROW_DATE_MISMATCH")
+                    or observed_time.astimezone(TPE).date() < session_date
+                    or observed_time.astimezone(TPE) > stamp.astimezone(TPE)):
+                raise ValueError("HISTORICAL_ROW_CAPTURE_TIME_INVALID")
     markdown = render(report)
     return {
         "schema": "SKY_COMPLETE_SESSION_HISTORICAL_READBACK_V1",
@@ -108,6 +113,8 @@ def read_complete_session_research(
         ),
         "session_date": verified_complete_session_date,
         "checked_at_tpe": stamp.astimezone(TPE).isoformat(),
+        "capture_date_tpe": stamp.astimezone(TPE).date().isoformat(),
+        "source_session_date": verified_complete_session_date,
         "universe_count": count,
         "run_id": integrity["run_id"],
         "run_attempt": integrity["run_attempt"],
