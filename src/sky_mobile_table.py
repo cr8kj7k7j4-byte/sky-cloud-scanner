@@ -264,3 +264,75 @@ def render_mobile_table(items: list[dict[str, Any]]) -> str:
         for row in rows
     ]
     return "\n".join([header, sep, *body])
+
+
+def render_manual_position_report(
+    message: str, *, quotes: dict | None = None,
+    account_context: dict | None = None, now=None,
+) -> dict:
+    """Offline position-review to mobile-table adapter, never a network/ChatGPT trigger.
+
+    Invoke the EXISTING manual reviewer first: scanner candidate rows must never
+    replace the reviewer's not-applicable fields, A2 gate, or P0-R rejects.
+    The caller must separately authenticate any injected Fugle A2 evidence.
+    No storage, broker credentials, paid API, automation, or order execution.
+    """
+    from .sky_manual_position_review import review_manual_positions
+
+    reviewed = review_manual_positions(
+        message, quotes=quotes, account_context=account_context, now=now
+    )
+    rows = []
+    for source in reviewed["rows"]:
+        if source.get("交易方式") not in {"MARGIN_FINANCING", "CASH", "UNSPECIFIED"}:
+            raise ValueError("INVALID_POSITION_REVIEW_ROW")
+        if source.get("買進觸發") != "不適用（既有持股）" or source.get("最高接受價") != "不適用（既有持股）":
+            raise ValueError("POSITION_ENTRY_NOT_APPLICABLE_CONTRACT")
+        rows.append({
+            "股票": str(source["股票"]),
+            "現價": _price(source.get("現價")),
+            "方向": source.get("方向") or "既有持股（多方）",
+            "多方評分": "—" if source.get("多方評分") is None else str(source["多方評分"]),
+            "空方評分": "—" if source.get("空方評分") is None else str(source["空方評分"]),
+            "買進觸發": source["買進觸發"],
+            "最高接受價": source["最高接受價"],
+            "停損／失效": (
+                _price(source["停損／失效"]) if source.get("停損／失效") is not None
+                else "未設定（缺使用者停損）"
+            ),
+            "分類": "HOLD" if reviewed["status"] == "HOLD" else str(source.get("分類") or "HOLD"),
+            "現在動作": (
+                "停損" if source.get("現在動作") == "停損" and source.get("停損／失效") is not None
+                else "等待"
+            ),
+            "欄位缺失原因": source.get("欄位缺失原因") or {},
+        })
+    header = "| " + " | ".join(COLUMNS) + " |"
+    separator = "| " + " | ".join("---" for _ in COLUMNS) + " |"
+    display = [header, separator]
+    for row in rows:
+        display.append("| " + " | ".join(
+            str(row[c]).replace("|", "／").replace("\\n", " ") for c in COLUMNS
+        ) + " |")
+    if not rows:
+        display.append("| 缺合格持股輸入 | — | — | — | — | — | — | — | HOLD | 等待 |")
+    display.append("")
+    display.append("此為既有持股觀察，並非新買進建議；缺有效 A2／停損／帳戶資料時維持 HOLD／NO_TRADE。")
+    for row in rows:
+        for field, reason in row["欄位缺失原因"].items():
+            display.append(f"- {row['股票']} {field}：{str(reason).replace(chr(10), ' ')}")
+    return {
+        "schema": "SKY_MANUAL_POSITION_MOBILE_READBACK_V1",
+        "status": reviewed["status"],
+        "action": reviewed["action"],
+        "rows": rows,
+        "markdown": "\\n".join(display),
+        "source_review": reviewed,
+        "live_a2_certified": all(row.get("現價") != "—" for row in rows) and bool(rows),
+        "new_entry_allowed": False,
+        "automatic_orders": False,
+        "production_eligible": False,
+        "mobile_e2e_verified": False,
+        "github_run_id": None,
+        "artifact_id": None,
+    }
