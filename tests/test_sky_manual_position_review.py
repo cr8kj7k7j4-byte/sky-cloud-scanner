@@ -20,7 +20,8 @@ def account():
 def quote(price=835):
     return {
         "symbol": "2330", "source": "Fugle MarketData API /intraday/quote",
-        "status": "REALTIME_QUOTE_VERIFIED", "executed_trade_verified": True,
+        "status": "PRICE_CAP_EXCEEDED", "executed_trade_verified": False,
+        "position_trade_observed": True, "last_trade_price": price,
         "last_price": price, "quote_date": "2026-11-27",
         "last_trade_tpe": datetime(2026, 11, 27, 10, 29, tzinfo=TPE).isoformat(),
     }
@@ -45,7 +46,7 @@ def test_never_assume_missing_holdings_or_account_are_zero():
 
 def test_quote_provenance_required_and_gross_pnl_not_net():
     rejected = review_manual_positions(TEXT, quotes={"2330": {
-        **quote(), "executed_trade_verified": False,
+        **quote(), "position_trade_observed": False,
     }}, account_context=account(), now=NOW)
     assert rejected["rows"][0]["現價"] is None
     assert rejected["rows"][0]["未實現毛損益"] is None
@@ -118,3 +119,28 @@ def test_market_snapshot_time_never_becomes_execution_time():
                                 account_context=account(), now=NOW)
     assert r["rows"][0]["現價"] is None
     assert r["status"] == "HOLD"
+
+
+def test_inline_manual_command_and_non_daytrade_holding_quote():
+    parsed = parse_manual_positions("Sky 持股檢查 2330 1張 成本850 停損820")
+    assert parsed["status"] == "PASS_INPUT"
+    result = review_manual_positions("Sky 持股檢查 2330 1張 成本850 停損820",
+                                     quotes={"2330": quote(860)},
+                                     account_context=account(), now=NOW)
+    assert result["rows"][0]["現價"] == 860
+    assert result["rows"][0]["未實現毛損益"] == 10000
+    assert result["new_entry_allowed"] is False
+
+
+def test_lastprice_fallback_does_not_certify_holding_execution():
+    observed = {**quote(), "last_trade_price": None, "last_price": 860}
+    result = review_manual_positions(TEXT, quotes={"2330": observed},
+                                     account_context=account(), now=NOW)
+    assert result["rows"][0]["現價"] is None
+    assert result["status"] == "HOLD"
+
+
+def test_single_position_1r_limit_is_reported():
+    result = review_manual_positions(TEXT, quotes={"2330": quote()},
+                                     account_context=account(), now=NOW)
+    assert "SINGLE_POSITION_RISK_EXCEEDED_2330" in result["reasons"]
