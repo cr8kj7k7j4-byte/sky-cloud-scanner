@@ -120,3 +120,19 @@ def test_empty_file_is_still_verifiable_bytes(tmp_path):
     inv["source_inventory"]["snapshot"]["sha256"] = hashlib.sha256(b"").hexdigest()
     path.write_text(json.dumps(inv), encoding="utf-8")
     assert check(tmp_path)["verified_file_count"] == 1
+
+
+def test_manifest_parent_symlink_outside_extraction_root_is_rejected(tmp_path):
+    root = tmp_path / "download"
+    root.mkdir()
+    fixture(root)
+    manifest_dir = root / "output/sky_quickscan_information"
+    outside = tmp_path / "external_manifest_dir"
+    manifest_dir.rename(outside)
+    manifest_dir.symlink_to(outside, target_is_directory=True)
+    # Only the parent directory is a link; the leaf manifest is not.
+    # Earlier is_file()+is_symlink() checks alone incorrectly accepted it.
+    assert (manifest_dir / "same_run_source_inventory.json").is_file()
+    assert not (manifest_dir / "same_run_source_inventory.json").is_symlink()
+    with pytest.raises(ValueError, match="INVENTORY_MISSING_OR_UNSAFE_PATH"):
+        check(root)
