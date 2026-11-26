@@ -162,12 +162,14 @@ def test_w0_shortcuts_are_classified_without_claiming_execution():
         assert route.command_family != "SKY_UNRECOGNIZED"
 
 
-def test_margin_ratio_is_never_marked_trade_ready_without_verified_source():
+def test_margin_ratio_estimate_does_not_bypass_trade_gates():
     route = route_command("Sky 維持率")
-    assert route.data_mode == "RESEARCH_ONLY_SOURCE_UNVERIFIED"
-    assert route.execution_target == "HOLD_PROVIDER_AND_SOURCE_CONFIRMATION"
+    assert route.data_mode == "RESEARCH_ONLY_ESTIMATE_DISCLOSED"
+    assert route.execution_target == "HOLD_MARGIN_RUNNER_NOT_VERIFIED"
     assert "No live" in route.notes
-    assert route.whole_market_required is False
+    assert "Ratio estimate" in route.notes
+    assert "P0-R" in route.notes
+    assert route.whole_market_required is True
 
 
 def test_margin_watchlist_and_project_mobile_presentation_contract():
@@ -175,8 +177,9 @@ def test_margin_watchlist_and_project_mobile_presentation_contract():
     assert symbols == (
         "2337", "6217", "3362", "8045", "8043", "2233",
         "5464", "4764", "1587", "3447", "2230", "6994",
+        "3040", "6558", "3207", "3322",
     )
-    assert len(symbols) == len(set(symbols)) == 12
+    assert len(symbols) == len(set(symbols)) == 16
     removed_over_100 = {
         "4979", "8039", "8358", "3026", "3363",
         "3532", "3211", "8021", "6683",
@@ -185,9 +188,9 @@ def test_margin_watchlist_and_project_mobile_presentation_contract():
     assert watchlist_for_command("SKY當沖") is None
     assert presentation_for_command("SKY維持率") == "SKY_MOBILE_TABLE_V1_0"
     route = route_command("SKY維持率")
-    assert route.data_mode == "RESEARCH_ONLY_SOURCE_UNVERIFIED"
-    assert route.whole_market_required is False
-    assert route.execution_target == "HOLD_PROVIDER_AND_SOURCE_CONFIRMATION"
+    assert route.data_mode == "RESEARCH_ONLY_ESTIMATE_DISCLOSED"
+    assert route.whole_market_required is True
+    assert route.execution_target == "HOLD_MARGIN_RUNNER_NOT_VERIFIED"
 
 
 def test_unregistered_current_command_still_fails_closed():
@@ -220,7 +223,7 @@ def test_five_minimal_mobile_commands_share_presentation_only():
         assert presentation_for_command(command) == "SKY_MOBILE_TABLE_V1_0"
     assert presentation_for_command("Sky 分析 not-a-symbol") is None
     assert "src.sky_manual_position_review.review_manual_positions" in route_command("Sky 持股檢查").execution_target
-    assert route_command("SKY維持率").execution_target == "HOLD_PROVIDER_AND_SOURCE_CONFIRMATION"
+    assert route_command("SKY維持率").execution_target == "HOLD_MARGIN_RUNNER_NOT_VERIFIED"
 
 def test_session_and_historical_research_contracts_in_existing_acceptance_ci():
     """Run off-hours selectors plus historical readback without any new Workflow."""
