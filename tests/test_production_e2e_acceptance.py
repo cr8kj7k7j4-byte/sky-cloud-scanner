@@ -226,3 +226,15 @@ def test_margin_filter_offline_contract_in_acceptance():
     result = unittest.TextTestRunner(stream=io.StringIO(), verbosity=2).run(suite)
     assert result.testsRun == 8, "MARGIN_TEST_DISCOVERY_INCOMPLETE"
     assert result.wasSuccessful(), "MARGIN_OFFLINE_FILTER_TESTS_FAILED"
+
+
+def test_margin_a2_saved_quote_bridge_no_network_contract():
+    """Run all eight raw-Fugle-A2 validation cases in existing Exact-SHA CI."""
+    import io
+    import unittest
+    suite = unittest.defaultTestLoader.loadTestsFromName(
+        "tests.test_sky_margin_a2_quote_bridge.MarginA2BridgeTests"
+    )
+    result = unittest.TextTestRunner(stream=io.StringIO(), verbosity=2).run(suite)
+    assert result.testsRun == 8, "MARGIN_A2_BRIDGE_TEST_DISCOVERY_INCOMPLETE"
+    assert result.wasSuccessful(), "MARGIN_A2_BRIDGE_TESTS_FAILED"
