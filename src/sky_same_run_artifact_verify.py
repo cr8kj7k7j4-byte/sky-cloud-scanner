@@ -37,8 +37,9 @@ def verify_downloaded_inventory(
         raise ValueError("INVALID_EXPECTED_PROVENANCE")
     root = Path(extraction_root).resolve(strict=True)
     manifest = root / "output/sky_quickscan_information/same_run_source_inventory.json"
-    if not manifest.is_file() or manifest.is_symlink():
-        raise ValueError("INVENTORY_MISSING")
+    if (not manifest.is_file() or manifest.is_symlink()
+            or not manifest.resolve().is_relative_to(root)):
+        raise ValueError("INVENTORY_MISSING_OR_UNSAFE_PATH")
     inventory = json.loads(manifest.read_text(encoding="utf-8"))
     if not isinstance(inventory, dict) or inventory.get("schema") != SCHEMA:
         raise ValueError("INVALID_INVENTORY_SCHEMA")
