@@ -17,14 +17,9 @@ on:
       - 'scan_requests/mcr/now.json'
       - 'scan_requests/quickscan/latest.json'
       - 'scan_requests/postmarket/now.json'
-  # Canonical five scheduled research scans restored 2026-11-22.
-  # UTC (+8 Asia/Taipei): weekdays at 09:05, 09:15, 09:30, 09:50, 10:15.
-  # Official TWSE calendar, paid API reservation and fail-closed data gates
-  # remain in place. Scheduled start is best effort: require same-run evidence.
-  # No auto order and no research-to-Production model promotion.
-  schedule:
-    - cron: "5,15,30,50 1 * * 1-5"
-    - cron: "15 2 * * 1-5"
+  # W0 #363 (2026-11-26): formal automatic intraday scan cron retired by user request.
+  # Manual workflow_dispatch and existing push requests remain available.
+  # Official calendar, paid API Claim and fail-closed NO_TRADE gates remain intact.
 
 permissions:
   contents: write
