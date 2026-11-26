@@ -227,9 +227,14 @@ _PATTERNS = [
     (
         re.compile(r"^Sky\s*波段快掃$", re.I),
         CommandRoute(
-            "SKY_SWING_SCAN", "WHOLE_MARKET_REALTIME", True, True, False,
-            "src.swing_live_scanner --mode swing",
-            "Broad swing candidate generation only; not an executable V1.1 entry decision."
+            "SKY_SWING_SCAN", "SESSION_ADAPTIVE_SWING_RESEARCH", True, True, False,
+            "src.sky_swing_session_policy.swing_session_policy (selection only); "
+            "src.swing_live_scanner --mode swing (existing guarded live scan)",
+            "Premarket/postmarket/nontrading periods may use only separately verified "
+            "complete-session historical evidence, never a fabricated live price. "
+            "Existing live Workflow requires independently validated calendar, paid "
+            "Claim and Fugle evidence. Swing V1.0 executable rule remains BLOCKED; "
+            "V1.1 is Research. No dispatch, entry authorization or automatic orders."
         ),
     ),
     (
