@@ -212,3 +212,92 @@ def test_scanner_column_diagnostics_without_any_fugle_api():
     assert row["買進觸發"] == "待確認（缺同次策略計畫）"
     assert row["現在動作"] == "等待"
     assert row["分類"] == "X"
+
+
+# User-supplied 3717 screenshot figures are observational inputs, not Fugle A2.
+MARGIN_3717 = (
+    "Sky 持股檢查\n"
+    "3717 融資 1,000股 平均成本17.40\n"
+    "截圖市價 18.55\n"
+    "券商預估損益 +1,064\n"
+    "券商預估報酬率 +14.37%"
+)
+
+
+def test_3717_real_financing_manual_input_preserves_unknowns():
+    parsed = parse_manual_positions(MARGIN_3717)
+    assert parsed["status"] == "PASS_INPUT", parsed
+    assert parsed["positions"][0]["symbol"] == "3717"
+    assert parsed["positions"][0]["trade_type"] == "MARGIN_FINANCING"
+    assert parsed["positions"][0]["shares"] == 1000
+    assert parsed["positions"][0]["average_cost"] == 17.40
+    assert parsed["positions"][0]["stop"] is None
+    evidence = parsed["broker_evidence"]
+    assert evidence["screenshot_price"] == 18.55
+    assert evidence["broker_estimated_pnl"] == 1064
+    assert evidence["broker_estimated_return_pct"] == 14.37
+    assert evidence.get("margin_loan_balance") is None
+    assert evidence.get("margin_maintenance_ratio_pct") is None
+
+
+def test_3717_broker_reference_arithmetic_not_certified_market_pnl():
+    r = review_manual_positions(MARGIN_3717, now=NOW)
+    assert r["status"] == "HOLD"
+    row = r["rows"][0]
+    assert row["股票原始成交總額"] == 17400.0
+    assert row["現價"] is None  # screenshot 18.55 is NOT A2
+    assert row["未實現毛損益"] is None
+    assert row["券商截圖市價（未認證）"] == 18.55
+    assert row["截圖價差毛損益（未扣費）"] == 1150.0
+    assert row["券商預估損益（原值）"] == 1064.0
+    assert row["券商預估報酬率%（原值）"] == 14.37
+    assert row["截圖毛損益減券商預估損益（差額原因未認證）"] == 86.0
+    assert row["券商截圖行情狀態"] == "USER_PROVIDED_UNDATED_REFERENCE_NOT_A2"
+    assert row["融資自備款"] is None
+    assert row["融資餘額"] is None
+    assert row["融資維持率%"] is None
+    assert "HOLD_MARGIN_LOAN_BALANCE_3717" in r["reasons"]
+    assert "HOLD_MARGIN_OWN_CASH_3717" in r["reasons"]
+    assert "HOLD_MARGIN_MAINTENANCE_RATIO_3717" in r["reasons"]
+    assert "HOLD_STOP_3717" in r["reasons"]
+    assert "HOLD_A2_EXECUTED_TRADE_3717" in r["reasons"]
+    assert r["risk_total_twd"] is None
+    assert r["new_entry_allowed"] is False
+    assert r["automatic_orders"] is False
+
+
+def test_3717_screenshot_not_relabelled_as_fugle_a2():
+    r = review_manual_positions(MARGIN_3717, quotes={
+        "3717": {
+            "symbol": "3717", "source": "Fugle MarketData API /intraday/quote",
+            "status": "UNVERIFIED_EXECUTION_TIME", "last_price": 18.55,
+            "last_trade_price": None, "last_updated_tpe": NOW.isoformat(),
+            "quote_date": NOW.date().isoformat(),
+        }
+    }, now=NOW)
+    assert r["rows"][0]["現價"] is None
+    assert r["rows"][0]["未實現毛損益"] is None
+    assert r["rows"][0]["截圖價差毛損益（未扣費）"] == 1150
+
+
+def test_3717_manual_margin_evidence_not_backsolved_from_return():
+    supplied = MARGIN_3717 + "\n融資餘額 9000\n融資自備款 8400"
+    r = review_manual_positions(supplied, now=NOW)
+    row = r["rows"][0]
+    assert row["融資餘額"] == 9000
+    assert row["融資自備款"] == 8400
+    assert row["融資維持率%"] is None
+    assert "HOLD_MARGIN_MAINTENANCE_RATIO_3717" in r["reasons"]
+    assert row["股票原始成交總額"] == 17400
+
+
+def test_reject_finance_metadata_without_finance_symbol_and_bad_roi_unit():
+    assert "MARGIN_EVIDENCE_REQUIRES_FINANCING_POSITION" in parse_manual_positions(
+        "3717 1000股 成本17.4\n融資餘額 9000"
+    )["errors"]
+    assert "INVALID_OR_DUPLICATE_BROKER_EVIDENCE" in parse_manual_positions(
+        "3717 融資 1000股 成本17.4\n券商預估報酬率 14.37"
+    )["errors"]
+    assert "INVALID_POSITION_LINE" in parse_manual_positions(
+        "3717 融資 1000股 成本17.4\n未知欄位 1234"
+    )["errors"]
