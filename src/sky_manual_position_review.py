@@ -11,6 +11,8 @@ import re
 from typing import Any
 
 from .sky_command_router import UPDATE_PRESENTATION
+from . import config
+from .risk_engine import RiskPolicy
 
 TPE = timezone(timedelta(hours=8))
 POSITION_LINE = re.compile(
@@ -142,6 +144,19 @@ def review_manual_positions(
         reasons.append("HOLD_MISSING_ACCOUNT_CONTEXT")
     if invalid:
         reasons.append("HOLD_INVALID_ACCOUNT_CONTEXT")
+    # P0-R canonical policy/config is clamped to the user's hard risk ceilings.
+    policy = RiskPolicy(
+        risk_per_trade_pct=min(config.RISK_PER_TRADE_PCT, 0.01),
+        daily_loss_limit_pct=min(config.DAILY_LOSS_LIMIT_PCT, 0.02),
+        max_portfolio_heat_pct=min(config.MAX_PORTFOLIO_HEAT_PCT, 0.03),
+        max_position_pct=min(config.MAX_POSITION_PCT, 0.20),
+        max_concurrent_positions=min(config.MAX_CONCURRENT_POSITIONS, 3),
+    )
+    equity = _number(account.get("account_equity"))
+    single_risk_limit = min(5000.0, equity * policy.risk_per_trade_pct) if equity and equity > 0 else 5000.0
+    position_cost_limit = min(100000.0, equity * policy.max_position_pct) if equity and equity > 0 else 100000.0
+    heat_limit = min(15000.0, equity * policy.max_portfolio_heat_pct) if equity and equity > 0 else 15000.0
+    daily_limit = min(10000.0, equity * policy.daily_loss_limit_pct) if equity and equity > 0 else 10000.0
     risk_sum = 0.0
     full_risk = True
     for position in parsed["positions"]:
@@ -178,20 +193,20 @@ def review_manual_positions(
             "減碼條件": "風險或集中度超出限制時人工評估減碼",
             "退出條件": "有效成交價觸及或跌破已知停損",
         })
-        if remaining_risk is not None and remaining_risk > 5_000:
+        if remaining_risk is not None and remaining_risk > single_risk_limit:
             reasons.append("SINGLE_POSITION_RISK_EXCEEDED_" + symbol)
-        if cost * shares > 100_000:
+        if cost * shares > position_cost_limit:
             reasons.append("POSITION_CAP_EXCEEDED_" + symbol)
-    if full_risk and risk_sum > 15_000:
+    if full_risk and risk_sum > heat_limit:
         reasons.append("PORTFOLIO_HEAT_EXCEEDED")
     if not missing and not invalid:
-        if _number(account["daily_pnl"]) <= -10_000:
+        if _number(account["daily_pnl"]) <= -daily_limit:
             reasons.append("DAILY_LOSS_LOCKDOWN")
         if _number(account["consecutive_losses"]) >= 2:
             reasons.append("TWO_CONSECUTIVE_STOPS")
-        if _number(account["concurrent_positions"]) > 3:
+        if _number(account["concurrent_positions"]) > policy.max_concurrent_positions:
             reasons.append("MAX_CONCURRENT_POSITIONS")
-        if _number(account["open_risk"]) > 15_000:
+        if _number(account["open_risk"]) > heat_limit:
             reasons.append("OPEN_RISK_CAP_EXCEEDED")
     return {
         "schema": UPDATE_PRESENTATION, "status": "HOLD" if reasons else "RESEARCH_OBSERVATION_ONLY",
@@ -200,6 +215,7 @@ def review_manual_positions(
         "missing_account_fields": missing, "invalid_account_fields": invalid,
         "risk_total_twd": round(risk_sum, 2) if full_risk and rows else None,
         "risk_certified": False, "new_entry_allowed": False,
+        "p0r_policy": "EXISTING_RISK_POLICY_CLAMPED_TO_USER_CAPS",
         "portfolio_allowed": False, "reasons": list(dict.fromkeys(reasons)),
         "provider": "Fugle authorized individual quote required externally",
         "net_pnl_requires_verified_fees_and_fills": True,
