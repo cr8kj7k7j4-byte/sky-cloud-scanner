@@ -216,10 +216,10 @@ def test_scanner_column_diagnostics_without_any_fugle_api():
 
 # User-supplied 3717 screenshot figures are observational inputs, not Fugle A2.
 MARGIN_3717 = (
-    "Sky 持股檢查\\n"
-    "3717 融資 1,000股 平均成本17.40\\n"
-    "截圖市價 18.55\\n"
-    "券商預估損益 +1,064\\n"
+    "Sky 持股檢查\n"
+    "3717 融資 1,000股 平均成本17.40\n"
+    "截圖市價 18.55\n"
+    "券商預估損益 +1,064\n"
     "券商預估報酬率 +14.37%"
 )
 
@@ -281,7 +281,7 @@ def test_3717_screenshot_not_relabelled_as_fugle_a2():
 
 
 def test_3717_manual_margin_evidence_not_backsolved_from_return():
-    supplied = MARGIN_3717 + "\\n融資餘額 9000\\n融資自備款 8400"
+    supplied = MARGIN_3717 + "\n融資餘額 9000\n融資自備款 8400"
     r = review_manual_positions(supplied, now=NOW)
     row = r["rows"][0]
     assert row["融資餘額"] == 9000
@@ -293,11 +293,11 @@ def test_3717_manual_margin_evidence_not_backsolved_from_return():
 
 def test_reject_finance_metadata_without_finance_symbol_and_bad_roi_unit():
     assert "MARGIN_EVIDENCE_REQUIRES_FINANCING_POSITION" in parse_manual_positions(
-        "3717 1000股 成本17.4\\n融資餘額 9000"
+        "3717 1000股 成本17.4\n融資餘額 9000"
     )["errors"]
     assert "INVALID_OR_DUPLICATE_BROKER_EVIDENCE" in parse_manual_positions(
-        "3717 融資 1000股 成本17.4\\n券商預估報酬率 14.37"
+        "3717 融資 1000股 成本17.4\n券商預估報酬率 14.37"
     )["errors"]
     assert "INVALID_POSITION_LINE" in parse_manual_positions(
-        "3717 融資 1000股 成本17.4\\n未知欄位 1234"
+        "3717 融資 1000股 成本17.4\n未知欄位 1234"
     )["errors"]
