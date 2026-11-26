@@ -179,12 +179,38 @@ def review_manual_positions(
         else:
             risk_sum += remaining_risk
         breached = price is not None and stop is not None and price <= stop
+        # Explain each unavailable cell without inventing a score, entry or exit.
+        field_reasons = {
+            "多方評分": "未執行符合條件的正式多方模型；持股損益不依賴新進場評分",
+            "空方評分": "未執行符合條件的獨立空方模型；持股損益不依賴新進場評分",
+            "買進觸發": "不適用：此為已持有部位，不是新買進訊號",
+            "最高接受價": "不適用：此為已持有部位，不提供新買進價格",
+            "目標價": "尚無經認證的持股退出策略目標，不可由成本或現價推算",
+            "成本後RR": "已持有部位缺合格目標、完整成交成本與滑價；不計算新進場RR",
+            "費稅後淨損益": "缺實際買賣費率與可驗證成交成本；僅顯示未實現毛損益",
+        }
+        if price is None:
+            field_reasons["現價"] = (
+                "缺同股 Fugle Individual Quote 真實 lastTrade.price/time、"
+                "交易日或120秒內成交認證；參考價/快照不可代替"
+            )
+            field_reasons["未實現毛損益"] = "缺已認證成交價；不以收盤/快照價計算"
+        if stop is None:
+            field_reasons["停損／失效"] = "使用者尚未提供真實持股停損價"
+        if price is None or stop is None:
+            field_reasons["目前價至停損風險"] = (
+                "需同時提供已認證成交價與使用者停損價"
+            )
         rows.append({
             "股票": symbol, "現價": price, "方向": "既有持股（多方）",
             "多方評分": None, "空方評分": None, "買進觸發": None,
             "最高接受價": None, "停損／失效": stop,
             "分類": "X" if breached else "HOLD",
             "現在動作": "停損" if breached else "等待",
+            "欄位缺失原因": field_reasons,
+            "買進觸發說明": "不適用（既有持股）",
+            "最高接受價說明": "不適用（既有持股）",
+            "目標價": None, "成本後RR": None,
             "股數": shares, "平均成本": cost, "未實現毛損益": gross_pnl,
             "未實現毛報酬率%": pnl_pct, "目前價至停損風險": remaining_risk,
             "來源成交時間Asia/Taipei": trade_time,
@@ -213,6 +239,9 @@ def review_manual_positions(
         "columns": MOBILE_COLUMNS, "rows": rows,
         "account_context_required": ACCOUNT_FIELDS,
         "missing_account_fields": missing, "invalid_account_fields": invalid,
+        "帳戶風控缺失原因": {
+            field: "未提供真實帳戶資料（不得視為零）" for field in missing
+        } | {field: "數值無效或不符合 P0-R 欄位規格" for field in invalid},
         "risk_total_twd": round(risk_sum, 2) if full_risk and rows else None,
         "risk_certified": False, "new_entry_allowed": False,
         "p0r_policy": "EXISTING_RISK_POLICY_CLAMPED_TO_USER_CAPS",
