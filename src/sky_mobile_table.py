@@ -300,7 +300,7 @@ def render_manual_position_report(
                 _price(source["停損／失效"]) if source.get("停損／失效") is not None
                 else "未設定（缺使用者停損）"
             ),
-            "分類": "HOLD" if reviewed["status"] == "HOLD" else str(source.get("分類") or "HOLD"),
+            "分類": "X" if source.get("分類") == "X" else "HOLD",
             "現在動作": (
                 "停損" if source.get("現在動作") == "停損" and source.get("停損／失效") is not None
                 else "等待"
