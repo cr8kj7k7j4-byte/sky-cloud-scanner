@@ -114,6 +114,17 @@ Any material gate failure blocks Promotion. No chat window, notebook, branch, or
 - Major governance changes must be written back to GitHub.
 - W0 does not absorb bulk repetitive backtesting; that remains delegated to W1 / W2.
 
+## Fugle monthly subscription vs operational duplicate control (2026-11-26)
+<!-- FUGLE_MONTHLY_SUBSCRIPTION_POLICY_V1 -->
+
+**使用者已確認 Fugle 為包月付費方案。** Sky 不得把每次必要的行情 API 查詢預設為「額外按次收費」，也不得僅為避免臆測的單次費用而拒絕已授權、符合速率與配額限制、具有資料認證必要性的候選逐股 A2／5m／VWAP 補查。包月價格與權限、速率、配額仍以帳戶實際方案及 Fugle 官方資訊為準；包月**不代表無限 API 呼叫**。
+
+**付費 Claim 是跨 Workflow 的操作防重與競爭保護，不是按次計費開關。** 保留既有共享 concurrency、原子 Claim、nonce／Artifact 獨立驗證、同次快取及失敗時 fail-closed。若遭 DUPLICATE_BLOCKED，先核對 run ID、scope、時間窗與現存 Claim／原始回應，確認是否為真正重複工作；不得因包月就取消並發防重或在未知實際 entitlement 時無界重試。
+
+允許在 Provider-First 確認官方 Endpoint、帳戶權限、rate limit／quota，以及同次 Claim／快取後，**有界、必要、不重複**地追加行情驗證。對缺少成交時間、來源、封棒、成交量單位、獨立 VWAP 或完整 Artifact 的標的繼續 HOLD／NO_TRADE。Workflow 在 Job 建立前即失敗、零 Job／零 Artifact 時，不能推定為 Fugle 計費或配額異常，應先查 YAML、觸發事件與 Actions 編譯／權限原始證據。
+
+此條是正式治理語意校正，不代表本帳戶的即時方案權限已核准，也不等於已執行 Fugle API、CI 或真實盤中掃描。不得新增重複 Workflow、排程、模擬帳本、自動下單或 Production 升版。
+
 ## W0 REUSE_FIRST / FALLBACK_PROVIDER_FIRST / EVIDENCE_BEFORE_PASS (2026-11-24)
 <!-- SKY_W0_REUSE_FIRST_FALLBACK_V1 -->
 
