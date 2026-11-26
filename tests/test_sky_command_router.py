@@ -221,3 +221,31 @@ def test_five_minimal_mobile_commands_share_presentation_only():
     assert presentation_for_command("Sky 分析 not-a-symbol") is None
     assert "src.sky_manual_position_review.review_manual_positions" in route_command("Sky 持股檢查").execution_target
     assert route_command("SKY維持率").execution_target == "HOLD_PROVIDER_AND_SOURCE_CONFIRMATION"
+
+def test_session_and_historical_research_contracts_in_existing_acceptance_ci():
+    """Run off-hours selectors plus historical readback without any new Workflow."""
+    import unittest
+    from tests import (
+        test_sky_daytrade_session_policy,
+        test_sky_swing_session_policy,
+        test_sky_historical_research_readback,
+    )
+
+    loader = unittest.TestLoader()
+    suite = unittest.TestSuite(
+        loader.loadTestsFromModule(module)
+        for module in (
+            test_sky_daytrade_session_policy,
+            test_sky_swing_session_policy,
+            test_sky_historical_research_readback,
+        )
+    )
+    count = suite.countTestCases()
+    assert count >= 20, f"Unexpectedly incomplete session/readback suite: {count}"
+    result = unittest.TestResult()
+    suite.run(result)
+    assert result.wasSuccessful(), (
+        "Off-hours session/historical contract failures: "
+        + repr(result.failures + result.errors)
+    )
+    assert result.testsRun == count
