@@ -14,10 +14,10 @@ from .sky_command_router import UPDATE_PRESENTATION
 
 TPE = timezone(timedelta(hours=8))
 POSITION_LINE = re.compile(
-    r"^(?P<symbol>\\d{4,6})\\s+"
-    r"(?P<quantity>\\d+(?:,\\d{3})*)(?P<unit>股|張)\\s+"
-    r"(?:成本|均價)\\s*(?P<cost>\\d+(?:\\.\\d+)?)"
-    r"(?:\\s+停損\\s*(?P<stop>\\d+(?:\\.\\d+)?))?\\s*$"
+    r"^(?P<symbol>\d{4,6})\s+"
+    r"(?P<quantity>\d+(?:,\d{3})*)(?P<unit>股|張)\s+"
+    r"(?:成本|均價)\s*(?P<cost>\d+(?:\.\d+)?)"
+    r"(?:\s+停損\s*(?P<stop>\d+(?:\.\d+)?))?\s*$"
 )
 ACCOUNT_FIELDS = (
     "account_equity", "daily_pnl", "open_risk",
@@ -172,6 +172,8 @@ def review_manual_positions(
             "減碼條件": "風險或集中度超出限制時人工評估減碼",
             "退出條件": "有效成交價觸及或跌破已知停損",
         })
+        if remaining_risk is not None and remaining_risk > 5_000:
+            reasons.append("SINGLE_POSITION_RISK_EXCEEDED_" + symbol)
         if cost * shares > 100_000:
             reasons.append("POSITION_CAP_EXCEEDED_" + symbol)
     if full_risk and risk_sum > 15_000:
