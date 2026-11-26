@@ -50,7 +50,7 @@ def missing_field_reasons(item, plan=None):
         reason = {
             "SOURCE_NOT_FUGLE": "資料來源不是已確認的 Fugle 觀察資料",
             "INVALID_SESSION_OR_PRICE": "來源交易日、試撮或價格資料未合格",
-            "INSUFFICIENT_FUGLE_OHLC": "缺同日 Fugle 開高低價與有效觀察價",
+            "INSUFFICIENT_FUGLE_OHLC": "缺同日 Fugle OHLC 開高低價與有效觀察價",
         }.get(evidence.get("status"), "尚無符合條件的多空研究模型輸出")
         reasons["多方評分"] = reason
         reasons["空方評分"] = reason
