@@ -198,9 +198,14 @@ _PATTERNS = [
     (
         re.compile(r"^Sky\s*當沖(?:現在掃一次|快掃)$", re.I),
         CommandRoute(
-            "SKY_DAYTRADE_SCAN", "WHOLE_MARKET_REALTIME", True, True, False,
-            "src.main",
-            "Canonical intraday whole-market scanner."
+            "SKY_DAYTRADE_SCAN", "SESSION_ADAPTIVE_DAYTRADE_RESEARCH", True, True, False,
+            "src.sky_daytrade_session_policy.daytrade_session_policy (selection only); "
+            "src.main (existing governed live scanner)",
+            "One command for premarket, intraday, postmarket and non-trading-day "
+            "research. Trading day and latest complete session require verified "
+            "source evidence; outside live session read only historical artifact. "
+            "Intraday entry still requires Fugle A1/A2, strategy, cost and P0-R. "
+            "This route does not dispatch GitHub or certify mobile E2E."
         ),
     ),
     (
