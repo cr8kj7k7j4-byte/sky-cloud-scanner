@@ -41,6 +41,15 @@ def collect(symbol: str, now=None) -> dict:
         "execution_authorized": False, "live_order_enabled": False,
         "scores": None, "entry_trigger": None, "max_entry": None,
         "stop": None, "targets": None, "net_rr": None,
+        "field_missing_reasons": {
+            "多方評分": "本行情收集器不執行正式多方模型，缺多週期與完整策略證據",
+            "空方評分": "本行情收集器不執行獨立空方模型，缺獨立空方訊號",
+            "買進觸發": "缺同次已驗證的策略觸發與突破品質，不可由報價反推",
+            "最高接受價": "缺合格觸發、追高否決與成本後RR檢查",
+            "停損／失效": "缺合格策略結構停損與實際失效條件",
+            "目標價": "缺同次已核准的策略目標一／二，不以價格乘數捏造",
+            "成本後RR": "缺合格進場、停損、目標與費稅／價差／滑價證據",
+        },
     }
     try:
         quote = fugle.get_quote(symbol)
