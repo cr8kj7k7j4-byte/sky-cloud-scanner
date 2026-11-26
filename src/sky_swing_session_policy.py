@@ -35,6 +35,10 @@ def swing_session_policy(
             "AUTHORIZED_LIVE_OBSERVATION_REQUIRED" if live
             else "VERIFIED_COMPLETE_SESSION_ARTIFACT_REQUIRED"
         ),
+        "command_accepted": True,
+        "command_availability": "ALL_SESSIONS",
+        "report_available": False,
+        "report_unavailable_reason": "HISTORICAL_OR_LIVE_SOURCE_EVIDENCE_NOT_ATTACHED",
         "historical_artifact_verified": False,
         "allow_historical_readback": not live,
         "allow_live_scan": live,
