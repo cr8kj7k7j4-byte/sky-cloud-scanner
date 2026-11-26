@@ -151,3 +151,64 @@ def test_manual_average_cost_with_spaces_supported():
     assert parsed["status"] == "PASS_INPUT"
     assert parsed["positions"][0]["shares"] == 1000
     assert parsed["positions"][0]["average_cost"] == 850
+
+
+def test_existing_holding_not_applicable_buying_and_independent_gross_pnl():
+    unknown_account = review_manual_positions(
+        TEXT, quotes={"2330": quote(835)}, now=NOW
+    )
+    row = unknown_account["rows"][0]
+    assert row["買進觸發"] == "不適用（既有持股）"
+    assert row["最高接受價"] == "不適用（既有持股）"
+    assert row["未實現毛損益"] == -15000
+    assert row["目前價至停損風險"] == 15000
+    assert unknown_account["status"] == "HOLD"
+    assert "daily_pnl" in unknown_account["帳戶風控缺失原因"]
+    assert "未提供真實帳戶" in unknown_account["帳戶風控缺失原因"]["daily_pnl"]
+    assert "成本後RR" in row["欄位缺失原因"]
+    assert "目標價" in row["欄位缺失原因"]
+    assert row["成本後RR"] is None
+
+
+def test_position_missing_quote_explains_price_but_preserves_user_stop():
+    result = review_manual_positions(TEXT, account_context=account(), now=NOW)
+    row = result["rows"][0]
+    assert row["現價"] is None
+    assert row["停損／失效"] == 820.0
+    assert row["未實現毛損益"] is None
+    assert "A2" in row["欄位缺失原因"]["現價"]
+    assert "未實現毛損益" in row["欄位缺失原因"]
+    assert "停損／失效" not in row["欄位缺失原因"]
+    assert result["new_entry_allowed"] is False
+
+
+def test_position_known_quote_missing_stop_keeps_gross_pnl():
+    result = review_manual_positions(
+        "2330 1張 成本850", quotes={"2330": quote(835)},
+        account_context=account(), now=NOW
+    )
+    row = result["rows"][0]
+    assert row["現價"] == 835
+    assert row["未實現毛損益"] == -15000
+    assert row["停損／失效"] is None
+    assert "停損／失效" in row["欄位缺失原因"]
+    assert result["risk_total_twd"] is None
+    assert result["status"] == "HOLD"
+
+
+def test_scanner_column_diagnostics_without_any_fugle_api():
+    from research.sky_13col_report import missing_field_reasons, projection
+    item = {
+        "symbol": "2330", "source": "Fugle paid bulk snapshot",
+        "data_status": "UNVERIFIED_EXECUTION_TIME",
+        "last_price": 850.0,
+    }
+    missing = missing_field_reasons(item)
+    row = projection(item)
+    assert "A2" in missing["即時價"]
+    assert "OHLC" in missing["多方評分"]
+    assert "strategy_plan" in missing["買進觸發"]
+    assert "滑價" in missing["成本後RR"]
+    assert row["買進觸發"] == "待確認（缺同次策略計畫）"
+    assert row["現在動作"] == "等待"
+    assert row["分類"] == "X"

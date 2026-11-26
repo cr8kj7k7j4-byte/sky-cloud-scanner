@@ -31,6 +31,37 @@ def _cell(value):
     return str(value if value not in (None, "") else UNKNOWN).replace("|", "／").replace("\n", " ")
 
 
+def missing_field_reasons(item, plan=None):
+    """Source -> certification -> scoring -> plan -> cost diagnostics.
+
+    Report mapping ONLY. No provider API calls or trade authorization.
+    """
+    evidence = observation_evidence(item)
+    status = item.get("data_status") or "MISSING_DATA_STATUS"
+    price_reason = (
+        "缺同次合格 A2 實際成交時間／價格認證，A1 快照僅供觀察"
+        if status != "FRESH_EXECUTED_TRADE" else
+        "已標示成交認證但缺有效正數價格，來源值需重查"
+    )
+    reasons = {}
+    if not (status == "FRESH_EXECUTED_TRADE" and _number(item.get("last_price")) is not None):
+        reasons["即時價"] = price_reason
+    if evidence.get("bull") is None or evidence.get("bear") is None:
+        reason = {
+            "SOURCE_NOT_FUGLE": "資料來源不是已確認的 Fugle 觀察資料",
+            "INVALID_SESSION_OR_PRICE": "來源交易日、試撮或價格資料未合格",
+            "INSUFFICIENT_FUGLE_OHLC": "缺同日 Fugle OHLC 開高低價與有效觀察價",
+        }.get(evidence.get("status"), "尚無符合條件的多空研究模型輸出")
+        reasons["多方評分"] = reason
+        reasons["空方評分"] = reason
+    if not isinstance(plan, dict):
+        for field in ("買進觸發", "最高接受價", "停損／失效", "停利價格"):
+            reasons[field] = "缺同次掃描已驗證的策略計畫 strategy_plan；不可反推點位"
+    reasons["加碼價格"] = "無正式合格加碼訊號與降低風險審核；禁止攤平"
+    reasons["成本後RR"] = "缺可認證策略計畫的目標／停損、實際成本與滑價；不能用毛RR替代"
+    return reasons
+
+
 def projection(item, plan=None):
     """All unavailable strategy fields remain unknown, never inferred."""
     verified = item.get("data_status") == "FRESH_EXECUTED_TRADE"
@@ -60,6 +91,10 @@ def projection(item, plan=None):
         row["多方評分"] = evidence["bull"]
         row["空方評分"] = evidence["bear"]
         row["方向"] = str(evidence.get("direction") or "觀察") + "（研究）"
+    if not isinstance(plan, dict):
+        for field in ("買進觸發", "最高接受價", "停損／失效", "停利價格"):
+            row[field] = "待確認（缺同次策略計畫）"
+        row["加碼價格"] = "不適用（未授權加碼）"
     if isinstance(plan, dict):
         row["買進觸發"] = f"{plan['trigger']:.2f}（研究）"
         row["最高接受價"] = f"{plan['max_entry']:.2f}（研究）"
@@ -108,6 +143,9 @@ def render(report, *, limit=0, scanner=None):
                     "方向": "不交易", "多方評分": "—", "空方評分": "—",
                     "現在動作": "等待"}
         lines.append("| " + " | ".join(_cell(fallback.get(col)) for col in COLUMNS) + " |")
+    lines += ["", "欄位缺失說明：即時價需 A2 真實成交認證；評分需有效同日 Fugle OHLC；"
+              "買進觸發／最高接受價／停損／停利需要同次合格策略計畫；"
+              "成本後RR另需可驗證交易成本與滑價。缺資料維持 HOLD/NO_TRADE。"]
     lines += ["", "研究多空分數只依同日富果價量證據計算，非勝率；標示（研究）的點位只來自同輪掃描既有的策略計畫。",
               "非新鮮成交的最近觀察價仍保留於來源 JSON（last_price、data_status、snapshot_observed_at），"
               "不得冒充即時價。", "",
@@ -145,6 +183,11 @@ def main():
                                  else "待確認")
             row["資料狀態"] = item.get("data_status")
             row["研究分數狀態"] = observation_evidence(item).get("status")
+            row["欄位缺失原因"] = missing_field_reasons(
+                item, plans.get(str(item.get("symbol") or ""))
+            )
+            row["成本後RR"] = None
+            row["成本後RR原因"] = row["欄位缺失原因"]["成本後RR"]
             row["正式交易資格"] = False
             projected.append(row)
         payload = {"schema": "SKY_DAYTRADE_13COL_RESEARCH_V2",

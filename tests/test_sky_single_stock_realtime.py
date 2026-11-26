@@ -52,6 +52,8 @@ class SingleStockRealtimeTests(unittest.TestCase):
         self.assertIsNone(result["max_entry"])
         self.assertIsNone(result["stop"])
         self.assertFalse(result["execution_authorized"])
+        self.assertIn("策略", result["field_missing_reasons"]["買進觸發"])
+        self.assertIn("費稅", result["field_missing_reasons"]["成本後RR"])
 
     def test_close_only_quote_cannot_be_accepted_as_live_trade(self):
         quote, ticker = self.sample()
