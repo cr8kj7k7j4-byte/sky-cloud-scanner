@@ -252,3 +252,17 @@ def test_session_and_historical_research_contracts_in_existing_acceptance_ci():
         + repr(result.failures + result.errors)
     )
     assert result.testsRun == count
+
+
+
+def test_shared_postmarket_inventory_in_existing_acceptance_ci():
+    """PR CI must exercise exact source inventory writer used by both scan jobs."""
+    import unittest
+    from tests import test_sky_source_inventory
+
+    suite = unittest.TestLoader().loadTestsFromModule(test_sky_source_inventory)
+    assert suite.countTestCases() == 5
+    result = unittest.TestResult()
+    suite.run(result)
+    assert result.wasSuccessful(), repr(result.failures + result.errors)
+    assert result.testsRun == 5

@@ -160,8 +160,15 @@ def test_formal_scan_disables_live_five_minute_probe_but_keeps_a2_claim():
     assert "Preserve bounded two-market Fugle 5m evidence inside current paid Claim" not in wf
     assert "existing_five_min_probe(" not in wf
     assert "sky_v14_ticker_candles_probe" not in wf
-    assert '"live_five_minute_requests":"DISABLED_V5_4"' in wf
-    assert '"independent_tick_vwap_requests":"DISABLED_V5_4"' in wf
+    from research.sky_source_inventory import build_inventory
+    shared = build_inventory(
+        base=Path("."), run_id="123", attempt="1",
+        sha="a" * 40, event="pull_request", mode="intraday",
+    )
+    assert shared["live_five_minute_requests"] == "DISABLED_V5_4"
+    assert shared["independent_tick_vwap_requests"] == "DISABLED_V5_4"
+    assert "python -m research.sky_source_inventory --mode intraday" in wf
+    assert "python -m research.sky_source_inventory --mode postmarket_observation" in wf
     assert "Verify bounded paid Fugle individual last-trades" in wf
     assert "Independently verify paid reservation" in wf
     assert "Reserve shared paid Fugle slot before any paid observations" in wf
