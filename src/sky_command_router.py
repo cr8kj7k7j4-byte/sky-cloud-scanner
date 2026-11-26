@@ -18,13 +18,15 @@ class CommandRoute:
         return asdict(self)
 
 
-# W0 #363: 2026-11-25 verified close <= 100 TWD; user-directed removal
-# of nine >100 TWD symbols from the previous 21-symbol research watchlist.
-# Historical evidence remains in GitHub. No live runner or automatic trading.
-# Future trade eligibility STILL requires freshly verified <=100 TWD price.
+# W0 #363: observation watchlist, not the whole-market screening denominator.
+# Retain the 12 symbols after the 2026-11-25 >100 TWD review; append the
+# four user-requested research symbols without claiming current eligibility.
+# Fresh price, capital, previous-session volume and disclosed ratio estimate
+# must be checked again for every scan. No live runner or automatic trading.
 SKY_MARGIN_WATCHLIST = (
     "2337", "6217", "3362", "8045", "8043", "2233",
     "5464", "4764", "1587", "3447", "2230", "6994",
+    "3040", "6558", "3207", "3322",
 )
 SKY_MARGIN_PRESENTATION = "SKY_MOBILE_TABLE_V1_0"
 
@@ -44,15 +46,18 @@ _SHORTCUT_PATTERNS = [
     (
         re.compile(r"^Sky\s*維持率$", re.I),
         CommandRoute(
-            "SKY_MARGIN_MAINTENANCE_RESEARCH", "RESEARCH_ONLY_SOURCE_UNVERIFIED",
-            False, False, False, "HOLD_PROVIDER_AND_SOURCE_CONFIRMATION",
-            "User-defined 12-symbol <=100 TWD (2026-11-25 close) list only;  "
-            "Candidate research only: financing maintenance ratio below 120%, "
-            "foreign/investment-trust net buying over 50 lots, price <=100 TWD, "
-            "capital <=3 billion TWD and volume >=100 lots except limit-down. "
-            "Requires independently verified ratio, institutional flows, volume, "
-            "universe/date, and authorized Fugle price confirmation. No live "
-            "GitHub command runner or buy eligibility has been certified."
+            "SKY_MARGIN_MAINTENANCE_RESEARCH", "RESEARCH_ONLY_ESTIMATE_DISCLOSED",
+            False, True, False, "HOLD_MARGIN_RUNNER_NOT_VERIFIED",
+            "Whole-market research criteria: disclosed estimated margin-maintenance "
+            "ratio <120%, paid-in capital <3 billion TWD, previous trading day's "
+            "volume >100 lots, and verified latest executed price <100 TWD. "
+            "The 16-symbol watchlist is observational only, never the market "
+            "denominator or a substitute for a completed scan. Ratio estimate "
+            "provenance, as-of session and calculation assumptions must be shown; "
+            "provider certification of the ratio is not an independent trade "
+            "gate. Unknown ratio/volume/capital/price fails the screening check; "
+            "real-time trading still requires Fugle A1/A2, strategy, costs and "
+            "P0-R. No live margin runner, mobile E2E or buy eligibility verified."
         ),
     ),
     (
