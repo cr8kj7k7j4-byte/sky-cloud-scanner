@@ -214,3 +214,15 @@ def test_margin_command_observation_contract_stays_fail_closed():
     symbols = watchlist_for_command("SKY維持率")
     assert len(symbols) == len(set(symbols)) == 16
     assert {"3040", "6558", "3207", "3322"} <= set(symbols)
+
+
+def test_margin_filter_offline_contract_in_acceptance():
+    """Existing PR Acceptance workflow executes all margin filter regression cases."""
+    import io
+    import unittest
+    suite = unittest.defaultTestLoader.loadTestsFromName(
+        "tests.test_sky_margin_research_filter.MarginResearchTests"
+    )
+    result = unittest.TextTestRunner(stream=io.StringIO(), verbosity=2).run(suite)
+    assert result.testsRun == 8, "MARGIN_TEST_DISCOVERY_INCOMPLETE"
+    assert result.wasSuccessful(), "MARGIN_OFFLINE_FILTER_TESTS_FAILED"
