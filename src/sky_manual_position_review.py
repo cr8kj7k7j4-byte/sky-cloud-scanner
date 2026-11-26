@@ -17,6 +17,7 @@ from .risk_engine import RiskPolicy
 TPE = timezone(timedelta(hours=8))
 POSITION_LINE = re.compile(
     r"^(?P<symbol>\d{4,6})\s+"
+    r"(?:(?P<trade_type>融資|現股)\s+)?"
     r"(?P<quantity>\d+(?:,\d{3})*)\s*(?P<unit>股|張)\s+"
     r"(?:平均成本|成本|均價)\s*(?P<cost>\d+(?:\.\d+)?)"
     r"(?:\s+停損\s*(?P<stop>\d+(?:\.\d+)?))?\s*$"
@@ -26,6 +27,21 @@ ACCOUNT_FIELDS = (
     "concurrent_positions", "correlated_open_risk",
     "drawdown_pct", "consecutive_losses",
 )
+# Strict manual text evidence: screenshot observations are NOT Fugle A2 quotes.
+# No broker credentials, loan inference, collateral reconstruction or API calls.
+BROKER_FIELD = re.compile(
+    r"^(?P<field>截圖市價|券商預估損益|券商預估報酬率|"
+    r"融資餘額|融資自備款|融資維持率)\s*"
+    r"(?P<value>[+-]?\d[\d,]*(?:\.\d+)?)(?P<percent>%?)$"
+)
+BROKER_FIELDS = {
+    "截圖市價": "screenshot_price",
+    "券商預估損益": "broker_estimated_pnl",
+    "券商預估報酬率": "broker_estimated_return_pct",
+    "融資餘額": "margin_loan_balance",
+    "融資自備款": "margin_own_cash",
+    "融資維持率": "margin_maintenance_ratio_pct",
+}
 MOBILE_COLUMNS = (
     "股票", "現價", "方向", "多方評分", "空方評分", "買進觸發",
     "最高接受價", "停損／失效", "分類", "現在動作",
@@ -57,9 +73,26 @@ def parse_manual_positions(message: str) -> dict:
     errors = []
     positions = []
     seen = set()
+    broker_evidence = {}
     if not lines:
         errors.append("MISSING_POSITIONS")
     for line in lines:
+        extra = BROKER_FIELD.fullmatch(line)
+        if extra is not None:
+            key = BROKER_FIELDS[extra["field"]]
+            number = _number(extra["value"].replace(",", ""))
+            correct_percent = (extra["percent"] == "%") == key.endswith("_pct")
+            if key in broker_evidence or number is None or not correct_percent:
+                errors.append("INVALID_OR_DUPLICATE_BROKER_EVIDENCE")
+                continue
+            if key not in ("broker_estimated_pnl", "broker_estimated_return_pct") and number < 0:
+                errors.append("INVALID_BROKER_EVIDENCE_VALUE")
+                continue
+            if key in ("screenshot_price", "margin_loan_balance", "margin_own_cash") and number <= 0:
+                errors.append("INVALID_BROKER_EVIDENCE_VALUE")
+                continue
+            broker_evidence[key] = number
+            continue
         match = POSITION_LINE.fullmatch(line)
         if match is None:
             errors.append("INVALID_POSITION_LINE")
@@ -77,11 +110,21 @@ def parse_manual_positions(message: str) -> dict:
         if shares <= 0 or cost is None or cost <= 0 or (stop is not None and stop <= 0):
             errors.append("INVALID_POSITION_VALUES")
             continue
-        positions.append({"symbol": symbol, "shares": shares, "average_cost": cost, "stop": stop})
+        positions.append({"symbol": symbol, "shares": shares, "average_cost": cost, "stop": stop,
+                          "trade_type": ("MARGIN_FINANCING" if match["trade_type"] == "融資"
+                                         else "CASH" if match["trade_type"] == "現股"
+                                         else "UNSPECIFIED")})
     if len(positions) > 3:
         errors.append("MAX_POSITIONS_EXCEEDED")
+    if broker_evidence and len(positions) != 1:
+        errors.append("AMBIGUOUS_BROKER_EVIDENCE_SYMBOL")
+    if broker_evidence and positions and any(
+            k.startswith("margin_") for k in broker_evidence
+    ) and positions[0]["trade_type"] != "MARGIN_FINANCING":
+        errors.append("MARGIN_EVIDENCE_REQUIRES_FINANCING_POSITION")
     return {"status": "PASS_INPUT" if not errors else "HOLD_POSITION_INPUT",
-            "positions": positions, "errors": errors}
+            "positions": positions, "errors": errors,
+            "broker_evidence": broker_evidence}
 
 
 def _verified_quote(quote: Any, symbol: str, now: datetime) -> tuple[float | None, str | None]:
