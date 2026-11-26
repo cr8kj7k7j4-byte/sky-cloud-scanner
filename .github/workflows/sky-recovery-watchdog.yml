@@ -1,12 +1,8 @@
 name: Sky 10-Minute Recovery Watchdog (Research Only)
 on:
-  # W0 research-only engineering monitor: every 10 minutes (best effort).
-  # No Fugle calls, no auto orders, and no Production strategy promotion.
-  # Off-market: offline engineering checks and bounded CI retries.
-  # In market hours: read-only progress; trading-data verification stays in separately approved workflows.
-  # GitHub scheduled executions may be delayed or omitted; check scheduled run artifacts.
-  schedule:
-    - cron: "*/10 * * * *"
+  # W0 #363 2026-11-26: 10-minute background cron retired at user's request.
+  # Retain manual dispatch and scoped push/PR tests, no periodic research retries.
+  # No Fugle calls, automatic orders, or Production model promotion.
   workflow_dispatch:
   push:
     branches: [main]
