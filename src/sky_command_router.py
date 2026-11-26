@@ -366,6 +366,12 @@ def presentation_for_command(command: str) -> str | None:
     normalized = " ".join((command or "").strip().split())
     if watchlist_for_command(normalized) is not None:
         return SKY_MARGIN_PRESENTATION
+    # W0 #363: one presentation contract for the five minimal mobile commands.
+    # This is a display contract only: no dispatch, certified price or trade signal.
+    if normalized in ("Sky 當沖快掃", "Sky 波段快掃", "SKY維持率", "Sky 持股檢查") or re.fullmatch(
+        r"Sky 分析 [0-9]{4,6}", normalized
+    ):
+        return UPDATE_PRESENTATION
     if normalized.lower().startswith("sky") and "更新" in normalized:
         return UPDATE_PRESENTATION
     return None
