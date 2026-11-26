@@ -216,5 +216,5 @@ def test_five_minimal_mobile_commands_share_presentation_only():
     for command in ("Sky 當沖快掃", "Sky 波段快掃", "SKY維持率", "Sky 分析 2330", "Sky 持股檢查"):
         assert presentation_for_command(command) == "SKY_MOBILE_TABLE_V1_0"
     assert presentation_for_command("Sky 分析 not-a-symbol") is None
-    assert route_command("Sky 持股檢查").execution_target == "HOLD_USER_POSITION_EVIDENCE"
+    assert "src.sky_manual_position_review.review_manual_positions" in route_command("Sky 持股檢查").execution_target
     assert route_command("SKY維持率").execution_target == "HOLD_PROVIDER_AND_SOURCE_CONFIRMATION"
