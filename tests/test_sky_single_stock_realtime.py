@@ -80,6 +80,31 @@ class SingleStockRealtimeTests(unittest.TestCase):
         self.assertFalse(result["execution_authorized"])
         self.assertFalse(result["live_order_enabled"])
 
+    def test_holding_trade_evidence_independent_of_new_daytrade_eligibility(self):
+        quote, ticker = self.sample()
+        quote["lastTrade"]["price"] = 850.0
+        quote["lastPrice"] = 850.0
+        ticker["canDayTrade"] = False
+        with patch("src.sky_single_stock_realtime.fugle.get_quote", return_value=quote), patch(
+            "src.sky_single_stock_realtime.fugle.get_ticker", return_value=ticker
+        ):
+            result = collect("2330", NOW)
+        self.assertEqual(result["status"], "DAY_TRADE_NOT_ELIGIBLE")
+        self.assertTrue(result["position_trade_observed"])
+        self.assertEqual(result["last_trade_price"], 850.0)
+        self.assertFalse(result["executed_trade_verified"])
+        self.assertFalse(result["execution_authorized"])
+
+    def test_lastprice_fallback_never_claims_actual_position_trade(self):
+        quote, ticker = self.sample()
+        quote["lastTrade"].pop("price", None)
+        with patch("src.sky_single_stock_realtime.fugle.get_quote", return_value=quote), patch(
+            "src.sky_single_stock_realtime.fugle.get_ticker", return_value=ticker
+        ):
+            result = collect("2330", NOW)
+        self.assertFalse(result["position_trade_observed"])
+        self.assertIsNone(result["last_trade_price"])
+
     def test_stale_quote_fail_closed(self):
         quote, ticker = self.sample(minutes=5)
         with patch("src.sky_single_stock_realtime.fugle.get_quote", return_value=quote), patch(

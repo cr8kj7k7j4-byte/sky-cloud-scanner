@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -48,12 +49,14 @@ def collect(symbol: str, now=None) -> dict:
             raise ValueError("Invalid Fugle response payload")
         trade = quote.get("lastTrade")
         trade = trade if isinstance(trade, dict) else {}
-        last_price = trade.get("price") if trade.get("price") is not None else quote.get("lastPrice")
+        last_trade_price = trade.get("price")
+        last_price = last_trade_price if last_trade_price is not None else quote.get("lastPrice")
         # A quote refresh/closeTime is not a last executed-trade timestamp.
         last_time = timestamp_tpe(trade.get("time"))
         updated_time = timestamp_tpe(quote.get("lastUpdated"))
         result.update({
             "quote_date": quote.get("date"), "last_price": last_price,
+            "last_trade_price": last_trade_price,
             "observed_price": last_price, "observed_at_tpe": now.isoformat(),
             "observation_requires_last_trade_time": False,
             "executed_trade_verified": False,
@@ -80,6 +83,17 @@ def collect(symbol: str, now=None) -> dict:
             quote_date = quote.get("date")
             age = (now - seen).total_seconds()
             result["quote_age_seconds"] = round(age, 1)
+            # Position-review observation is separate from new-entry eligibility.
+            # It requires the actual lastTrade.price; lastPrice fallback is NOT evidence.
+            result["position_trade_observed"] = bool(
+                not isinstance(last_trade_price, bool)
+                and isinstance(last_trade_price, (int, float))
+                and math.isfinite(float(last_trade_price))
+                and last_trade_price > 0
+                and quote_date == now.date().isoformat()
+                and seen.date() == now.date()
+                and -30 <= age <= 120
+            )
             if quote_date != now.date().isoformat() or seen.date() != now.date():
                 result["status"] = "STALE_TRADING_DATE"
             elif age < -30:
