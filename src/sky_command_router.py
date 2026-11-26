@@ -313,11 +313,18 @@ def route_command(command: str) -> CommandRoute:
     # W0 #363 minimal mobile commands: classify only, never assert live success.
     if re.fullmatch(r"Sky\s*分析\s+\d{4,6}", normalized, re.I):
         return CommandRoute(
-            "SKY_SINGLE_STOCK_UPDATE", "SINGLE_STOCK_REALTIME",
+            "SKY_SINGLE_STOCK_UPDATE", "SESSION_ADAPTIVE_SINGLE_STOCK_RESEARCH",
             True, False, True,
-            "Fugle connector realtime quote + P0-R (verification required)",
-            "A1 observation cannot certify an A2 execution. Missing certified quote, "
-            "timestamp, trigger or cost-adjusted risk evidence stays HOLD/NO_TRADE."
+            "src.sky_daytrade_session_policy.daytrade_session_policy (selection only); "
+            "authorized Fugle A2 live quote or verified complete-session historical "
+            "research Artifact (existing readers; no automatic dispatch)",
+            "Sky 分析 <symbol> is accepted in every session for research. During live "
+            "trading, a new entry requires authorized Fugle A1/A2 executed price/time; "
+            "outside live trading, historical prices require independently verified "
+            "session date, source, coverage, same-run SHA/Artifact/Digest and readback. "
+            "No stale quote becomes current; no assumed P0-R inputs or new-entry "
+            "authorization. Private broker holdings must never be published via "
+            "public issue comments. Missing evidence stays HOLD/NO_TRADE."
         )
     if re.fullmatch(r"Sky\s*持股檢查(?:\s+.*)?", normalized, re.I):
         return CommandRoute(
