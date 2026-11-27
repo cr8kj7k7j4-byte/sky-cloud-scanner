@@ -111,7 +111,7 @@ def get_candles(symbol, timeframe="5"):
         {"timeframe": timeframe, "sort": "asc"},
     )
 
-def get_historical_candles_5m(symbol, trade_date):
+def get_historical_candles_5m(symbol, trade_date, *, session=None):
     """Exactly one explicitly approved previous-session Fugle 5m history call.
 
     This wrapper does not authorize calls by itself. The caller MUST verify
@@ -129,12 +129,12 @@ def get_historical_candles_5m(symbol, trade_date):
         raise ValueError("INVALID_HISTORICAL_DATE") from exc
     if day.isoformat() != trade_date or day.weekday() >= 5:
         raise ValueError("INVALID_HISTORICAL_DATE")
-    return _get(
-        f"/historical/candles/{symbol}",
-        {"from": trade_date, "to": trade_date,
-         "timeframe": "5", "sort": "asc",
-         "fields": "open,high,low,close,volume,average"},
-    )
+    params = {"from": trade_date, "to": trade_date,
+              "timeframe": "5", "sort": "asc",
+              "fields": "open,high,low,close,volume,average"}
+    if session is not None:
+        return _get(f"/historical/candles/{symbol}", params, session=session)
+    return _get(f"/historical/candles/{symbol}", params)
 
 
 def get_trades(symbol, *, offset=0, limit=500):
