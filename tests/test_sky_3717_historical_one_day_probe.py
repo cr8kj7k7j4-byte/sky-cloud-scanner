@@ -1,4 +1,4 @@
-"""W0 #363: historical-only one-request behavior, offline mock transport."""
+"""W0 #363: repeated authorized HTTP requests never become evidence gating."""
 import unittest
 from unittest.mock import patch
 from datetime import datetime, timedelta, timezone
@@ -91,19 +91,52 @@ class HistoricalOneDayTests(unittest.TestCase):
             self.assertEqual(a["request_count"], 0)
         self.assertEqual(s.request_count, 0)
 
-    def test_duplicate_attempt_from_same_session_denied(self):
-        f = FakeTransport(FakeResponse(200, {"data": []}))
+    def test_repeated_explicit_observations_same_session_allowed(self):
+        f = FakeTransport(FakeResponse(200, {
+            "symbol": "3717", "exchange": "TWSE", "timeframe": "5",
+            "data": [{
+                "date": "2026-11-27T13:30:00+08:00",
+                "open": 18, "high": 18.5, "low": 17.9,
+                "close": 18.2, "volume": 5, "average": 18.1,
+            }]
+        }))
         s = RecordingSession(f)
         with patch.dict("os.environ", {"SKY_FUGLE_MONTHLY_RATE_CONTROL": "1",
                                          "SKY_PAID_ATOMIC_ENFORCE": "0"}), \
              patch("src.fugle.FUGLE_API_KEY", "OFFLINE_FAKE_TEST_KEY"), \
-             patch("src.fugle._monthly_pace"):
-            run(session=s, observed_at=NOW)
+             patch("src.fugle._monthly_pace") as pacing:
+            observations = [run(session=s, observed_at=NOW) for _ in range(3)]
+        self.assertEqual(len(f.calls), 3)
+        self.assertEqual(pacing.call_count, 3)
+        self.assertEqual([o["request_count"] for o in observations], [1, 2, 3])
+        self.assertTrue(all(o["status"] == PASS for o in observations))
+        self.assertTrue(all(not o["http_request_count_is_evidence_gate"] for o in observations))
+        self.assertTrue(all(not o["execution_authorized"] for o in observations))
+
+    def test_provider_error_then_new_user_observation_not_permanently_blocked(self):
+        class Responses:
+            def __init__(self):
+                self.calls = 0
+            def get(self, url, *, params, headers, timeout):
+                self.calls += 1
+                if self.calls == 1:
+                    return FakeResponse(429, {"error": "rate_limited"})
+                return FakeResponse(200, {
+                    "symbol": "3717", "exchange": "TWSE", "timeframe": "5", "data": []
+                })
+        fake = Responses()
+        s = RecordingSession(fake)
+        with patch.dict("os.environ", {"SKY_FUGLE_MONTHLY_RATE_CONTROL": "1",
+                                         "SKY_PAID_ATOMIC_ENFORCE": "0"}), \
+             patch("src.fugle.FUGLE_API_KEY", "OFFLINE_FAKE_TEST_KEY"), \
+             patch("src.fugle._monthly_pace") as pacing:
+            first = run(session=s, observed_at=NOW)
             second = run(session=s, observed_at=NOW)
-        self.assertEqual(len(f.calls), 1)
-        self.assertEqual(second["status"], HOLD)
-        self.assertEqual(second["request_count"], 1)
-        self.assertEqual(second["error_type"], "RuntimeError")
+        self.assertEqual(first["reason"], "PROVIDER_HTTP_429")
+        self.assertEqual(second["status"], "OBSERVATION_ONLY_NO_5M_BARS")
+        self.assertEqual(fake.calls, 2)
+        self.assertEqual(pacing.call_count, 2)
+        self.assertFalse(second["execution_authorized"])
 
 
 if __name__ == "__main__":
