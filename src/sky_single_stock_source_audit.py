@@ -227,8 +227,9 @@ def collect(symbol, *, max_pages=MAX_TRADES_PAGES):
             historical["reason"] = "HOLD_NO_RECENT_COMPLETED_HISTORICAL_SOURCE_DATE"
         elif os.getenv("SKY_FUGLE_HISTORICAL_ENTITLEMENT_CONFIRMED") == "1":
             try:
-                # Exactly one bounded request for one date in the existing
-                # serialized rate-controlled lane; never retry provider errors.
+                # This collector requests one dated observation per invocation;
+                # it does NOT permanently cap repeat user-authorized requests.
+                # Shared rate pacing applies; provider errors are evidence HOLD.
                 historical = evaluate_historical_5m(
                     symbol, quote_day, fugle.get_historical_candles_5m(symbol, quote_day),
                     observed_at=datetime.now(TPE))

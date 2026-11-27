@@ -112,7 +112,7 @@ def get_candles(symbol, timeframe="5"):
     )
 
 def get_historical_candles_5m(symbol, trade_date, *, session=None):
-    """Exactly one explicitly approved previous-session Fugle 5m history call.
+    """Authorized, repeatable previous-session Fugle 5m history fetch.
 
     This wrapper does not authorize calls by itself. The caller MUST verify
     provider entitlement first; W0 conservatively defaults it off.

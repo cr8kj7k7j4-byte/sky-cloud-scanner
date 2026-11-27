@@ -1,7 +1,8 @@
 """W0 #363: EXACT one-day owner-approved Fugle history research diagnostic.
 
-No other market endpoints. No retry. No order, strategy promotion or secrets in
-output. The provider HTTP status is captured from the same rate-controlled GET.
+No other market endpoints or automatic retries. Repeated owner-authorized
+observations are allowed; request count is recorded, never a data-quality gate.
+No order, strategy promotion or secrets in output. HTTP status is retained.
 """
 from __future__ import annotations
 
@@ -20,7 +21,11 @@ TARGET_SYMBOL = "3717"
 TARGET_DATE = "2026-11-27"
 
 class RecordingSession:
-    """requests-compatible session retaining just HTTP status, not headers."""
+    """requests-compatible evidence recorder with no fixed request-count gate.
+
+    Every GET still passes Fugle entitlement, request-identity and rate pacing.
+    This recorder never retries automatically and never stores secret headers.
+    """
     def __init__(self, base=None):
         if base is None:
             import requests
@@ -30,8 +35,6 @@ class RecordingSession:
         self.request_count = 0
 
     def get(self, url, *, params, headers, timeout):
-        if self.request_count:
-            raise RuntimeError("HISTORICAL_ONE_REQUEST_LIMIT")
         if not url.endswith("/historical/candles/3717"):
             raise RuntimeError("HISTORICAL_ENDPOINT_DENIED")
         if params.get("from") != TARGET_DATE or params.get("to") != TARGET_DATE:
@@ -52,6 +55,7 @@ def run(*, symbol=TARGET_SYMBOL, source_date=TARGET_DATE, session=None,
         "endpoint": "/historical/candles/3717", "timeframe": "5",
         "observed_at_tpe": now.astimezone(TPE).isoformat(),
         "http_status": None, "request_count": 0,
+        "http_request_count_is_evidence_gate": False,
         "status": HOLD, "reason": "NOT_EXECUTED",
         "five_minute_status": "HOLD",
         "execution_authorized": False, "production_eligible": False,
@@ -115,10 +119,10 @@ def main():
         json.dumps(result, ensure_ascii=False, indent=2, allow_nan=False) + "\n",
         encoding="utf-8")
     lines = [
-        "🟡 Sky 3717｜Fugle 指定日歷史 5m 單次驗證",
+        "🟡 Sky 3717｜Fugle 指定日歷史 5m 來源驗證",
         f"資料交易日：{result['source_date']}（Asia/Taipei）",
         f"查詢 HTTP：{result['http_status'] if result['http_status'] is not None else '待確認'}",
-        f"實際送出請求數：{result['request_count']}",
+        f"累計觀察請求數：{result['request_count']}（非研究資料通過門檻）",
         f"歷史資料狀態：{result['status']}",
         f"資料拒絕／觀察原因：{result['reason']}",
         f"歷史棒數：{result.get('row_count') if result.get('row_count') is not None else '待確認'}",
@@ -130,7 +134,9 @@ def main():
     print(json.dumps({k: result.get(k) for k in
                      ("symbol", "source_date", "http_status", "request_count",
                       "row_count", "status", "reason")}, ensure_ascii=False))
-    # The diagnostic always creates its fail-closed Artifact even on 4xx.
+    # Each explicit run records one source observation by current call design.
+    # Reusing a recorder across runs is permitted; there is NO maximum count.
+    # Every actual request still passes Fugle provider rate/entitlement guards.
     # The independent reader checks bytes, not permission or market freshness.
 
 
