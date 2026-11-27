@@ -27,7 +27,7 @@ permissions:
 concurrency:
   # Exact Sky 警戒 is a read-only artifact consumer; it must not queue against paid scans.
   # All other requests retain the existing shared paid API concurrency guard.
-  group: "${{ (github.event_name == 'issue_comment' && !(github.event.issue.number == 363 && github.event.comment.user.login == github.repository_owner && github.event.comment.author_association == 'OWNER' && (github.event.comment.body == 'Sky 快掃' || github.event.comment.body == 'Sky 當沖快掃' || github.event.comment.body == 'Sky 警戒' || github.event.comment.body == 'Sky #363 保全查核')) && format('sky-chat-ignored-{0}', github.run_id)) || (github.event_name == 'issue_comment' && github.event.comment.body == 'Sky 警戒' && format('sky-alert-readonly-{0}', github.event.comment.id)) || (github.event_name == 'issue_comment' && github.event.comment.body == 'Sky #363 保全查核' && format('sky-w0-readonly-{0}', github.event.comment.id)) || (github.event_name == 'workflow_dispatch' && inputs.w0_comment_id != '' && format('sky-w0-discovery-{0}', github.run_id)) || 'sky-fugle-paid-global-research-v1-live-wholemarket' }}"
+  group: "${{ (github.event_name == 'issue_comment' && !(github.event.issue.number == 363 && github.event.comment.user.login == github.repository_owner && github.event.comment.author_association == 'OWNER' && (github.event.comment.body == 'Sky 快掃' || github.event.comment.body == 'Sky 當沖快掃' || github.event.comment.body == 'Sky 警戒' || github.event.comment.body == 'Sky #363 保全查核')) && format('sky-chat-ignored-{0}', github.run_id)) || (github.event_name == 'issue_comment' && github.event.comment.body == 'Sky 警戒' && format('sky-alert-readonly-{0}', github.event.comment.id)) || (github.event_name == 'issue_comment' && github.event.comment.body == 'Sky #363 保全查核' && format('sky-w0-readonly-{0}', github.event.comment.id)) || (github.event_name == 'issue_comment' && github.event.comment.body == 'SKY維持率' && github.event.issue.number == 363 && github.event.comment.user.login == github.repository_owner && github.event.comment.author_association == 'OWNER' && format('sky-margin-readonly-{0}', github.event.comment.id)) || (github.event_name == 'workflow_dispatch' && inputs.w0_comment_id != '' && format('sky-w0-discovery-{0}', github.run_id)) || 'sky-fugle-paid-global-research-v1-live-wholemarket' }}"
   cancel-in-progress: false
 jobs:
   scan:
@@ -435,6 +435,87 @@ jobs:
           with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as f:
               f.write("\n".join(lines)+"\n")
           PY
+
+
+  margin_readonly_command:
+    # This job records a real command receipt only; it NEVER runs a margin scan.
+    # Owner + W0 issue + exact command are mandatory.
+    if: >-
+      github.event_name == 'issue_comment' &&
+      github.event.issue.number == 363 &&
+      github.event.comment.user.login == github.repository_owner &&
+      github.event.comment.author_association == 'OWNER' &&
+      github.event.comment.body == 'SKY維持率'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test margin owner-only trigger and readback security
+        run: python -m unittest tests.test_sky_margin_trigger_receipt -v
+      - name: Create authenticated no-trade HOLD receipt (no market API)
+        env:
+          COMMENT_ID: ${{ github.event.comment.id }}
+        run: |
+          set -euo pipefail
+          python -m src.sky_margin_trigger_receipt \
+            --event "$GITHUB_EVENT_PATH" --repo "$GITHUB_REPOSITORY" \
+            --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT" \
+            --sha "$GITHUB_SHA" \
+            --output output/sky_margin_command/hold_receipt.json
+      - name: Upload same-run margin HOLD receipt
+        id: margin_upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-margin-hold-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: output/sky_margin_command/hold_receipt.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Independently download and verify exact same-run artifact
+        if: steps.margin_upload.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMENT_ID: ${{ github.event.comment.id }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/sky-margin-hold-readback output/sky_margin_command_external
+          for N in 1 2 3 4 5; do
+            if gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+              --name "sky-margin-hold-$GITHUB_RUN_ID-attempt-$GITHUB_RUN_ATTEMPT" \
+              --dir /tmp/sky-margin-hold-readback; then break; fi
+            if [ "$N" = 5 ]; then exit 1; fi
+            sleep 5
+          done
+          ARTIFACT_ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" | python -c 'import json,os,sys; a=json.load(sys.stdin)["artifacts"]; n="sky-margin-hold-"+os.environ["GITHUB_RUN_ID"]+"-attempt-"+os.environ["GITHUB_RUN_ATTEMPT"]; hits=[x["id"] for x in a if x["name"]==n]; assert len(hits)==1, "MARGIN_ARTIFACT_ID_AMBIGUOUS"; print(hits[0])')
+          export ARTIFACT_ID
+          python -m src.sky_margin_trigger_receipt \
+            --verify-original output/sky_margin_command/hold_receipt.json \
+            --verify-downloaded /tmp/sky-margin-hold-readback/hold_receipt.json \
+            --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT" \
+            --sha "$GITHUB_SHA" --comment-id "$COMMENT_ID" \
+            --output output/sky_margin_command_external/readback_receipt.json
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          p=Path("output/sky_margin_command_external/readback_receipt.json")
+          obj=json.loads(p.read_text(encoding="utf-8"))
+          obj["artifact_id"]=int(os.environ["ARTIFACT_ID"])
+          p.write_text(json.dumps(obj,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+          print("SKY_MARGIN_HOLD_RECEIPT_INDEPENDENT_READBACK",obj["status"])
+          PY
+      - name: Upload independent readback receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-margin-hold-readback-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: output/sky_margin_command_external/readback_receipt.json
+          if-no-files-found: warn
+          retention-days: 90
 
   w0_run_discovery:
     # W0-only read-only reconciliation; never calls Fugle or starts scan job.
