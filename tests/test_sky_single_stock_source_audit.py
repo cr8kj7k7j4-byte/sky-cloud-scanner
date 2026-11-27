@@ -131,6 +131,12 @@ class SourceAuditTests(unittest.TestCase):
         self.assertIn('audit = body.startswith("Sky 5m驗證 ") or body.startswith("Sky 分析 ")', yaml)
         self.assertIn('out.write(f"unified=', yaml)
         self.assertIn('src.sky_single_stock_source_audit --symbol "$SYMBOL" --unified', yaml)
+        # GitHub workflow parser must see a true YAML block scalar, not a
+        # literal backslash-n string (the defect after PR #779).
+        self.assertIn('        run: |\n          if [', yaml)
+        self.assertNotIn(r'run: |\n          if [', yaml)
+        self.assertIn('            python -m src.sky_single_stock_source_audit', yaml)
+
         self.assertIn("steps.request.outputs.audit != 'true'", yaml)
         self.assertIn("steps.request.outputs.audit == 'true'", yaml)
         self.assertIn("sky-fugle-paid-global-research-v1-live-wholemarket", yaml)

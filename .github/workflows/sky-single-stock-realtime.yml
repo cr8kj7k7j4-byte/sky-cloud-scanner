@@ -104,7 +104,12 @@ jobs:
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
           SYMBOL: ${{ steps.request.outputs.symbol }}
-        run: |\n          if [ "${{ steps.request.outputs.unified }}" = "true" ]; then\n            python -m src.sky_single_stock_source_audit --symbol "$SYMBOL" --unified\n          else\n            python -m src.sky_single_stock_source_audit --symbol "$SYMBOL"\n          fi
+        run: |
+          if [ "${{ steps.request.outputs.unified }}" = "true" ]; then
+            python -m src.sky_single_stock_source_audit --symbol "$SYMBOL" --unified
+          else
+            python -m src.sky_single_stock_source_audit --symbol "$SYMBOL"
+          fi
       - name: Upload quote evidence even when unavailable
         if: always()
         uses: actions/upload-artifact@v4
