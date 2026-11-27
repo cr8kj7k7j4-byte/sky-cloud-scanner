@@ -111,6 +111,32 @@ def get_candles(symbol, timeframe="5"):
         {"timeframe": timeframe, "sort": "asc"},
     )
 
+def get_historical_candles_5m(symbol, trade_date):
+    """Exactly one explicitly approved previous-session Fugle 5m history call.
+
+    This wrapper does not authorize calls by itself. The caller MUST verify
+    provider entitlement first; W0 conservatively defaults it off.
+    """
+    from datetime import date
+    import re
+    if not isinstance(symbol, str) or not re.fullmatch(r"[0-9]{4,6}", symbol):
+        raise ValueError("INVALID_HISTORICAL_SYMBOL")
+    if not isinstance(trade_date, str):
+        raise ValueError("INVALID_HISTORICAL_DATE")
+    try:
+        day = date.fromisoformat(trade_date)
+    except ValueError as exc:
+        raise ValueError("INVALID_HISTORICAL_DATE") from exc
+    if day.isoformat() != trade_date or day.weekday() >= 5:
+        raise ValueError("INVALID_HISTORICAL_DATE")
+    return _get(
+        f"/historical/candles/{symbol}",
+        {"from": trade_date, "to": trade_date,
+         "timeframe": "5", "sort": "asc",
+         "fields": "open,high,low,close,volume,average"},
+    )
+
+
 def get_trades(symbol, *, offset=0, limit=500):
     # Official intraday trades: bounded page request, no retries on 429.
     if type(offset) is not int or offset < 0 or type(limit) is not int or not 1 <= limit <= 500:
