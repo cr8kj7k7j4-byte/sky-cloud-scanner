@@ -485,7 +485,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: sky-margin-hold-${{ github.run_id }}-attempt-${{ github.run_attempt }}
-          path: output/sky_margin_command/hold_receipt.json
+          path: output/sky_margin_command/
           if-no-files-found: error
           retention-days: 90
       - name: Independently download and verify exact same-run artifact
