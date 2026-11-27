@@ -299,6 +299,17 @@ class MonthlyBillingRateGuardTests(unittest.TestCase):
         self.assertEqual(a[2]["billing_control"], "MONTHLY_RATE_LIMIT_ONLY")
         self.assertEqual(b[2]["reason"], "CLEAR")
 
+    def test_distinct_retry_attempts_have_distinct_receipt_ids(self):
+        now = datetime(2026, 11, 27, 3, 55, tzinfo=timezone.utc)
+        first = monthly_artifact_name("sky:live:wholemarket", "111", "1")
+        second = monthly_artifact_name("sky:live:wholemarket", "111", "2")
+        self.assertNotEqual(first, second)
+        with TemporaryDirectory() as td:
+            _, name, receipt = prepare_monthly(
+                "sky:live:wholemarket", now, "111", "2", Path(td))
+        self.assertEqual(name, second)
+        self.assertEqual(receipt["run_attempt"], "2")
+
     def test_monthly_receipt_requires_exact_same_run_zip(self):
         now = datetime(2026, 11, 27, 3, 55, tzinfo=timezone.utc)
         with TemporaryDirectory() as td:
