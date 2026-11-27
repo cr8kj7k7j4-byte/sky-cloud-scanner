@@ -153,6 +153,44 @@ class HistoricalResearchReadbackTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "HISTORICAL_SOURCE_SESSION_MISMATCH"):
                 read(root)
 
+    def test_real_github_postmarket_flat_zip_layout_readable_research_only(self):
+        # actions/upload-artifact strips shared output/sky_quickscan_information
+        # prefix. The real historical GitHub ZIP already had flat file names.
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source, manifest, report, inventory = fixture(root)
+            inventory["capture_mode"] = "postmarket_observation"
+            (root / "full_universe.json").write_bytes(source.read_bytes())
+            (root / "same_run_source_inventory.json").write_text(
+                json.dumps(inventory, ensure_ascii=False), encoding="utf-8")
+            source.unlink()
+            manifest.unlink()
+            got = read(root)
+            self.assertEqual(got["status"], "HISTORICAL_BYTES_READABLE_RESEARCH_ONLY")
+            self.assertEqual(got["verified_file_count"], 1)
+            self.assertFalse(got["live_quote_certified"])
+            self.assertFalse(got["new_entry_authorized"])
+            self.assertEqual(got["trade_action"], "禁止交易")
+
+    def test_flat_zip_requires_postmarket_mode_and_rejects_tampering(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source, manifest, _, inventory = fixture(root)
+            (root / "full_universe.json").write_bytes(source.read_bytes())
+            (root / "same_run_source_inventory.json").write_text(
+                json.dumps(inventory, ensure_ascii=False), encoding="utf-8")
+            source.unlink()
+            manifest.unlink()
+            with self.assertRaisesRegex(ValueError, "FLAT_LAYOUT_REQUIRES_POSTMARKET_MODE"):
+                read(root)
+            inventory["capture_mode"] = "postmarket_observation"
+            (root / "same_run_source_inventory.json").write_text(
+                json.dumps(inventory, ensure_ascii=False), encoding="utf-8")
+            (root / "full_universe.json").write_bytes(
+                (root / "full_universe.json").read_bytes() + b" ")
+            with self.assertRaisesRegex(ValueError, "SOURCE_DIGEST_MISMATCH"):
+                read(root)
+
     def test_tampered_bytes_rejected(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
