@@ -39,7 +39,7 @@ def make_receipt(event: dict, *, repo: str, run_id: str, attempt: str, sha: str)
     return {
         "schema": SCHEMA,
         "command": COMMAND,
-        "status": "HOLD_MARGIN_REAL_SOURCE_RUNNER_NOT_VERIFIED",
+        "status": "HOLD_PRICE_ONLY_REAL_SOURCE_RUNNER_NOT_VERIFIED",
         "issue_number": 363,
         "trigger_comment_id": comment["id"],
         "repo": repo,
@@ -49,17 +49,19 @@ def make_receipt(event: dict, *, repo: str, run_id: str, attempt: str, sha: str)
         "source_type": "NONE_NO_MARKET_DATA_FETCHED",
         "market_scan_executed": False,
         "complete_official_universe_verified": False,
-        "margin_ratio_data_verified": False,
+        "price_only_mode": True,
+        "margin_ratio_screen_retired": True,
+        "capital_and_prior_volume_screen_retired": True,
         "fugle_a2_verified": False,
         "provider_entitlement_verified": False,
-        "margin_live_runner_verified": False,
+        "price_only_live_runner_verified": False,
         "candidate_count": None,
         "mobile_e2e_verified": False,
         "production_eligible": False,
         "new_entry_authorized": False,
         "automatic_order": False,
         "trade_action": "禁止交易",
-        "notice": "SKY維持率指令已由授權 GitHub 留言觸發；真實資料來源及完整掃描尚未驗證，禁止交易。",
+        "notice": "SKY維持率為舊指令名稱；已取消維持率推估、資本額及前日量篩選。價格觀察尚無真實資料及完整掃描驗證，禁止交易。",
     }
 
 
@@ -75,7 +77,7 @@ def verify_receipt(original: bytes, downloaded: bytes, *, run_id: str,
         and obj.get("attempt") == attempt
         and obj.get("head_sha") == sha
         and str(obj.get("trigger_comment_id")) == comment_id
-        and obj.get("status") == "HOLD_MARGIN_REAL_SOURCE_RUNNER_NOT_VERIFIED"
+        and obj.get("status") == "HOLD_PRICE_ONLY_REAL_SOURCE_RUNNER_NOT_VERIFIED"
         and obj.get("market_scan_executed") is False
         and obj.get("complete_official_universe_verified") is False
         and obj.get("fugle_a2_verified") is False

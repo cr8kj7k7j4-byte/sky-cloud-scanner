@@ -206,11 +206,11 @@ def test_margin_command_observation_contract_stays_fail_closed():
     from src.sky_command_router import route_command, watchlist_for_command
 
     route = route_command("SKY維持率")
-    assert route.command_family == "SKY_MARGIN_MAINTENANCE_RESEARCH"
-    assert route.data_mode == "RESEARCH_ONLY_ESTIMATE_DISCLOSED"
+    assert route.command_family == "SKY_PRICE_ONLY_RESEARCH"
+    assert route.data_mode == "PRICE_ONLY_OBSERVATION"
     assert route.whole_market_required is True
-    assert route.execution_target == "HOLD_MARGIN_RUNNER_NOT_VERIFIED"
-    assert "P0-R" in route.notes and "No live margin runner" in route.notes
+    assert "src.sky_margin_runtime.evaluate_margin_bundle" in route.execution_target
+    assert "P0-R" in route.notes and "RETIRED" in route.notes
     symbols = watchlist_for_command("SKY維持率")
     assert len(symbols) == len(set(symbols)) == 16
     assert {"3040", "6558", "3207", "3322"} <= set(symbols)
@@ -329,6 +329,27 @@ def test_margin_readback_public_receipt_requires_verified_no_trade():
     assert "r.get(\"real_margin_scan_verified\") is not False" in job
     assert "r.get(\"production_eligible\") is not False" in job
     assert "gh issue comment 363" in job
-    assert "HOLD_REAL_MARGIN_DATA" in job
+    assert "HOLD_PRICE_ONLY_REAL_SOURCE" in job
     assert "FUGLE_API_KEY" not in job
     assert "sky_paid_fugle_api_guard" not in job
+
+
+def test_retired_margin_screen_not_active_in_price_only_consumer():
+    """Old four-factor filters remain historical but not active shortcut requirements."""
+    from src.sky_command_router import route_command
+    from src.sky_margin_runtime import REQUIRED, evaluate_margin_bundle
+    from tests.test_sky_margin_runtime import bundle
+    assert tuple(REQUIRED) == (
+        "official_universe", "universe_total", "official_universe_source",
+        "fugle_quotes_by_symbol", "observed_at",
+    )
+    route = route_command("SKY維持率")
+    assert route.command_family == "SKY_PRICE_ONLY_RESEARCH"
+    assert route.data_mode == "PRICE_ONLY_OBSERVATION"
+    out = evaluate_margin_bundle(bundle())
+    assert out["mode"] == "PRICE_ONLY_OBSERVATION"
+    assert out["screened_count"] == 1
+    assert out["trade_status"] == "NO_TRADE"
+    assert out["liquidity_unverified"] is True
+    assert out["buy_eligible"] is False
+    assert not out["official_universe_independently_verified"]

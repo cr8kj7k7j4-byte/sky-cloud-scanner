@@ -549,7 +549,7 @@ jobs:
               "- 來源指令留言 ID："+str(r["trigger_comment_id"]),
               "- Artifact ID："+str(r["artifact_id"]),
               "- 收據 SHA256："+r["sha256"],
-              "- 真實全市場維持率資料／候選排名：`HOLD_REAL_MARGIN_DATA`",
+              "- 真實全市場維持率資料／候選排名：`HOLD_PRICE_ONLY_REAL_SOURCE`",
               "- ChatGPT 原生自動直連：`HOLD_CHATGPT_NATIVE_ROUTING`",
               "- 交易：`NO_TRADE`；未取得認證行情、沒有可買進標的或張數。",
           ]

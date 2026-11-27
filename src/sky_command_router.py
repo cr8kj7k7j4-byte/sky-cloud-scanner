@@ -18,11 +18,9 @@ class CommandRoute:
         return asdict(self)
 
 
-# W0 #363: observation watchlist, not the whole-market screening denominator.
-# Retain the 12 symbols after the 2026-11-25 >100 TWD review; append the
-# four user-requested research symbols without claiming current eligibility.
-# Fresh price, capital, previous-session volume and disclosed ratio estimate
-# must be checked again for every scan. No live runner or automatic trading.
+# W0 #363: legacy name, now price-only observations; NO margin-maintenance estimate.
+# 16-symbol watchlist does not replace the full TWSE/TPEx market denominator.
+# Missing verified A2 or liquidity/risk evidence always means NO_TRADE.
 SKY_MARGIN_WATCHLIST = (
     "2337", "6217", "3362", "8045", "8043", "2233",
     "5464", "4764", "1587", "3447", "2230", "6994",
@@ -46,18 +44,18 @@ _SHORTCUT_PATTERNS = [
     (
         re.compile(r"^Sky\s*維持率$", re.I),
         CommandRoute(
-            "SKY_MARGIN_MAINTENANCE_RESEARCH", "RESEARCH_ONLY_ESTIMATE_DISCLOSED",
-            False, True, False, "HOLD_MARGIN_RUNNER_NOT_VERIFIED",
-            "Whole-market research criteria: disclosed estimated margin-maintenance "
-            "ratio <120%, paid-in capital <3 billion TWD, previous trading day's "
-            "volume >100 lots, and verified latest executed price <100 TWD. "
-            "The 16-symbol watchlist is observational only, never the market "
-            "denominator or a substitute for a completed scan. Ratio estimate "
-            "provenance, as-of session and calculation assumptions must be shown; "
-            "provider certification of the ratio is not an independent trade "
-            "gate. Unknown ratio/volume/capital/price fails the screening check; "
-            "real-time trading still requires Fugle A1/A2, strategy, costs and "
-            "P0-R. No live margin runner, mobile E2E or buy eligibility verified."
+            "SKY_PRICE_ONLY_RESEARCH", "PRICE_ONLY_OBSERVATION",
+            False, True, False,
+            "src.sky_margin_runtime.evaluate_margin_bundle (offline; live source HOLD)",
+            "Legacy command SKY維持率 now performs PRICE-ONLY observation (<100 TWD) "
+            "using caller-supplied full TWSE/TPEx market and Fugle Individual Quote "
+            "lastTrade fields. Margin-maintenance ratio/estimate/source, paid-in "
+            "capital and previous-session volume are RETIRED from this command. "
+            "This is NOT a low-margin-maintenance stock screen or a trading strategy. "
+            "The 16-symbol watchlist is never the full-market denominator. "
+            "Real-time trading still requires independently certified A1/A2, "
+            "liquidity, strategy, costs and P0-R. Missing evidence remains "
+            "HOLD/NO_TRADE. No certified live runner, mobile E2E or buy eligibility."
         ),
     ),
     (

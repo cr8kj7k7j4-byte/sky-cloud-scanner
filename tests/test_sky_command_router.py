@@ -174,7 +174,7 @@ def test_swing_quick_scan_alias_is_exact_owner_only_and_swing_mode():
 
 def test_w0_shortcuts_are_classified_without_claiming_execution():
     cases = {
-        "SKY維持率": ("SKY_MARGIN_MAINTENANCE_RESEARCH", False),
+        "SKY維持率": ("SKY_PRICE_ONLY_RESEARCH", False),
         "SKY當沖": ("SKY_DAYTRADE_SCAN", True),
         "SKY波段": ("SKY_SWING_V10_LIVE_OBSERVATION", True),
         "SKY盤中掃描": ("SKY_DAYTRADE_SCAN", True),
@@ -192,11 +192,12 @@ def test_w0_shortcuts_are_classified_without_claiming_execution():
 
 def test_margin_ratio_estimate_does_not_bypass_trade_gates():
     route = route_command("Sky 維持率")
-    assert route.data_mode == "RESEARCH_ONLY_ESTIMATE_DISCLOSED"
-    assert route.execution_target == "HOLD_MARGIN_RUNNER_NOT_VERIFIED"
-    assert "No live" in route.notes
-    assert "Ratio estimate" in route.notes
+    assert route.data_mode == "PRICE_ONLY_OBSERVATION"
+    assert route.execution_target == "src.sky_margin_runtime.evaluate_margin_bundle (offline; live source HOLD)"
+    assert "NOT a low-margin-maintenance" in route.notes
+    assert "RETIRED" in route.notes
     assert "P0-R" in route.notes
+    assert "HOLD/NO_TRADE" in route.notes
     assert route.whole_market_required is True
 
 
@@ -216,9 +217,9 @@ def test_margin_watchlist_and_project_mobile_presentation_contract():
     assert watchlist_for_command("SKY當沖") is None
     assert presentation_for_command("SKY維持率") == "SKY_MOBILE_TABLE_V1_0"
     route = route_command("SKY維持率")
-    assert route.data_mode == "RESEARCH_ONLY_ESTIMATE_DISCLOSED"
+    assert route.data_mode == "PRICE_ONLY_OBSERVATION"
     assert route.whole_market_required is True
-    assert route.execution_target == "HOLD_MARGIN_RUNNER_NOT_VERIFIED"
+    assert route.execution_target == "src.sky_margin_runtime.evaluate_margin_bundle (offline; live source HOLD)"
 
 
 def test_unregistered_current_command_still_fails_closed():
@@ -251,7 +252,7 @@ def test_five_minimal_mobile_commands_share_presentation_only():
         assert presentation_for_command(command) == "SKY_MOBILE_TABLE_V1_0"
     assert presentation_for_command("Sky 分析 not-a-symbol") is None
     assert "src.sky_manual_position_review.review_manual_positions" in route_command("Sky 持股檢查").execution_target
-    assert route_command("SKY維持率").execution_target == "HOLD_MARGIN_RUNNER_NOT_VERIFIED"
+    assert route_command("SKY維持率").execution_target == "src.sky_margin_runtime.evaluate_margin_bundle (offline; live source HOLD)"
 
 def test_session_and_historical_research_contracts_in_existing_acceptance_ci():
     """Run off-hours selectors plus historical readback without any new Workflow."""
