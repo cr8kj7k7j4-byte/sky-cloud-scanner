@@ -49,6 +49,10 @@ def inspect_history(rows, start="2026-01-01", end="2026-11-07"):
             invalid["outside_regular_session"] += 1
         if local.minute % 5 or local.second or local.microsecond:
             invalid["unaligned_5min_timestamp"] += 1
+        # 13:25–13:30 is the TWSE/TPEx closing call auction:
+        # 13:25 is not a standard 5-minute bar; 13:30 may be closing bar.
+        if local.time().replace(tzinfo=None) == time(13, 25):
+            invalid["closing_auction_nonexistent_1325_bar"] += 1
         try:
             o,h,l,c,v = (float(row[k]) for k in ("open","high","low","close","volume"))
             if not (all(isfinite(value) for value in (o, h, l, c, v))
@@ -60,12 +64,9 @@ def inspect_history(rows, start="2026-01-01", end="2026-11-07"):
     chronology_invalid = any(a > b for a,b in zip(parsed,parsed[1:]))
     if chronology_invalid:
         invalid["non_ascending_timestamps"] += 1
-    # 09:00–13:30 spans at most 55 distinct five-minute timestamps.
-    # The provider may label intervals differently (54 is commonly observed),
-    # so never use this as the expected count for each trading day.
-    overfull = sorted(day for day,num in counts.items() if num > 55)
-    if overfull:
-        invalid["more_than_55_slots_per_session"] += len(overfull)
+    # Never gate observational availability on any fixed bar count.
+    # Duplicate/invalid timestamps are inspected above; missing periods are
+    # disclosed as observed coverage rather than presumed provider defects.
     return {
         "status": "INVALID_DATA" if invalid else ("DATA_OBSERVED" if rows else "EMPTY"),
         "row_count": len(rows),
