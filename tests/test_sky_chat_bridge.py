@@ -447,5 +447,59 @@ class ChatScanBridgeTests(unittest.TestCase):
         self.assertIn("禁止交易", result["mobile_research_notice"])
         self.assertFalse(result["production_eligible"])
 
+
+    def test_v14_forward_rule_snapshot_preserves_true_registry_sha_and_holds(self):
+        import hashlib
+        from pathlib import Path
+        from src.sky_chat_bridge import v14_frozen_rule_evidence
+        receipt = v14_frozen_rule_evidence()
+        raw = Path("research/SKY_DAY_V14_FROZEN_RULE_SOURCE_REGISTRY.json").read_bytes()
+        self.assertEqual(receipt["registry_sha256"], hashlib.sha256(raw).hexdigest())
+        self.assertEqual(receipt["expected_rule_count"], 10)
+        self.assertEqual(receipt["frozen_rule_count"], 0)
+        self.assertEqual(len(receipt["unresolved_rules"]), 10)
+        self.assertEqual(receipt["freeze_status"], "HOLD_STRATEGY_RULES_NOT_FROZEN")
+        self.assertFalse(receipt["full_rule_decision_captured"])
+        self.assertFalse(receipt["eligible_forward_observation"])
+        self.assertEqual(receipt["eligible_forward_samples"], 0)
+        self.assertEqual(receipt["future_outcome_status"], "PENDING_FUTURE_MARKET_DATA")
+        status = make_status("synthetic-research-no-market-api", report=None)
+        self.assertEqual(status["v14_frozen_rule_evidence"], receipt)
+        self.assertFalse(status["production_eligible"])
+
+    def test_v14_registry_alone_never_creates_eligible_forward_sample(self):
+        import json
+        from tempfile import TemporaryDirectory
+        from pathlib import Path
+        from src.sky_chat_bridge import v14_frozen_rule_evidence
+        with TemporaryDirectory() as folder:
+            path = Path(folder) / "rules.json"
+            path.write_text(json.dumps({
+                "strategy_id": "synthetic-only",
+                "allowed_provider_status": ["FROZEN_CANONICAL_IMPLEMENTATION"],
+                "rules": [{"rule": f"gate_{i}", "status": "FROZEN_CANONICAL_IMPLEMENTATION"}
+                          for i in range(10)]
+            }), encoding="utf-8")
+            receipt = v14_frozen_rule_evidence(path)
+        self.assertEqual(receipt["frozen_rule_count"], 10)
+        self.assertEqual(receipt["freeze_status"], "HOLD_FULL_DECISION_AND_PIT_NOT_VERIFIED")
+        self.assertFalse(receipt["eligible_forward_observation"])
+        self.assertFalse(receipt["cost_after_rr_certified"])
+        self.assertFalse(receipt["p0r_account_state_verified"])
+        self.assertFalse(receipt["automatic_order"])
+
+    def test_v14_corrupt_registry_fails_closed_without_model_invention(self):
+        from tempfile import TemporaryDirectory
+        from pathlib import Path
+        from src.sky_chat_bridge import v14_frozen_rule_evidence
+        with TemporaryDirectory() as folder:
+            path = Path(folder) / "bad.json"
+            path.write_text("{bad syntax}", encoding="utf-8")
+            result = v14_frozen_rule_evidence(path)
+        self.assertEqual(result["freeze_status"], "HOLD_V14_REGISTRY_UNREADABLE")
+        self.assertIsNone(result["registry_sha256"])
+        self.assertEqual(result["eligible_forward_samples"], 0)
+        self.assertFalse(result["production_eligible"])
+
 if __name__=="__main__":
     unittest.main()

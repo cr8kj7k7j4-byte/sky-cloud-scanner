@@ -4,6 +4,7 @@ Only research observations are produced; no trade orders or model promotion.
 """
 from __future__ import annotations
 import json
+import hashlib
 import os
 import subprocess
 import sys
@@ -209,6 +210,62 @@ def diagnose_five_minute_path(stage1, stage2, stage3):
 
 
 
+
+def v14_frozen_rule_evidence(registry_path=None):
+    """Retain canonical rule-registry identity without inventing v1.4 decisions.
+
+    This is a conservative status/provenance receipt, not an executable model,
+    an eligible forward sample or a revived trade/position ledger.
+    """
+    path = Path(registry_path) if registry_path is not None else Path(
+        "research/SKY_DAY_V14_FROZEN_RULE_SOURCE_REGISTRY.json")
+    result = {
+        "schema": "SKY_V14_FORWARD_RULE_FREEZE_EVIDENCE_V1",
+        "strategy_id": "Sky v1.4 Dynamic Capital Rotation / P0-C MVP",
+        "registry_path": "research/SKY_DAY_V14_FROZEN_RULE_SOURCE_REGISTRY.json",
+        "registry_sha256": None,
+        "expected_rule_count": 10,
+        "frozen_rule_count": 0,
+        "unresolved_rules": [],
+        "freeze_status": "HOLD_STRATEGY_RULES_NOT_FROZEN",
+        "full_rule_decision_captured": False,
+        "eligible_forward_observation": False,
+        "eligible_forward_samples": 0,
+        "cost_after_rr_certified": False,
+        "p0r_account_state_verified": False,
+        "future_outcome_status": "PENDING_FUTURE_MARKET_DATA",
+        "production_eligible": False,
+        "automatic_order": False,
+        "trade_action": "禁止交易",
+    }
+    try:
+        content = path.read_bytes()
+        registry = json.loads(content)
+        rules = registry.get("rules")
+        if not isinstance(rules, list) or len(rules) != 10:
+            raise ValueError("INVALID_V14_RULE_REGISTRY")
+        names = [x.get("rule") for x in rules if isinstance(x, dict)]
+        if len(names) != 10 or any(not isinstance(x, str) or not x for x in names) or len(set(names)) != 10:
+            raise ValueError("INVALID_V14_RULE_NAMES")
+        allowed = set(registry.get("allowed_provider_status") or [])
+        frozen = [x["rule"] for x in rules if x.get("status") in allowed]
+        unresolved = [x["rule"] for x in rules if x.get("status") not in allowed]
+        result.update({
+            "strategy_id": str(registry.get("strategy_id") or result["strategy_id"]),
+            "registry_schema": registry.get("schema_version"),
+            "registry_sha256": hashlib.sha256(content).hexdigest(),
+            "frozen_rule_count": len(frozen),
+            "unresolved_rules": unresolved,
+            "freeze_status": ("HOLD_FULL_DECISION_AND_PIT_NOT_VERIFIED" if not unresolved
+                              else "HOLD_STRATEGY_RULES_NOT_FROZEN"),
+        })
+    except (OSError, ValueError, TypeError, AttributeError, KeyError):
+        result["freeze_status"] = "HOLD_V14_REGISTRY_UNREADABLE"
+    # Do not infer future eligibility from a registry file alone, even if
+    # subsequently all rule-provider entries become FROZEN.
+    return result
+
+
 def make_status(request_id, report=None, error=None, observation=None, stage1=None, stage2=None, stage3=None, stage4=None):
     observation = observation or {}
     observed_count = observation.get("observed_price_count", 0)
@@ -287,6 +344,7 @@ def make_status(request_id, report=None, error=None, observation=None, stage1=No
         "v14_ticker_5m_samples": (stage3.get("samples") or [])[:2],
         "v14_ticker_5m_artifact": "output/sky_quickscan_information/v14_ticker_5m_evidence.json" if stage3.get("samples") else None,
         "v14_full_rule_validation_complete": False,
+        "v14_frozen_rule_evidence": v14_frozen_rule_evidence(),
         "candidate_chain_artifact": "output/sky_quickscan_information/candidate_e2e_chain.json" if stage4 else None,
         "candidate_chain_stage2_verified": stage4.get("stage2_quote_verified_count", 0),
         "candidate_chain_5m_observed": stage4.get("stage3_five_minute_observed_count", 0),
