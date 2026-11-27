@@ -4,6 +4,8 @@ on:
     branches: [main]
     paths:
       - 'src/sky_single_stock_realtime.py'
+      - 'scripts/sky_3717_historical_one_day_probe.py'
+      - 'tests/test_sky_3717_historical_one_day_probe.py'
       - 'src/sky_single_stock_source_audit.py'
       - 'src/sky_historical_5m_research.py'
       - 'src/sky_kbar_evidence_policy.py'
@@ -37,7 +39,7 @@ permissions:
 # Serialize authorized paid scans with the existing shared lane; ignored
 # issue comments must NOT enter or cancel a pending paid workflow.
 concurrency:
-  group: ${{ (github.event_name == 'issue_comment' && !(github.event.issue.number == 363 && github.event.comment.user.login == github.repository_owner && github.event.comment.author_association == 'OWNER' && (startsWith(github.event.comment.body, 'Sky 當沖更新 ') || startsWith(github.event.comment.body, 'Sky 波段更新 ') || (startsWith(github.event.comment.body, 'Sky 分析 ') || startsWith(github.event.comment.body, 'Sky 5m驗證 ')))) && format('sky-single-stock-ignored-{0}', github.run_id)) || 'sky-fugle-paid-global-research-v1-live-wholemarket' }}
+  group: ${{ (github.event_name == 'issue_comment' && !(github.event.issue.number == 363 && github.event.comment.user.login == github.repository_owner && github.event.comment.author_association == 'OWNER' && (startsWith(github.event.comment.body, 'Sky 當沖更新 ') || startsWith(github.event.comment.body, 'Sky 波段更新 ') || (startsWith(github.event.comment.body, 'Sky 分析 ') || startsWith(github.event.comment.body, 'Sky 5m驗證 ') || github.event.comment.body == 'Sky 歷史驗證 3717 2026-11-27'))) && format('sky-single-stock-ignored-{0}', github.run_id)) || 'sky-fugle-paid-global-research-v1-live-wholemarket' }}
   cancel-in-progress: false
 
 jobs:
@@ -50,7 +52,8 @@ jobs:
        github.event.comment.author_association == 'OWNER' &&
        (startsWith(github.event.comment.body, 'Sky 當沖更新 ') ||
         startsWith(github.event.comment.body, 'Sky 波段更新 ') ||
-        (startsWith(github.event.comment.body, 'Sky 分析 ') || startsWith(github.event.comment.body, 'Sky 5m驗證 '))))
+        (startsWith(github.event.comment.body, 'Sky 分析 ') || startsWith(github.event.comment.body, 'Sky 5m驗證 ') ||
+         github.event.comment.body == 'Sky 歷史驗證 3717 2026-11-27')))
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
@@ -69,7 +72,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
       - name: Test realtime gating without remote API
-        run: python -m unittest tests.test_sky_single_stock_realtime tests.test_sky_single_stock_source_audit tests.test_sky_single_stock_artifact_readback tests.test_sky_historical_5m_research tests.test_sky_kbar_evidence_policy tests.test_sky_v14_ticker_candles_probe tests.test_historical_5m_quality -v
+        run: python -m unittest tests.test_sky_single_stock_realtime tests.test_sky_single_stock_source_audit tests.test_sky_single_stock_artifact_readback tests.test_sky_historical_5m_research tests.test_sky_kbar_evidence_policy tests.test_sky_v14_ticker_candles_probe tests.test_historical_5m_quality tests.test_sky_3717_historical_one_day_probe -v
       - name: Validate requested symbol without calling Fugle
         if: github.event_name == 'workflow_dispatch' || github.event_name == 'issue_comment'
         id: request
@@ -87,32 +90,39 @@ jobs:
           if os.environ["GITHUB_EVENT_NAME"] == "issue_comment":
               event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text(encoding="utf-8"))
               body = event["comment"]["body"]
-              match = re.fullmatch(r"Sky (?:(?:當沖|波段)更新|分析|5m驗證) ([0-9]{4,6})", body)
-              if match is None:
-                  raise SystemExit("INVALID_SINGLE_STOCK_COMMAND")
-              symbol = match.group(1)
-              audit = body.startswith("Sky 5m驗證 ") or body.startswith("Sky 分析 ")
+              history = body == "Sky 歷史驗證 3717 2026-11-27"
+              if history:
+                  symbol = "3717"
+                  audit = False
+              else:
+                  match = re.fullmatch(r"Sky (?:(?:當沖|波段)更新|分析|5m驗證) ([0-9]{4,6})", body)
+                  if match is None:
+                      raise SystemExit("INVALID_SINGLE_STOCK_COMMAND")
+                  symbol = match.group(1)
+                  audit = body.startswith("Sky 5m驗證 ") or body.startswith("Sky 分析 ")
           else:
               symbol = os.environ.get("MANUAL_SYMBOL", "")
               audit = os.environ.get("MANUAL_AUDIT", "").lower() == "true"
+              history = False
               # Manual source_audit is preserved; owner Sky 分析 is always unified.
               if re.fullmatch(r"[0-9]{4,6}", symbol) is None:
                   raise SystemExit("INVALID_SYMBOL")
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
               out.write(f"symbol={symbol}\n")
               out.write(f"audit={str(audit).lower()}\n")
+              out.write(f"history={str(history).lower()}\n")
               out.write(f"unified={str(body.startswith('Sky 分析 ') if os.environ['GITHUB_EVENT_NAME'] == 'issue_comment' else False).lower()}\n")
           print(f"VALIDATED_RESEARCH_ONLY_SYMBOL={symbol}")
           PY
       - name: Collect Fugle quote (reference permitted; execution marked separately)
-        if: steps.request.outcome == 'success' && steps.request.outputs.audit != 'true'
+        if: steps.request.outcome == 'success' && steps.request.outputs.audit != 'true' && steps.request.outputs.history != 'true'
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
           SYMBOL: ${{ steps.request.outputs.symbol }}
         run: |
           python -m src.sky_single_stock_realtime --symbol "$SYMBOL"
       - name: Collect bounded Fugle 5m and trades source evidence (opt-in only)
-        if: steps.request.outcome == 'success' && steps.request.outputs.audit == 'true'
+        if: steps.request.outcome == 'success' && steps.request.outputs.audit == 'true' && steps.request.outputs.history != 'true'
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
           SYMBOL: ${{ steps.request.outputs.symbol }}
@@ -122,6 +132,12 @@ jobs:
           else
             python -m src.sky_single_stock_source_audit --symbol "$SYMBOL"
           fi
+      - name: Collect 3717 one-day historical source only (once)
+        if: steps.request.outcome == 'success' && steps.request.outputs.history == 'true'
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+        run: python -m scripts.sky_3717_historical_one_day_probe --symbol 3717 --date 2026-11-27
+
       - name: Upload quote evidence even when unavailable
         if: always()
         uses: actions/upload-artifact@v4
