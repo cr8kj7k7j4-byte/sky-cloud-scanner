@@ -84,41 +84,43 @@ def test_unknown_current_sky_command_fails_closed():
     assert route.execution_target == "ROUTER_REVIEW_REQUIRED"
 
 
-def test_sky_swing_now_routes_to_governed_v10_observation_only():
+def test_sky_swing_now_routes_to_frozen_v11_research_only():
     route = route_command("Sky 波段現在掃一次")
-    assert route.command_family == "SKY_SWING_V10_LIVE_OBSERVATION"
-    assert route.execution_target == ".github/workflows/swing-live-scan.yml --mode swing"
-    assert route.data_mode == "WHOLE_MARKET_REALTIME_RESEARCH_ONLY"
-    assert route.realtime_required is True
-    assert route.whole_market_required is True
-    assert "exact executable rule specification is BLOCKED" in route.notes
-    assert "Swing V1.1 remains Research only" in route.notes
+    assert route.command_family == "SKY_SWING_V11_LIVE"
+    assert route.execution_target.startswith(".github/workflows/swing-v11-live-scan.yml")
+    assert route.data_mode == "WHOLE_MARKET_REALTIME_PLUS_CANONICAL_DAILY"
+    assert route.realtime_required and route.whole_market_required
+    assert "V1.0 remains Production" in route.notes
+    assert "no buy approval" in route.notes
 
 
-def test_swing_now_workflow_is_owner_only_on_w0_issue():
+def test_swing_now_workflow_is_owner_only_and_never_double_triggers():
     from pathlib import Path
-    workflow = Path(".github/workflows/swing-live-scan.yml").read_text(encoding="utf-8")
-    assert "github.event.issue.number == 363" in workflow
-    assert "github.event.comment.user.login == github.repository_owner" in workflow
-    assert "github.event.comment.author_association == 'OWNER'" in workflow
-    assert "github.event.comment.body == 'Sky 波段現在掃一次'" in workflow
-    assert "github.event.comment.body == 'Sky Swing 5D 快掃'" in workflow
-    assert "sky-fugle-paid-global-research-v1-live-wholemarket" in workflow
-    assert 'SKY_FUGLE_MONTHLY_RATE_CONTROL: "1"' in workflow
-    assert "--monthly-rate-limited" in workflow
-    assert "steps.verify_claim.outcome == 'success'" in workflow
-    assert "- name: Run whole-market live swing scan\n        id: scan" in workflow
-    assert "SCAN_OUTCOME: ${{ steps.scan.outcome }}" in workflow
-    status_upload = workflow.split("- name: Upload connector-readable same-run status artifact", 1)[1]
-    assert "if: always() && (github.event_name == 'push'" in status_upload.split("\n", 3)[1]
+    old = Path(".github/workflows/swing-live-scan.yml").read_text(encoding="utf-8")
+    v11 = Path(".github/workflows/swing-v11-live-scan.yml").read_text(encoding="utf-8")
+    for text in ("Sky 波段快掃", "Sky 波段現在掃一次"):
+        exact = "github.event.comment.body == '" + text + "'"
+        assert exact not in old
+        assert v11.count(exact) == 2  # concurrency and real live-scan job
+    for owner in ("github.event.issue.number == 363",
+                  "github.event.comment.user.login == github.repository_owner",
+                  "github.event.comment.author_association == 'OWNER'"):
+        assert owner in v11
+    assert "github.event.comment.body == 'Sky Swing 5D 快掃'" in old
+    assert "sky-fugle-paid-global-research-v1-live-wholemarket" in old
+    assert "sky-fugle-paid-global-research-v1-live-wholemarket" in v11
+    assert "SKY_PAID_ATOMIC_ENFORCE" in v11
+    assert "steps.verify_claim.outcome == 'success'" in v11
+    assert "github.event_name == 'workflow_dispatch'" in old
 
 
-def test_sky_swing_quick_scan_remains_broad_candidate_scan():
+def test_sky_swing_quick_scan_uses_existing_frozen_research_runner():
     route = route_command("Sky 波段快掃")
-    assert route.command_family == "SKY_SWING_SCAN"
-    assert "src.swing_live_scanner --mode swing" in route.execution_target
-    assert route.data_mode == "SESSION_ADAPTIVE_SWING_RESEARCH"
-    assert "sky_swing_session_policy" in route.execution_target
+    direct = route_command("Sky Swing V1.1｜現在掃一次")
+    assert route.command_family == direct.command_family == "SKY_SWING_V11_LIVE"
+    assert "swing-v11-live-scan.yml" in route.execution_target
+    assert route.data_mode == direct.data_mode
+    assert "No orders" in route.notes or "No orders" in route.notes.capitalize()
 
 
 def test_single_stock_update_requires_fugle_realtime_first():
@@ -155,30 +157,26 @@ def test_single_stock_swing_update_is_realtime():
     assert route.realtime_required is True
 
 
-def test_swing_quick_scan_alias_is_exact_owner_only_and_swing_mode():
+def test_swing_quick_scan_alias_is_unique_v11_owner_research():
     from pathlib import Path
-    workflow = Path(".github/workflows/swing-live-scan.yml").read_text(encoding="utf-8")
-    guard = workflow.split("jobs:", 1)[1].split("runs-on:", 1)[0]
-    assert "github.event.issue.number == 363" in guard
-    assert "github.event.comment.user.login == github.repository_owner" in guard
-    assert "github.event.comment.author_association == 'OWNER'" in guard
-    assert "github.event.comment.body == 'Sky 波段快掃'" in guard
-    assert "github.event.comment.body == 'Sky Swing 5D 快掃'" in guard
-    assert "github.event.comment.body == 'Sky 波段現在掃一次'" in guard
-    assert "sky-fugle-paid-global-research-v1-live-wholemarket" in workflow
-    # All four mode expressions (scanner, gate, readback, mobile summary) must agree.
-    assert workflow.count("github.event.comment.body == 'Sky 波段快掃'") == 6
-    assert workflow.count("&& 'swing')") == 4
-    assert "id: scan" in workflow
-    assert "SCAN_OUTCOME: ${{ steps.scan.outcome }}" in workflow
-    assert "automatic_order" in workflow
+    old = Path(".github/workflows/swing-live-scan.yml").read_text(encoding="utf-8")
+    v11 = Path(".github/workflows/swing-v11-live-scan.yml").read_text(encoding="utf-8")
+    for alias in ("Sky 波段快掃", "Sky 波段現在掃一次"):
+        exact = "github.event.comment.body == '" + alias + "'"
+        assert exact not in old
+        assert v11.count(exact) == 2
+    assert "github.event.comment.body == 'Sky Swing 5D 快掃'" in old
+    assert "src.swing_v11_live_scanner" in v11
+    assert "BLOCKED_UNVERIFIED_CANONICAL_SOURCE_IDENTITY" in v11
+    assert "BLOCKED_STALE_OR_UNVERIFIED_CANONICAL_DAILY_NO_PAID_API" in v11
+    assert "automatic_order" in v11 and "trade_action" in v11
 
 
 def test_w0_shortcuts_are_classified_without_claiming_execution():
     cases = {
         "SKY維持率": ("SKY_PRICE_ONLY_RESEARCH", False),
         "SKY當沖": ("SKY_DAYTRADE_SCAN", True),
-        "SKY波段": ("SKY_SWING_V10_LIVE_OBSERVATION", True),
+        "SKY波段": ("SKY_SWING_V11_LIVE", True),
         "SKY盤中掃描": ("SKY_DAYTRADE_SCAN", True),
         "SKY盤後分析": ("SKY_POSTMARKET_RESEARCH", False),
         "SKY系統狀態": ("SKY_UNIFIED_SYSTEM_HEALTH", False),
