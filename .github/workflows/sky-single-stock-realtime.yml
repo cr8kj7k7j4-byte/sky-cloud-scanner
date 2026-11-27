@@ -87,6 +87,7 @@ jobs:
                   raise SystemExit("INVALID_SYMBOL")
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
               out.write(f"symbol={symbol}\n")
+              out.write(f"audit={str(audit).lower()}\n")
           print(f"VALIDATED_RESEARCH_ONLY_SYMBOL={symbol}")
           PY
       - name: Collect Fugle quote (reference permitted; execution marked separately)
