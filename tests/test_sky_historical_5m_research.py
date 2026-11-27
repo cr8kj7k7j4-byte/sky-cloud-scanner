@@ -63,6 +63,8 @@ class Historical5mResearchTests(unittest.TestCase):
     def test_sparse_regular_and_absent_auction_remain_research_only(self):
         for change in ("gap", "closing"):
             p = source_payload()
+            if change == "gap": p["data"].pop(13)
+            if change == "closing": p["data"].pop()
             v = self.check(p)
             self.assertEqual(v["status"], PASS, change)
             self.assertFalse(v["session_coverage_certified"])
@@ -77,10 +79,8 @@ class Historical5mResearchTests(unittest.TestCase):
         for change in ("duplicate", "timezone", "reordered",
                        "negvol", "boolvol", "nan", "future", "outside", "auction_window"):
             p = source_payload()
-            if change == "gap": p["data"].pop(13)
             if change == "duplicate": p["data"][12]["date"] = p["data"][11]["date"]
             if change == "timezone": p["data"][10]["date"] = "2026-11-27T09:50:00Z"
-            if change == "closing": p["data"].pop()
             if change == "reordered": p["data"][4], p["data"][5] = p["data"][5], p["data"][4]
             if change == "negvol": p["data"][4]["volume"] = -1
             if change == "boolvol": p["data"][4]["volume"] = True
