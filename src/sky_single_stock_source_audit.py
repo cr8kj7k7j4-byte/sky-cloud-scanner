@@ -385,7 +385,7 @@ def main():
             json.dumps({"schema": "SKY_UNIFIED_SINGLE_STOCK_RESEARCH_V1",
                         "symbol": args.symbol, "observation": observation,
                         "source_audit": result, "execution_authorized": False},
-                       ensure_ascii=False, indent=2, allow_nan=False) + "\\n",
+                       ensure_ascii=False, indent=2, allow_nan=False) + "\n",
             encoding="utf-8")
         (path / (args.symbol + ".md")).write_text(
             render_unified_stock_research(result, observation), encoding="utf-8")
