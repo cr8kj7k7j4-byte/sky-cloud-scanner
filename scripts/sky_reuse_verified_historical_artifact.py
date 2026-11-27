@@ -141,6 +141,10 @@ def attach_to_report(*, report_dir, evidence, symbol):
         k: v for k, v in evidence.items()
         if k not in ("historical_5m_research",)
     }
+    # Reuse already-collected same-run Quote/Trades with the independently
+    # verified historical 5m. No network calls and no A2/VWAP promotion.
+    from src.sky_completed_session_reconciliation import reconcile
+    audit["completed_session_reconciliation"] = reconcile(audit)
     if (audit.get("execution_authorized") is not False
             or audit.get("automatic_order") is not False):
         raise ValueError("CURRENT_REPORT_NOT_RESEARCH_ONLY")
