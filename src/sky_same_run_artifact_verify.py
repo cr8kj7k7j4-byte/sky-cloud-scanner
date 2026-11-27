@@ -37,10 +37,19 @@ def verify_downloaded_inventory(
         raise ValueError("INVALID_EXPECTED_PROVENANCE")
     root = Path(extraction_root).resolve(strict=True)
     manifest = root / "output/sky_quickscan_information/same_run_source_inventory.json"
+    layout = "CANONICAL"
+    if not manifest.exists():
+        # GitHub upload-artifact strips the common leading directory when all
+        # postmarket paths share output/sky_quickscan_information/. The archive
+        # then contains same_run_source_inventory.json at the ZIP root.
+        manifest = root / "same_run_source_inventory.json"
+        layout = "GITHUB_POSTMARKET_FLAT"
     if (not manifest.is_file() or manifest.is_symlink()
             or not manifest.resolve().is_relative_to(root)):
         raise ValueError("INVENTORY_MISSING_OR_UNSAFE_PATH")
     inventory = json.loads(manifest.read_text(encoding="utf-8"))
+    if layout != "CANONICAL" and inventory.get("capture_mode") != "postmarket_observation":
+        raise ValueError("FLAT_LAYOUT_REQUIRES_POSTMARKET_MODE")
     if not isinstance(inventory, dict) or inventory.get("schema") != SCHEMA:
         raise ValueError("INVALID_INVENTORY_SCHEMA")
     for field, expected in (
@@ -58,6 +67,7 @@ def verify_downloaded_inventory(
         raise ValueError("SOURCE_INVENTORY_EMPTY")
     checked = 0
     missing = []
+    flat_names = set()
     for name, entry in sources.items():
         if not isinstance(name, str) or not isinstance(entry, dict):
             raise ValueError("INVALID_SOURCE_ENTRY")
@@ -67,7 +77,16 @@ def verify_downloaded_inventory(
         path = Path(relative)
         if path.is_absolute() or ".." in path.parts:
             raise ValueError("UNSAFE_SOURCE_PATH")
-        candidate = root / path
+        if layout == "GITHUB_POSTMARKET_FLAT":
+            # Only ZIP-root common-prefix flattening is accepted, never
+            # arbitrary directory search/fallback. Enforce unique leaf names.
+            leaf = path.name
+            if leaf in flat_names:
+                raise ValueError("AMBIGUOUS_FLAT_SOURCE_NAME")
+            flat_names.add(leaf)
+            candidate = root / leaf
+        else:
+            candidate = root / path
         if candidate.is_symlink() or not candidate.resolve().is_relative_to(root):
             raise ValueError("UNSAFE_SOURCE_PATH")
         if entry.get("raw_provider_source_certified") is not False:
@@ -99,6 +118,7 @@ def verify_downloaded_inventory(
         "head_sha": expected_head_sha,
         "artifact_id": artifact_id,
         "verified_file_count": checked,
+        "artifact_layout": layout,
         "missing_sources": missing,
         "production_eligible": False,
         "trade_action": "禁止交易",
