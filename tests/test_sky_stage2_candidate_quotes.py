@@ -36,6 +36,22 @@ class Stage2BridgeTests(unittest.TestCase):
         self.assertTrue(all(x["action"]=="等待" for x in r["results"]))
         self.assertTrue(all(x["canonical_v14_p0c_audit"]["live_execution_allowed"] is False for x in r["results"]))
 
+    def test_a2_elapsed_breakdown_is_read_only(self):
+        waits = []
+        r = verify(self.stage1(), quote_fn=lambda _: payload(),
+                   sleep_fn=lambda n: waits.append(n), now_fn=lambda: NOW)
+        self.assertEqual(r["attempted_count"], 12)
+        self.assertEqual(len(waits), 11)
+        self.assertEqual(r["request_pacing_seconds"], 1.0)
+        self.assertGreaterEqual(r["quote_call_elapsed_seconds"], 0)
+        self.assertGreaterEqual(r["pacing_elapsed_seconds"], 0)
+        self.assertEqual(len(r["results"]), 12)
+        for row in r["results"]:
+            self.assertGreaterEqual(row["quote_call_elapsed_seconds"], 0)
+            self.assertGreaterEqual(row["processing_elapsed_seconds"], 0)
+            self.assertNotIn("api_key", row)
+            self.assertFalse(row["production_eligible"])
+
     def test_missing_trade_time_cannot_verify(self):
         q={"date":"2026-11-10","lastTrade":{"price":50.0}}
         r=verify(self.stage1(),quote_fn=lambda _:q,sleep_fn=lambda _:None,now_fn=lambda:NOW)

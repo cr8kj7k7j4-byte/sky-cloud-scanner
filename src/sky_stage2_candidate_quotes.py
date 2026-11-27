@@ -58,17 +58,26 @@ def verify(stage1, *, quote_fn=get_quote, sleep_fn=time.sleep, now_fn=None):
     total_requests = 0
     rate_limited = 0
     start_monotonic = time.monotonic()
+    quote_elapsed = 0.0
+    pacing_elapsed = 0.0
     for candidate in picked:
         if total_requests:
+            pace_start = time.monotonic()
             sleep_fn(SLEEP_SECONDS)
+            pacing_elapsed += time.monotonic() - pace_start
         symbol = str(candidate["symbol"])
         row = {"symbol": symbol, "exchange": candidate["exchange"],
                "stage1_observed_price": candidate.get("observed_price"),
                "classification": "未分級", "action": "等待",
                "production_eligible": False, "executed_trade_verified": False}
+        request_start = time.monotonic()
+        request_end = request_start
         try:
             total_requests += 1
-            payload = quote_fn(symbol)
+            try:
+                payload = quote_fn(symbol)
+            finally:
+                request_end = time.monotonic()
             quote = payload.get("data", payload) if isinstance(payload, dict) else payload
             price, executed_at, reason = fugle_executed_trade(quote, now=now_fn(),
                                                                max_age_seconds=180)
@@ -91,6 +100,10 @@ def verify(stage1, *, quote_fn=get_quote, sleep_fn=time.sleep, now_fn=None):
             row["status"] = "PLAN_RESTRICTED"
         except (requests.RequestException, ValueError, TypeError) as exc:
             row.update({"status": "SOURCE_ERROR", "error_type": type(exc).__name__})
+        request_elapsed = max(0.0, request_end - request_start)
+        quote_elapsed += request_elapsed
+        row["quote_call_elapsed_seconds"] = round(request_elapsed, 3)
+        row["processing_elapsed_seconds"] = round(max(0.0, time.monotonic() - request_end), 3)
         results.append(row)
         if rate_limited:
             # Fail closed immediately; never hammer a provider returning 429.
@@ -105,6 +118,8 @@ def verify(stage1, *, quote_fn=get_quote, sleep_fn=time.sleep, now_fn=None):
         "verified_executed_count": sum(r["executed_trade_verified"] for r in results),
         "rate_limited_count": rate_limited,
         "elapsed_seconds": round(time.monotonic() - start_monotonic, 3),
+        "quote_call_elapsed_seconds": round(quote_elapsed, 3),
+        "pacing_elapsed_seconds": round(pacing_elapsed, 3),
         "observed_successful_requests": total_requests - rate_limited,
         "operational_bounded_probe_pass": (total_requests == len(picked) and rate_limited == 0),
         "max_plan_quota_inferred": False,
