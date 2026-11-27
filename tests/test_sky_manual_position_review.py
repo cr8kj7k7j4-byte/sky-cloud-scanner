@@ -214,100 +214,100 @@ def test_scanner_column_diagnostics_without_any_fugle_api():
     assert row["分類"] == "X"
 
 
-# User-supplied 3717 screenshot figures are observational inputs, not Fugle A2.
-MARGIN_3717 = (
+# Synthetic financing fixture only; no user portfolio or screenshot values.
+MARGIN_9999 = (
     "Sky 持股檢查\n"
-    "3717 融資 1,000股 平均成本17.40\n"
-    "截圖市價 18.55\n"
-    "券商預估損益 +1,064\n"
-    "券商預估報酬率 +14.37%"
+    "9999 融資 1,000股 平均成本10.00\n"
+    "截圖市價 11.00\n"
+    "券商預估損益 +900\n"
+    "券商預估報酬率 +9.00%"
 )
 
 
-def test_3717_real_financing_manual_input_preserves_unknowns():
-    parsed = parse_manual_positions(MARGIN_3717)
+def test_9999_synthetic_financing_manual_input_preserves_unknowns():
+    parsed = parse_manual_positions(MARGIN_9999)
     assert parsed["status"] == "PASS_INPUT", parsed
-    assert parsed["positions"][0]["symbol"] == "3717"
+    assert parsed["positions"][0]["symbol"] == "9999"
     assert parsed["positions"][0]["trade_type"] == "MARGIN_FINANCING"
     assert parsed["positions"][0]["shares"] == 1000
-    assert parsed["positions"][0]["average_cost"] == 17.40
+    assert parsed["positions"][0]["average_cost"] == 10.00
     assert parsed["positions"][0]["stop"] is None
     evidence = parsed["broker_evidence"]
-    assert evidence["screenshot_price"] == 18.55
-    assert evidence["broker_estimated_pnl"] == 1064
-    assert evidence["broker_estimated_return_pct"] == 14.37
+    assert evidence["screenshot_price"] == 11.00
+    assert evidence["broker_estimated_pnl"] == 900
+    assert evidence["broker_estimated_return_pct"] == 9.00
     assert evidence.get("margin_loan_balance") is None
     assert evidence.get("margin_maintenance_ratio_pct") is None
 
 
-def test_3717_broker_reference_arithmetic_not_certified_market_pnl():
-    r = review_manual_positions(MARGIN_3717, now=NOW)
+def test_9999_broker_reference_arithmetic_not_certified_market_pnl():
+    r = review_manual_positions(MARGIN_9999, now=NOW)
     assert r["status"] == "HOLD"
     row = r["rows"][0]
-    assert row["股票原始成交總額"] == 17400.0
-    assert row["現價"] is None  # screenshot 18.55 is NOT A2
+    assert row["股票原始成交總額"] == 10000.0
+    assert row["現價"] is None  # screenshot 11.00 is NOT A2
     assert row["未實現毛損益"] is None
-    assert row["券商截圖市價（未認證）"] == 18.55
-    assert row["截圖價差毛損益（未扣費）"] == 1150.0
-    assert row["券商預估損益（原值）"] == 1064.0
-    assert row["券商預估報酬率%（原值）"] == 14.37
-    assert row["截圖毛損益減券商預估損益（差額原因未認證）"] == 86.0
+    assert row["券商截圖市價（未認證）"] == 11.00
+    assert row["截圖價差毛損益（未扣費）"] == 1000.0
+    assert row["券商預估損益（原值）"] == 900.0
+    assert row["券商預估報酬率%（原值）"] == 9.00
+    assert row["截圖毛損益減券商預估損益（差額原因未認證）"] == 100.0
     assert row["券商截圖行情狀態"] == "USER_PROVIDED_UNDATED_REFERENCE_NOT_A2"
     assert row["融資自備款"] is None
     assert row["融資餘額"] is None
     assert row["融資維持率%"] is None
-    assert "HOLD_MARGIN_LOAN_BALANCE_3717" in r["reasons"]
-    assert "HOLD_MARGIN_OWN_CASH_3717" in r["reasons"]
-    assert "HOLD_MARGIN_MAINTENANCE_RATIO_3717" in r["reasons"]
-    assert "HOLD_STOP_3717" in r["reasons"]
-    assert "HOLD_A2_EXECUTED_TRADE_3717" in r["reasons"]
+    assert "HOLD_MARGIN_LOAN_BALANCE_9999" in r["reasons"]
+    assert "HOLD_MARGIN_OWN_CASH_9999" in r["reasons"]
+    assert "HOLD_MARGIN_MAINTENANCE_RATIO_9999" in r["reasons"]
+    assert "HOLD_STOP_9999" in r["reasons"]
+    assert "HOLD_A2_EXECUTED_TRADE_9999" in r["reasons"]
     assert r["risk_total_twd"] is None
     assert r["new_entry_allowed"] is False
     assert r["automatic_orders"] is False
 
 
-def test_3717_screenshot_not_relabelled_as_fugle_a2():
-    r = review_manual_positions(MARGIN_3717, quotes={
-        "3717": {
-            "symbol": "3717", "source": "Fugle MarketData API /intraday/quote",
-            "status": "UNVERIFIED_EXECUTION_TIME", "last_price": 18.55,
+def test_9999_synthetic_reference_not_relabelled_as_fugle_a2():
+    r = review_manual_positions(MARGIN_9999, quotes={
+        "9999": {
+            "symbol": "9999", "source": "Fugle MarketData API /intraday/quote",
+            "status": "UNVERIFIED_EXECUTION_TIME", "last_price": 11.00,
             "last_trade_price": None, "last_updated_tpe": NOW.isoformat(),
             "quote_date": NOW.date().isoformat(),
         }
     }, now=NOW)
     assert r["rows"][0]["現價"] is None
     assert r["rows"][0]["未實現毛損益"] is None
-    assert r["rows"][0]["截圖價差毛損益（未扣費）"] == 1150
+    assert r["rows"][0]["截圖價差毛損益（未扣費）"] == 1000
 
 
-def test_3717_manual_margin_evidence_not_backsolved_from_return():
-    supplied = MARGIN_3717 + "\n融資餘額 9000\n融資自備款 8400"
+def test_9999_manual_margin_evidence_not_backsolved_from_return():
+    supplied = MARGIN_9999 + "\n融資餘額 5000\n融資自備款 5000"
     r = review_manual_positions(supplied, now=NOW)
     row = r["rows"][0]
-    assert row["融資餘額"] == 9000
-    assert row["融資自備款"] == 8400
+    assert row["融資餘額"] == 5000
+    assert row["融資自備款"] == 5000
     assert row["融資維持率%"] is None
-    assert "HOLD_MARGIN_MAINTENANCE_RATIO_3717" in r["reasons"]
-    assert row["股票原始成交總額"] == 17400
+    assert "HOLD_MARGIN_MAINTENANCE_RATIO_9999" in r["reasons"]
+    assert row["股票原始成交總額"] == 10000
 
 
 def test_reject_finance_metadata_without_finance_symbol_and_bad_roi_unit():
     assert "MARGIN_EVIDENCE_REQUIRES_FINANCING_POSITION" in parse_manual_positions(
-        "3717 1000股 成本17.4\n融資餘額 9000"
+        "9999 1000股 成本10.0\n融資餘額 5000"
     )["errors"]
     assert "INVALID_OR_DUPLICATE_BROKER_EVIDENCE" in parse_manual_positions(
-        "3717 融資 1000股 成本17.4\n券商預估報酬率 14.37"
+        "9999 融資 1000股 成本10.0\n券商預估報酬率 9.00"
     )["errors"]
     assert "INVALID_POSITION_LINE" in parse_manual_positions(
-        "3717 融資 1000股 成本17.4\n未知欄位 1234"
+        "9999 融資 1000股 成本10.0\n未知欄位 1234"
     )["errors"]
 
 
-def test_3717_existing_review_to_mobile_adapter_keeps_not_applicable_and_no_trade():
+def test_9999_existing_review_to_mobile_adapter_keeps_not_applicable_and_no_trade():
     """Reuse existing anonymized regression fixture, not a provider or phone run."""
     from src.sky_mobile_table import render_manual_position_report
 
-    report = render_manual_position_report(MARGIN_3717, now=NOW)
+    report = render_manual_position_report(MARGIN_9999, now=NOW)
     row = report["rows"][0]
     assert row["買進觸發"] == "不適用（既有持股）"
     assert row["最高接受價"] == "不適用（既有持股）"
