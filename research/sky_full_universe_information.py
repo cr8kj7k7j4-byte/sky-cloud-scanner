@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from pathlib import Path
+from time import perf_counter
 from zoneinfo import ZoneInfo
 
 from src.fugle import snapshot_quotes
@@ -383,17 +384,22 @@ def summary(report):
 
 def main():
     checked_at = datetime.now(TZ)
+    started = perf_counter()
     universe, status = load_official_universe()
+    timings = {"official_universe": round(perf_counter() - started, 3)}
     _, excluded_research_symbols = filter_research_universe(universe)
     # Information report includes EVERY official symbol. Research exclusion
     # applies only to ranking/trading, not to the query denominator.
     snapshots = {}
     errors = {}
     for market in MARKET.values():
+        started = perf_counter()
         try:
             snapshots[market] = snapshot_quotes(market)
         except Exception as exc:
             errors[market] = type(exc).__name__
+        timings[f"fugle_snapshot_{market}"] = round(perf_counter() - started, 3)
+    started = perf_counter()
     report = build(universe, snapshots, checked_at, errors,
                    excluded_research_symbols=excluded_research_symbols)
     report["excluded_research_symbols"] = excluded_research_symbols
@@ -404,6 +410,8 @@ def main():
     (OUTPUT_DIR / "full_universe.json").write_text(
         json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     (OUTPUT_DIR / "latest.md").write_text(summary(report), encoding="utf-8")
+    timings["build_and_write_report"] = round(perf_counter() - started, 3)
+    print("SKY_FULL_UNIVERSE_PHASE_SECONDS " + json.dumps(timings))
     print(f"Sky information scan: universe={report['universe_count']} "
           f"observed={report['observed_price_count']} "
           f"fresh={report['fresh_executed_count']} "
