@@ -57,11 +57,13 @@ def test_partial_coverage_keeps_only_observed_rows(monkeypatch, tmp_path):
 
 def test_unverified_bulk_snapshot_is_visible_but_never_tradable(monkeypatch, tmp_path):
     from src import swing_live_scanner as scan
+    from datetime import datetime
     monkeypatch.setattr(scan, "OUT", tmp_path)
     universe = [{"symbol": "1234", "exchange": "TWSE", "market": "TSE"}]
     row = {"symbol": "1234", "name": "研究樣本", "exchange": "TWSE",
            "quote_source": "Fugle bulk snapshot", "last": 45.0,
-           "volume": 15000, "trade_value": 675000000, "quote_date": "2026-11-09",
+           "volume": 15000, "trade_value": 675000000,
+           "quote_date": datetime.now(scan.TZ).date().isoformat(),
            "quote_time": "2026-11-09T11:00:00+08:00", "last_trade_timestamp": None}
     monkeypatch.setattr(scan, "load_official_universe", lambda: (universe, {"twse": 1, "tpex": 0}))
     monkeypatch.setattr(scan, "fetch_fugle_snapshot_quotes", lambda *args, **kw: ([row], []))
@@ -99,7 +101,8 @@ def test_individually_confirmed_execution_remains_research_only(monkeypatch, tmp
     universe = [{"symbol": "1234", "exchange": "TWSE", "market": "TSE"}]
     sample = {"symbol": "1234", "name": "研究樣本", "exchange": "TWSE",
               "quote_source": "Fugle bulk snapshot", "last": 40.0,
-              "volume": 1000, "trade_value": 40000000, "quote_date": "2026-11-09"}
+              "volume": 1000, "trade_value": 40000000,
+              "quote_date": datetime.now(scan.TZ).date().isoformat()}
     monkeypatch.setattr(scan, "load_official_universe", lambda: (universe, {"twse": 1, "tpex": 0}))
     monkeypatch.setattr(scan, "fetch_fugle_snapshot_quotes", lambda *a, **kw: ([sample], []))
     monkeypatch.setattr(scan, "fetch_mis_quotes", lambda *a, **kw: ([], []))
@@ -153,6 +156,8 @@ def test_policy_blocked_mis_fallback_keeps_paid_snapshot_observation(monkeypatch
     assert result["unverified_snapshot_observations"][0]["production_eligible"] is False
     assert any("MIS_FALLBACK_BLOCKED_BY_POLICY" in w for w in result["warnings"])
     assert (tmp_path / "latest_swing5d.json").exists()
+    # A stale historical observation must never initiate an A2 quote request.
+    assert result["snapshot_individual_confirmation"] == []
 
 
 def test_swing_v1_observation_uses_bounded_a2_without_promoting_trade(monkeypatch, tmp_path):
