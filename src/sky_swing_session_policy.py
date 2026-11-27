@@ -37,6 +37,7 @@ def swing_session_policy(
         ),
         "command_accepted": True,
         "command_availability": "ALL_SESSIONS",
+        "research_access": base["research_access"],
         "report_available": False,
         "report_unavailable_reason": "HISTORICAL_OR_LIVE_SOURCE_EVIDENCE_NOT_ATTACHED",
         "historical_artifact_verified": False,
