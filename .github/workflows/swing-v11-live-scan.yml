@@ -202,6 +202,7 @@ jobs:
           fi
 
       - name: Upload result
+        id: result_upload
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -210,4 +211,74 @@ jobs:
             output/swing_v11_live/
             output/swing_split_scope/
           if-no-files-found: error
+          retention-days: 30
+
+      # Independent byte integrity only. Never certify stale signals or trades.
+      - name: Independently read back same-run V1.1 research Artifact
+        if: always() && steps.result_upload.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/sky-v11-readback output/swing_v11_readback
+          for delay in 1 3 5 0; do
+            if gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+              --name "sky-swing-v11-live-$GITHUB_RUN_ID" \
+              --dir /tmp/sky-v11-readback; then break; fi
+            if [ "$delay" = 0 ]; then exit 1; fi
+            sleep "$delay"
+          done
+          ARTIFACT_ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" | python -c 'import json,os,sys; a=json.load(sys.stdin)["artifacts"]; n="sky-swing-v11-live-"+os.environ["GITHUB_RUN_ID"]; x=[e["id"] for e in a if e["name"]==n and not e.get("expired")]; assert len(x)==1,"V11_ARTIFACT_AMBIGUOUS"; print(x[0])')
+          export ARTIFACT_ID
+          python - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          root = Path("/tmp/sky-v11-readback")
+          src = Path("output")
+          dirs = ("swing_v11_live", "swing_split_scope")
+          originals = sorted(p for name in dirs for p in (src/name).rglob("*") if p.is_file())
+          if not originals:
+              raise SystemExit("V11_EMPTY_SOURCE_ARTIFACT")
+          evidence = []
+          for p in originals:
+              rel = p.relative_to(src)
+              downloaded = root / rel
+              if p.is_symlink() or not downloaded.is_file() or downloaded.is_symlink():
+                  raise SystemExit("V11_FILE_MISSING")
+              digest = hashlib.sha256(downloaded.read_bytes()).hexdigest()
+              if hashlib.sha256(p.read_bytes()).hexdigest()!=digest:
+                  raise SystemExit("V11_SHA256_MISMATCH")
+              evidence.append({"path":str(rel),"sha256":digest})
+          actual = sorted(str(p.relative_to(root)) for p in root.rglob("*") if p.is_file())
+          if actual != [x["path"] for x in evidence]:
+              raise SystemExit("V11_ARTIFACT_INVENTORY_MISMATCH")
+          report = root/"swing_v11_live/latest.json"
+          if report.is_file():
+              obj = json.loads(report.read_text(encoding="utf-8"))
+              if obj.get("production_eligible") is not False:
+                  raise SystemExit("V11_UNSAFE_PRODUCTION_ELIGIBILITY")
+          result = {"schema":"SKY_V11_SAME_RUN_READBACK_V1",
+                    "status":("PASS_ARTIFACT_INTEGRITY_RESEARCH_ONLY" if report.is_file()
+                              else "PASS_HOLD_RECEIPT_INTEGRITY_ONLY"),
+                    "run_id":os.environ["GITHUB_RUN_ID"],
+                    "attempt":os.environ["GITHUB_RUN_ATTEMPT"],
+                    "head_sha":os.environ["GITHUB_SHA"],
+                    "event":os.environ["GITHUB_EVENT_NAME"],
+                    "artifact_id":int(os.environ["ARTIFACT_ID"]),
+                    "files":evidence,"report_present":report.is_file(),
+                    "strategy_validated":False,"production_eligible":False,
+                    "automatic_order":False,"trade_action":"禁止交易"}
+          Path("output/swing_v11_readback/receipt.json").write_text(
+              json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+          print("SKY_V11_INDEPENDENT_READBACK",result["status"])
+          PY
+
+      - name: Upload independent same-run V1.1 receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-swing-v11-readback-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: output/swing_v11_readback/receipt.json
+          if-no-files-found: warn
           retention-days: 30
