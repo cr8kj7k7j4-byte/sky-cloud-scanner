@@ -106,20 +106,20 @@ class Historical5mResearchTests(unittest.TestCase):
         day = source_day.isoformat()
         fake_quote = {"date": day, "lastTrade": {}, "total": {}}
         bars = {"data": []}
-        with patch("src.sky_single_stock_source_audit.fugle.get_quote", return_value=fake_quote), \\
-             patch("src.sky_single_stock_source_audit.fugle.get_candles", return_value=bars), \\
-             patch("src.sky_single_stock_source_audit.fugle.get_trades", return_value={"data": []}), \\
-             patch("src.sky_single_stock_source_audit.fugle.get_historical_candles_5m") as hist, \\
+        with patch("src.sky_single_stock_source_audit.fugle.get_quote", return_value=fake_quote), \
+             patch("src.sky_single_stock_source_audit.fugle.get_candles", return_value=bars), \
+             patch("src.sky_single_stock_source_audit.fugle.get_trades", return_value={"data": []}), \
+             patch("src.sky_single_stock_source_audit.fugle.get_historical_candles_5m") as hist, \
              patch.dict("os.environ", {"SKY_FUGLE_HISTORICAL_ENTITLEMENT_CONFIRMED": "0"}):
             result = collect("3717")
             self.assertEqual(result["historical_5m_research"]["status"], HOLD)
             hist.assert_not_called()
         # An explicit enable permits only one historical request; malformed
         # or incomplete provider data still remains HOLD and never trades.
-        with patch("src.sky_single_stock_source_audit.fugle.get_quote", return_value=fake_quote), \\
-             patch("src.sky_single_stock_source_audit.fugle.get_candles", return_value=bars), \\
-             patch("src.sky_single_stock_source_audit.fugle.get_trades", return_value={"data": []}), \\
-             patch("src.sky_single_stock_source_audit.fugle.get_historical_candles_5m", return_value={"data": []}) as hist, \\
+        with patch("src.sky_single_stock_source_audit.fugle.get_quote", return_value=fake_quote), \
+             patch("src.sky_single_stock_source_audit.fugle.get_candles", return_value=bars), \
+             patch("src.sky_single_stock_source_audit.fugle.get_trades", return_value={"data": []}), \
+             patch("src.sky_single_stock_source_audit.fugle.get_historical_candles_5m", return_value={"data": []}) as hist, \
              patch.dict("os.environ", {"SKY_FUGLE_HISTORICAL_ENTITLEMENT_CONFIRMED": "1"}):
             result = collect("3717")
             hist.assert_called_once_with("3717", day)
