@@ -74,11 +74,11 @@ _SHORTCUT_PATTERNS = [
     (
         re.compile(r"^Sky\s*波段$", re.I),
         CommandRoute(
-            "SKY_SWING_V10_LIVE_OBSERVATION",
-            "WHOLE_MARKET_REALTIME_RESEARCH_ONLY", True, True, False,
-            ".github/workflows/swing-live-scan.yml --mode swing (existing observation)",
-            "Conversation alias only. Swing V1.0 rule executable remains BLOCKED; "
-            "Swing V1.1 is Research; no verified entry authorization."
+            "SKY_SWING_V11_LIVE",
+            "WHOLE_MARKET_REALTIME_PLUS_CANONICAL_DAILY", True, True, False,
+            ".github/workflows/swing-v11-live-scan.yml (existing frozen V1.1 research)",
+            "Conversation alias only. V1.1 frozen D-close signals remain RESEARCH_ONLY; "
+            "V1.0 Production baseline unchanged, execution and mobile E2E HOLD."
         ),
     ),
     (
@@ -228,24 +228,24 @@ _PATTERNS = [
     (
         re.compile(r"^Sky\s*波段現在掃一次$", re.I),
         CommandRoute(
-            "SKY_SWING_V10_LIVE_OBSERVATION", "WHOLE_MARKET_REALTIME_RESEARCH_ONLY", True, True, False,
-            ".github/workflows/swing-live-scan.yml --mode swing",
-            "Use the existing governed Swing observation runner only. Sky Swing V1.0 remains the unchanged Production baseline, but its exact executable rule specification is BLOCKED; this runner is observation/candidate evidence only, not a V1.0 signal. Swing V1.1 remains Research only. No buy authorization or automatic orders."
+            "SKY_SWING_V11_LIVE", "WHOLE_MARKET_REALTIME_PLUS_CANONICAL_DAILY", True, True, False,
+            ".github/workflows/swing-v11-live-scan.yml (existing frozen V1.1 research)",
+            "Owner command routes only to existing V1.1 canonical daily frozen research. "
+            "V1.0 remains Production baseline and BLOCKED_EXACT_RULE_SPEC. "
+            "Requires certified previous daily session and Fugle A2 to observe; "
+            "no buy approval, new entry or automatic orders."
         ),
     ),
     (
         re.compile(r"^Sky\s*波段快掃$", re.I),
         CommandRoute(
-            "SKY_SWING_SCAN", "SESSION_ADAPTIVE_SWING_RESEARCH", True, True, False,
-            "src.sky_swing_session_policy.swing_session_policy (selection only); "
-            "src.swing_live_scanner --mode swing (existing guarded live scan)",
-            "Premarket/postmarket/nontrading periods may use only separately verified "
-            "complete-session historical evidence, never a fabricated live price. "
-            "Existing live Workflow requires independently validated calendar, paid "
-            "Claim and Fugle evidence. Swing V1.0 executable rule remains BLOCKED; "
-            "V1.1 is Research. A zero/sparse 5m source cannot veto other "
-            "valid dated research observations; unsupported K-bar indicators "
-            "stay unknown. No dispatch, entry authorization or automatic orders."
+            "SKY_SWING_V11_LIVE", "WHOLE_MARKET_REALTIME_PLUS_CANONICAL_DAILY", True, True, False,
+            ".github/workflows/swing-v11-live-scan.yml (existing frozen V1.1 research)",
+            "Use frozen Swing V1.1 D-close signal and D+1 observed overlay only; "
+            "no market-data substitution or past snapshot as same-day A2. "
+            "Closed-session source or calendar missing => HOLD, not fake signal. "
+            "V1.0 remains Production baseline; zero/sparse K bars permit unrelated "
+            "research observations but not unverified indicators. No orders."
         ),
     ),
     (

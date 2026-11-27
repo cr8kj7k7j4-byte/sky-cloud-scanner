@@ -19,8 +19,8 @@ Use for:
 - `Sky 當沖快掃`
 - `Sky Swing 5D 快掃`
 - `Sky Swing 5D 現在掃一次`
-- `Sky 波段現在掃一次` → canonical alias of `Sky Swing V1.1｜現在掃一次`; returns intraday BUY / WAIT / REJECT via V1.1 execution overlay
-- `Sky 波段快掃` → broad swing candidate scan only
+- `Sky 波段現在掃一次` → existing V1.1 frozen D-close research scanner (OWNER-only); raw BUY_ELIGIBLE is not an authorized buy action.
+- `Sky 波段快掃` → same V1.1 frozen research runner, not the legacy V1.0 observation scan; production remains V1.0, which is not fully executable-certified.
 - `Sky Swing V1.1｜現在掃一次` → explicit V1.1 live scan
 
 Pipeline:
@@ -96,8 +96,8 @@ Swing V1.1's historical `*_D.json` artifact may be stale. If frozen D-close fres
 
 ## Chat execution bridge
 
-For `Sky 波段現在掃一次` / `Sky Swing V1.1｜現在掃一次`:
-1. GitHub Actions maintains a Swing V1.1 whole-market live scan every 5 minutes during Taiwan market hours.
+For `Sky 波段現在掃一次` / `Sky 波段快掃` / `Sky Swing V1.1｜現在掃一次`:
+1. Only an explicit OWNER issue comment or governed manual workflow_dispatch launches the existing V1.1 research Workflow; its independent cron is paused. There is no automatic five-minute V1.1 schedule.
 2. Chat reads the latest successful scan artifact / summary as the canonical whole-market candidate pool.
 3. Chat then refreshes shortlisted symbols with connected Fugle realtime single-stock quotes when available.
 4. Public web search is fallback context only and must not replace the canonical live-scan + Fugle path for executable intraday judgments.
