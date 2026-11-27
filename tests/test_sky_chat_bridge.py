@@ -286,6 +286,82 @@ class ChatScanBridgeTests(unittest.TestCase):
             validate_report(report)
 
 
+    def test_weekend_research_has_dated_preview_but_no_a2_promotion(self):
+        from src.sky_chat_bridge import afterhours_observation_preview
+        observation = {
+            "checked_at_tpe": "2026-11-28T10:00:00+08:00",
+            "ranked_observations": [
+                {"symbol": "1101", "name": "A", "exchange": "TWSE",
+                 "source": "Fugle paid bulk snapshot",
+                 "snapshot_source_date": "2026-11-27", "last_price": 35.5,
+                 "volume": 500, "snapshot_observed_at": "2026-11-28T10:00:00+08:00"},
+                {"symbol": "8089", "exchange": "TPEx",
+                 "source": "Fugle paid bulk snapshot",
+                 "snapshot_source_date": "2026-11-26", "last_price": 30},
+                {"symbol": "1102", "exchange": "TWSE",
+                 "source": "Fugle paid bulk snapshot",
+                 "snapshot_source_date": "2026-11-27", "last_price": 25,
+                 "snapshot_is_trial": True},
+            ],
+        }
+        result = afterhours_observation_preview(observation)
+        self.assertEqual(result["mode"], "AFTER_HOURS_RESEARCH")
+        self.assertEqual(result["provider_snapshot_date"], "2026-11-27")
+        self.assertEqual(result["candidate_count"], 1)
+        self.assertEqual(result["candidates"][0]["observed_price_not_live"], 35.5)
+        self.assertFalse(result["candidates"][0]["executed_trade_verified"])
+        self.assertFalse(result["production_eligible"])
+        self.assertFalse(result["automatic_order"])
+        self.assertFalse(result["candidates"][0]["volume_unit_verified"])
+
+    def test_afterhours_rejects_future_or_old_sources_and_live_mode(self):
+        from src.sky_chat_bridge import afterhours_observation_preview
+        base = {"symbol": "1101", "exchange": "TWSE",
+                "source": "Fugle paid bulk snapshot", "last_price": 20}
+        report = {"checked_at_tpe": "2026-11-28T10:00:00+08:00",
+                  "ranked_observations": [
+                      {**base, "snapshot_source_date": "2026-11-29"},
+                      {**base, "snapshot_source_date": "2026-11-02"},
+                      {**base, "snapshot_source_date": "2026-11-27",
+                       "last_price": float("nan")},
+                  ]}
+        result = afterhours_observation_preview(report)
+        self.assertEqual(result["candidate_count"], 0)
+        self.assertEqual(result["status"], "HOLD_NO_DATED_SOURCE_OBSERVATIONS")
+        report["checked_at_tpe"] = "2026-11-27T10:00:00+08:00"
+        self.assertEqual(afterhours_observation_preview(report)["mode"], "NOT_AFTER_HOURS")
+
+    def test_afterhours_status_keeps_stage1_zero_and_reports_research_only(self):
+        row = {key: "待確認" for key in COLUMNS}
+        row.update({"股票代碼": "1101", "現在動作": "等待",
+                    "正式交易資格": False})
+        report = {"schema": "SKY_DAYTRADE_13COL_RESEARCH_V2",
+                  "rows": [row], "row_count": 1, "universe_count": 1,
+                  "production_eligible": False}
+        observation = {
+            "checked_at_tpe": "2026-11-28T00:16:00+08:00",
+            "observed_price_count": 1,
+            "by_exchange": {"TWSE": {"snapshot_rows": 1},
+                            "TPEx": {"snapshot_rows": 1}},
+            "ranked_observations": [
+                {"symbol": "1101", "exchange": "TWSE",
+                 "source": "Fugle paid bulk snapshot",
+                 "snapshot_source_date": "2026-11-27",
+                 "last_price": 20.0, "snapshot_is_trial": False}]}
+        result = make_status(
+            "chat-weekend-001", report, observation=observation,
+            stage1={"candidate_count": 0,
+                    "excluded_reasons": {"NON_TRADING_WEEKEND": 1}},
+            stage2={"attempted_count": 0, "verified_executed_count": 0},
+            stage3={"status": "DISABLED_V5_4", "attempted_api_requests": 0})
+        self.assertEqual(result["stage1_candidate_count"], 0)
+        self.assertEqual(result["stage2_attempted_count"], 0)
+        self.assertEqual(result["afterhours_research"]["candidate_count"], 1)
+        self.assertIn("2026-11-27", result["mobile_research_notice"])
+        self.assertIn("禁止交易", result["mobile_research_notice"])
+        self.assertFalse(result["production_eligible"])
+        self.assertFalse(result["automatic_order"])
+
     def test_weekend_zero_candidates_explains_zero_paid_candle_calls(self):
         from src.sky_chat_bridge import diagnose_five_minute_path
         diagnostic = diagnose_five_minute_path(
