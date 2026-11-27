@@ -81,9 +81,10 @@ def verify_history(source_dir, receipt_dir, *, symbol, run_id, head_sha,
             or history.get("production_eligible") is not False
             or history.get("independent_vwap_certified") is not False
             or history.get("executed_trade_time_certified") is not False
-            or payload.get("provider_metadata") != {
-                "symbol": symbol, "exchange": "TWSE", "timeframe": "5"
-            } and (payload.get("provider_metadata") or {}).get("exchange") != "TPEx"):
+            or not isinstance(payload.get("provider_metadata"), dict)
+            or payload["provider_metadata"].get("symbol") != symbol
+            or payload["provider_metadata"].get("exchange") not in ("TWSE", "TPEx")
+            or payload["provider_metadata"].get("timeframe") != "5"):
         raise ValueError("HISTORICAL_SOURCE_IDENTITY_OR_SAFETY_MISMATCH")
     count = payload.get("row_count")
     bars = history.get("bars")
