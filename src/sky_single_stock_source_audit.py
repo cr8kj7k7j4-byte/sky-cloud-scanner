@@ -291,6 +291,7 @@ def render_mobile_source_audit(data: dict) -> str:
         "| --- | --- |",
         f"| 當日五分鐘 K 棒 | {status} |",
         f"| 歷史完整交易日 5m（僅研究） | {historical.get('status', 'HOLD')} |",
+        f"| 歷史 K 棒研究可用性 | {'可產出研究報告（無 K 棒指標）' if historical.get('status') == 'OBSERVATION_ONLY_NO_5M_BARS' else ('可供研究觀察' if historical.get('research_report_available') else '資料待確認')} |",
         f"| 歷史 5m 資料日期 | {historical.get('source_date') or '待確認'} |",
         f"| 歷史資料原因 | {historical.get('reason', 'HOLD_PROVIDER_ENTITLEMENT_NOT_CONFIRMED')} |",
         f"| 當次 K 棒總數 | {count if count is not None else '待確認'} |",
