@@ -49,7 +49,12 @@ def read_complete_session_research(
         artifact_id=artifact_id,
     )
     root = Path(extraction_root).resolve(strict=True)
-    manifest_path = root / "output/sky_quickscan_information/same_run_source_inventory.json"
+    if integrity["artifact_layout"] == "GITHUB_POSTMARKET_FLAT":
+        manifest_path = root / "same_run_source_inventory.json"
+        source_file = root / "full_universe.json"
+    else:
+        manifest_path = root / "output/sky_quickscan_information/same_run_source_inventory.json"
+        source_file = root / SOURCE_PATH
     inventory = json.loads(manifest_path.read_text(encoding="utf-8"))
     source = inventory["source_inventory"].get(SOURCE_KEY)
     if (not isinstance(source, dict)
@@ -57,7 +62,6 @@ def read_complete_session_research(
             or source.get("status") != "FILE_PRESENT_NOT_SOURCE_CERTIFIED"
             or not isinstance(source.get("sha256"), str)):
         raise ValueError("FULL_MARKET_REFERENCE_NOT_VERIFIED")
-    source_file = root / SOURCE_PATH
     if not source_file.is_file() or source_file.is_symlink():
         raise ValueError("FULL_MARKET_REFERENCE_MISSING")
     report = json.loads(source_file.read_text(encoding="utf-8"))
