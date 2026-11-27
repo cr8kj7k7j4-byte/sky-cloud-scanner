@@ -104,6 +104,16 @@ def market_mode() -> dict:
                 "live_whole_market_certified": report.get("live_whole_market_certified") is True,
                 "operational_full_market_scan": report.get("operational_full_market_scan"),
                 "quote_coverage_pct": report.get("quote_coverage_pct"),
+                # Read research observation evidence independently from the
+                # actionable strategy candidate gate. Never promote Snapshot
+                # prices to current executions, scores or buy eligibility.
+                "analysis_mode": report.get("analysis_mode"),
+                "analysis_observation_count": report.get("analysis_observation_count"),
+                "analysis_observation_preview": (
+                    report.get("analysis_observation_preview") or []
+                )[:8],
+                "analysis_requires_trade_gate": report.get("analysis_requires_trade_gate"),
+                "analysis_requires_broker_or_positions": report.get("analysis_requires_broker_or_positions"),
                 "candidate_count": report.get("candidate_count"),
                 "observation_mode": report.get("observation_mode"),
                 "trade_decision": report.get("trade_decision"),
@@ -136,6 +146,24 @@ def market_mode() -> dict:
         except (OSError, ValueError, TypeError):
             item["reason"] = "RESULT_NOT_AVAILABLE_OR_INVALID"
         results["reports"][label] = item
+    results["research_observations"] = {
+        name: {
+            "source_report": item.get("file"),
+            "available": (
+                item.get("available") is True
+                and item.get("analysis_mode") == "OBSERVATION_ONLY"
+                and isinstance(item.get("analysis_observation_count"), int)
+                and item["analysis_observation_count"] > 0
+            ),
+            "count": item.get("analysis_observation_count"),
+            "preview": item.get("analysis_observation_preview") or [],
+            "data_timestamp": item.get("data_timestamp"),
+            "observation_only": True,
+            "real_time_trade_eligible": False,
+        }
+        for name, item in results["reports"].items()
+        if name in ("swing_research", "swing5d_research")
+    }
     # Process exit zero is not verified whole-market data.
     # Operational coverage alone still never certifies an A+ trade signal.
     results["operational_coverage_verified"] = operational_market_evidence_ok(
@@ -273,6 +301,20 @@ def run(mode: str) -> dict:
     summary = f"# Sky {mode}\n\n狀態：{result['decision']}\n\n"
     summary += "此報告為執行與治理證據，不代表有合格買進訊號或通過正期望驗證。\n"
     if mode == "all_market":
+        summary += "\n## 波段純分析資料（與交易候選資格分開）\n"
+        for name, info in (result.get("research_observations") or {}).items():
+            if info.get("available"):
+                summary += (f"- {name}：{info.get('count')} 檔來源觀察"
+                            f"｜時間：{info.get('data_timestamp') or '待確認'}"
+                            "｜僅 Snapshot，非已驗證成交或可買訊號\n")
+                for item in info.get("preview", [])[:5]:
+                    symbol = str(item.get("symbol") or "待確認")
+                    price = item.get("indicative_last_price")
+                    summary += (f"  - {symbol}｜Snapshot 參考價 {price if price is not None else '待確認'}"
+                                f"｜日期 {item.get('snapshot_date') or '待確認'}"
+                                "｜成交時間未認證\n")
+            else:
+                summary += f"- {name}：研究觀察資料未取得或待確認\n"
         summary += "\n空方研究未有經確認的獨立執行入口，因此未執行且不得輸出空方交易訊號。\n"
     if mode == "system_health":
         evidence = result.get("evidence") or {}

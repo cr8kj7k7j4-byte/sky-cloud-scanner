@@ -126,3 +126,52 @@ def test_model_validation_comment_bridge_is_owner_only_and_no_paid_scan():
     assert '"request_id": ("issue-comment-" + os.environ["ISSUE_COMMENT_ID"]' in raw
     assert 'command = ("model_validation" if os.environ.get("EVENT_NAME") == "issue_comment"' in raw
     assert not any(line.startswith("  schedule:") for line in raw.splitlines())  # Paused schedule stays paused.
+
+
+def test_unified_market_report_exposes_swing_research_even_when_trade_gate_fails(monkeypatch, tmp_path):
+    """Snapshot observations are visible without conferring trading eligibility."""
+    import json
+    from pathlib import Path
+    from src import sky_unified_commands as u
+    monkeypatch.chdir(tmp_path)
+
+    def execute_stub(command):
+        if "trading_calendar" in " ".join(command):
+            (tmp_path / "output/sky_unified").mkdir(parents=True, exist_ok=True)
+            (tmp_path / "output/sky_unified/calendar.json").write_text(
+                json.dumps({"source_status": "PASS", "should_scan": True}), encoding="utf-8")
+            return {"exit_code": 0}
+        return {"exit_code": 0}
+
+    monkeypatch.setattr(u, "market_session_open", lambda: True)
+    monkeypatch.setattr(u, "execute", execute_stub)
+    monkeypatch.setattr(u, "BASE", tmp_path / "output/sky_unified")
+    monkeypatch.setattr(u, "operational_market_evidence_ok", lambda _: False)
+    swing = tmp_path / "output/swing_live/latest_swing.json"
+    swing.parent.mkdir(parents=True, exist_ok=True)
+    swing.write_text(json.dumps({
+        "generated_at": "2026-11-27T12:30:00+08:00",
+        "analysis_mode": "OBSERVATION_ONLY",
+        "analysis_observation_count": 2,
+        "analysis_observation_preview": [
+            {"symbol": "1234", "indicative_last_price": 40.0,
+             "snapshot_date": "2026-11-27",
+             "data_status": "UNVERIFIED_EXECUTED_TRADE_TIME"},
+            {"symbol": "5678", "indicative_last_price": 150.0,
+             "snapshot_date": "2026-11-27",
+             "data_status": "UNVERIFIED_EXECUTED_TRADE_TIME"},
+        ],
+        "candidate_count": 0,
+        "market_data_gate": "BLOCKED_EXTERNAL_DATA_NO_TRADE",
+        "live_whole_market_certified": False,
+        "quote_scope": "BULK_SNAPSHOT_INDICATIVE_ONLY",
+        "deep_candidates": [],
+    }), encoding="utf-8")
+    result = u.market_mode()
+    item = result["research_observations"]["swing_research"]
+    assert item["available"] is True
+    assert item["count"] == 2
+    assert [x["symbol"] for x in item["preview"]] == ["1234", "5678"]
+    assert item["real_time_trade_eligible"] is False
+    assert result["reports"]["swing_research"]["candidate_count"] == 0
+    assert result["decision"] == "DATA_COVERAGE_INSUFFICIENT_NO_TRADE"
