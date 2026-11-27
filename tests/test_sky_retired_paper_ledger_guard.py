@@ -19,6 +19,18 @@ class RetiredPaperLedgerGuardTests(unittest.TestCase):
         path.write_text(data, encoding="utf-8")
         subprocess.run(["git", "add", name], cwd=self.root, check=True)
 
+    def test_analysis_only_policy_never_requires_retired_paper_ledger(self):
+        policy = (Path(__file__).resolve().parents[1] /
+                  "docs/SKY_NO_BROKER_ACCOUNT_RESEARCH_POLICY_V1.md").read_text(
+                      encoding="utf-8")
+        self.assertIn("RESEARCH_AVAILABLE", policy)
+        self.assertIn("OBSERVATION_ONLY", policy)
+        self.assertIn("P0-R", policy)
+        self.assertIn("NO_TRADE", policy)
+        self.assertIn("永久禁止", policy)
+        self.assertNotIn("PAPER_INPUT_REQUIRED", policy)
+        self.assertNotIn("P0-R 研究／PAPER_ONLY", policy)
+
     def test_unrelated_evidence_ledger_is_allowed(self):
         self.track("research/forward_event_ledger.py", "def read(): return None\n")
         self.assertTrue(check(self.root)["passed"])
