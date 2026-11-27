@@ -13,6 +13,7 @@ from functools import partial
 
 from requests import Session
 from src.fugle import get_quote
+from time import perf_counter
 
 from research.sky_snapshot_candidates import screen as screen_stage1
 from src.sky_stage2_candidate_quotes import verify as verify_stage2
@@ -262,7 +263,13 @@ def main():
              "--output", "output/sky_quickscan_information/latest_13col.md",
              "--json-output", "output/sky_quickscan_information/latest_13col.json"],
         ):
+            started = perf_counter()
             proc = subprocess.run(argv, capture_output=True, text=True, timeout=240, check=False)
+            print(f"SKY_CHAT_MODULE_SECONDS {argv[2]} {perf_counter() - started:.3f}")
+            if argv[2] == "research.sky_full_universe_information":
+                for line in proc.stdout.splitlines():
+                    if line.startswith("SKY_FULL_UNIVERSE_PHASE_SECONDS "):
+                        print(line)
             if proc.returncode != 0:
                 raise RuntimeError(f"RUNNER_FAILED:{argv[2]}:EXIT_{proc.returncode}")
         report = json.loads(Path("output/sky_quickscan_information/latest_13col.json").read_text(encoding="utf-8"))

@@ -57,9 +57,9 @@ def fugle_executed_trade(quote, now=None, *, max_age_seconds=120):
         not trade and quote.get("closePrice") is not None
         and quote.get("closeTime") is not None
     )
+    # Only a documented executed price/time pair can certify A2. A partial
+    # lastTrade must not borrow lastPrice, which may be a quote observation.
     raw = quote.get("closePrice") if use_close_pair else trade.get("price")
-    if raw is None and not use_close_pair:
-        raw = quote.get("lastPrice")
     try:
         if isinstance(raw, bool):
             raise ValueError()
