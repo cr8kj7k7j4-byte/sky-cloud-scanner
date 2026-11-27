@@ -479,8 +479,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          python -m scripts.sky_margin_priceonly_readback \\
-            --output output/sky_margin_command/priceonly_observation.json
+          python -m scripts.sky_margin_priceonly_readback --output output/sky_margin_command/priceonly_observation.json
       - name: Upload same-run margin HOLD receipt
         id: margin_upload
         uses: actions/upload-artifact@v4
@@ -557,7 +556,7 @@ jobs:
           body["priceonly_source_artifact_id"]=obj.get("source_artifact_id")
           body["priceonly_source_freshness_status"]=obj.get("source_freshness_status")
           body["priceonly_trade_eligible"]=False
-          receipt.write_text(json.dumps(body,ensure_ascii=False,indent=2)+"\\n",encoding="utf-8")
+          receipt.write_text(json.dumps(body,ensure_ascii=False,indent=2)+chr(10),encoding="utf-8")
           print("SKY_MARGIN_PRICEONLY_INDEPENDENT_READBACK",obj["status"])
           PY
       - name: Upload independent readback receipt
