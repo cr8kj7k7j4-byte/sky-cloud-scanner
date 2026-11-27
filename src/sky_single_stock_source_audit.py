@@ -258,7 +258,9 @@ def main():
     (path / (args.symbol + "-5m-source.json")).write_text(
         json.dumps(result, ensure_ascii=False, indent=2, allow_nan=False) + "\n",
         encoding="utf-8")
-    (path / (args.symbol + "-5m-source.md")).write_text(\n        render_mobile_source_audit(result), encoding="utf-8")\n    print(json.dumps({key: result.get(key) for key in
+    (path / (args.symbol + "-5m-source.md")).write_text(
+        render_mobile_source_audit(result), encoding="utf-8")
+    print(json.dumps({key: result.get(key) for key in
                       ("symbol", "five_minute_status", "trades_status",
                        "volume_status", "vwap_status", "collection_error_type")},
                      ensure_ascii=False))
