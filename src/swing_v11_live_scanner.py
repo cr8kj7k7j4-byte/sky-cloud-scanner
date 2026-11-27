@@ -212,7 +212,16 @@ def fetch_candidate_live_quotes(frozen_pass: list[dict], universe: list[dict], n
         for s in frozen_pass
         if s["symbol"] in universe_by_symbol
     ]
-    quotes, warnings = fetch_mis_quotes(targets, batch_size=20, sleep_s=0.25)
+    # Provider-first: never invoke the free TWSE MIS endpoint when the
+    # account's Fugle-only market-data policy is active (default). Previously
+    # fetch_mis_quotes raised PermissionError before Fugle A2 fallback.
+    import os
+    fugle_only = os.getenv("SKY_FUGLE_ONLY_MARKETDATA", "1").strip().lower() in (
+        "1", "true", "yes", "on"
+    )
+    quotes, warnings = ([], ["MIS_DISABLED_FUGLE_ONLY_POLICY"]) if fugle_only else (
+        fetch_mis_quotes(targets, batch_size=20, sleep_s=0.25)
+    )
     quote_by_symbol = {
         str(x.get("symbol")): x for x in quotes
         if mis_executed_trade_row(x, now)
