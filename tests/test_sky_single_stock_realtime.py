@@ -39,6 +39,63 @@ class SingleStockRealtimeTests(unittest.TestCase):
         ticker = {"canDayTrade": True}
         return quote, ticker
 
+    def test_verified_quote_has_reproducible_observation_scores(self):
+        quote, ticker = self.sample()
+        quote.update({"openPrice": 33.0, "highPrice": 34.2, "lowPrice": 30.15,
+                      "lastPrice": 30.25, "changePercent": -9.7})
+        quote["lastTrade"]["price"] = 30.25
+        with patch("src.sky_single_stock_realtime.fugle.get_quote", return_value=quote), patch(
+            "src.sky_single_stock_realtime.fugle.get_ticker", return_value=ticker
+        ):
+            result = collect("6140", NOW)
+        self.assertEqual(result["scores"], {"bull": 14, "bear": 86})
+        self.assertEqual(result["score_direction"], "偏空")
+        self.assertEqual(result["score_status"], "RESEARCH_ONLY_VERIFIED_INTRADAY_QUOTE")
+        self.assertFalse(result["execution_authorized"])
+        self.assertFalse(result["live_order_enabled"])
+
+    def test_scores_not_blocked_by_daytrade_eligibility_or_account(self):
+        quote, ticker = self.sample()
+        quote.update({"openPrice": 33.0, "highPrice": 34.2, "lowPrice": 30.15,
+                      "lastPrice": 30.25, "changePercent": -9.7})
+        quote["lastTrade"]["price"] = 30.25
+        ticker["canDayTrade"] = False
+        with patch("src.sky_single_stock_realtime.fugle.get_quote", return_value=quote), patch(
+            "src.sky_single_stock_realtime.fugle.get_ticker", return_value=ticker
+        ):
+            result = collect("6140", NOW)
+        self.assertEqual(result["status"], "DAY_TRADE_NOT_ELIGIBLE")
+        self.assertEqual(result["scores"], {"bull": 14, "bear": 86})
+        self.assertFalse(result["execution_authorized"])
+
+    def test_stale_and_missing_ohlc_never_get_observation_score(self):
+        quote, ticker = self.sample(minutes=5)
+        quote.update({"openPrice": 33.0, "highPrice": 34.2, "lowPrice": 30.15,
+                      "lastPrice": 30.25, "changePercent": -9.7})
+        quote["lastTrade"]["price"] = 30.25
+        with patch("src.sky_single_stock_realtime.fugle.get_quote", return_value=quote), patch(
+            "src.sky_single_stock_realtime.fugle.get_ticker", return_value=ticker
+        ):
+            stale = collect("6140", NOW)
+        self.assertIsNone(stale["scores"])
+        quote["lastTrade"]["time"] = epoch_us(NOW)
+        quote.pop("highPrice")
+        with patch("src.sky_single_stock_realtime.fugle.get_quote", return_value=quote), patch(
+            "src.sky_single_stock_realtime.fugle.get_ticker", return_value=ticker
+        ):
+            missing = collect("6140", NOW)
+        self.assertIsNone(missing["scores"])
+
+    def test_quote_refresh_without_executed_price_never_gets_scores(self):
+        quote, ticker = self.sample()
+        quote.update({"openPrice": 33.0, "highPrice": 34.2, "lowPrice": 30.15,
+                      "lastPrice": 30.25, "changePercent": -9.7})
+        with patch("src.sky_single_stock_realtime.fugle.get_quote", return_value=quote), patch(
+            "src.sky_single_stock_realtime.fugle.get_ticker", return_value=ticker
+        ):
+            result = collect("6140", NOW)
+        self.assertIsNone(result["scores"])
+
     def test_timestamp_conversion(self):
         self.assertEqual(timestamp_tpe(epoch_us(NOW)), NOW.isoformat())
 
