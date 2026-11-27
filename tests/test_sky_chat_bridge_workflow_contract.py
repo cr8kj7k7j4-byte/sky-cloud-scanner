@@ -13,7 +13,9 @@ class ChatBridgeWorkflowContractTests(unittest.TestCase):
         self.assertIn("contents: write", workflow)
         self.assertIn("format('sky-alert-readonly-{0}', github.event.comment.id)", workflow)
         self.assertIn("|| 'sky-fugle-paid-global-research-v1-live-wholemarket'", workflow)
-        self.assertIn("SKY_PAID_ATOMIC_ENFORCE: '1'", workflow)
+        self.assertIn("SKY_FUGLE_MONTHLY_RATE_CONTROL: '1'", workflow)
+        self.assertIn("--monthly-rate-limited", workflow)
+        self.assertIn("steps.verify_claim.outcome == 'success'", workflow)
         self.assertNotIn("gh api --method PUT", workflow)
         self.assertNotIn("git push", workflow)
 

@@ -104,7 +104,9 @@ def test_swing_now_workflow_is_owner_only_on_w0_issue():
     assert "github.event.comment.body == 'Sky 波段現在掃一次'" in workflow
     assert "github.event.comment.body == 'Sky Swing 5D 快掃'" in workflow
     assert "sky-fugle-paid-global-research-v1-live-wholemarket" in workflow
-    assert "SKY_PAID_ATOMIC_ENFORCE: \"1\"" in workflow
+    assert 'SKY_FUGLE_MONTHLY_RATE_CONTROL: "1"' in workflow
+    assert "--monthly-rate-limited" in workflow
+    assert "steps.verify_claim.outcome == 'success'" in workflow
     assert "- name: Run whole-market live swing scan\n        id: scan" in workflow
     assert "SCAN_OUTCOME: ${{ steps.scan.outcome }}" in workflow
     status_upload = workflow.split("- name: Upload connector-readable same-run status artifact", 1)[1]

@@ -41,6 +41,9 @@ jobs:
           path: output/w0_workflow_dedup_audit.json
           if-no-files-found: warn
           retention-days: 14
+      - name: Fugle monthly billing versus rate safety regression (offline only)
+        run: |
+          python -m pytest -q tests/test_sky_paid_fugle_api_guard.py tests/test_sky_fugle_monthly_rate_control.py
       - name: Run governance and production E2E
         run: |
           pytest -q \

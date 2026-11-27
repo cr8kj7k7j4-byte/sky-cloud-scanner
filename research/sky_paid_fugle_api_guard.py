@@ -89,6 +89,38 @@ def github_lookup(repo: str, token: str):
     return lookup
 
 
+def monthly_artifact_name(scope: str, run_id: str, attempt: str) -> str:
+    """One receipt for each authorized GitHub attempt, not a 5-minute billing lock."""
+    if (not scope or len(scope) > 128 or not run_id.isdecimal()
+            or not attempt.isdecimal() or int(attempt) < 1):
+        raise ValueError("INVALID_MONTHLY_RESERVATION_ID")
+    digest = hashlib.sha256(scope.encode("utf-8")).hexdigest()[:16]
+    return f"sky-fugle-monthly-{digest}-{run_id}-{attempt}"
+
+
+def prepare_monthly(scope: str, now: datetime, run_id: str,
+                    attempt: str, outdir: Path):
+    """No per-request billing cooldown; same-run ZIP identity remains auditable."""
+    if now.tzinfo is None or now.utcoffset() is None:
+        raise ValueError("NAIVE_TIMESTAMP")
+    name = monthly_artifact_name(scope, run_id, attempt)
+    receipt = {
+        "schema": "SKY_PAID_FUGLE_RESERVATION_V1",
+        "status": "CLAIM_REQUIRED_BEFORE_PAID_API",
+        "reason": "CLEAR",
+        "billing_control": "MONTHLY_RATE_LIMIT_ONLY",
+        "scope_hash": hashlib.sha256(scope.encode()).hexdigest()[:16],
+        "slot": slots(now)[0], "run_id": run_id,
+        "run_attempt": attempt, "checked_at_utc": now.isoformat(),
+        "claim_nonce": secrets.token_hex(16),
+        "production_eligible": False, "automatic_order": False,
+    }
+    outdir.mkdir(parents=True, exist_ok=True)
+    (outdir / "claim.json").write_text(
+        json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+    return True, name, receipt
+
+
 def prepare(scope: str, now: datetime, lookup, run_id: str, outdir: Path):
     allowed, reason = check_reservation(scope, now, lookup)
     out = {"schema": "SKY_PAID_FUGLE_RESERVATION_V1",
@@ -152,7 +184,8 @@ def download_claim_archive(repo: str, token: str, artifact_id: int) -> dict:
 
 
 def verify_uploaded_reservation(scope: str, run_id: str, now: datetime,
-                                local: dict, lookup, download) -> str:
+                                local: dict, lookup, download, *,
+                                monthly: bool = False, attempt: str = "1") -> str:
     """Never accept another Job's Artifact merely because its run_id is equal."""
     if not isinstance(local, dict) or local.get("schema") != "SKY_PAID_FUGLE_RESERVATION_V1":
         raise RuntimeError("INVALID_LOCAL_CLAIM")
@@ -184,7 +217,15 @@ def verify_uploaded_reservation(scope: str, run_id: str, now: datetime,
         raise RuntimeError("CLAIM_SLOT_MISMATCH")
     if local.get("scope_hash") != hashlib.sha256(scope.encode()).hexdigest()[:16]:
         raise RuntimeError("CLAIM_SCOPE_MISMATCH")
-    name = artifact_name(scope, slot)
+    if monthly:
+        if (local.get("billing_control") != "MONTHLY_RATE_LIMIT_ONLY"
+                or str(local.get("run_attempt")) != str(attempt)):
+            raise RuntimeError("MONTHLY_RATE_CONTROL_RECEIPT_REQUIRED")
+        name = monthly_artifact_name(scope, run_id, str(attempt))
+    else:
+        if local.get("billing_control") is not None:
+            raise RuntimeError("LEGACY_RESERVATION_MODE_MISMATCH")
+        name = artifact_name(scope, slot)
     visible = lookup(name)
     if not isinstance(visible, list) or any(not isinstance(a, dict) for a in visible):
         raise RuntimeError("INVALID_RESERVATION_ARTIFACT_LIST")
@@ -205,7 +246,7 @@ def verify_uploaded_reservation(scope: str, run_id: str, now: datetime,
         raise RuntimeError("INVALID_REMOTE_CLAIM_DOCUMENT")
     for key in ("schema", "status", "reason", "claim_nonce", "scope_hash",
                 "slot", "run_id", "checked_at_utc", "production_eligible",
-                "automatic_order"):
+                "automatic_order", "billing_control", "run_attempt"):
         if remote.get(key) != local.get(key):
             raise RuntimeError("ARTIFACT_CLAIM_CONTENT_MISMATCH_" + key)
     return name
@@ -239,6 +280,8 @@ def main():
     p.add_argument("--endpoint-url")
     p.add_argument("--workflow-scope", action="store_true")
     p.add_argument("--verify", action="store_true")
+    p.add_argument("--monthly-rate-limited", action="store_true",
+                   help="Monthly billing: no per-request cooldown; rate-limit in HTTP client")
     args = p.parse_args()
     now = datetime.now(timezone.utc)
     if args.endpoint_url and args.workflow_scope:
@@ -274,7 +317,9 @@ def main():
                 try:
                     name = verify_uploaded_reservation(
                         args.scope, os.getenv("GITHUB_RUN_ID", ""),
-                        datetime.now(timezone.utc), local, lookup, download)
+                        datetime.now(timezone.utc), local, lookup, download,
+                        monthly=args.monthly_rate_limited,
+                        attempt=os.getenv("GITHUB_RUN_ATTEMPT", "1"))
                     print("FUGLE_RESERVATION_ZIP_CONTENT_READBACK_VERIFIED:" + name)
                     return
                 except RuntimeError as exc:
@@ -296,10 +341,15 @@ def main():
             raise SystemExit(2) from None
     # No error or uncertain GitHub result may authorize paid queries.
     try:
-        allowed, name, receipt = prepare(
-            args.scope, now,
-            github_lookup(os.getenv("GITHUB_REPOSITORY", ""), os.getenv("GH_TOKEN", "")),
-            os.getenv("GITHUB_RUN_ID", ""), CLAIM_DIR)
+        if args.monthly_rate_limited:
+            allowed, name, receipt = prepare_monthly(
+                args.scope, now, os.getenv("GITHUB_RUN_ID", ""),
+                os.getenv("GITHUB_RUN_ATTEMPT", "1"), CLAIM_DIR)
+        else:
+            allowed, name, receipt = prepare(
+                args.scope, now,
+                github_lookup(os.getenv("GITHUB_REPOSITORY", ""), os.getenv("GH_TOKEN", "")),
+                os.getenv("GITHUB_RUN_ID", ""), CLAIM_DIR)
     except (ValueError, RuntimeError, HTTPError, URLError, TimeoutError, OSError) as exc:
         print("FUGLE_PAID_GUARD_BLOCKED:" + type(exc).__name__)
         raise SystemExit(2) from None
