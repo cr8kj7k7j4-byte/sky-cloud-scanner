@@ -60,6 +60,30 @@ class SourceAuditTests(unittest.TestCase):
         self.assertFalse(result["independent_vwap_certified"])
         self.assertFalse(result["execution_authorized"])
 
+    def test_no_intraday_bars_still_reports_quote_research(self):
+        q, bars, pages = fixture()
+        bars["data"] = []
+        result = analyze("3717", q, bars, pages, observed_at=NOW)
+        self.assertEqual(result["kbar_evidence_level"], "OBSERVATION_ONLY_NO_5M_BARS")
+        self.assertTrue(result["research_report_available"])
+        self.assertFalse(result["five_minute_indicators_available"])
+        self.assertEqual(result["completed_bar_count"], 0)
+        self.assertIsNone(result["completed_bar_volume_raw_sum"])
+        self.assertFalse(result["production_eligible"])
+        report = render_mobile_source_audit(result)
+        self.assertIn("研究數據：可供觀察", report)
+        self.assertIn("OBSERVATION_ONLY_NO_5M_BARS", report)
+        self.assertIn("交易訊號：未認證", report)
+
+    def test_sparse_intraday_bars_remain_valid_research(self):
+        q, bars, pages = fixture()
+        bars["data"][1]["date"] = "2026-11-27T12:10:00+08:00"
+        result = analyze("3717", q, bars, pages, observed_at=NOW)
+        self.assertEqual(result["kbar_evidence_level"], "OBSERVATION_ONLY_SPARSE_5M_BARS")
+        self.assertEqual(result["missing_five_minute_slots_observed"], 1)
+        self.assertTrue(result["research_report_available"])
+        self.assertFalse(result["execution_authorized"])
+
     def test_mobile_report_from_same_result_never_promotes_vwap(self):
         q, bars, pages = fixture()
         result = analyze("3717", q, bars, pages, observed_at=NOW)
