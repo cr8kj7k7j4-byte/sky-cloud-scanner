@@ -75,3 +75,55 @@ def test_challenger_buy_eligible_never_publishes_buy():
     assert action == "觀察"
     assert "禁止新進場" in note
     assert research_only_action("禁止交易", "stop") == ("禁止交易", "stop")
+
+
+def test_fugle_only_policy_skips_mis_for_real_frozen_candidates(monkeypatch):
+    from unittest.mock import patch
+    monkeypatch.setenv("SKY_FUGLE_ONLY_MARKETDATA", "1")
+    now = datetime(2026, 11, 27, 10, 11, tzinfo=TZ)
+    rows = [{"symbol": "9999"}]
+    universe = [{"symbol": "9999", "name": "synthetic"}]
+    quote = {"openPrice": 50.0, "previousClose": 49.0,
+             "totalTradeVolume": 123, "highPrice": 52.0, "lowPrice": 49.0}
+    with patch("src.swing_v11_live_scanner.fetch_mis_quotes", side_effect=AssertionError("MIS forbidden")) as mis, \
+         patch("src.swing_v11_live_scanner.get_quote", return_value=quote) as fugle, \
+         patch("src.swing_v11_live_scanner.fugle_executed_trade",
+               return_value=(51.0, now, "FRESH_EXECUTED_TRADE")):
+        result, warnings, meta = fetch_candidate_live_quotes(rows, universe, now=now)
+    mis.assert_not_called()
+    fugle.assert_called_once_with("9999")
+    assert meta == {"requested": 1, "mis": 0, "fugle": 1, "missing": 0}
+    assert result["9999"]["last"] == 51.0
+    assert result["9999"]["quote_source"] == "Fugle realtime fallback"
+    assert "MIS_DISABLED_FUGLE_ONLY_POLICY" in warnings
+
+
+def test_fugle_only_invalid_execution_keeps_candidate_missing(monkeypatch):
+    from unittest.mock import patch
+    monkeypatch.setenv("SKY_FUGLE_ONLY_MARKETDATA", "1")
+    now = datetime(2026, 11, 27, 10, 11, tzinfo=TZ)
+    with patch("src.swing_v11_live_scanner.fetch_mis_quotes", side_effect=AssertionError("MIS forbidden")) as mis, \
+         patch("src.swing_v11_live_scanner.get_quote",
+               return_value={"openPrice": 50.0}), \
+         patch("src.swing_v11_live_scanner.fugle_executed_trade",
+               return_value=(None, None, "HOLD_EXECUTED_TRADE_TIME")):
+        result, warnings, meta = fetch_candidate_live_quotes(
+            [{"symbol": "9999"}], [{"symbol": "9999"}], now=now)
+    mis.assert_not_called()
+    assert result == {}
+    assert meta["missing"] == 1
+    assert any("HOLD_EXECUTED_TRADE_TIME" in w for w in warnings)
+
+
+def test_fugle_only_provider_permission_error_is_fail_closed(monkeypatch):
+    from unittest.mock import patch
+    monkeypatch.setenv("SKY_FUGLE_ONLY_MARKETDATA", "true")
+    now = datetime(2026, 11, 27, 10, 11, tzinfo=TZ)
+    with patch("src.swing_v11_live_scanner.fetch_mis_quotes", side_effect=AssertionError("MIS forbidden")), \
+         patch("src.swing_v11_live_scanner.get_quote", side_effect=PermissionError("private-token")):
+        result, warnings, meta = fetch_candidate_live_quotes(
+            [{"symbol": "9999"}], [{"symbol": "9999"}], now=now)
+    assert result == {}
+    assert meta["missing"] == 1
+    assert any("PermissionError" in w for w in warnings)
+    assert "private-token" not in str(warnings)
