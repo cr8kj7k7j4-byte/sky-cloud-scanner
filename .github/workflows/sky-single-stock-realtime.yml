@@ -55,6 +55,11 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       SKY_FUGLE_MONTHLY_RATE_CONTROL: "1"
+      # Provider-first: repository administrators must separately verify
+      # CURRENT Fugle historical entitlement before opting in. Missing or
+      # unapproved variable defaults to 0 and performs ZERO history calls.
+      # This must never be set from an issue comment or public command.
+      SKY_FUGLE_HISTORICAL_ENTITLEMENT_CONFIRMED: ${{ vars.SKY_FUGLE_HISTORICAL_ENTITLEMENT_CONFIRMED == '1' && '1' || '0' }}
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
