@@ -57,7 +57,8 @@ class AtomicClaimContractTests(unittest.TestCase):
         self.assertEqual(len(refs), 1)
         self.assertEqual(paid_http_calls, [])
 
-    def test_identical_history_query_reuses_stable_ref_across_runs(self):
+    def test_history_blocks_same_slot_duplicate_but_allows_later_explicit_query(self):
+        from datetime import datetime, timedelta, timezone
         from unittest.mock import patch
         from research.sky_fugle_atomic_ref_claim import guard_fugle_request
 
@@ -82,16 +83,22 @@ class AtomicClaimContractTests(unittest.TestCase):
         }
         endpoint = "https://api.fugle.tw/marketdata/v1.0/stock/historical/candles/2330"
         params = {"from": "2026-11-16", "to": "2026-11-20", "timeframe": "5"}
+        now = datetime(2026, 11, 28, 1, 0, tzinfo=timezone.utc)
         with patch.dict("os.environ", env), patch(
                 "research.sky_fugle_atomic_ref_claim.github_create_ref",
-                side_effect=fake_github_create_ref):
+                side_effect=fake_github_create_ref), patch(
+                "research.sky_fugle_atomic_ref_claim.datetime") as clock:
+            clock.now.return_value = now
             guard_fugle_request(endpoint, params)
             with self.assertRaisesRegex(RuntimeError, "DUPLICATE_PAID_FUGLE_ENDPOINT_BLOCKED"):
                 guard_fugle_request(endpoint, dict(reversed(list(params.items()))))
-        self.assertEqual(len(seen), 2)
-        self.assertEqual(len(refs), 1)
+            clock.now.return_value = now + timedelta(minutes=6)
+            guard_fugle_request(endpoint, params)
+        self.assertEqual(len(seen), 3)
+        self.assertEqual(len(refs), 2)
         self.assertEqual(seen[0], seen[1])
-        self.assertTrue(seen[0].endswith("-1"))
+        self.assertNotEqual(seen[0], seen[2])
+        self.assertFalse(seen[0].endswith("-1"))
 
     def test_distinct_history_windows_and_symbols_do_not_share_claim(self):
         from unittest.mock import patch
@@ -119,7 +126,9 @@ class AtomicClaimContractTests(unittest.TestCase):
             guard_fugle_request("/historical/candles/2317",
                                 {"from": "2026-11-16", "to": "2026-11-20"})
         self.assertEqual(len(seen), 3)
-        self.assertTrue(all(ref.endswith("-1") for ref in seen))
+        # All requests occur in the same rolling slot; symbols/date windows
+        # still have independent canonical identities, no permanent "-1" ref.
+        self.assertTrue(all(not ref.endswith("-1") for ref in seen))
 
     def test_live_quote_retains_rolling_five_minute_claim(self):
         from unittest.mock import patch
