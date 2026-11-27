@@ -9,6 +9,10 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from functools import partial
+
+from requests import Session
+from src.fugle import get_quote
 
 from research.sky_snapshot_candidates import screen as screen_stage1
 from src.sky_stage2_candidate_quotes import verify as verify_stage2
@@ -274,7 +278,11 @@ def main():
         stage1 = screen_stage1(observation)
         Path("output/sky_quickscan_information/stage1_candidates.json").write_text(
             json.dumps(stage1, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        stage2 = verify_stage2(stage1)
+        if os.getenv("SKY_FUGLE_MONTHLY_RATE_CONTROL") == "1":
+            with Session() as session:
+                stage2 = verify_stage2(stage1, quote_fn=partial(get_quote, session=session))
+        else:
+            stage2 = verify_stage2(stage1)
         Path("output/sky_quickscan_information/stage2_quote_evidence.json").write_text(
             json.dumps(stage2, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         stage3 = {
