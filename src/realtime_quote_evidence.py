@@ -49,8 +49,16 @@ def fugle_executed_trade(quote, now=None, *, max_age_seconds=120):
         return None, None, "INVALID_PAYLOAD"
     trade = quote.get("lastTrade")
     trade = trade if isinstance(trade, dict) else {}
-    raw = trade.get("price")
-    if raw is None:
+    # Provider docs identify closePrice+closeTime as a *paired* last-execution
+    # source in Individual Quote. They are NOT bulk snapshot close/update data.
+    # Use the pair only when lastTrade itself is entirely absent, so partial
+    # or conflicting lastTrade fields cannot be silently papered over.
+    use_close_pair = (
+        not trade and quote.get("closePrice") is not None
+        and quote.get("closeTime") is not None
+    )
+    raw = quote.get("closePrice") if use_close_pair else trade.get("price")
+    if raw is None and not use_close_pair:
         raw = quote.get("lastPrice")
     try:
         if isinstance(raw, bool):
@@ -60,8 +68,9 @@ def fugle_executed_trade(quote, now=None, *, max_age_seconds=120):
             raise ValueError()
     except (TypeError, ValueError):
         return None, None, "MISSING_EXECUTED_LAST_PRICE"
-    # closeTime is quote/session metadata, never proof of an executed trade.
-    ts = timestamp_tpe(trade.get("time"))
+    # An Individual Quote closeTime is documented as the last execution
+    # timestamp, unlike Snapshot lastUpdated or trial lastPrice.
+    ts = timestamp_tpe(quote.get("closeTime") if use_close_pair else trade.get("time"))
     if ts is None:
         return None, None, "MISSING_EXECUTED_TRADE_TIME"
     if quote.get("date") != now.date().isoformat() or ts.date() != now.date():
