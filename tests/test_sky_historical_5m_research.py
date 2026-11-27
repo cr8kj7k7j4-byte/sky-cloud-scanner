@@ -3,7 +3,7 @@ import copy
 import unittest
 from datetime import datetime, date, time, timedelta, timezone
 
-from src.sky_historical_5m_research import evaluate, PASS, HOLD
+from src.sky_historical_5m_research import evaluate, PASS, HOLD, NO_BARS
 
 TPE = timezone(timedelta(hours=8))
 NOW = datetime(2026, 11, 28, 1, 30, tzinfo=TPE)
@@ -43,12 +43,11 @@ class Historical5mResearchTests(unittest.TestCase):
         self.assertIn("NOT_INDEPENDENT_VWAP", v["average_semantics"])
 
     def test_wrong_date_market_symbol_timeframe_and_missing_return_hold(self):
-        for change in ("symbol", "market", "timeframe", "empty", "missing_close"):
+        for change in ("symbol", "market", "timeframe", "missing_close"):
             p = source_payload()
             if change == "symbol": p["symbol"] = "2330"
             if change == "market": p["exchange"] = "N/A"
             if change == "timeframe": p["timeframe"] = "D"
-            if change == "empty": p["data"] = []
             if change == "missing_close": del p["data"][2]["close"]
             self.assertEqual(self.check(p)["status"], HOLD, change)
 
@@ -101,9 +100,25 @@ class Historical5mResearchTests(unittest.TestCase):
             if change == "auction_window": p["data"][4]["date"] = "2026-11-27T13:25:00+08:00"
             self.assertEqual(self.check(p)["status"], HOLD, change)
 
+    def test_zero_bars_does_not_block_dated_research_or_certify_indicators(self):
+        p = source_payload()
+        p["data"] = []
+        v = self.check(p)
+        self.assertEqual(v["status"], NO_BARS)
+        self.assertTrue(v["research_report_available"])
+        self.assertFalse(v["five_minute_indicators_available"])
+        self.assertEqual(v["completed_bar_count"], 0)
+        self.assertEqual(v["bars"], [])
+        self.assertIsNone(v["raw_volume_lots_sum"])
+        self.assertIsNone(v["last_completed_bar_start_tpe"])
+        self.assertFalse(v["session_coverage_certified"])
+        self.assertFalse(v["independent_vwap_certified"])
+        self.assertFalse(v["execution_authorized"])
+        self.assertFalse(v["production_eligible"])
+
     def test_no_price_guess_and_api_404_is_hold_not_empty_success(self):
         self.assertEqual(self.check(None)["status"], HOLD)
-        self.assertEqual(self.check({"data": []})["status"], HOLD)
+        self.assertEqual(self.check({"data": []})["status"], HOLD)  # Missing provenance is not an empty valid dataset
         self.assertEqual(self.check({"error": "404 Resource Not Found"})["status"], HOLD)
 
 
