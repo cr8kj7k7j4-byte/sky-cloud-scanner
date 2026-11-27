@@ -11,8 +11,8 @@ SHA = "a" * 40
 
 def fixtures(tmp_path, *, unified=True):
     src, dst = tmp_path / "local", tmp_path / "downloaded"
-    src.mkdir()
-    dst.mkdir()
+    src.mkdir(parents=True)
+    dst.mkdir(parents=True)
     audit = {
         "schema": "SKY_5M_TRADES_BOUND_SOURCE_V1", "symbol": "3717",
         "five_minute_status": "HOLD", "trades_status": "HOLD",
