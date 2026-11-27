@@ -59,6 +59,8 @@ def verify(stage1, *, quote_fn=get_quote, sleep_fn=time.sleep, now_fn=None):
     rate_limited = 0
     start_monotonic = time.monotonic()
     for candidate in picked:
+        if total_requests:
+            sleep_fn(SLEEP_SECONDS)
         symbol = str(candidate["symbol"])
         row = {"symbol": symbol, "exchange": candidate["exchange"],
                "stage1_observed_price": candidate.get("observed_price"),
@@ -90,7 +92,6 @@ def verify(stage1, *, quote_fn=get_quote, sleep_fn=time.sleep, now_fn=None):
         except (requests.RequestException, ValueError, TypeError) as exc:
             row.update({"status": "SOURCE_ERROR", "error_type": type(exc).__name__})
         results.append(row)
-        sleep_fn(SLEEP_SECONDS)
         if rate_limited:
             # Fail closed immediately; never hammer a provider returning 429.
             break
