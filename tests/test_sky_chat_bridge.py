@@ -87,7 +87,7 @@ class ChatScanBridgeTests(unittest.TestCase):
         self.assertIn("github.event.comment.author_association == 'OWNER'", scan)
         self.assertIn("github.event.issue.number == 363", scan)
         self.assertIn("Reserve shared Fugle paid API slot", scan)
-        self.assertIn("Verify reservation claim", scan)
+        self.assertIn("Verify reservation ZIP independently", scan)
 
     def test_issue_comment_command_binding_accepts_only_exact_allowlist(self):
         from src.sky_chat_bridge import bind_issue_comment_command
