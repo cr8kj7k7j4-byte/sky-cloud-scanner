@@ -314,3 +314,21 @@ def test_margin_owner_command_eight_cases_in_existing_acceptance():
     suite.run(result)
     assert result.testsRun == suite.countTestCases()
     assert result.wasSuccessful(), repr(result.failures + result.errors)
+
+
+def test_margin_readback_public_receipt_requires_verified_no_trade():
+    """Publish only verified HOLD provenance, never fake live scan or private data."""
+    from pathlib import Path
+    workflow = Path(".github/workflows/sky-chat-bridge.yml").read_text(encoding="utf-8")
+    job = workflow.split("  margin_readonly_command:", 1)[1].split("  w0_run_discovery:", 1)[0]
+    assert "issues: write" in job
+    assert "Publish sanitized independently verified HOLD receipt" in job
+    assert job.index("Independently download and verify exact same-run artifact") < job.index(
+        "Publish sanitized independently verified HOLD receipt")
+    assert "r.get(\"status\")!=\"PASS_HOLD_RECEIPT_INTEGRITY_ONLY\"" in job
+    assert "r.get(\"real_margin_scan_verified\") is not False" in job
+    assert "r.get(\"production_eligible\") is not False" in job
+    assert "gh issue comment 363" in job
+    assert "HOLD_REAL_MARGIN_DATA" in job
+    assert "FUGLE_API_KEY" not in job
+    assert "sky_paid_fugle_api_guard" not in job
