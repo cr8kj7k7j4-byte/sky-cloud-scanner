@@ -109,6 +109,6 @@ class TestFugleIndividualProbe(unittest.TestCase):
                             "market": "TSE" if int(symbol) % 2 == 0 else "OTC"}
                 report = verify_samples(source(), now=now, quote_fetch=provider)
                 self.assertEqual(report["verified_fresh_executed_count"], 0)
-                self.assertTrue(all(row["status"] == "MISSING_EXECUTED_LAST_PRICE"
+                self.assertTrue(all(row["status"] == "MISSING_LAST_TRADE_EVIDENCE"
                                     for row in report["rows"]))
                 self.assertFalse(report["production_eligible"])
