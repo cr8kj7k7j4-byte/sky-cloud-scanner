@@ -263,3 +263,16 @@ def test_daytrade_cross_session_historical_readback_regression_in_acceptance():
     suite.run(result)
     assert result.testsRun == suite.countTestCases()
     assert result.wasSuccessful(), repr(result.failures + result.errors)
+
+
+def test_swing_complete_session_consumer_regressions_in_acceptance():
+    """Exact-HEAD Acceptance must exercise Swing off-hours consumer, not just the reader."""
+    import unittest
+    from tests import test_sky_swing_session_policy
+
+    suite = unittest.TestLoader().loadTestsFromModule(test_sky_swing_session_policy)
+    assert suite.countTestCases() >= 10, "SWING_CONSUMER_REGRESSIONS_NOT_DISCOVERED"
+    result = unittest.TestResult()
+    suite.run(result)
+    assert result.testsRun == suite.countTestCases()
+    assert result.wasSuccessful(), repr(result.failures + result.errors)
