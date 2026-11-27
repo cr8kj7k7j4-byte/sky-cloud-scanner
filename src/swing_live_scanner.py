@@ -132,7 +132,7 @@ def run(mode="swing5d", top_n=20, deep_n=8):
         sym = str(raw.get("symbol") or "")
         price = _safe_float(raw.get("last"))
         volume = _safe_float(raw.get("volume"))
-        if sym in valid_symbols or not sym or not 0 < price < 100 or volume <= 0:
+        if sym in valid_symbols or not sym or not 0 < price < float('inf') or not 0 < volume < float('inf'):
             continue
         unverified_snapshot.append({
             "symbol": sym,
@@ -328,6 +328,21 @@ def run(mode="swing5d", top_n=20, deep_n=8):
         "trade_decision": "禁止新進場：研究策略未通過正式驗證",
         "observations_are_trade_signals": False,
         "observed_sample_count": len(rows),
+        # Pure analysis is independent from executable entry, P0-R or
+        # Production eligibility. These are SOURCE-LABELED observations only;
+        # no fabricated AI score, last execution timestamp or buy advice.
+        "analysis_mode": "OBSERVATION_ONLY",
+        "analysis_available": bool(raw_observations),
+        "analysis_observation_count": len(all_snapshot_observations),
+        "analysis_observation_preview": [
+            {key: item.get(key) for key in (
+                "symbol", "name", "exchange", "indicative_last_price",
+                "trade_volume", "trade_value", "snapshot_date",
+                "snapshot_updated_at", "source", "data_status",
+            )} for item in unverified_snapshot[:20]
+        ],
+        "analysis_requires_trade_gate": False,
+        "analysis_requires_broker_or_positions": False,
         "unverified_snapshot_observation_count": len(all_snapshot_observations),
         "snapshot_coverage_pct": snapshot_coverage_pct,
         "snapshot_exchange_counts": snapshot_exchange_counts,
@@ -423,6 +438,7 @@ def run(mode="swing5d", top_n=20, deep_n=8):
         f"{MODE_META[mode]['display_name']}｜{now:%Y-%m-%d %H:%M}",
         f"全市場實務掃描：{'是' if operational_full_market_scan else '否'}｜覆蓋率 {coverage_pct}%｜母池 {len(universe)}｜報價 {len(rows)}",
         f"TWSE {len(twse_rows)}｜TPEx/OTC {len(tpex_rows)}｜初篩通過 {len(eligible)}",
+        f"純分析觀察：{len(all_snapshot_observations)} 檔｜來源 Fugle Snapshot｜不依賴買進資格或持倉風控",
         f"策略狀態：{MODE_META[mode]['strategy_status']}",
         "🔴 禁止新進場、未驗證通過；下列資料僅供自主研究判斷，不是可執行交易訊號。",
         f"觀察模式：{'部分已驗證樣本' if observed_sample_only else '全市場觀察'}｜可供排序樣本 {len(eligible)}",
