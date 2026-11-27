@@ -172,6 +172,26 @@ def test_swing_quick_scan_alias_is_unique_v11_owner_research():
     assert "automatic_order" in v11 and "trade_action" in v11
 
 
+def test_v11_same_run_readback_is_parseable_and_fail_closed():
+    import ast
+    from pathlib import Path
+    from textwrap import dedent
+
+    flow = Path(".github/workflows/swing-v11-live-scan.yml").read_text(encoding="utf-8")
+    block = flow.split("- name: Independently read back same-run V1.1 research Artifact", 1)[1].split(
+        "- name: Upload independent same-run V1.1 receipt", 1
+    )[0]
+    assert "gh run download" in block
+    assert "--name \"sky-swing-v11-live-$GITHUB_RUN_ID\"" in block
+    assert "V11_SHA256_MISMATCH" in block
+    assert "V11_ARTIFACT_INVENTORY_MISMATCH" in block
+    assert "PASS_HOLD_RECEIPT_INTEGRITY_ONLY" in block
+    assert "production_eligible\":False" in block
+    assert "automatic_order\":False" in block
+    python = block.split("          python - <<'PY'\\n", 1)[1].split("\\n          PY", 1)[0]
+    ast.parse(dedent(python))
+
+
 def test_w0_shortcuts_are_classified_without_claiming_execution():
     cases = {
         "SKY維持率": ("SKY_PRICE_ONLY_RESEARCH", False),
