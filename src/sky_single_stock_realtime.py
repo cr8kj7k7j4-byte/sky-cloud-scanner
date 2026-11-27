@@ -174,7 +174,7 @@ def render_mobile_observation(payload: dict) -> str:
     def clean(value):
         if value is None or value == "":
             return "待確認"
-        return str(value).replace("|", "／").replace("\\n", " ").replace("\\r", " ")
+        return str(value).replace("|", "／").replace("\n", " ").replace("\r", " ")
 
     def price(value):
         if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -225,7 +225,7 @@ def render_mobile_observation(payload: dict) -> str:
         "未完成五分鐘 K 棒、多週期、成本後 RR 與 P0-R 驗證；不得由觀察分數反推買進或加碼價。",
         "自動下單：停用；正式進場資格：未通過。",
     ]
-    return "\\n".join(line) + "\\n"
+    return "\n".join(line) + "\n"
 
 
 def main():
