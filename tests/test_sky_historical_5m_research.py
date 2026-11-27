@@ -17,7 +17,7 @@ def source_payload():
             "date": (start + timedelta(minutes=5 * i)).isoformat(),
             "open": 18.4, "high": 18.7, "low": 18.3, "close": 18.5,
             "volume": 9, "average": 18.47,
-        } for i in range(55)],
+        } for i in list(range(53)) + [54]],
     }
 
 
@@ -28,8 +28,11 @@ class Historical5mResearchTests(unittest.TestCase):
     def test_complete_session_is_research_only_never_certifies_trade_or_vwap(self):
         v = self.check(source_payload())
         self.assertEqual(v["status"], PASS)
-        self.assertEqual(v["completed_bar_count"], 55)
-        self.assertEqual(v["raw_volume_lots_sum"], 495)
+        self.assertEqual(v["completed_bar_count"], 54)
+        self.assertEqual(v["missing_regular_slot_count"], 0)
+        self.assertTrue(v["closing_auction_bar_observed"])
+        self.assertFalse(v["session_coverage_certified"])
+        self.assertEqual(v["raw_volume_lots_sum"], 486)
         self.assertEqual(v["volume_raw_unit"], "lots")
         self.assertTrue(v["last_completed_bar_start_tpe"].endswith("13:30:00+08:00"))
         self.assertFalse(v["production_eligible"])
@@ -57,9 +60,22 @@ class Historical5mResearchTests(unittest.TestCase):
         self.assertEqual(evaluate("3717", "2026-11-30", source_payload(),
                                   observed_at=NOW)["status"], HOLD)
 
-    def test_gaps_duplicate_invalid_timezone_and_auction_missing_reject(self):
-        for change in ("gap", "duplicate", "timezone", "closing", "reordered",
-                       "negvol", "boolvol", "nan", "future", "outside"):
+    def test_sparse_regular_and_absent_auction_remain_research_only(self):
+        for change in ("gap", "closing"):
+            p = source_payload()
+            v = self.check(p)
+            self.assertEqual(v["status"], PASS, change)
+            self.assertFalse(v["session_coverage_certified"])
+            self.assertFalse(v["independent_vwap_certified"])
+            self.assertFalse(v["execution_authorized"])
+            if change == "gap":
+                self.assertEqual(v["missing_regular_slot_count"], 1)
+            else:
+                self.assertFalse(v["closing_auction_bar_observed"])
+
+    def test_duplicate_invalid_timezone_and_out_of_session_reject(self):
+        for change in ("duplicate", "timezone", "reordered",
+                       "negvol", "boolvol", "nan", "future", "outside", "auction_window"):
             p = source_payload()
             if change == "gap": p["data"].pop(13)
             if change == "duplicate": p["data"][12]["date"] = p["data"][11]["date"]
@@ -71,6 +87,7 @@ class Historical5mResearchTests(unittest.TestCase):
             if change == "nan": p["data"][4]["average"] = float("nan")
             if change == "future": p["data"][4]["date"] = "2026-11-28T10:00:00+08:00"
             if change == "outside": p["data"][4]["date"] = "2026-11-27T14:00:00+08:00"
+            if change == "auction_window": p["data"][4]["date"] = "2026-11-27T13:25:00+08:00"
             self.assertEqual(self.check(p)["status"], HOLD, change)
 
     def test_no_price_guess_and_api_404_is_hold_not_empty_success(self):
