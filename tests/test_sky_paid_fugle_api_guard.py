@@ -286,6 +286,40 @@ class FugleGuardTests(unittest.TestCase):
             self.assertTrue((Path(td) / "claim.json").exists())
 
 
+class RunScopedMonthlyArtifactLookupTests(unittest.TestCase):
+    def test_repository_artifact_overflow_does_not_affect_own_run(self):
+        import io
+        import json
+        from unittest.mock import patch
+        from research.sky_paid_fugle_api_guard import github_run_lookup
+        good = {"name": "sky-fugle-monthly-abc-111-1", "id": 42,
+                "workflow_run": {"id": 111}, "expired": False}
+        other = {"name": "unrelated", "id": 43}
+        response = {"total_count": 2, "artifacts": [good, other]}
+        captured = []
+        def fake_urlopen(request, timeout):
+            captured.append(request.full_url)
+            return io.BytesIO(json.dumps(response).encode("utf-8"))
+        with patch("research.sky_paid_fugle_api_guard.urlopen",
+                   side_effect=fake_urlopen):
+            lookup = github_run_lookup("owner/repo", "secret-test-token", "111")
+            self.assertEqual(lookup(good["name"]), [good])
+            self.assertEqual(lookup("unknown"), [])
+        self.assertTrue(all("/actions/runs/111/artifacts?" in url for url in captured))
+        self.assertTrue(all("/actions/artifacts?" not in url for url in captured))
+
+    def test_run_scoped_overflow_fails_closed(self):
+        import io
+        import json
+        from unittest.mock import patch
+        from research.sky_paid_fugle_api_guard import github_run_lookup
+        response = {"total_count": 101, "artifacts": [{"name": "a"}]}
+        with patch("research.sky_paid_fugle_api_guard.urlopen",
+                   return_value=io.BytesIO(json.dumps(response).encode("utf-8"))):
+            with self.assertRaisesRegex(RuntimeError, "TRUNCATED_OR_INVALID_RUN_ARTIFACT_RESPONSE"):
+                github_run_lookup("owner/repo", "secret-test-token", "111")("a")
+
+
 class MonthlyBillingRateGuardTests(unittest.TestCase):
     """Monthly subscription must not enforce a cross-command 300s cooldown."""
 

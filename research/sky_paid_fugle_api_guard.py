@@ -89,6 +89,40 @@ def github_lookup(repo: str, token: str):
     return lookup
 
 
+def github_run_lookup(repo: str, token: str, run_id: str):
+    """Monthly-mode own-run Artifact lookup (not the repository-wide index).
+
+    A repository with many Artifacts can truncate the repository-wide list
+    despite a name parameter. Query the exact authorized Run, reject
+    truncated/invalid metadata, and match the full receipt name locally.
+    """
+    if (not repo or len(repo.split("/")) != 2 or not token
+            or not isinstance(run_id, str) or not run_id.isdecimal()):
+        raise RuntimeError("MISSING_RUN_SCOPED_GITHUB_AUTH")
+
+    def lookup(name: str):
+        url = f"https://api.github.com/repos/{repo}/actions/runs/{run_id}/artifacts?per_page=100"
+        request = Request(url, headers={
+            "Authorization": "Bearer " + token,
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "User-Agent": "Sky-Fugle-Monthly-Run-Readback",
+        })
+        with urlopen(request, timeout=12) as resp:
+            result = json.load(resp)
+        if not isinstance(result, dict) or not isinstance(result.get("artifacts"), list):
+            raise RuntimeError("INVALID_RUN_ARTIFACT_RESPONSE")
+        all_artifacts = result["artifacts"]
+        if (type(result.get("total_count")) is not int
+                or result["total_count"] > len(all_artifacts)
+                or len(all_artifacts) > 100
+                or any(not isinstance(a, dict) for a in all_artifacts)):
+            raise RuntimeError("TRUNCATED_OR_INVALID_RUN_ARTIFACT_RESPONSE")
+        return [a for a in all_artifacts if a.get("name") == name]
+
+    return lookup
+
+
 def monthly_artifact_name(scope: str, run_id: str, attempt: str) -> str:
     """One receipt for each authorized GitHub attempt, not a 5-minute billing lock."""
     if (not scope or len(scope) > 128 or not run_id.isdecimal()
@@ -309,7 +343,8 @@ def main():
             repo = os.getenv("GITHUB_REPOSITORY", "")
             token = os.getenv("GH_TOKEN", "")
             local = json.loads((CLAIM_DIR / "claim.json").read_text(encoding="utf-8"))
-            lookup = github_lookup(repo, token)
+            lookup = (github_run_lookup(repo, token, os.getenv("GITHUB_RUN_ID", ""))
+                      if args.monthly_rate_limited else github_lookup(repo, token))
             download = lambda artifact_id: download_claim_archive(repo, token, artifact_id)
             # Artifact indexing may lag the completed upload. Retry only the
             # specific missing-own-claim state; never retry a mismatched nonce.
