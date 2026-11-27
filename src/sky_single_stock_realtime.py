@@ -250,7 +250,30 @@ def main():
         and payload["scores"].get("bull") is not None
         and payload["scores"].get("bear") is not None
     )
-    if not observation_scored and payload["status"] not in (
+    # The owner requests source-labeled analysis, not executable trades.
+    # A truly executed but STALE quote may still produce a research reference
+    # Artifact. Never call it live, never score it, and never accept a missing,
+    # future, wrong-session or invalid executed price/time as evidence.
+    stale_reference = False
+    if payload.get("status") == "STALE_QUOTE":
+        try:
+            trade_price = payload.get("last_trade_price")
+            stamp = datetime.fromisoformat(payload["last_trade_tpe"])
+            requested = datetime.fromisoformat(payload["requested_at_tpe"])
+            age = payload.get("quote_age_seconds")
+            stale_reference = (
+                isinstance(trade_price, (int, float)) and not isinstance(trade_price, bool)
+                and math.isfinite(float(trade_price)) and trade_price > 0
+                and stamp.tzinfo is not None and requested.tzinfo is not None
+                and stamp.date() == requested.date()
+                and payload.get("quote_date") == requested.date().isoformat()
+                and isinstance(age, (int, float)) and not isinstance(age, bool)
+                and math.isfinite(float(age)) and age > 120
+                and abs((requested - stamp).total_seconds() - age) < 2
+            )
+        except (KeyError, TypeError, ValueError, OverflowError):
+            pass
+    if not observation_scored and not stale_reference and payload["status"] not in (
         "REALTIME_QUOTE_VERIFIED", "UNVERIFIED_EXECUTION_TIME"
     ):
         raise SystemExit(2)
