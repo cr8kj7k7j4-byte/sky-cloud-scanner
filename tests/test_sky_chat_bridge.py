@@ -71,9 +71,28 @@ class ChatScanBridgeTests(unittest.TestCase):
                 "read_only_no_orders": False,
             })
 
+    def test_five_owner_comment_aliases_share_exact_github_job_gate(self):
+        from pathlib import Path
+        from src.sky_scan_readback import COMMANDS
+        workflow = Path(".github/workflows/sky-chat-bridge.yml").read_text(encoding="utf-8")
+        # Both paid-lane queue admission and job-level authorization must agree.
+        head, jobs = workflow.split("jobs:", 1)
+        scan = jobs.split("\\n  alert_readonly:", 1)[0]
+        for command in COMMANDS:
+            fragment = "github.event.comment.body == '" + command + "'"
+            with self.subTest(command=command):
+                self.assertIn(fragment, head)
+                self.assertIn(fragment, scan)
+        self.assertIn("github.event.comment.user.login == github.repository_owner", scan)
+        self.assertIn("github.event.comment.author_association == 'OWNER'", scan)
+        self.assertIn("github.event.issue.number == 363", scan)
+        self.assertIn("Reserve shared Fugle paid API slot", scan)
+        self.assertIn("Verify reservation ZIP independently", scan)
+
     def test_issue_comment_command_binding_accepts_only_exact_allowlist(self):
         from src.sky_chat_bridge import bind_issue_comment_command
-        for command in ("Sky 快掃", "Sky 當沖快掃"):
+        from src.sky_scan_readback import COMMANDS
+        for command in sorted(COMMANDS):
             payload = {"command": "stale shared-file command"}
             result = bind_issue_comment_command(payload, {"comment": {"body": command}})
             self.assertIs(result, payload)

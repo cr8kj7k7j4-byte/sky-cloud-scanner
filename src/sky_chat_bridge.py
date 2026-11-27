@@ -18,7 +18,7 @@ from time import perf_counter
 from research.sky_snapshot_candidates import screen as screen_stage1
 from src.sky_stage2_candidate_quotes import verify as verify_stage2
 from research.sky_candidate_e2e_chain import write as write_candidate_chain
-from src.sky_scan_readback import canonical_command, validate_scan_readback
+from src.sky_scan_readback import COMMANDS, canonical_command, validate_scan_readback
 
 REQUEST = Path("scan_requests/chat/latest.json")
 OUTPUT = Path("output/chat_bridge")
@@ -111,7 +111,7 @@ def bind_issue_comment_command(payload, event):
         raise ValueError("UNAUTHORIZED_SKY_CHAT_COMMAND")
     comment = event.get("comment")
     command = comment.get("body") if isinstance(comment, dict) else None
-    if command not in ("Sky 快掃", "Sky 當沖快掃"):
+    if not isinstance(command, str) or command not in COMMANDS:
         raise ValueError("UNAUTHORIZED_SKY_CHAT_COMMAND")
     payload["command"] = command
     return payload
