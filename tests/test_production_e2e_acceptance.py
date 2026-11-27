@@ -329,7 +329,7 @@ def test_margin_readback_public_receipt_requires_verified_no_trade():
     assert "r.get(\"real_margin_scan_verified\") is not False" in job
     assert "r.get(\"production_eligible\") is not False" in job
     assert "gh issue comment 363" in job
-    assert "HOLD_REAL_MARGIN_DATA" in job
+    assert "HOLD_PRICE_ONLY_REAL_SOURCE" in job
     assert "FUGLE_API_KEY" not in job
     assert "sky_paid_fugle_api_guard" not in job
 
