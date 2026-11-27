@@ -137,6 +137,73 @@ class SingleStockRealtimeTests(unittest.TestCase):
                     main()
             self.assertEqual(error.exception.code, 2)
 
+    def test_mobile_report_from_verified_observation_is_readable_and_no_trade(self):
+        from src.sky_single_stock_realtime import render_mobile_observation
+        payload = {
+            "symbol": "2337", "source": "Fugle MarketData API /intraday/quote",
+            "quote_date": "2026-11-27",
+            "requested_at_tpe": "2026-11-27T12:17:00+08:00",
+            "last_trade_tpe": "2026-11-27T12:16:54+08:00",
+            "last_trade_price": 65.9, "quote_age_seconds": 6.0,
+            "status": "REALTIME_QUOTE_VERIFIED",
+            "score_status": "RESEARCH_ONLY_VERIFIED_INTRADAY_QUOTE",
+            "score_version": "SKY_OBSERVATIONAL_EVIDENCE_V1",
+            "score_direction": "中性偏多",
+            "scores": {"bull": 63, "bear": 37},
+            "execution_authorized": False, "live_order_enabled": False,
+        }
+        md = render_mobile_observation(payload)
+        self.assertIn("| 多方評分 | 63 |", md)
+        self.assertIn("| 空方評分 | 37 |", md)
+        self.assertIn("| 現價 | 65.90 |", md)
+        self.assertIn("| 現在動作 | 等待 |", md)
+        self.assertIn("🔴 禁止新進場", md)
+        self.assertNotIn("買進：65", md)
+        self.assertIn("\n| 多方評分 |", md)
+
+    def test_stale_mobile_report_keeps_observation_but_hides_live_price_and_scores(self):
+        from src.sky_single_stock_realtime import render_mobile_observation
+        payload = {
+            "symbol": "3717", "source": "Fugle MarketData API /intraday/quote",
+            "quote_date": "2026-11-27",
+            "requested_at_tpe": "2026-11-27T12:16:10+08:00",
+            "last_trade_tpe": "2026-11-27T12:13:14+08:00",
+            "last_trade_price": 18.85, "quote_age_seconds": 175.3,
+            "status": "STALE_QUOTE", "score_status": "INSUFFICIENT_VERIFIED_OHLC",
+            "scores": None, "execution_authorized": False,
+            "live_order_enabled": False,
+        }
+        md = render_mobile_observation(payload)
+        self.assertIn("| 現價 | 待確認（非新鮮成交） |", md)
+        self.assertIn("| 多方評分 | 待確認 |", md)
+        self.assertIn("最後實際成交觀察價：18.85", md)
+        self.assertIn("實際最後成交時間：2026-11-27T12:13:14", md)
+        self.assertNotIn("| 現價 | 18.85 |", md)
+
+    def test_main_writes_same_run_json_and_mobile_markdown(self):
+        import tempfile
+        import sys
+        from pathlib import Path
+        from src.sky_single_stock_realtime import main
+        payload = {
+            "symbol": "2337", "status": "REALTIME_QUOTE_VERIFIED",
+            "score_status": "RESEARCH_ONLY_VERIFIED_INTRADAY_QUOTE",
+            "scores": {"bull": 63, "bear": 37},
+            "score_direction": "中性偏多", "last_trade_price": 65.9,
+            "last_trade_tpe": "2026-11-27T12:16:54+08:00",
+            "quote_age_seconds": 6.0, "execution_authorized": False,
+            "live_order_enabled": False,
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "2337.json"
+            with patch("src.sky_single_stock_realtime.collect", return_value=payload), patch.object(
+                sys, "argv", ["single_stock", "--symbol", "2337", "--output", str(output)]
+            ):
+                main()
+            self.assertTrue(output.is_file())
+            self.assertTrue(output.with_suffix(".md").is_file())
+            self.assertIn("| 多方評分 | 63 |", output.with_suffix(".md").read_text(encoding="utf-8"))
+
     def test_timestamp_conversion(self):
         self.assertEqual(timestamp_tpe(epoch_us(NOW)), NOW.isoformat())
 

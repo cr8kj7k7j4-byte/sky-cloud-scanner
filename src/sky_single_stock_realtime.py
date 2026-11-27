@@ -164,6 +164,70 @@ def collect(symbol: str, now=None) -> dict:
         return result
 
 
+
+def render_mobile_observation(payload: dict) -> str:
+    """Present the same collected payload; never trigger another Fugle call.
+
+    Research scores and prices are displayed separately from entry authorization.
+    A stale last-trade price is labeled as historical observation, never live.
+    """
+    def clean(value):
+        if value is None or value == "":
+            return "待確認"
+        return str(value).replace("|", "／").replace("\n", " ").replace("\r", " ")
+
+    def price(value):
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return "待確認"
+        n = float(value)
+        return f"{n:.2f}" if math.isfinite(n) and n > 0 else "待確認"
+
+    status = payload.get("status") or "MISSING_STATUS"
+    scores = payload.get("scores") if isinstance(payload.get("scores"), dict) else {}
+    scored = payload.get("score_status") == "RESEARCH_ONLY_VERIFIED_INTRADAY_QUOTE"
+    bull = scores.get("bull") if scored else None
+    bear = scores.get("bear") if scored else None
+    last_trade = payload.get("last_trade_tpe")
+    observed_price = price(payload.get("last_trade_price"))
+    # Having a historical executed price does not establish freshness.
+    age = payload.get("quote_age_seconds")
+    fresh = (
+        isinstance(age, (int, float)) and not isinstance(age, bool)
+        and -30 <= age <= 120
+        and scored and last_trade is not None
+    )
+    current_price = observed_price if fresh else "待確認（非新鮮成交）"
+    line = [
+        "🔴 禁止新進場｜研究觀察級，非正式交易訊號",
+        "",
+        f"# Sky 分析 {clean(payload.get('symbol'))}",
+        "",
+        "| 欄位 | 結果 |",
+        "| --- | --- |",
+        f"| 股票 | {clean(payload.get('symbol'))} |",
+        f"| 現價 | {current_price} |",
+        f"| 方向 | {clean(payload.get('score_direction')) if scored else '觀察'} |",
+        f"| 多方評分 | {clean(bull) if bull is not None else '待確認'} |",
+        f"| 空方評分 | {clean(bear) if bear is not None else '待確認'} |",
+        "| 買進觸發 | 待確認（缺合格策略計畫） |",
+        "| 最高接受價 | 待確認（缺合格策略計畫） |",
+        "| 停損／失效 | 待確認（缺合格策略計畫） |",
+        "| 分類 | X（未通過正式新進場驗證） |",
+        "| 現在動作 | 等待 |",
+        "",
+        f"Fugle 來源：{clean(payload.get('source'))}",
+        f"資料交易日：{clean(payload.get('quote_date'))}（Asia/Taipei）",
+        f"實際最後成交時間：{clean(last_trade)}",
+        f"掃描時間：{clean(payload.get('requested_at_tpe'))}",
+        f"最後實際成交觀察價：{observed_price}（不代表目前可成交價格）",
+        f"資料狀態：{clean(status)}；評分狀態：{clean(payload.get('score_status'))}",
+        f"研究演算法：{clean(payload.get('score_version'))}；分數不是勝率。",
+        "未完成五分鐘 K 棒、多週期、成本後 RR 與 P0-R 驗證；不得由觀察分數反推買進或加碼價。",
+        "自動下單：停用；正式進場資格：未通過。",
+    ]
+    return "\n".join(line) + "\n"
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--symbol", required=True)
@@ -173,6 +237,8 @@ def main():
     path = Path(args.output or f"output/single_stock/{args.symbol}.json")
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    # Same-run mobile report goes into the existing Artifact directory.
+    path.with_suffix(".md").write_text(render_mobile_observation(payload), encoding="utf-8")
     print(json.dumps(payload, ensure_ascii=False, indent=2))
     # Collecting a valid unverified observation succeeds as research ingestion.
     # Its payload still explicitly denies executed-trade verification and orders.
