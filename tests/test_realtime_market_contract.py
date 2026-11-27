@@ -43,7 +43,7 @@ def test_fugle_iso_snapshot_timestamp_does_not_substitute_trade_time():
         "date": NOW.date().isoformat(), "lastPrice": 62.5,
         "lastUpdated": NOW.isoformat(), "closePrice": 62.5
     }
-    assert fugle_executed_trade(q, NOW)[2] == "MISSING_EXECUTED_TRADE_TIME"
+    assert fugle_executed_trade(q, NOW)[2] == "MISSING_EXECUTED_LAST_PRICE"
 
 
 def test_fugle_iso_bulk_rows_require_real_execution_time():
@@ -104,14 +104,14 @@ def test_lastupdated_without_trade_time_is_not_a_trade():
     q = {"date": "2026-11-04", "lastPrice": 78.2,
          "lastUpdated": int(NOW.timestamp() * 1_000_000)}
     p, _, status = fugle_executed_trade(q, NOW)
-    assert p is None and status == "MISSING_EXECUTED_TRADE_TIME"
+    assert p is None and status == "MISSING_EXECUTED_LAST_PRICE"
 
 
 def test_fugle_stale_date_future_and_stale_time_rejected():
     # Only the last execution timestamp can support stale/future-trade checks.
     # A quote's closeTime is session metadata, not proof of a trade.
     q = {"date": "2026-11-03", "lastPrice": 80,
-         "lastTrade": {"time": int(NOW.timestamp() * 1_000_000)},
+         "lastTrade": {"price": 80, "time": int(NOW.timestamp() * 1_000_000)},
          "closeTime": int(NOW.timestamp() * 1_000_000)}
     assert fugle_executed_trade(q, NOW)[2] == "STALE_TRADING_DATE"
     q["date"] = "2026-11-04"
@@ -120,7 +120,7 @@ def test_fugle_stale_date_future_and_stale_time_rejected():
     q["lastTrade"]["time"] = int((NOW + timedelta(minutes=3)).timestamp() * 1_000_000)
     assert fugle_executed_trade(q, NOW)[2] == "FUTURE_TRADE_TIMESTAMP"
     q.pop("lastTrade")
-    assert fugle_executed_trade(q, NOW)[2] == "MISSING_EXECUTED_TRADE_TIME"
+    assert fugle_executed_trade(q, NOW)[2] == "MISSING_EXECUTED_LAST_PRICE"
 
 
 def test_mis_quote_requires_exchange_day_and_fresh_last_trade():
