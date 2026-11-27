@@ -82,7 +82,8 @@ jobs:
               audit = body.startswith("Sky 5m驗證 ") or body.startswith("Sky 分析 ")
           else:
               symbol = os.environ.get("MANUAL_SYMBOL", "")
-              audit = os.environ.get("MANUAL_AUDIT", "").lower() == "true"\n              # Manual source_audit is preserved; owner Sky 分析 is always unified.
+              audit = os.environ.get("MANUAL_AUDIT", "").lower() == "true"
+              # Manual source_audit is preserved; owner Sky 分析 is always unified.
               if re.fullmatch(r"[0-9]{4,6}", symbol) is None:
                   raise SystemExit("INVALID_SYMBOL")
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
