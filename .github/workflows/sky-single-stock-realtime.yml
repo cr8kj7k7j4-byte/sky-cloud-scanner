@@ -4,6 +4,8 @@ on:
     branches: [main]
     paths:
       - 'src/sky_single_stock_realtime.py'
+      - 'src/sky_single_stock_source_audit.py'
+      - 'tests/test_sky_single_stock_source_audit.py'
       - 'tests/test_sky_single_stock_realtime.py'
       - '.github/workflows/sky-single-stock-realtime.yml'
   # Existing single-stock collector; allow owner-authorized ChatGPT command via #363.
@@ -15,6 +17,11 @@ on:
         description: Taiwan equity symbol (4 to 6 digits)
         required: true
         type: string
+      source_audit:
+        description: Bounded research-only five-minute K and trades source audit
+        required: false
+        type: boolean
+        default: false
 permissions:
   contents: write
 
@@ -23,7 +30,7 @@ permissions:
 # Serialize authorized paid scans with the existing shared lane; ignored
 # issue comments must NOT enter or cancel a pending paid workflow.
 concurrency:
-  group: ${{ (github.event_name == 'issue_comment' && !(github.event.issue.number == 363 && github.event.comment.user.login == github.repository_owner && github.event.comment.author_association == 'OWNER' && (startsWith(github.event.comment.body, 'Sky 當沖更新 ') || startsWith(github.event.comment.body, 'Sky 波段更新 ') || startsWith(github.event.comment.body, 'Sky 分析 '))) && format('sky-single-stock-ignored-{0}', github.run_id)) || 'sky-fugle-paid-global-research-v1-live-wholemarket' }}
+  group: ${{ (github.event_name == 'issue_comment' && !(github.event.issue.number == 363 && github.event.comment.user.login == github.repository_owner && github.event.comment.author_association == 'OWNER' && (startsWith(github.event.comment.body, 'Sky 當沖更新 ') || startsWith(github.event.comment.body, 'Sky 波段更新 ') || (startsWith(github.event.comment.body, 'Sky 分析 ') || startsWith(github.event.comment.body, 'Sky 5m驗證 ')))) && format('sky-single-stock-ignored-{0}', github.run_id)) || 'sky-fugle-paid-global-research-v1-live-wholemarket' }}
   cancel-in-progress: false
 
 jobs:
@@ -36,7 +43,7 @@ jobs:
        github.event.comment.author_association == 'OWNER' &&
        (startsWith(github.event.comment.body, 'Sky 當沖更新 ') ||
         startsWith(github.event.comment.body, 'Sky 波段更新 ') ||
-        startsWith(github.event.comment.body, 'Sky 分析 ')))
+        (startsWith(github.event.comment.body, 'Sky 分析 ') || startsWith(github.event.comment.body, 'Sky 5m驗證 '))))
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
@@ -50,12 +57,13 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
       - name: Test realtime gating without remote API
-        run: python -m unittest tests.test_sky_single_stock_realtime -v
+        run: python -m unittest tests.test_sky_single_stock_realtime tests.test_sky_single_stock_source_audit -v
       - name: Validate requested symbol without calling Fugle
         if: github.event_name == 'workflow_dispatch' || github.event_name == 'issue_comment'
         id: request
         env:
           MANUAL_SYMBOL: ${{ inputs.symbol }}
+          MANUAL_AUDIT: ${{ inputs.source_audit }}
         shell: bash
         run: |
           python - <<'PY'
@@ -67,12 +75,14 @@ jobs:
           if os.environ["GITHUB_EVENT_NAME"] == "issue_comment":
               event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text(encoding="utf-8"))
               body = event["comment"]["body"]
-              match = re.fullmatch(r"Sky (?:(?:當沖|波段)更新|分析) ([0-9]{4,6})", body)
+              match = re.fullmatch(r"Sky (?:(?:當沖|波段)更新|分析|5m驗證) ([0-9]{4,6})", body)
               if match is None:
                   raise SystemExit("INVALID_SINGLE_STOCK_COMMAND")
               symbol = match.group(1)
+              audit = body.startswith("Sky 5m驗證 ")
           else:
               symbol = os.environ.get("MANUAL_SYMBOL", "")
+              audit = os.environ.get("MANUAL_AUDIT", "").lower() == "true"
               if re.fullmatch(r"[0-9]{4,6}", symbol) is None:
                   raise SystemExit("INVALID_SYMBOL")
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
@@ -80,12 +90,18 @@ jobs:
           print(f"VALIDATED_RESEARCH_ONLY_SYMBOL={symbol}")
           PY
       - name: Collect Fugle quote (reference permitted; execution marked separately)
-        if: steps.request.outcome == 'success'
+        if: steps.request.outcome == 'success' && steps.request.outputs.audit != 'true'
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
           SYMBOL: ${{ steps.request.outputs.symbol }}
         run: |
           python -m src.sky_single_stock_realtime --symbol "$SYMBOL"
+      - name: Collect bounded Fugle 5m and trades source evidence (opt-in only)
+        if: steps.request.outcome == 'success' && steps.request.outputs.audit == 'true'
+        env:
+          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+          SYMBOL: ${{ steps.request.outputs.symbol }}
+        run: python -m src.sky_single_stock_source_audit --symbol "$SYMBOL"
       - name: Upload quote evidence even when unavailable
         if: always()
         uses: actions/upload-artifact@v4
