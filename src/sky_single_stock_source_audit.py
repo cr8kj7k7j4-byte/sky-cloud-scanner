@@ -76,7 +76,7 @@ def analyze(symbol, quote, candles, pages, *, observed_at=None):
         out["completed_bar_volume_raw_sum"] = None
         out["last_completed_bar_start"] = None
         out["five_minute_raw"] = []
-    if isinstance(raw, list) and raw and len(raw) <= 100:
+    if isinstance(raw, list) and raw:
         parsed = []
         seen = set()
         valid = True
@@ -86,16 +86,25 @@ def analyze(symbol, quote, candles, pages, *, observed_at=None):
                 break
             stamp = row.get("date")
             try:
-                dt = datetime.fromisoformat(stamp.replace("Z", "+00:00")).astimezone(TPE)
-                if not isinstance(stamp, str) or dt.utcoffset() is None:
-                    raise ValueError("invalid timezone")
+                if not isinstance(stamp, str):
+                    raise ValueError("invalid timestamp")
+                parsed_stamp = datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+                if parsed_stamp.utcoffset() is None:
+                    raise ValueError("timezone required")
+                dt = parsed_stamp.astimezone(TPE)
             except (ValueError, TypeError, AttributeError):
                 valid = False
                 break
             prices = [_number(row.get(f)) for f in ("open", "high", "low", "close")]
             vol = _number(row.get("volume"))
-            if (dt.date().isoformat() != date or dt.hour < 9 or (dt.hour == 13 and dt.minute > 30)
-                    or dt.hour > 13 or dt.minute % 5 or dt.second
+            # Official Fugle 5m regular starts are 09:00..13:20.
+            # 13:25 is the closing call auction with NO candle; 13:30 is
+            # a separate closing-auction candle, not a normal 5m interval.
+            valid_slot = ((dt.hour == 9 or dt.hour == 10 or dt.hour == 11
+                           or dt.hour == 12 or dt.hour == 13 and dt.minute <= 20)
+                          and dt.minute % 5 == 0) or (dt.hour == 13 and dt.minute == 30)
+            if (dt.date().isoformat() != date or not valid_slot
+                    or dt.second or dt.microsecond
                     or dt.isoformat() in seen
                     or None in prices or min(prices) <= 0
                     or not prices[2] <= min(prices[0], prices[3])
@@ -105,9 +114,17 @@ def analyze(symbol, quote, candles, pages, *, observed_at=None):
             seen.add(dt.isoformat())
             parsed.append((dt, row))
         if valid and all(a[0] < b[0] for a, b in zip(parsed, parsed[1:])):
-            completed = [(d, row) for d, row in parsed if d + timedelta(minutes=5) <= now]
-            missing_slots = sum(max(0, int((b[0] - a[0]).total_seconds() // 300) - 1)
-                                for a, b in zip(parsed, parsed[1:]))
+            # A 13:30 closing-auction candle is timestamped at the auction,
+            # not a 13:30..13:35 continuous trading interval. Keep one
+            # conservative minute for report finalization before observation.
+            completed = [(d, row) for d, row in parsed
+                         if (d.hour == 13 and d.minute == 30 and
+                             d + timedelta(minutes=1) <= now)
+                         or (not (d.hour == 13 and d.minute == 30)
+                             and d + timedelta(minutes=5) <= now)]
+            regular = [d for d, _ in parsed if d.hour < 13 or d.minute <= 20]
+            missing_slots = sum(max(0, int((b - a).total_seconds() // 300) - 1)
+                                for a, b in zip(regular, regular[1:]))
             out.update(classify_kbar(source_valid=True, observed_bars=len(completed),
                                      missing_slots=missing_slots))
             out["missing_five_minute_slots_observed"] = missing_slots
