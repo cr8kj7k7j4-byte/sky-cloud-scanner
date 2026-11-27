@@ -203,3 +203,55 @@ def test_unified_market_report_exposes_swing_research_even_when_trade_gate_fails
     assert item["real_time_trade_eligible"] is False
     assert result["reports"]["swing_research"]["candidate_count"] == 0
     assert result["decision"] == "DATA_COVERAGE_INSUFFICIENT_NO_TRADE"
+
+
+def test_calendar_failure_preserves_dated_local_research_only(monkeypatch, tmp_path):
+    """Calendar uncertainty must not hide dated research or authorize trading."""
+    import json
+    from src import sky_unified_commands as u
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(u, "market_session_open", lambda: True)
+    monkeypatch.setattr(u, "execute", lambda command: {"exit_code": 125})
+    report = tmp_path / "output/swing_live/latest_swing.json"
+    report.parent.mkdir(parents=True)
+    report.write_text(json.dumps({
+        "generated_at": "2026-11-27T13:35:00+08:00",
+        "analysis_mode": "OBSERVATION_ONLY",
+        "analysis_observation_count": 2,
+        "deep_candidates": [{"symbol": "3717", "price": 999.0}],
+    }), encoding="utf-8")
+    result = u.market_mode()
+    assert result["decision"] == "NO_TRADE_CALENDAR_UNAVAILABLE"
+    assert result["research_access"]["research_processing_allowed"] is True
+    assert result["research_report_fallback"] == "DATED_LOCAL_OBSERVATION_ONLY_NO_TRADE"
+    assert result["reports"]["swing_research"]["available"] is True
+    assert result["reports"]["swing_research"]["trade_eligible"] is False
+    assert "candidate_preview" not in result["reports"]["swing_research"]
+    assert result["production_eligible"] is False
+    assert result["strategies"] == {}
+
+
+def test_calendar_uncertainty_does_not_certify_undated_report(monkeypatch, tmp_path):
+    import json
+    from src import sky_unified_commands as u
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(u, "market_session_open", lambda: True)
+    base = tmp_path / "output/sky_unified"
+    monkeypatch.setattr(u, "BASE", base)
+
+    def calendar_stub(_command):
+        base.mkdir(parents=True, exist_ok=True)
+        (base / "calendar.json").write_text(json.dumps(
+            {"source_status": "UNKNOWN", "should_scan": False}), encoding="utf-8")
+        return {"exit_code": 0}
+
+    monkeypatch.setattr(u, "execute", calendar_stub)
+    report = tmp_path / "output/latest.json"
+    report.parent.mkdir(parents=True)
+    report.write_text(json.dumps({"analysis_mode": "OBSERVATION_ONLY"}),
+                      encoding="utf-8")
+    result = u.market_mode()
+    assert result["decision"] == "NO_TRADE_NOT_CONFIRMED_TRADING_DAY"
+    assert result["reports"]["intraday"]["available"] is False
+    assert result["reports"]["intraday"]["reason"] == "RESEARCH_SOURCE_TIME_MISSING"
+    assert result["production_eligible"] is False
