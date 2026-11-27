@@ -287,7 +287,8 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                                 and rejected_future_bars==0 and not missing_five_min_slots and actual_tf=="5"
                                 and tdate==day and cdate==day)
                 features=build_features(snapshot,valid).to_dict() if preview_safe else None
-                kbar_valid = source_identity_matches and actual_tf=="5" and cdate==day and not invalid_bar_sequence
+                kbar_valid = (source_identity_matches and actual_tf=="5" and cdate==day
+                              and not invalid_bar_sequence and rejected_future_bars == 0)
                 kbar_policy = classify_kbar(
                     source_valid=kbar_valid,
                     observed_bars=len(valid),
