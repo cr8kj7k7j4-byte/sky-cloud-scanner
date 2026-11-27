@@ -53,7 +53,7 @@ def evaluate(symbol: str, source_date: str, payload: object, *, observed_at=None
         result["reason"] = "HISTORICAL_IDENTITY_MISMATCH"
         return result
     raw = payload.get("data")
-    if not isinstance(raw, list) or not 2 <= len(raw) <= 100:
+    if not isinstance(raw, list) or not 1 <= len(raw) <= 54:
         result["reason"] = "HISTORICAL_ROWS_MISSING_OR_UNBOUNDED"
         return result
     times = []
@@ -97,11 +97,12 @@ def evaluate(symbol: str, source_date: str, payload: object, *, observed_at=None
     regular_slots = [datetime.combine(target, time(9), TPE)
                      + timedelta(minutes=5 * i) for i in range(53)]
     auction = datetime.combine(target, time(13, 30), TPE)
-    allowed = set(regular_slots + [auction])
+    regular_slot_set = set(regular_slots)
+    allowed = regular_slot_set | {auction}
     if any(t not in allowed for t in times):
         result["reason"] = "BAR_OUTSIDE_OFFICIAL_5M_SLOTS"
         return result
-    regular_observed = sum(t in set(regular_slots) for t in times)
+    regular_observed = sum(t in regular_slot_set for t in times)
     missing_regular = len(regular_slots) - regular_observed
     auction_present = auction in times
     # The 13:30 closing bar is separate and not proof of continuous trades.
