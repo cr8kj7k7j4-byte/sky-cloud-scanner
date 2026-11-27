@@ -92,10 +92,38 @@ def test_validation_only_reads_existing_provenance(monkeypatch, tmp_path):
                  encoding="utf-8")
     monkeypatch.setattr(u, "execute", lambda command: {"exit_code": 0})
     result = u.validation_mode()
-    assert result["decision"] == "VALIDATION_INSUFFICIENT_DATA_NO_PROMOTION"
+    assert result["decision"] == "RESEARCH_VALIDATION_REPORT_AVAILABLE_PROMOTION_UNVERIFIED"
+    assert result["evidence"]["research_report_evidence_available"] is True
+    assert result["evidence"]["research_access"]["requires_sample_minimum_for_research"] is False
+    assert result["evidence"]["sample_sufficient"] is False
     assert result["evidence"]["sample_count"] == 100
     assert result["evidence"]["after_cost_expectancy_r"] is None
     assert result["evidence"]["production_eligible"] is False
+
+
+def test_offhours_research_can_read_dated_local_reports_without_price_authorization(monkeypatch, tmp_path):
+    from src import sky_unified_commands as u
+    import json
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(u, "market_session_open", lambda: False)
+    path = tmp_path / "output/swing_live/latest_swing.json"
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps({"generated_at": "2026-11-27T13:35:00+08:00",
+                                "analysis_mode": "OBSERVATION_ONLY",
+                                "analysis_observation_count": 3,
+                                "market_data_gate": "BLOCKED_EXTERNAL_DATA_NO_TRADE",
+                                "deep_candidates": [{"symbol": "3717", "price": 1234}]}),
+                    encoding="utf-8")
+    result = u.market_mode()
+    assert result["decision"] == "OFFHOURS_RESEARCH_REPORT_ONLY_NO_TRADE"
+    assert result["research_access"]["requires_market_open_for_research"] is False
+    assert result["reports"]["swing_research"]["available"] is True
+    assert result["reports"]["swing_research"]["data_timestamp"] == "2026-11-27T13:35:00+08:00"
+    assert result["reports"]["swing_research"]["trade_eligible"] is False
+    assert "candidate_preview" not in result["reports"]["swing_research"]
+    assert result["reports"]["intraday"]["available"] is False
+    assert result["strategies"] == {}
+    assert result["production_eligible"] is False
 
 
 def test_live_market_guard_taiwan_hours():

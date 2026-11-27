@@ -13,6 +13,17 @@ class SessionPolicyTests(unittest.TestCase):
     def at(self, hour, minute=0):
         return datetime(2026, 11, 27, hour, minute, tzinfo=TPE)
 
+    def test_all_sessions_allow_research_without_sample_count_or_live_claim(self):
+        for hour in (4, 9, 13, 18, 23):
+            for verified in (True, False, None):
+                result = daytrade_session_policy(self.at(hour), trading_day_verified=verified)
+                access = result["research_access"]
+                self.assertTrue(access["research_processing_allowed"])
+                self.assertFalse(access["requires_market_open_for_research"])
+                self.assertFalse(access["requires_sample_minimum_for_research"])
+                self.assertFalse(result["new_entry_authorized"])
+                self.assertFalse(access["production_eligible"])
+
     def test_premarket_research(self):
         p = daytrade_session_policy(self.at(4, 38), trading_day_verified=True)
         self.assertEqual(p["session_mode"], "PREMARKET_RESEARCH")
