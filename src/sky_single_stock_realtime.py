@@ -176,7 +176,17 @@ def main():
     print(json.dumps(payload, ensure_ascii=False, indent=2))
     # Collecting a valid unverified observation succeeds as research ingestion.
     # Its payload still explicitly denies executed-trade verification and orders.
-    if payload["status"] not in ("REALTIME_QUOTE_VERIFIED", "UNVERIFIED_EXECUTION_TIME"):
+    # Research-only valid scores are successful observations even when daytrade
+    # eligibility / price cap denies trading. Never weaken data freshness gates.
+    observation_scored = (
+        payload.get("score_status") == "RESEARCH_ONLY_VERIFIED_INTRADAY_QUOTE"
+        and isinstance(payload.get("scores"), dict)
+        and payload["scores"].get("bull") is not None
+        and payload["scores"].get("bear") is not None
+    )
+    if not observation_scored and payload["status"] not in (
+        "REALTIME_QUOTE_VERIFIED", "UNVERIFIED_EXECUTION_TIME"
+    ):
         raise SystemExit(2)
 
 
