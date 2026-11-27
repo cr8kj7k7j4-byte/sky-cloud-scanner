@@ -148,13 +148,21 @@ jobs:
                 two_track['full_market_execution_certification_status'])
           # Existing canonical market-quality flags remain untouched. Fail
           # only the observation gate when the snapshot itself is inadequate.
-          if two_track['snapshot_screen_status'] != 'PASS_SNAPSHOT_OBSERVATION_ONLY':
+          live_pass = two_track['snapshot_screen_status'] == 'PASS_SNAPSHOT_OBSERVATION_ONLY'
+          dated_pass = (
+              two_track['dated_snapshot_research_status'] == 'PASS_DATED_SNAPSHOT_RESEARCH_ONLY'
+              and two_track['full_market_execution_certification_status'].startswith('HOLD')
+              and two_track['candidate_trade_gate'].startswith('HOLD')
+          )
+          if not (live_pass or dated_pass):
               raise SystemExit('HOLD_SNAPSHOT_EVIDENCE_NO_TRADE')
+          print('SWING_RESEARCH_LANE:', 'DATED_SOURCE_OBSERVATION_ONLY' if dated_pass else 'CURRENT_SOURCE_OBSERVATION_ONLY')
           summary = Path(os.environ['GITHUB_STEP_SUMMARY'])
           with summary.open('a', encoding='utf-8') as out:
               out.write(
                   f"## {data.get('display_name')}｜Snapshot 研究觀察驗收通過\n"
                   f"資料時間：{data.get('generated_at')}\n\n"
+                  f"歷史報價來源日期：{two_track.get('dated_snapshot_source_date') or '同日'}（不代表即時成交）\n\n"
                   f"快照觀察覆蓋：{data.get('snapshot_coverage_pct')}%\n\n"
                   f"逐股成交候選：{two_track['candidate_execution_status']}\n\n"
                   f"原全市場成交認證：{two_track['full_market_execution_certification_status']}\n\n"
@@ -258,7 +266,11 @@ jobs:
               if two_track != independently_recomputed:
                   raise ValueError("TWO_TRACK_SAME_RUN_INDEPENDENT_RECOMPUTATION_MISMATCH")
               if (two_track.get("schema") != "SKY_SWING_TWO_TRACK_ACCEPTANCE_V1"
-                  or two_track.get("snapshot_screen_status") != "PASS_SNAPSHOT_OBSERVATION_ONLY"
+                  or not (
+                      two_track.get("snapshot_screen_status") == "PASS_SNAPSHOT_OBSERVATION_ONLY"
+                      or (two_track.get("dated_snapshot_research_status") == "PASS_DATED_SNAPSHOT_RESEARCH_ONLY"
+                          and str(two_track.get("full_market_execution_certification_status", "")).startswith("HOLD"))
+                  )
                   or two_track.get("production_eligible") is not False
                   or two_track.get("automatic_order") is not False
                   or two_track.get("trade_action") != "禁止交易"
@@ -283,6 +295,8 @@ jobs:
                   "operational_full_market_scan": report.get("operational_full_market_scan"),
                   "strategy_status": report.get("strategy_status"),
                   "snapshot_screen_status": two_track["snapshot_screen_status"],
+                  "dated_snapshot_research_status": two_track["dated_snapshot_research_status"],
+                  "dated_snapshot_source_date": two_track["dated_snapshot_source_date"],
                   "candidate_execution_status": two_track["candidate_execution_status"],
                   "candidate_trade_gate": two_track["candidate_trade_gate"],
                   "full_market_execution_certification_status": two_track["full_market_execution_certification_status"],
@@ -344,6 +358,8 @@ jobs:
               f"- 候選數：{report.get('candidate_count', 'UNKNOWN')}",
               f"- 全市場資料閘門：{gate}",
               f"- 同次 Artifact：{readback}",
+              f"- 批量報價日期：{report.get('dated_research_source_date') or '待確認'}（非認證成交時間）",
+              f"- 純研究觀察數：{report.get('analysis_observation_count', 0)}（非交易排名）",
               f"- Artifact ID：{receipt.get('artifact_id', '待確認')}",
               "- 交易資格：禁止新進場；觀察候選不是 V1.0 買進訊號",
               "- 自動下單：停用",

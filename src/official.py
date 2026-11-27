@@ -211,14 +211,14 @@ def fetch_mis_quotes(universe, batch_size=55, sleep_s=.18):
     return list(rows_by_symbol.values()),warnings
 
 
-def fetch_fugle_snapshot_quotes(universe, trading_date=None):
+def fetch_fugle_snapshot_quotes(universe, trading_date=None, *, allow_dated_research=False):
     """Bulk snapshot observations (TSE/OTC); lastTrade.time is optional.
 
     Keep dated reference prices without per-symbol execution timestamps.
     Execution freshness and trading eligibility are validated separately.
     Never substitute bid, ask, or prior-close for an absent last-traded price.
     """
-    from datetime import datetime
+    from datetime import date as calendar_date, datetime
     from zoneinfo import ZoneInfo
     from .fugle import snapshot_quotes
 
@@ -236,9 +236,23 @@ def fetch_fugle_snapshot_quotes(universe, trading_date=None):
             payload=snapshot_quotes(market)
             date=str(payload.get("date") or "")
             arr=payload.get("data")
-            if date!=today or not isinstance(arr,list):
+            # A dated prior-session price is permitted ONLY when the caller
+            # explicitly requests research observations. This does not certify
+            # the most recent completed trading day, execution time or freshness.
+            dated_research = False
+            if allow_dated_research and date != today:
+                try:
+                    age = (calendar_date.fromisoformat(today) -
+                           calendar_date.fromisoformat(date)).days
+                    dated_research = (0 <= age <= 7
+                                      and calendar_date.fromisoformat(date).weekday() < 5)
+                except ValueError:
+                    dated_research = False
+            if (date != today and not dated_research) or not isinstance(arr,list):
                 warnings.append(f"FUGLE_SNAPSHOT_STALE_OR_INVALID {market}: date={date}, expected={today}")
                 continue
+            if dated_research:
+                warnings.append(f"FUGLE_DATED_RESEARCH_ONLY {market}: source_date={date}; not live or executed-trade certified")
             retained=0
             for q in arr:
                 symbol=str(q.get("symbol") or "")

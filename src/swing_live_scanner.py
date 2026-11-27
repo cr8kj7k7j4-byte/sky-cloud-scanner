@@ -99,7 +99,9 @@ def run(mode="swing5d", top_n=20, deep_n=8):
     OUT.mkdir(parents=True, exist_ok=True)
 
     universe, universe_health = load_official_universe()
-    rows, warnings = fetch_fugle_snapshot_quotes(universe, trading_date=now.date().isoformat())
+    rows, warnings = fetch_fugle_snapshot_quotes(
+        universe, trading_date=now.date().isoformat(), allow_dated_research=True
+    )
     snapshot_count = len(rows)
     if not universe or (len(rows) / len(universe)) < 0.80:
         try:
@@ -157,6 +159,11 @@ def run(mode="swing5d", top_n=20, deep_n=8):
         })
     unverified_snapshot.sort(key=lambda x: _safe_float(x.get("trade_value")), reverse=True)
     all_snapshot_observations = list(unverified_snapshot)
+    observed_source_dates = {row.get("snapshot_date") for row in all_snapshot_observations}
+    dated_research_source_date = (
+        next(iter(observed_source_dates))
+        if len(observed_source_dates) == 1 else None
+    )
     unverified_snapshot = unverified_snapshot[:20]
     snapshot_exchange_counts = {
         ex: sum(row.get("exchange") == ex for row in raw_observations
@@ -280,7 +287,8 @@ def run(mode="swing5d", top_n=20, deep_n=8):
     # A bulk snapshot has no lastTrade.time. Deep-confirm a bounded shortlist
     # through the per-symbol execution endpoint without upgrading the market gate.
     snapshot_deep_confirmation = []
-    if mode in ("swing", "swing5d") and not operational_full_market_scan:
+    if (mode in ("swing", "swing5d") and not operational_full_market_scan
+            and dated_research_source_date == now.date().isoformat()):
         for item in unverified_snapshot[:deep_n]:
             confirmation = {
                 "symbol": item["symbol"],
@@ -334,6 +342,8 @@ def run(mode="swing5d", top_n=20, deep_n=8):
         "analysis_mode": "OBSERVATION_ONLY",
         "analysis_available": bool(raw_observations),
         "analysis_observation_count": len(all_snapshot_observations),
+        "dated_research_source_date": dated_research_source_date,
+        "dated_research_is_live": False,
         "analysis_observation_preview": [
             {key: item.get(key) for key in (
                 "symbol", "name", "exchange", "indicative_last_price",
