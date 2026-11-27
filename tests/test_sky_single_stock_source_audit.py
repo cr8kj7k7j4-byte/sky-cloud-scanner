@@ -210,6 +210,28 @@ class SourceAuditTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             collect("not-a-stock")
 
+    def test_workflow_only_enables_historical_from_verified_repo_variable(self):
+        # The actual GitHub Variable's value is not observable by the test.
+        # An absent/false value must NOT silently activate paid historical API.
+        from pathlib import Path
+        workflow = Path(".github/workflows/sky-single-stock-realtime.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(
+            "vars.SKY_FUGLE_HISTORICAL_ENTITLEMENT_CONFIRMED == '1'",
+            workflow
+        )
+        self.assertIn(
+            "SKY_FUGLE_HISTORICAL_ENTITLEMENT_CONFIRMED: ",
+            workflow
+        )
+        self.assertNotIn(
+            "SKY_FUGLE_HISTORICAL_ENTITLEMENT_CONFIRMED: \"1\"",
+            workflow
+        )
+        # An issue comment is NEVER a source of historical API entitlement.
+        self.assertNotIn("github.event.comment.body == '1'", workflow)
+
     def test_paid_requests_bounded_and_never_retry_after_failure(self):
         q, bars, ticks = fixture()
         pages = [dict(data=x["data"]) for x in ticks]
