@@ -256,8 +256,11 @@ jobs:
           report = root/"swing_v11_live/latest.json"
           if report.is_file():
               obj = json.loads(report.read_text(encoding="utf-8"))
-              if obj.get("production_eligible") is not False:
-                  raise SystemExit("V11_UNSAFE_PRODUCTION_ELIGIBILITY")
+              if (obj.get("strategy_status") != "PREREGISTERED_CHALLENGER / NOT_PRODUCTION"
+                  or obj.get("live_whole_market_certified") is not False
+                  or any(row.get("production_eligible") is not False
+                         for row in obj.get("candidates", []))):
+                  raise SystemExit("V11_RESEARCH_ONLY_SAFETY_GATE_INVALID")
           result = {"schema":"SKY_V11_SAME_RUN_READBACK_V1",
                     "status":("PASS_ARTIFACT_INTEGRITY_RESEARCH_ONLY" if report.is_file()
                               else "PASS_HOLD_RECEIPT_INTEGRITY_ONLY"),
