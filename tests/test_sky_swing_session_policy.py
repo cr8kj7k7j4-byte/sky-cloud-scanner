@@ -98,12 +98,14 @@ class SwingSessionPolicyTests(unittest.TestCase):
                 read_swing_complete_session_observations(
                     self.at(18), folder, calendar_session_certified=True, **opts)
 
-    def test_swing_quick_scan_retains_existing_scanner_without_dispatch(self):
+    def test_swing_quick_scan_routes_to_v11_research_without_trading_approval(self):
         route = route_command("Sky 波段快掃")
-        self.assertEqual(route.data_mode, "SESSION_ADAPTIVE_SWING_RESEARCH")
-        self.assertIn("src.swing_live_scanner --mode swing", route.execution_target)
-        self.assertIn("sky_swing_session_policy", route.execution_target)
-        self.assertIn("No dispatch", route.notes)
+        self.assertEqual(route.data_mode, "WHOLE_MARKET_REALTIME_PLUS_CANONICAL_DAILY")
+        self.assertEqual(route.command_family, "SKY_SWING_V11_LIVE")
+        self.assertIn("swing-v11-live-scan.yml", route.execution_target)
+        self.assertIn("V1.0 remains Production baseline", route.notes)
+        self.assertIn("No orders", route.notes)
+        self.assertTrue(route.realtime_required)
 
 
 if __name__ == "__main__":
