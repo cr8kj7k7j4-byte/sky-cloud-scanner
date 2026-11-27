@@ -93,6 +93,14 @@ class PaidWorkflowWiringTests(unittest.TestCase):
                     self.assertIn("--monthly-rate-limited", content)
                     self.assertIn("sky-fugle-paid-global-research-v1-live-wholemarket", content)
                     self.assertIn("steps.verify_claim.outcome == 'success'", content)
+                elif path.endswith("/sky-single-stock-realtime.yml"):
+                    # The owner-authorized research-only single-stock workflow
+                    # shares the existing subscription pacing lane.
+                    self.assertIn('SKY_FUGLE_MONTHLY_RATE_CONTROL: "1"', content)
+                    self.assertIn("sky-fugle-paid-global-research-v1-live-wholemarket", content)
+                    self.assertIn("cancel-in-progress: false", content)
+                    self.assertIn("github.event.comment.author_association == 'OWNER'", content)
+                    self.assertNotIn('SKY_PAID_ATOMIC_ENFORCE: "1"', content)
                 else:
                     self.assertIn("SKY_PAID_ATOMIC_ENFORCE: \"1\"", content)
                 self.assertIn("GH_TOKEN: ${{ github.token }}", content)
