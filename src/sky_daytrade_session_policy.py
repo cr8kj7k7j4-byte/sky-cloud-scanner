@@ -57,8 +57,12 @@ def daytrade_session_policy(
         "action": "等待",
         "status": "HOLD_EVIDENCE",
         "notes": (
-            "Session routing is not a scan. Historical research needs dated, "
-            "authorized, complete source artifact; a live entry separately "
-            "needs current-session Fugle A1/A2, strategy, costs and P0-R."
+            "Session routing is not a scan. Research observations require "
+            "provenance and date, but no minimum 5m K-bar count (zero is "
+            "OBSERVATION_ONLY_NO_5M_BARS); unavailable K-bar indicators remain "
+            "unknown. Verified complete-session evidence is separately required "
+            "only for claims about full-session statistics or trade triggers. "
+            "A live entry requires current-session Fugle A1/A2, strategy, "
+            "costs and P0-R."
         ),
     }
