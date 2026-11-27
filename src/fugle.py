@@ -105,6 +105,12 @@ def get_candles(symbol, timeframe="5"):
         {"timeframe": timeframe, "sort": "asc"},
     )
 
+def get_trades(symbol, *, offset=0, limit=500):
+    # Official intraday trades: bounded page request, no retries on 429.
+    if type(offset) is not int or offset < 0 or type(limit) is not int or not 1 <= limit <= 500:
+        raise ValueError("INVALID_TRADES_PAGINATION")
+    return _get(f"/intraday/trades/{symbol}", {"offset": offset, "limit": limit})
+
 def snapshot_quotes(market):
     # Optional capability only. Snapshot is plan-dependent and must never be
     # required for the scanner to complete.
