@@ -67,15 +67,37 @@ def test_fugle_iso_bulk_rows_require_real_execution_time():
     assert result["valid_quote_count"] == 1
 
 
-def test_reference_and_close_only_never_count_as_executed_live():
-    for q in (
-        {"date": "2026-11-04", "closePrice": 77.5,
-         "closeTime": int(NOW.timestamp() * 1_000_000)},
-        {"date": "2026-11-04", "referencePrice": 77.5,
-         "lastTrade": {"time": int(NOW.timestamp() * 1_000_000)}},
-    ):
-        p, _, status = fugle_executed_trade(q, NOW)
-        assert p is None and status == "MISSING_EXECUTED_LAST_PRICE"
+def test_individual_close_price_time_pair_from_official_fugle_contract():
+    q = {"date": "2026-11-04", "closePrice": 77.5,
+         "closeTime": int(NOW.timestamp() * 1_000_000)}
+    price, executed, status = fugle_executed_trade(q, NOW)
+    assert (price, executed, status) == (77.5, NOW, "FRESH_EXECUTED_TRADE")
+
+
+def test_close_pair_fails_closed_on_trial_stale_or_inconsistent_last_trade():
+    q = {"date": NOW.date().isoformat(), "closePrice": 77.5,
+         "closeTime": int(NOW.timestamp() * 1_000_000)}
+    q["isTrial"] = True
+    assert fugle_executed_trade(q, NOW)[2] == "TRIAL_QUOTE"
+    q["isTrial"] = False
+    q["closeTime"] = int((NOW - timedelta(minutes=10)).timestamp() * 1_000_000)
+    assert fugle_executed_trade(q, NOW)[2] == "STALE_EXECUTED_TRADE"
+    q["closeTime"] = int(NOW.timestamp() * 1_000_000)
+    q["lastTrade"] = {"price": 88.8}
+    assert fugle_executed_trade(q, NOW)[2] == "MISSING_EXECUTED_TRADE_TIME"
+    q.pop("lastTrade")
+    q["closeTime"] = None
+    assert fugle_executed_trade(q, NOW)[2] == "MISSING_EXECUTED_LAST_PRICE"
+    q["closeTime"] = int(NOW.timestamp() * 1_000_000)
+    q["date"] = "2026-11-03"
+    assert fugle_executed_trade(q, NOW)[2] == "STALE_TRADING_DATE"
+
+
+def test_reference_only_never_count_as_executed_live():
+    q = {"date": "2026-11-04", "referencePrice": 77.5,
+         "lastTrade": {"time": int(NOW.timestamp() * 1_000_000)}}
+    p, _, status = fugle_executed_trade(q, NOW)
+    assert p is None and status == "MISSING_EXECUTED_LAST_PRICE"
 
 
 def test_lastupdated_without_trade_time_is_not_a_trade():
