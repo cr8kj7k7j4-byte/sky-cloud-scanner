@@ -79,5 +79,53 @@ class Historical5mResearchTests(unittest.TestCase):
         self.assertEqual(self.check({"error": "404 Resource Not Found"})["status"], HOLD)
 
 
+    def test_transport_parameters_are_bounded_and_not_networked(self):
+        from unittest.mock import patch
+        from src import fugle
+        with patch("src.fugle._get", return_value={"data": []}) as fetch:
+            fugle.get_historical_candles_5m("3717", "2026-11-27")
+        fetch.assert_called_once_with(
+            "/historical/candles/3717",
+            {"from": "2026-11-27", "to": "2026-11-27",
+             "timeframe": "5", "sort": "asc",
+             "fields": "open,high,low,close,volume,average"})
+        with patch("src.fugle._get") as fetch:
+            for symbol, day in (("bad", "2026-11-27"), ("3717", "2026-11-28"),
+                                ("3717", "2026-11-27&key=evil")):
+                with self.assertRaises(ValueError):
+                    fugle.get_historical_candles_5m(symbol, day)
+            fetch.assert_not_called()
+
+    def test_no_paid_history_before_entitlement_and_one_when_approved(self):
+        from datetime import date
+        from unittest.mock import patch
+        from src.sky_single_stock_source_audit import collect
+        source_day = date.today() - timedelta(days=1)
+        while source_day.weekday() >= 5:
+            source_day -= timedelta(days=1)
+        day = source_day.isoformat()
+        fake_quote = {"date": day, "lastTrade": {}, "total": {}}
+        bars = {"data": []}
+        with patch("src.sky_single_stock_source_audit.fugle.get_quote", return_value=fake_quote), \\
+             patch("src.sky_single_stock_source_audit.fugle.get_candles", return_value=bars), \\
+             patch("src.sky_single_stock_source_audit.fugle.get_trades", return_value={"data": []}), \\
+             patch("src.sky_single_stock_source_audit.fugle.get_historical_candles_5m") as hist, \\
+             patch.dict("os.environ", {"SKY_FUGLE_HISTORICAL_ENTITLEMENT_CONFIRMED": "0"}):
+            result = collect("3717")
+            self.assertEqual(result["historical_5m_research"]["status"], HOLD)
+            hist.assert_not_called()
+        # An explicit enable permits only one historical request; malformed
+        # or incomplete provider data still remains HOLD and never trades.
+        with patch("src.sky_single_stock_source_audit.fugle.get_quote", return_value=fake_quote), \\
+             patch("src.sky_single_stock_source_audit.fugle.get_candles", return_value=bars), \\
+             patch("src.sky_single_stock_source_audit.fugle.get_trades", return_value={"data": []}), \\
+             patch("src.sky_single_stock_source_audit.fugle.get_historical_candles_5m", return_value={"data": []}) as hist, \\
+             patch.dict("os.environ", {"SKY_FUGLE_HISTORICAL_ENTITLEMENT_CONFIRMED": "1"}):
+            result = collect("3717")
+            hist.assert_called_once_with("3717", day)
+            self.assertEqual(result["historical_5m_research"]["status"], HOLD)
+            self.assertFalse(result["execution_authorized"])
+
+
 if __name__ == "__main__":
     unittest.main()
