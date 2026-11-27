@@ -36,6 +36,7 @@ class HistoricalOneDayTests(unittest.TestCase):
         fake = FakeTransport(FakeResponse(status, obj))
         with patch.dict("os.environ", {"SKY_FUGLE_MONTHLY_RATE_CONTROL": "1",
                                          "SKY_PAID_ATOMIC_ENFORCE": "0"}), \
+             patch("src.fugle.FUGLE_API_KEY", "OFFLINE_FAKE_TEST_KEY"), \
              patch("src.fugle._monthly_pace"):
             value = run(session=RecordingSession(fake), observed_at=NOW)
         self.assertEqual(len(fake.calls), 1)
@@ -95,6 +96,7 @@ class HistoricalOneDayTests(unittest.TestCase):
         s = RecordingSession(f)
         with patch.dict("os.environ", {"SKY_FUGLE_MONTHLY_RATE_CONTROL": "1",
                                          "SKY_PAID_ATOMIC_ENFORCE": "0"}), \
+             patch("src.fugle.FUGLE_API_KEY", "OFFLINE_FAKE_TEST_KEY"), \
              patch("src.fugle._monthly_pace"):
             run(session=s, observed_at=NOW)
             second = run(session=s, observed_at=NOW)
