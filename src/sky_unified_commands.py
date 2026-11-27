@@ -11,6 +11,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from .realtime_quote_evidence import market_scope
+from .sky_daytrade_session_policy import research_access_contract
 
 BASE = Path("output/unified")
 REGISTRIES = (
@@ -54,13 +55,45 @@ def market_session_open(now: datetime | None = None) -> bool:
 
 def market_mode() -> dict:
     if not market_session_open():
+        # Off-hours is not a reason to suppress an existing research report.
+        # These local bytes do NOT prove an immutable same-run Artifact,
+        # last executed trade or a validated historical/Production signal.
+        reports = {}
+        for name, filename in (
+            ("intraday", "output/latest.json"),
+            ("swing_research", "output/swing_live/latest_swing.json"),
+            ("swing5d_research", "output/swing_live/latest_swing5d.json"),
+        ):
+            item = {"file": filename, "available": False,
+                    "source_evidence_status": "UNVERIFIED_LOCAL_RESEARCH_COPY",
+                    "trade_eligible": False}
+            try:
+                raw = json.loads(Path(filename).read_text(encoding="utf-8"))
+                if not isinstance(raw, dict):
+                    raise ValueError("INVALID_RESEARCH_REPORT")
+                timestamp = (raw.get("generated_at") or raw.get("run_time")
+                             or raw.get("scan_time"))
+                if isinstance(timestamp, str) and timestamp.strip():
+                    item.update({"available": True, "data_timestamp": timestamp,
+                                 "analysis_mode": raw.get("analysis_mode"),
+                                 "analysis_observation_count": raw.get("analysis_observation_count"),
+                                 "market_data_gate": raw.get("market_data_gate")})
+                else:
+                    item["reason"] = "RESEARCH_SOURCE_TIME_MISSING"
+            except (OSError, ValueError, TypeError):
+                item["reason"] = "RESULT_NOT_AVAILABLE_OR_INVALID"
+            reports[name] = item
         return {
-            "decision": "NO_TRADE_OUTSIDE_TW_REGULAR_SESSION",
+            "decision": "OFFHOURS_RESEARCH_REPORT_ONLY_NO_TRADE",
             "market_session": "TWSE_TPEx_REGULAR_09_00_13_30",
-            "notes": "No live quote scan outside regular trading hours. Research replay is separate.",
+            "research_access": research_access_contract(),
+            "notes": "Past dated research reports may be inspected at any time; "
+                     "a local copy is not an independently verified Artifact. "
+                     "Do not infer live prices, executed trades, or full strategy signals.",
             "strategies": {},
-            "reports": {},
+            "reports": reports,
             "short_strategy": "NOT_EXECUTED_NO_VERIFIED_STANDALONE_RUNNER",
+            "production_eligible": False,
         }
     calendar = execute([sys.executable, "-m", "src.trading_calendar",
                         "--out", str(BASE / "calendar.json")])
@@ -263,6 +296,9 @@ def validation_mode() -> dict:
         "snapshot_source_run_id": (snapshot.get("source") or {}).get(
             "dashboard_workflow_run_id"),
         "sample_sufficient": sufficiency.get("sufficient"),
+        "research_access": research_access_contract(),
+        "research_report_evidence_available": bool(snapshot and dashboard),
+        "research_never_requires_forward_sample_minimum": True,
         "sample_count": observed.get("samples"),
         "trading_days": observed.get("trading_days"),
         "regime_count": observed.get("regime_count"),
@@ -281,7 +317,7 @@ def validation_mode() -> dict:
     elif not snapshot or not dashboard:
         decision = "VALIDATION_EVIDENCE_MISSING"
     else:
-        decision = "VALIDATION_INSUFFICIENT_DATA_NO_PROMOTION"
+        decision = "RESEARCH_VALIDATION_REPORT_AVAILABLE_PROMOTION_UNVERIFIED"
     return {"missing_registry_files": missing, "route_tests": tests,
             "production_baselines": ["Sky Day Trading v1.4", "Sky Swing V1.0"],
             "research_promotion": "NOT_AUTHORIZED",
