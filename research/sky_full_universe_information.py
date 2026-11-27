@@ -7,6 +7,7 @@ but cannot count toward verified live coverage or become a trade signal.
 from __future__ import annotations
 
 import json
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 from time import perf_counter
@@ -382,23 +383,31 @@ def summary(report):
     return "\n".join(lines) + "\n"
 
 
-def main():
-    checked_at = datetime.now(TZ)
+def load_timed_universe():
     started = perf_counter()
     universe, status = load_official_universe()
-    timings = {"official_universe": round(perf_counter() - started, 3)}
-    _, excluded_research_symbols = filter_research_universe(universe)
-    # Information report includes EVERY official symbol. Research exclusion
-    # applies only to ranking/trading, not to the query denominator.
+    return universe, status, round(perf_counter() - started, 3)
+
+
+def main():
+    checked_at = datetime.now(TZ)
     snapshots = {}
     errors = {}
-    for market in MARKET.values():
-        started = perf_counter()
-        try:
-            snapshots[market] = snapshot_quotes(market)
-        except Exception as exc:
-            errors[market] = type(exc).__name__
-        timings[f"fugle_snapshot_{market}"] = round(perf_counter() - started, 3)
+    timings = {}
+    # Overlap public universe lookup with paid snapshot collection, while
+    # keeping the two Fugle requests on the existing sequential pacing path.
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        universe_future = executor.submit(load_timed_universe)
+        for market in MARKET.values():
+            started = perf_counter()
+            try:
+                snapshots[market] = snapshot_quotes(market)
+            except Exception as exc:
+                errors[market] = type(exc).__name__
+            timings[f"fugle_snapshot_{market}"] = round(perf_counter() - started, 3)
+        universe, status, timings["official_universe"] = universe_future.result()
+    _, excluded_research_symbols = filter_research_universe(universe)
+    # Keep every official symbol in the information report denominator.
     started = perf_counter()
     report = build(universe, snapshots, checked_at, errors,
                    excluded_research_symbols=excluded_research_symbols)
