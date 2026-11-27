@@ -114,7 +114,7 @@ def github_run_lookup(repo: str, token: str, run_id: str):
             raise RuntimeError("INVALID_RUN_ARTIFACT_RESPONSE")
         all_artifacts = result["artifacts"]
         if (type(result.get("total_count")) is not int
-                or result["total_count"] < 0
+                or not 0 <= result["total_count"] <= 100
                 or len(all_artifacts) > 100
                 or any(not isinstance(a, dict) for a in all_artifacts)):
             raise RuntimeError("TRUNCATED_OR_INVALID_RUN_ARTIFACT_RESPONSE")
