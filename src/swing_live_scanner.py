@@ -280,7 +280,7 @@ def run(mode="swing5d", top_n=20, deep_n=8):
     # A bulk snapshot has no lastTrade.time. Deep-confirm a bounded shortlist
     # through the per-symbol execution endpoint without upgrading the market gate.
     snapshot_deep_confirmation = []
-    if mode == "swing5d" and not operational_full_market_scan:
+    if mode in ("swing", "swing5d") and not operational_full_market_scan:
         for item in unverified_snapshot[:deep_n]:
             confirmation = {
                 "symbol": item["symbol"],

@@ -22,5 +22,7 @@ jobs:
         run: python -m compileall -q src tests research
       - name: P0-D / P0-G governance tests
         run: PYTHONPATH=. pytest -q tests/test_p0g_validation_consolidation.py tests/test_sky100_core.py
+      - name: Swing A1/A2 bounded observation regression (zero Fugle requests)
+        run: PYTHONPATH=. pytest -q tests/test_swing_live_scanner.py tests/test_swing_two_track_acceptance.py tests/test_swing_full_market_gate.py
       - name: Production E2E
         run: PYTHONPATH=. pytest -q tests/test_production_e2e_acceptance.py
