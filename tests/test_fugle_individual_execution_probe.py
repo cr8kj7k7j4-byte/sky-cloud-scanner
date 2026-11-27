@@ -91,3 +91,24 @@ class TestFugleIndividualProbe(unittest.TestCase):
             return {"symbol": symbol, "market": "TSE", "date": "2026-11-09"}
         result = verify_samples(source(), now=now, quote_fetch=fake)
         self.assertIn("EXCHANGE_MISMATCH", [x["status"] for x in result["rows"]])
+
+    def test_partial_last_trade_never_borrows_last_price(self):
+        """Executed clock alone plus an observed lastPrice is not A2 evidence."""
+        from src.realtime_quote_evidence import fugle_executed_trade
+        now = datetime(2026, 11, 9, 10, 0, tzinfo=TPE)
+        ts = int(now.timestamp() * 1000)
+        for partial in ({"time": ts}, {"time": ts, "price": None}):
+            with self.subTest(partial=partial):
+                quote = {"date": "2026-11-09", "lastTrade": partial,
+                         "lastPrice": 30.2, "closePrice": 30.2, "closeTime": ts}
+                price, _, status = fugle_executed_trade(quote, now=now)
+                self.assertIsNone(price)
+                self.assertEqual(status, "MISSING_EXECUTED_LAST_PRICE")
+                def provider(symbol):
+                    return {**quote, "symbol": symbol,
+                            "market": "TSE" if int(symbol) % 2 == 0 else "OTC"}
+                report = verify_samples(source(), now=now, quote_fetch=provider)
+                self.assertEqual(report["verified_fresh_executed_count"], 0)
+                self.assertTrue(all(row["status"] == "MISSING_EXECUTED_LAST_PRICE"
+                                    for row in report["rows"]))
+                self.assertFalse(report["production_eligible"])
