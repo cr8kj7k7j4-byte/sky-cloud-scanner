@@ -13,6 +13,7 @@ from pathlib import Path
 
 from . import fugle
 from .sky_single_stock_realtime import timestamp_tpe
+from .sky_mobile_table import evidence_scores, direction_label
 
 TPE = timezone(timedelta(hours=8))
 MAX_TRADES_PAGES = 5
@@ -279,9 +280,94 @@ def render_mobile_source_audit(data: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+
+def analyze_observation_score(audit: dict) -> dict:
+    """Derive the existing quote-only *research* score from this same-run quote.
+
+    Never refetch Fugle or turn quote-refresh time into last execution time.
+    """
+    outcome = {"status": "RESEARCH_ONLY", "scores": None,
+               "score_status": "INSUFFICIENT_VERIFIED_QUOTE",
+               "score_direction": None, "execution_authorized": False,
+               "live_order_enabled": False, "entry_trigger": None,
+               "max_entry": None, "stop": None, "targets": None}
+    if not isinstance(audit, dict):
+        return outcome
+    quote = audit.get("quote_raw")
+    if not isinstance(quote, dict):
+        return outcome
+    try:
+        observed = datetime.fromisoformat(audit["observed_at_tpe"])
+        executed = datetime.fromisoformat(audit["last_trade_tpe"])
+        if (observed.tzinfo is None or executed.tzinfo is None
+                or quote.get("date") != observed.astimezone(TPE).date().isoformat()
+                or executed.astimezone(TPE).date() != observed.astimezone(TPE).date()
+                or not -30 <= (observed - executed).total_seconds() <= 120
+                or audit.get("quote_status") != "PASS_ACTUAL_LAST_TRADE_REFERENCE"):
+            return outcome
+        price = _number(audit.get("last_trade_price"))
+        op = _number(quote.get("openPrice"))
+        high = _number(quote.get("highPrice"))
+        low = _number(quote.get("lowPrice"))
+        chg = quote.get("changePercent")
+        if (None in (price, op, high, low) or min(price, op, high, low) <= 0
+                or not low <= price <= high or not low <= op <= high
+                or isinstance(chg, bool) or not isinstance(chg, (int, float))
+                or not math.isfinite(float(chg))):
+            return outcome
+        bull, bear = evidence_scores({"last": price, "open": op,
+                                     "high": high, "low": low,
+                                     "change_pct": float(chg)})
+        if bull is not None and bear is not None:
+            outcome["scores"] = {"bull": bull, "bear": bear}
+            outcome["score_status"] = "RESEARCH_ONLY_VERIFIED_INTRADAY_QUOTE"
+            outcome["score_direction"] = direction_label(bull, bear, {})
+    except (ValueError, TypeError, KeyError, OverflowError):
+        pass
+    return outcome
+
+
+def render_unified_stock_research(audit: dict, observation: dict) -> str:
+    """One phone report from one collection; never authorizes buying."""
+    scores = observation.get("scores")
+    scores = scores if isinstance(scores, dict) else {}
+    bull, bear = scores.get("bull"), scores.get("bear")
+    direction = observation.get("score_direction") or "觀察"
+    def score_label(v):
+        return str(v) if isinstance(v, int) and not isinstance(v, bool) else "待確認"
+    symbol = audit.get("symbol", "待確認")
+    header = [
+        "🟡 研究觀察｜非正式交易訊號",
+        f"# Sky 分析 {symbol}",
+        "",
+        "| 分析項目 | 結果 |",
+        "| --- | --- |",
+        f"| 方向 | {direction} |",
+        f"| 多方研究評分 | {score_label(bull)} |",
+        f"| 空方研究評分 | {score_label(bear)} |",
+        "| 買進觸發／最高接受價 | 待確認（未執行交易策略） |",
+        "| 停損／失效／成本後 RR | 待確認（非交易建議） |",
+        "| 現在動作 | 觀察 |",
+        "",
+        "研究評分不是勝率；來源為同次 Fugle 真實成交時間與日內 OHLC。",
+        "若最後成交超過 120 秒、來源失效或 OHLC 不完整，評分保持待確認。",
+        "",
+        "---",
+        "",
+    ]
+    detail = render_mobile_source_audit(audit).split("\n")
+    # Suppress the second title/heading; detail retains all explicit HOLDs.
+    if detail and detail[0].startswith("🟡"):
+        detail = detail[1:]
+    if detail and detail[0].startswith("# Sky 5m驗證"):
+        detail = detail[1:]
+    return "\n".join(header + detail).rstrip() + "\n"
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--symbol", required=True)
+    parser.add_argument("--unified", action="store_true", help="Same-run unified research report")
     parser.add_argument("--out-dir", default="output/single_stock")
     args = parser.parse_args()
     result = collect(args.symbol)
@@ -292,6 +378,17 @@ def main():
         encoding="utf-8")
     (path / (args.symbol + "-5m-source.md")).write_text(
         render_mobile_source_audit(result), encoding="utf-8")
+    # Normal Sky 分析: same request budget, one unified JSON + phone Markdown.
+    if args.unified:
+        observation = analyze_observation_score(result)
+        (path / (args.symbol + ".json")).write_text(
+            json.dumps({"schema": "SKY_UNIFIED_SINGLE_STOCK_RESEARCH_V1",
+                        "symbol": args.symbol, "observation": observation,
+                        "source_audit": result, "execution_authorized": False},
+                       ensure_ascii=False, indent=2, allow_nan=False) + "\\n",
+            encoding="utf-8")
+        (path / (args.symbol + ".md")).write_text(
+            render_unified_stock_research(result, observation), encoding="utf-8")
     print(json.dumps({key: result.get(key) for key in
                       ("symbol", "five_minute_status", "trades_status",
                        "volume_status", "vwap_status", "collection_error_type")},

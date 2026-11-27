@@ -3,7 +3,8 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
-from src.sky_single_stock_source_audit import analyze, collect, render_mobile_source_audit, MAX_TRADES_PAGES
+from src.sky_single_stock_source_audit import (analyze, collect, render_mobile_source_audit,
+    analyze_observation_score, render_unified_stock_research, MAX_TRADES_PAGES)
 
 TPE = timezone(timedelta(hours=8))
 NOW = datetime(2026, 11, 27, 12, 7, tzinfo=TPE)
@@ -87,6 +88,53 @@ class SourceAuditTests(unittest.TestCase):
         report3 = render_mobile_source_audit(missing)
         self.assertIn("研究數據：資料不足，待確認", report3)
         self.assertIn("最後成交價相對研究均價 | 待確認", report3)
+
+    def test_unified_owner_analysis_one_same_run_no_trade_promotion(self):
+        q, bars, pages = fixture()
+        q.update({"openPrice": 18.75, "highPrice": 19.05, "lowPrice": 18.65,
+                  "changePercent": 0.8})
+        result = analyze("3717", q, bars, pages, observed_at=NOW)
+        result["quote_raw"] = q
+        observed = analyze_observation_score(result)
+        self.assertEqual(observed["score_status"], "RESEARCH_ONLY_VERIFIED_INTRADAY_QUOTE")
+        self.assertIsInstance(observed["scores"]["bull"], int)
+        self.assertFalse(observed["execution_authorized"])
+        report = render_unified_stock_research(result, observed)
+        self.assertIn("# Sky 分析 3717", report)
+        self.assertIn("多方研究評分", report)
+        self.assertIn("已完成 K 棒", report)
+        self.assertIn("逐筆成交加權均價", report)
+        self.assertIn("正式 VWAP 認證 | HOLD", report)
+        self.assertIn("未執行交易策略", report)
+        self.assertNotIn("# Sky 5m驗證", report)
+        self.assertNotIn("Sky 分析 3717\\nSky 分析", report)
+
+    def test_unified_stale_or_missing_provenance_never_scores(self):
+        q, bars, pages = fixture()
+        q.update({"openPrice": 18.75, "highPrice": 19.05, "lowPrice": 18.65,
+                  "changePercent": 0.8})
+        out = analyze("3717", q, bars, pages, observed_at=NOW)
+        out["quote_raw"] = q
+        out["last_trade_tpe"] = (NOW - timedelta(minutes=4)).isoformat()
+        out["last_trade_price"] = 18.90
+        score = analyze_observation_score(out)
+        self.assertIsNone(score["scores"])
+        self.assertIn("待確認", render_unified_stock_research(out, score))
+        out["last_trade_tpe"] = (NOW + timedelta(minutes=1)).isoformat()
+        self.assertIsNone(analyze_observation_score(out)["scores"])
+        out["quote_raw"] = None
+        self.assertIsNone(analyze_observation_score(out)["scores"])
+
+    def test_owner_sky_analysis_routes_to_bounded_source_not_quote_duplication(self):
+        from pathlib import Path
+        yaml = Path(".github/workflows/sky-single-stock-realtime.yml").read_text(encoding="utf-8")
+        self.assertIn('audit = body.startswith("Sky 5m驗證 ") or body.startswith("Sky 分析 ")', yaml)
+        self.assertIn('out.write(f"unified=', yaml)
+        self.assertIn('src.sky_single_stock_source_audit --symbol "$SYMBOL" --unified', yaml)
+        self.assertIn("steps.request.outputs.audit != 'true'", yaml)
+        self.assertIn("steps.request.outputs.audit == 'true'", yaml)
+        self.assertIn("sky-fugle-paid-global-research-v1-live-wholemarket", yaml)
+        self.assertNotIn("\\n  schedule:", yaml)
 
     def test_missing_terminal_and_bad_bars_do_not_certify(self):
         q, bars, pages = fixture()
