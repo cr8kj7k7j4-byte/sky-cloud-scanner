@@ -191,3 +191,48 @@ def test_swing_v1_observation_uses_bounded_a2_without_promoting_trade(monkeypatc
     assert result["candidate_count"] == 0
     assert result["snapshot_individual_confirmation"][0]["strategy_signal"] is False
     assert result["snapshot_individual_confirmation"][0]["production_eligible"] is False
+
+
+def test_swing_analysis_observations_not_hidden_by_entry_price_gate(monkeypatch, tmp_path):
+    """A 100+ stock and missing full-market trade timestamps may still be studied."""
+    from datetime import datetime
+    from src import swing_live_scanner as scan
+    monkeypatch.setattr(scan, "OUT", tmp_path)
+    trade_date = datetime.now(scan.TZ).date().isoformat()
+    universe = [{"symbol": "1234", "exchange": "TWSE", "market": "TSE"},
+                {"symbol": "5678", "exchange": "TWSE", "market": "TSE"}]
+    rows = [
+        {"symbol": "1234", "name": "研究觀察A", "exchange": "TWSE",
+         "quote_source": "Fugle bulk snapshot", "last": 40.0,
+         "volume": 1000, "trade_value": 40000000, "quote_date": trade_date},
+        {"symbol": "5678", "name": "研究觀察B", "exchange": "TWSE",
+         "quote_source": "Fugle bulk snapshot", "last": 150.0,
+         "volume": 2000, "trade_value": 300000000, "quote_date": trade_date},
+    ]
+    monkeypatch.setattr(scan, "load_official_universe",
+                        lambda: (universe, {"twse": 2, "tpex": 0}))
+    monkeypatch.setattr(scan, "fetch_fugle_snapshot_quotes",
+                        lambda *a, **k: (rows, []))
+    monkeypatch.setattr(scan, "fetch_mis_quotes", lambda *a, **k: ([], []))
+    monkeypatch.setattr(scan, "validate_whole_market_rows",
+                        lambda *a, **k: {
+                            "accepted_rows": [], "valid_whole_market_operational": False,
+                            "quote_scope": "PARTIAL_EXECUTED_LIVE",
+                        })
+    monkeypatch.setattr(scan, "get_quote", lambda _: {})
+    monkeypatch.setattr(scan, "fugle_executed_trade",
+                        lambda *a, **k: (None, None, "MISSING_EXECUTED_TRADE_TIME"))
+    monkeypatch.setattr(scan, "render_mobile_table", lambda _: "")
+    result = scan.run("swing", deep_n=2)
+    assert result["analysis_mode"] == "OBSERVATION_ONLY"
+    assert result["analysis_available"] is True
+    assert result["analysis_observation_count"] == 2
+    assert result["analysis_requires_trade_gate"] is False
+    assert result["analysis_requires_broker_or_positions"] is False
+    assert {x["symbol"] for x in result["analysis_observation_preview"]} == {"1234", "5678"}
+    assert result["candidate_count"] == 0
+    assert result["market_data_gate"] == "BLOCKED_EXTERNAL_DATA_NO_TRADE"
+    assert result["snapshot_individual_verified_count"] == 0
+    assert all(x["data_status"] == "UNVERIFIED_EXECUTED_TRADE_TIME"
+               for x in result["analysis_observation_preview"])
+    assert all("buy_trigger" not in x for x in result["analysis_observation_preview"])
