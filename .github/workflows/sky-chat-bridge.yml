@@ -451,6 +451,7 @@ jobs:
     permissions:
       contents: read
       actions: read
+      issues: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -517,6 +518,44 @@ jobs:
           if-no-files-found: warn
           retention-days: 90
 
+
+      - name: Publish sanitized independently verified HOLD receipt to #363
+        # Readback is a separate verified result; never disclose user holdings,
+        # raw API responses, secrets, or quote payloads in this public repository.
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          p=Path("output/sky_margin_command_external/readback_receipt.json")
+          r=json.loads(p.read_text(encoding="utf-8"))
+          if (r.get("status")!="PASS_HOLD_RECEIPT_INTEGRITY_ONLY"
+              or r.get("run_id")!=os.environ["GITHUB_RUN_ID"]
+              or r.get("head_sha")!=os.environ["GITHUB_SHA"]
+              or r.get("attempt")!=os.environ["GITHUB_RUN_ATTEMPT"]
+              or r.get("real_margin_scan_verified") is not False
+              or r.get("production_eligible") is not False
+              or r.get("trade_action")!="禁止交易"
+              or not isinstance(r.get("artifact_id"),int) or r["artifact_id"]<=0):
+              raise SystemExit("MARGIN_PUBLIC_RECEIPT_VALIDATION_FAILED")
+          lines=[
+              "## SKY維持率｜授權 GitHub 觸發及獨立讀回（非選股）",
+              "- 驗收：`PASS_HOLD_RECEIPT_INTEGRITY_ONLY`",
+              "- Run ID："+r["run_id"]+"／attempt："+r["attempt"],
+              "- HEAD SHA："+r["head_sha"],
+              "- 來源指令留言 ID："+str(r["trigger_comment_id"]),
+              "- Artifact ID："+str(r["artifact_id"]),
+              "- 收據 SHA256："+r["sha256"],
+              "- 真實全市場維持率資料／候選排名：`HOLD_REAL_MARGIN_DATA`",
+              "- ChatGPT 原生自動直連：`HOLD_CHATGPT_NATIVE_ROUTING`",
+              "- 交易：`NO_TRADE`；未取得認證行情、沒有可買進標的或張數。",
+          ]
+          Path("/tmp/sky-margin-public-receipt.md").write_text("\n".join(lines)+"\n",encoding="utf-8")
+          PY
+          gh issue comment 363 --repo "$GITHUB_REPOSITORY" --body-file /tmp/sky-margin-public-receipt.md
   w0_run_discovery:
     # W0-only read-only reconciliation; never calls Fugle or starts scan job.
     if: >-
