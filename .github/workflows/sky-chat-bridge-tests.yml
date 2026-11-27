@@ -67,6 +67,13 @@ on:
       - 'scripts/sky_margin_priceonly_readback.py'
       - 'tests/test_sky_margin_priceonly_readback.py'
       - 'scripts/sky_alert_chat_readback.py'
+      # Common all-session research-access contract, tested without market/API calls.
+      - 'src/sky_daytrade_session_policy.py'
+      - 'src/sky_swing_session_policy.py'
+      - 'src/sky_unified_commands.py'
+      - 'tests/test_sky_daytrade_session_policy.py'
+      - 'tests/test_sky_swing_session_policy.py'
+      - 'tests/test_sky_unified_commands.py'
       - 'src/sky_command_router.py'
       - 'tests/test_sky_mcp_contract.py'
       - 'scripts/sky_governed_auto_repair.py'
@@ -108,6 +115,10 @@ jobs:
         run: python -m py_compile scripts/sky_margin_priceonly_readback.py scripts/sky_alert_chat_readback.py scripts/sky_chat_artifact_readback.py src/sky_scan_readback.py src/sky_chat_bridge.py src/fugle.py research/sky_fugle_atomic_ref_claim.py research/three_model_fugle_pipeline.py research/fugle_market_quality_audit.py research/fugle_2026_entitlement_probe.py src/sky_mcp_contract.py research/sky_snapshot_candidates.py src/sky_stage2_candidate_quotes.py src/sky_stage2_deep_quality.py src/sky_v14_ticker_candles_probe.py research/sky_candidate_e2e_chain.py research/sky_stage5_vwap_cost_evidence.py research/sky_stage5_breakout_antichase_evidence.py scripts/sky_w0_run_discovery.py
       - name: Run isolated contracts without paid credentials
         run: python -m unittest tests.test_fugle_atomic_transport tests.test_sky_fugle_atomic_ref_claim tests.test_sky_fugle_http_atomic_guard tests.test_sky_paid_fugle_api_guard tests.test_sky_fugle_request_identity tests.test_sky_chat_paid_reservation_workflow tests.test_sky_chat_bridge_workflow_contract tests.test_sky_scan_readback tests.test_sky_chat_artifact_readback tests.test_sky_single_stock_artifact_readback tests.test_sky_3717_historical_one_day_probe tests.test_sky_reuse_verified_historical_artifact tests.test_sky_completed_session_reconciliation tests.test_sky_historical_5m_research tests.test_sky_kbar_evidence_policy tests.test_sky_single_stock_source_audit tests.test_sky_v14_ticker_candles_probe tests.test_historical_5m_quality tests.test_sky_chat_bridge tests.test_sky_mcp_contract tests.test_sky_snapshot_candidates tests.test_sky_snapshot_integrity_research tests.test_sky_alert_reader tests.test_sky_alert_chat_readback tests.test_sky_margin_priceonly_readback tests.test_sky_stage2_candidate_quotes tests.test_sky_stage2_deep_quality tests.test_sky_v14_ticker_candles_probe tests.test_sky_candidate_e2e_chain tests.test_sky_stage5_vwap_cost_evidence tests.test_sky_stage5_breakout_antichase_evidence tests.test_sky_governed_auto_repair tests.test_sky_w0_run_discovery -v
+      - name: Run all-session and sample-independent research contract regressions
+        run: |
+          python -m pip install pytest
+          python -m pytest -q tests/test_sky_daytrade_session_policy.py tests/test_sky_swing_session_policy.py tests/test_sky_unified_commands.py
       - name: Check isolated no-market repair smoke fixture when present
         shell: bash
         run: |
