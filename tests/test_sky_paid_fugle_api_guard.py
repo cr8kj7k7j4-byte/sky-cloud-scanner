@@ -308,6 +308,21 @@ class RunScopedMonthlyArtifactLookupTests(unittest.TestCase):
         self.assertTrue(all("/actions/runs/111/artifacts?" in url for url in captured))
         self.assertTrue(all("/actions/artifacts?" not in url for url in captured))
 
+    def test_run_scoped_incomplete_index_requires_retry(self):
+        import io
+        from unittest.mock import patch
+        from research.sky_paid_fugle_api_guard import github_run_lookup
+
+        responses = [
+            io.BytesIO(b'{"total_count":1,"artifacts":[]}'),
+            io.BytesIO(b'{"total_count":1,"artifacts":[{"name":"own","id":42}]}'),
+        ]
+        with patch("research.sky_paid_fugle_api_guard.urlopen", side_effect=responses):
+            lookup = github_run_lookup("owner/repo", "secret-test-token", "111")
+            with self.assertRaisesRegex(RuntimeError, "^RUN_ARTIFACT_INDEX_INCOMPLETE$"):
+                lookup("own")
+            self.assertEqual(lookup("own"), [{"name": "own", "id": 42}])
+
     def test_run_scoped_overflow_fails_closed(self):
         import io
         import json
