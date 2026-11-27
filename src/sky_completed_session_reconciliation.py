@@ -89,8 +89,11 @@ def reconcile(audit: dict, *, observed_at=None) -> dict:
                 return out
             out["page_terminal_verified"] = True
         else:
-            if i != len(pages)-1 and len(data) != 500:
-                out["reason"] = "HOLD_PAGINATION_GAP"
+            # Fugle may return fewer than limit=500 on a non-empty page.
+            # The next offset=500 empty page is still a valid terminator.
+            # Never fabricate missing ticks or treat a short page as terminal.
+            if len(data) > 500:
+                out["reason"] = "HOLD_PAGINATION_PAGE_TOO_LARGE"
                 return out
             raw.extend(data)
     if not out["page_terminal_verified"] or not raw:
