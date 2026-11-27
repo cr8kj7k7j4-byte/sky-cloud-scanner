@@ -88,11 +88,27 @@ class PaidWorkflowWiringTests(unittest.TestCase):
         for path in self.WORKFLOWS:
             with self.subTest(path=path):
                 content = Path(path).read_text(encoding="utf-8")
-                if path.endswith("/swing-live-scan.yml"):
+                if path.endswith("/sky-single-stock-realtime.yml"):
+                    # W0 #363: monthly subscription lane; no rolling five-minute
+                    # paid-billing claim for legitimate repeated single-stock reads.
+                    self.assertIn('SKY_FUGLE_MONTHLY_RATE_CONTROL: "1"', content)
+                    self.assertNotIn('SKY_PAID_ATOMIC_ENFORCE: "1"', content)
+                    self.assertIn("sky-fugle-paid-global-research-v1-live-wholemarket", content)
+                    self.assertIn("cancel-in-progress: false", content)
+                    self.assertIn("github.event.comment.author_association == 'OWNER'", content)
+                elif path.endswith("/swing-live-scan.yml"):
                     self.assertIn('SKY_FUGLE_MONTHLY_RATE_CONTROL: "1"', content)
                     self.assertIn("--monthly-rate-limited", content)
                     self.assertIn("sky-fugle-paid-global-research-v1-live-wholemarket", content)
                     self.assertIn("steps.verify_claim.outcome == 'success'", content)
+                elif path.endswith("/sky-single-stock-realtime.yml"):
+                    # The owner-authorized research-only single-stock workflow
+                    # shares the existing subscription pacing lane.
+                    self.assertIn('SKY_FUGLE_MONTHLY_RATE_CONTROL: "1"', content)
+                    self.assertIn("sky-fugle-paid-global-research-v1-live-wholemarket", content)
+                    self.assertIn("cancel-in-progress: false", content)
+                    self.assertIn("github.event.comment.author_association == 'OWNER'", content)
+                    self.assertNotIn('SKY_PAID_ATOMIC_ENFORCE: "1"', content)
                 else:
                     self.assertIn("SKY_PAID_ATOMIC_ENFORCE: \"1\"", content)
                 self.assertIn("GH_TOKEN: ${{ github.token }}", content)

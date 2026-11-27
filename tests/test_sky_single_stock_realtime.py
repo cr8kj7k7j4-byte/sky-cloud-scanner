@@ -31,6 +31,21 @@ class SingleStockRealtimeTests(unittest.TestCase):
         for command in ("Sky 分析", "Sky 分析 2330 任意", "Sky 分析 abc", "Sky 分析 2330\\nSKY_FAKE"):
             self.assertIsNone(matcher.fullmatch(command))
 
+    def test_single_stock_monthly_provider_pacing_without_five_minute_billing_block(self):
+        # This is the *same* previously deployed Fugle monthly pacing lane,
+        # not unlimited API usage or a request for more paid probes.
+        from pathlib import Path
+        workflow = (Path(__file__).resolve().parents[1] /
+                    ".github/workflows/sky-single-stock-realtime.yml").read_text(
+                        encoding="utf-8")
+        self.assertIn('SKY_FUGLE_MONTHLY_RATE_CONTROL: "1"', workflow)
+        self.assertNotIn('SKY_PAID_ATOMIC_ENFORCE: "1"', workflow)
+        self.assertIn("sky-fugle-paid-global-research-v1-live-wholemarket", workflow)
+        self.assertIn("cancel-in-progress: false", workflow)
+        self.assertIn("github.event.comment.author_association == 'OWNER'", workflow)
+        self.assertIn("sky-single-stock-ignored-{0}", workflow)
+        self.assertIn("if: steps.request.outcome == 'success'", workflow)
+
     def sample(self, minutes=0):
         t = NOW - timedelta(minutes=minutes)
         quote = {"date": "2026-11-03", "lastPrice": 92.2,

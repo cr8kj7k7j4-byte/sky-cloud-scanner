@@ -17,6 +17,15 @@ on:
         type: string
 permissions:
   contents: write
+
+# A monthly subscription still has provider rate limits. The previous
+# five-minute atomic billing claim rejected legitimate repeated analysis.
+# Serialize authorized paid scans with the existing shared lane; ignored
+# issue comments must NOT enter or cancel a pending paid workflow.
+concurrency:
+  group: ${{ (github.event_name == 'issue_comment' && !(github.event.issue.number == 363 && github.event.comment.user.login == github.repository_owner && github.event.comment.author_association == 'OWNER' && (startsWith(github.event.comment.body, 'Sky 當沖更新 ') || startsWith(github.event.comment.body, 'Sky 波段更新 ') || startsWith(github.event.comment.body, 'Sky 分析 '))) && format('sky-single-stock-ignored-{0}', github.run_id)) || 'sky-fugle-paid-global-research-v1-live-wholemarket' }}
+  cancel-in-progress: false
+
 jobs:
   quote:
     # Only #363 repository-owner single-stock commands may trigger a paid lookup.
@@ -31,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
-      SKY_PAID_ATOMIC_ENFORCE: "1"
+      SKY_FUGLE_MONTHLY_RATE_CONTROL: "1"
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
