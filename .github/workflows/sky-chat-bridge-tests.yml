@@ -5,6 +5,8 @@ on:
       - 'src/sky_chat_bridge.py'
       - 'src/fugle.py'
       - 'scripts/sky_3717_historical_one_day_probe.py'
+      - 'scripts/sky_reuse_verified_historical_artifact.py'
+      - 'tests/test_sky_reuse_verified_historical_artifact.py'
       - 'tests/test_sky_3717_historical_one_day_probe.py'
       - '.github/workflows/sky-single-stock-realtime.yml'
       - 'src/sky_historical_5m_research.py'
