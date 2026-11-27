@@ -118,3 +118,45 @@ jobs:
           path: output/single_stock/
           if-no-files-found: warn
           retention-days: 30
+
+      # Integrity only: verify this exact run's existing Artifact outside its
+      # upload directory. Do not turn historical quotes or 5m arithmetic into
+      # an executable signal.
+      - name: Independently download and verify single-stock Artifact
+        if: always() && steps.request.outcome == 'success'
+        env:
+          SYMBOL: ${{ steps.request.outputs.symbol }}
+          UNIFIED: ${{ steps.request.outputs.unified }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/sky-single-stock-readback
+          name="fugle-single-stock-$GITHUB_RUN_ID"
+          for attempt in 1 2 3; do
+            if gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+                --name "$name" --dir /tmp/sky-single-stock-readback; then break; fi
+            if [ "$attempt" = 3 ]; then exit 1; fi
+            sleep 2
+          done
+          artifact_id="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" \
+              --jq ".artifacts | map(select(.name == \"$name\" and .expired == false)) | if length == 1 then .[0].id else empty end")"
+          if [ -z "$artifact_id" ]; then
+            echo "HOLD_SINGLE_STOCK_ARTIFACT_NOT_UNIQUE"
+            exit 1
+          fi
+          flags=()
+          if [ "$UNIFIED" = "true" ]; then flags+=(--unified); fi
+          python -m scripts.sky_single_stock_artifact_readback \
+            --local output/single_stock --downloaded /tmp/sky-single-stock-readback \
+            --symbol "$SYMBOL" --run-id "$GITHUB_RUN_ID" \
+            --attempt "$GITHUB_RUN_ATTEMPT" --sha "$GITHUB_SHA" \
+            --artifact-id "$artifact_id" \
+            --output output/single_stock_readback/receipt.json "${flags[@]}"
+      - name: Upload independent single-stock readback receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fugle-single-stock-readback-${{ github.run_id }}
+          path: output/single_stock_readback/receipt.json
+          if-no-files-found: warn
+          retention-days: 30
