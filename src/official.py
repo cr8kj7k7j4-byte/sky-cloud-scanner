@@ -8,6 +8,7 @@ operational fallback, NOT a TPEx-official intraday source. STRICT_OFFICIAL_MODE
 therefore never certifies a complete full-market scan from MIS-OTC alone.
 """
 import re, time
+from concurrent.futures import ThreadPoolExecutor
 from .http_utils import get_json, session
 
 TWSE_UNIVERSE_URL="https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL"
@@ -25,9 +26,13 @@ def _i(v):
     x=_f(v); return int(x) if x is not None else 0
 
 def load_official_universe():
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        twse_response = executor.submit(get_json, TWSE_UNIVERSE_URL)
+        tpex_response = executor.submit(get_json, TPEX_UNIVERSE_URL)
+
     warnings=[]; out={}
     try:
-        data=get_json(TWSE_UNIVERSE_URL)
+        data=twse_response.result()
         for x in data if isinstance(data,list) else []:
             code=str(x.get("Code") or x.get("證券代號") or "").strip()
             if COMMON.match(code):
@@ -35,7 +40,7 @@ def load_official_universe():
     except Exception as e: warnings.append(f"TWSE universe failed: {type(e).__name__}: {e}")
     twse_count=sum(1 for x in out.values() if x["exchange"]=="TWSE")
     try:
-        data=get_json(TPEX_UNIVERSE_URL)
+        data=tpex_response.result()
         for x in data if isinstance(data,list) else []:
             code=str(x.get("SecuritiesCompanyCode") or x.get("Code") or "").strip()
             if COMMON.match(code):
