@@ -211,6 +211,33 @@ def render_mobile_source_audit(data: dict) -> str:
     count = data.get("returned_bar_count")
     completed = data.get("completed_bar_count")
     excluded = data.get("excluded_incomplete_bar_count")
+    # Descriptive research observations only; no model score, entry signal or
+    # trading VWAP certification is inferred from these arithmetic summaries.
+    mean = _number(data.get("trades_weighted_mean_research"))
+    last = _number(data.get("last_trade_price"))
+    mean_label = f"{mean:.6f} 元（研究觀察）" if mean is not None and mean > 0 else "待確認"
+    distance_label = (
+        f"{(last / mean - 1) * 100:+.2f}%（歷史觀察，非即時價差）"
+        if last is not None and last > 0 and mean is not None and mean > 0
+        else "待確認"
+    )
+    recent_bar_label = "待確認"
+    rows = data.get("five_minute_raw")
+    n = data.get("completed_bar_count")
+    if (data.get("five_minute_status") == "PASS_COMPLETED_BARS_OBSERVED"
+            and isinstance(rows, list) and type(n) is int and 2 <= n <= len(rows)):
+        previous = _number(rows[n - 2].get("close")) if isinstance(rows[n - 2], dict) else None
+        current = _number(rows[n - 1].get("close")) if isinstance(rows[n - 1], dict) else None
+        if previous is not None and previous > 0 and current is not None and current > 0:
+            change = (current / previous - 1) * 100
+            sign = "上升" if change > 0 else "下降" if change < 0 else "持平"
+            recent_bar_label = f"{sign} {change:+.2f}%（相鄰兩根已完成棒收盤價）"
+    research_data_ready = (
+        data.get("five_minute_status") == "PASS_COMPLETED_BARS_OBSERVED"
+        and data.get("trades_status") == "PASS_PAGED_RESEARCH_ARITHMETIC_ONLY"
+        and data.get("volume_status") == "RECONCILED_SAME_SNAPSHOT_NOT_CROSS_SOURCE_CERTIFIED"
+        and mean is not None and mean > 0
+    )
     # Do not imply completed-only volume equals the current full-session quote.
     lines = [
         "🟡 研究資料觀察｜禁止依此報告新進場",
@@ -218,6 +245,8 @@ def render_mobile_source_audit(data: dict) -> str:
         f"資料觀察時間：{value('observed_at_tpe')}（Asia/Taipei）",
         f"最後實際成交時間：{value('last_trade_tpe')}",
         f"最後成交觀察價：{value('last_trade_price')} 元（非即時下單價格）",
+        "",
+        f"研究數據：{'可供觀察' if research_data_ready else '資料不足，待確認'}；交易訊號：未認證。",
         "",
         "| 項目 | 本次結果 |",
         "| --- | --- |",
@@ -232,12 +261,15 @@ def render_mobile_source_audit(data: dict) -> str:
         f"| 逐筆成交總量（原始單位） | {value('trades_sum_raw_size')} |",
         f"| Quote 成交總量（原始單位） | {value('quote_volume_raw')} |",
         f"| 同源成交量對帳 | {volume_status} |",
-        f"| 逐筆成交加權均價（研究級） | {value('trades_weighted_mean_research')} 元 |",
+        f"| 逐筆成交加權均價（研究級） | {mean_label} |",
+        f"| 最後成交價相對研究均價 | {distance_label} |",
+        f"| 最近已完成 5m 收盤變動 | {recent_bar_label} |",
         f"| 正式 VWAP 認證 | {'PASS' if data.get('independent_vwap_certified') is True else 'HOLD'} |",
         f"| VWAP 資料原因 | {vwap_status} |",
         f"| TWSE 外部成交量對帳 | HOLD（本次未取得可比對的同截點官方數據） |",
         f"| 現在動作 | 觀察 |",
         "",
+        "以上是已取得來源的描述性分析，不是多空勝率、進場點、正式交易建議。",
         "研究級同一 Fugle 來源的 K 棒、逐筆成交、Quote 算術核對，不等於 TWSE 獨立校準或原子 PIT 證據。",
         "未完成 K 棒不得進入交易訊號；獨立 VWAP、成本後 RR 與正式風控尚未通過。",
         "自動下單：停用；Production：未核准。",

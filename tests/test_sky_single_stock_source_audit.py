@@ -69,6 +69,25 @@ class SourceAuditTests(unittest.TestCase):
         self.assertIn("待確認", failed)
         self.assertNotIn("PASS", failed)
 
+    def test_usable_descriptive_metrics_never_imply_certified_entry(self):
+        q, bars, pages = fixture()
+        result = analyze("3717", q, bars, pages, observed_at=NOW)
+        report = render_mobile_source_audit(result)
+        self.assertIn("研究數據：可供觀察", report)
+        self.assertIn("逐筆成交加權均價（研究級）", report)
+        self.assertIn("最後成交價相對研究均價", report)
+        self.assertIn("交易訊號：未認證", report)
+        self.assertIn("正式 VWAP 認證 | HOLD", report)
+        self.assertIn("最近已完成 5m 收盤變動 | 待確認", report)
+        result["completed_bar_count"] = 2
+        report2 = render_mobile_source_audit(result)
+        self.assertIn("最近已完成 5m 收盤變動 | 持平 +0.00%", report2)
+        missing = {"symbol": "3717", "five_minute_status": "HOLD",
+                   "trades_status": "HOLD", "volume_status": "HOLD"}
+        report3 = render_mobile_source_audit(missing)
+        self.assertIn("研究數據：資料不足，待確認", report3)
+        self.assertIn("最後成交價相對研究均價 | 待確認", report3)
+
     def test_missing_terminal_and_bad_bars_do_not_certify(self):
         q, bars, pages = fixture()
         self.assertEqual(analyze("3717", q, bars, pages[:-1], observed_at=NOW)["trades_status"], "HOLD")
