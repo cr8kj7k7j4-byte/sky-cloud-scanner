@@ -131,6 +131,57 @@ class SingleStockRealtimeTests(unittest.TestCase):
                 main()
             self.assertTrue(Path(output).exists())
 
+    def test_stale_real_trade_is_research_reference_not_scan_failure(self):
+        """Same-day real execution remains visible, never live or scored."""
+        import tempfile
+        import sys
+        from pathlib import Path
+        from src.sky_single_stock_realtime import main
+        payload = {
+            "symbol": "3717", "status": "STALE_QUOTE",
+            "quote_date": "2026-11-27",
+            "requested_at_tpe": "2026-11-27T12:44:00+08:00",
+            "last_trade_tpe": "2026-11-27T12:40:00+08:00",
+            "last_trade_price": 18.85, "quote_age_seconds": 240,
+            "source": "Fugle MarketData API /intraday/quote",
+            "score_status": "INSUFFICIENT_VERIFIED_OHLC",
+            "scores": None, "execution_authorized": False,
+            "live_order_enabled": False,
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "3717.json"
+            with patch("src.sky_single_stock_realtime.collect", return_value=payload), patch.object(
+                sys, "argv", ["single_stock", "--symbol", "3717", "--output", str(output)]
+            ):
+                main()  # valid reference evidence is not a tool/process failure
+            mobile = output.with_suffix(".md").read_text(encoding="utf-8")
+            self.assertIn("最後實際成交觀察價：18.85", mobile)
+            self.assertIn("現價 | 待確認（非新鮮成交）", mobile)
+            self.assertIn("| 多方評分 | 待確認 |", mobile)
+            self.assertIn("禁止新進場", mobile)
+
+    def test_inconsistent_stale_reference_is_still_scan_failure(self):
+        import tempfile
+        import sys
+        from pathlib import Path
+        from src.sky_single_stock_realtime import main
+        payload = {
+            "symbol": "3717", "status": "STALE_QUOTE",
+            "quote_date": "2026-11-27",
+            "requested_at_tpe": "2026-11-27T12:44:00+08:00",
+            "last_trade_tpe": "2026-11-27T12:40:00+08:00",
+            "last_trade_price": 18.85, "quote_age_seconds": 3,
+            "scores": None, "score_status": "INSUFFICIENT_VERIFIED_OHLC",
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("src.sky_single_stock_realtime.collect", return_value=payload), patch.object(
+                sys, "argv", ["single_stock", "--symbol", "3717", "--output",
+                             str(Path(tmp) / "3717.json")]
+            ):
+                with self.assertRaises(SystemExit) as exc:
+                    main()
+                self.assertEqual(exc.exception.code, 2)
+
     def test_unscored_invalid_quote_cli_still_fails(self):
         import tempfile
         import sys
