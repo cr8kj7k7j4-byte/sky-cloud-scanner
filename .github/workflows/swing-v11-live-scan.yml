@@ -41,7 +41,7 @@ permissions:
 concurrency:
   # Nonmatching comment events have no paid work and must not evict
   # pending authorized scans in GitHub's workflow-level concurrency queue.
-  group: ${{ (github.event_name == 'issue_comment' && !(github.event.issue.number == 363 && github.event.comment.user.login == github.repository_owner && github.event.comment.author_association == 'OWNER' && github.event.comment.body == 'Sky Swing V1.1｜現在掃一次') && format('sky-swing-v11-ignored-{0}', github.run_id)) || 'sky-fugle-paid-global-research-v1-live-wholemarket' }}
+  group: ${{ (github.event_name == 'issue_comment' && !(github.event.issue.number == 363 && github.event.comment.user.login == github.repository_owner && github.event.comment.author_association == 'OWNER' && (github.event.comment.body == 'Sky Swing V1.1｜現在掃一次' || github.event.comment.body == 'Sky 波段快掃' || github.event.comment.body == 'Sky 波段現在掃一次')) && format('sky-swing-v11-ignored-{0}', github.run_id)) || 'sky-fugle-paid-global-research-v1-live-wholemarket' }}
   cancel-in-progress: false
 
 jobs:
@@ -63,7 +63,7 @@ jobs:
        github.event.issue.number == 363 &&
        github.event.comment.user.login == github.repository_owner &&
        github.event.comment.author_association == 'OWNER' &&
-       github.event.comment.body == 'Sky Swing V1.1｜現在掃一次')
+       (github.event.comment.body == 'Sky Swing V1.1｜現在掃一次' || github.event.comment.body == 'Sky 波段快掃' || github.event.comment.body == 'Sky 波段現在掃一次'))
     env:
       GH_TOKEN: ${{ github.token }}
       SKY_PAID_ATOMIC_ENFORCE: "1"
