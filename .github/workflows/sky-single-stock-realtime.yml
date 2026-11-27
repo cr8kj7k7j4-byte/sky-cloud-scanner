@@ -5,6 +5,8 @@ on:
     paths:
       - 'src/sky_single_stock_realtime.py'
       - 'scripts/sky_3717_historical_one_day_probe.py'
+      - 'scripts/sky_reuse_verified_historical_artifact.py'
+      - 'tests/test_sky_reuse_verified_historical_artifact.py'
       - 'tests/test_sky_3717_historical_one_day_probe.py'
       - 'src/sky_single_stock_source_audit.py'
       - 'src/sky_historical_5m_research.py'
@@ -72,7 +74,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
       - name: Test realtime gating without remote API
-        run: python -m unittest tests.test_sky_single_stock_realtime tests.test_sky_single_stock_source_audit tests.test_sky_single_stock_artifact_readback tests.test_sky_historical_5m_research tests.test_sky_kbar_evidence_policy tests.test_sky_v14_ticker_candles_probe tests.test_historical_5m_quality tests.test_sky_3717_historical_one_day_probe -v
+        run: python -m unittest tests.test_sky_single_stock_realtime tests.test_sky_single_stock_source_audit tests.test_sky_single_stock_artifact_readback tests.test_sky_historical_5m_research tests.test_sky_kbar_evidence_policy tests.test_sky_v14_ticker_candles_probe tests.test_historical_5m_quality tests.test_sky_3717_historical_one_day_probe tests.test_sky_reuse_verified_historical_artifact -v
       - name: Validate requested symbol without calling Fugle
         if: github.event_name == 'workflow_dispatch' || github.event_name == 'issue_comment'
         id: request
@@ -128,7 +130,14 @@ jobs:
           SYMBOL: ${{ steps.request.outputs.symbol }}
         run: |
           if [ "${{ steps.request.outputs.unified }}" = "true" ]; then
-            python -m src.sky_single_stock_source_audit --symbol "$SYMBOL" --unified
+            # Verified 3717 history is reused from a separately read-back
+            # Artifact below. Never buy another historical GET just to display
+            # an already certified dated observation.
+            if [ "$SYMBOL" = "3717" ]; then
+              SKY_FUGLE_HISTORICAL_ENTITLEMENT_CONFIRMED=0 python -m src.sky_single_stock_source_audit --symbol "$SYMBOL" --unified
+            else
+              python -m src.sky_single_stock_source_audit --symbol "$SYMBOL" --unified
+            fi
           else
             python -m src.sky_single_stock_source_audit --symbol "$SYMBOL"
           fi
@@ -137,6 +146,48 @@ jobs:
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
         run: python -m scripts.sky_3717_historical_one_day_probe --symbol 3717 --date 2026-11-27
+
+      - name: Reuse verified historical 5m Artifact in ordinary 3717 research
+        if: steps.request.outcome == 'success' && steps.request.outputs.unified == 'true' && steps.request.outputs.symbol == '3717'
+        env:
+          # This is an already verified *historical* source Run, NOT a
+          # permanent data date / query limit. W0 may set a later Run ID.
+          HISTORY_RUN_ID: ${{ vars.SKY_VERIFIED_5M_HISTORY_RUN_ID || '46045172892' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! [[ "$HISTORY_RUN_ID" =~ ^[0-9]+$ ]]; then
+            echo "HOLD_INVALID_VERIFIED_HISTORICAL_RUN_ID"
+            exit 0
+          fi
+          mkdir -p /tmp/sky-history-reuse/source /tmp/sky-history-reuse/receipt
+          if ! gh run download "$HISTORY_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+              --name "fugle-single-stock-$HISTORY_RUN_ID" \
+              --dir /tmp/sky-history-reuse/source; then
+            echo "HOLD_HISTORY_SOURCE_ARTIFACT_NOT_READABLE"
+            exit 0
+          fi
+          if ! gh run download "$HISTORY_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+              --name "fugle-single-stock-readback-$HISTORY_RUN_ID" \
+              --dir /tmp/sky-history-reuse/receipt; then
+            echo "HOLD_HISTORY_INDEPENDENT_RECEIPT_NOT_READABLE"
+            exit 0
+          fi
+          HISTORY_SHA="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$HISTORY_RUN_ID" --jq '.head_sha')"
+          HISTORY_ARTIFACT_ID="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$HISTORY_RUN_ID/artifacts" \
+            --jq ".artifacts | map(select(.name == \"fugle-single-stock-$HISTORY_RUN_ID\" and .expired == false)) | if length == 1 then .[0].id else empty end")"
+          if [ -z "$HISTORY_ARTIFACT_ID" ]; then
+            echo "HOLD_HISTORY_ARTIFACT_NOT_UNIQUE"
+            exit 0
+          fi
+          python -m scripts.sky_reuse_verified_historical_artifact \
+            --symbol 3717 \
+            --source-dir /tmp/sky-history-reuse/source \
+            --receipt-dir /tmp/sky-history-reuse/receipt \
+            --run-id "$HISTORY_RUN_ID" \
+            --head-sha "$HISTORY_SHA" \
+            --artifact-id "$HISTORY_ARTIFACT_ID" \
+            --report-dir output/single_stock
 
       - name: Upload quote evidence even when unavailable
         if: always()
