@@ -8,10 +8,12 @@ from __future__ import annotations
 import argparse
 import json
 import math
-from datetime import datetime, timedelta, timezone
+import os
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from . import fugle
+from .sky_historical_5m_research import evaluate as evaluate_historical_5m, HOLD as HISTORICAL_HOLD
 from .sky_single_stock_realtime import timestamp_tpe
 from .sky_mobile_table import evidence_scores, direction_label
 
@@ -186,6 +188,40 @@ def collect(symbol, *, max_pages=MAX_TRADES_PAGES):
             if not data:
                 break
         result = analyze(symbol, quote, candles, pages, observed_at=datetime.now(TPE))
+        # Provider-first: public subscription pricing is NOT account entitlement.
+        # No additional request unless W0 explicitly authorizes historical data.
+        historical = {
+            "status": HISTORICAL_HOLD,
+            "reason": "HOLD_PROVIDER_ENTITLEMENT_NOT_CONFIRMED",
+            "source_date": None,
+            "execution_authorized": False,
+            "production_eligible": False,
+            "independent_vwap_certified": False,
+        }
+        quote_day = quote.get("date") if isinstance(quote, dict) else None
+        try:
+            source_day = date.fromisoformat(quote_day)
+            age = (datetime.now(TPE).date() - source_day).days
+            date_allowed = (source_day.isoformat() == quote_day
+                            and source_day.weekday() < 5 and 1 <= age <= 7)
+        except (TypeError, ValueError, OverflowError):
+            date_allowed = False
+        if not date_allowed:
+            historical["reason"] = "HOLD_NO_RECENT_COMPLETED_HISTORICAL_SOURCE_DATE"
+        elif os.getenv("SKY_FUGLE_HISTORICAL_ENTITLEMENT_CONFIRMED") == "1":
+            try:
+                # Exactly one bounded request for one date in the existing
+                # serialized rate-controlled lane; never retry provider errors.
+                historical = evaluate_historical_5m(
+                    symbol, quote_day, fugle.get_historical_candles_5m(symbol, quote_day),
+                    observed_at=datetime.now(TPE))
+            except PermissionError:
+                historical["reason"] = "HOLD_PROVIDER_ENTITLEMENT_DENIED"
+            except Exception as exc:
+                # Never persist response bodies, credentials or headers.
+                historical["reason"] = "HOLD_HISTORICAL_PROVIDER_OR_TRANSPORT"
+                historical["error_type"] = type(exc).__name__
+        result["historical_5m_research"] = historical
         if pages and pages[-1]["data"]:
             result["trades_status"] = "HOLD_PAGE_CAP_NO_TERMINAL_EMPTY_PAGE"
             result["vwap_status"] = "HOLD"
@@ -206,6 +242,8 @@ def render_mobile_source_audit(data: dict) -> str:
         return str(item) if item is not None else default
 
     status = value("five_minute_status")
+    historical = data.get("historical_5m_research")
+    historical = historical if isinstance(historical, dict) else {}
     trade_status = value("trades_status")
     volume_status = value("volume_status")
     vwap_status = value("vwap_status")
@@ -251,7 +289,10 @@ def render_mobile_source_audit(data: dict) -> str:
         "",
         "| 項目 | 本次結果 |",
         "| --- | --- |",
-        f"| 五分鐘 K 棒 | {status} |",
+        f"| 當日五分鐘 K 棒 | {status} |",
+        f"| 歷史完整交易日 5m（僅研究） | {historical.get('status', 'HOLD')} |",
+        f"| 歷史 5m 資料日期 | {historical.get('source_date') or '待確認'} |",
+        f"| 歷史資料原因 | {historical.get('reason', 'HOLD_PROVIDER_ENTITLEMENT_NOT_CONFIRMED')} |",
         f"| 當次 K 棒總數 | {count if count is not None else '待確認'} |",
         f"| 已完成 K 棒 | {completed if completed is not None else '待確認'} |",
         f"| 排除未完成 K 棒 | {excluded if excluded is not None else '待確認'} |",
