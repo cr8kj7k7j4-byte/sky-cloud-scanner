@@ -103,7 +103,10 @@ jobs:
           reports = result.get("reports", {})
           safe_reports = {
               name: {key: report.get(key) for key in
-                     ("available", "data_timestamp", "operational_full_market_scan",
+                     ("available", "data_timestamp", "source_evidence_status",
+                      "trade_eligible", "analysis_mode",
+                      "analysis_observation_count", "reason",
+                      "operational_full_market_scan",
                       "quote_coverage_pct", "candidate_count", "research_only",
                       "observation_mode", "trade_decision", "observed_sample_count",
                       "market_data_gate", "candidate_preview", "warnings",
