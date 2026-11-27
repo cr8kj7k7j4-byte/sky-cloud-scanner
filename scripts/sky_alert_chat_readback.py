@@ -12,6 +12,7 @@ from research.sky_alert_reader import consume
 
 REPO = "cr8kj7k7j4-byte/sky-cloud-scanner"
 WORKFLOW = "sky-chat-bridge.yml"
+READONLY_COMMANDS = frozenset({"Sky 警戒", "Sky #363｜查詢最近一次掃描報告"})
 
 
 def gh_json(route: str):
@@ -53,13 +54,15 @@ def find_source_json(target: Path) -> Path:
 
 
 def make_receipt(source, *, run_id: str, run_attempt: str, head_sha: str,
-                 comment_id: str, source_provenance: dict):
+                 comment_id: str, source_provenance: dict, command: str = "Sky 警戒"):
+    if command not in READONLY_COMMANDS:
+        raise ValueError("UNAUTHORIZED_READBACK_COMMAND")
     evaluated = consume(source)
     if evaluated.get("production_eligible") is not False or evaluated.get("action") != "禁止交易":
         raise ValueError("ALERT_SAFETY_INVARIANT_FAILED")
     return {
         "schema": "SKY_ALERT_CHAT_RECEIPT_V1",
-        "command": "Sky 警戒",
+        "command": command,
         "run_id": run_id,
         "run_attempt": int(run_attempt),
         "head_sha": head_sha,
@@ -92,7 +95,7 @@ def run():
     issue = event.get("issue") or {}
     authorized = (
         repo == REPO and event.get("repository", {}).get("full_name") == REPO
-        and issue.get("number") == 363 and comment.get("body") == "Sky 警戒"
+        and issue.get("number") == 363 and comment.get("body") in READONLY_COMMANDS
         and comment.get("user", {}).get("login") == REPO.split("/")[0]
         and comment.get("author_association") == "OWNER"
         and str(comment.get("id", "")).isdigit()
@@ -122,13 +125,14 @@ def run():
     }
     receipt = make_receipt(
         source, run_id=run_id, run_attempt=attempt, head_sha=sha,
-        comment_id=str(comment["id"]), source_provenance=provenance
+        comment_id=str(comment["id"]), source_provenance=provenance,
+        command=comment["body"]
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.markdown.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(receipt, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     args.markdown.write_text(
-        "# Sky 警戒｜既有 Artifact 唯讀查核\n\n"
+        "# " + comment["body"] + "｜既有 Artifact 唯讀查核\n\n"
         + f"本次 Run：{run_id}；來源 Run：{source_id}；來源 Artifact：{artifact['id']}\n\n"
         + f"資料時間：{receipt['source_checked_at_tpe']}；讀取時間：{receipt['read_at_tpe']}\n\n"
         + f"新鮮度：{receipt['freshness_status']}；有效成交驗證：{receipt['fresh_executed_count_at_read']}\n\n"

@@ -12,6 +12,29 @@ TZ = ZoneInfo("Asia/Taipei")
 
 
 class SkyAlertChatReadbackTests(unittest.TestCase):
+    def test_latest_report_exact_alias_reuses_alert_artifact_reader(self):
+        from scripts.sky_alert_chat_readback import READONLY_COMMANDS
+        alias = "Sky #363｜查詢最近一次掃描報告"
+        self.assertEqual(READONLY_COMMANDS, frozenset({"Sky 警戒", alias}))
+        workflow = Path(".github/workflows/sky-chat-bridge.yml").read_text(encoding="utf-8")
+        header, jobs = workflow.split("jobs:", 1)
+        before, alert = jobs.split("\\n  alert_readonly:", 1)
+        alert, _ = alert.split("\\n  margin_readonly_command:", 1)
+        self.assertIn("github.event.comment.body == '" + alias + "'", header)
+        self.assertIn("github.event.comment.body == '" + alias + "'", alert)
+        self.assertNotIn("FUGLE_API_KEY", alert)
+        self.assertIn("scripts.sky_alert_chat_readback", alert)
+        self.assertIn("sky-alert-external-readback-", alert)
+        self.assertIn("github.event.comment.user.login == github.repository_owner", alert)
+        self.assertIn("github.event.comment.author_association == 'OWNER'", alert)
+
+    def test_latest_report_alias_receipt_is_research_only(self):
+        from scripts.sky_alert_chat_readback import READONLY_COMMANDS
+        self.assertNotIn("Sky #363｜查詢最近一次掃描報告 ", READONLY_COMMANDS)
+        with self.assertRaisesRegex(ValueError, "UNAUTHORIZED_READBACK_COMMAND"):
+            make_receipt({}, run_id="123", run_attempt="1", head_sha="a"*40,
+                         comment_id="1", source_provenance={}, command="Sky 未授權")
+
     def test_readonly_existing_artifact_preserves_no_trade(self):
         now = datetime(2026, 11, 23, 12, 45, tzinfo=TZ)
         report = build(
