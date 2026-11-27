@@ -79,6 +79,8 @@ class MarginExistingA1ReadbackTests(unittest.TestCase):
         self.assertIn("MARGIN_PRICEONLY_SAME_RUN_HASH_MISMATCH", job)
         self.assertIn("MARGIN_PRICEONLY_READBACK_GUARD", job)
         self.assertIn("SKY_MARGIN_PRICEONLY_INDEPENDENT_READBACK", job)
+        self.assertIn("path: output/sky_margin_command/", job)
+        self.assertNotIn("path: output/sky_margin_command/hold_receipt.json", job)
         self.assertNotIn("FUGLE_API_KEY", job)
         self.assertNotIn("sky_paid_fugle_api_guard", job)
 
