@@ -48,6 +48,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: requirements.txt
       - run: pip install -r requirements.txt
       - name: Assign a unique request ID to each authorized on-demand research scan
         if: github.event_name == 'workflow_dispatch' || github.event_name == 'issue_comment'
