@@ -475,6 +475,11 @@ jobs:
             --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT" \
             --sha "$GITHUB_SHA" \
             --output output/sky_margin_command/hold_receipt.json
+      - name: Read most recent existing full-market A1 prices (no Fugle API)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python -m scripts.sky_margin_priceonly_readback --output output/sky_margin_command/priceonly_observation.json
       - name: Upload same-run margin HOLD receipt
         id: margin_upload
         uses: actions/upload-artifact@v4
@@ -514,6 +519,45 @@ jobs:
           obj["artifact_id"]=int(os.environ["ARTIFACT_ID"])
           p.write_text(json.dumps(obj,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
           print("SKY_MARGIN_HOLD_RECEIPT_INDEPENDENT_READBACK",obj["status"])
+          PY
+          python - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          first=Path("output/sky_margin_command/priceonly_observation.json").read_bytes()
+          second=Path("/tmp/sky-margin-hold-readback/priceonly_observation.json").read_bytes()
+          if hashlib.sha256(first).digest()!=hashlib.sha256(second).digest():
+              raise SystemExit("MARGIN_PRICEONLY_SAME_RUN_HASH_MISMATCH")
+          obj=json.loads(second)
+          if (obj.get("schema")!="SKY_MARGIN_EXISTING_A1_PRICE_OBSERVATION_V1"
+              or obj.get("command")!="SKY維持率"
+              or obj.get("run_id")!=os.environ["GITHUB_RUN_ID"]
+              or obj.get("run_attempt")!=os.environ["GITHUB_RUN_ATTEMPT"]
+              or obj.get("head_sha")!=os.environ["GITHUB_SHA"]
+              or obj.get("real_margin_scan_verified") is not False
+              or obj.get("production_eligible") is not False
+              or obj.get("automatic_order") is not False
+              or obj.get("trade_action")!="禁止交易"):
+              raise SystemExit("MARGIN_PRICEONLY_READBACK_GUARD")
+          if obj.get("status")=="DATED_A1_PRICE_RESEARCH_ONLY":
+              rows=obj.get("preview")
+              if (not isinstance(rows,list) or len(rows)>10
+                  or any(not isinstance(r,dict)
+                         or r.get("executed_trade_verified") is not False
+                         or r.get("margin_maintenance_ratio_verified") is not False
+                         or r.get("production_eligible") is not False
+                         or r.get("action")!="觀察" for r in rows)):
+                  raise SystemExit("MARGIN_PRICEONLY_PREVIEW_GUARD")
+          receipt=Path("output/sky_margin_command_external/readback_receipt.json")
+          body=json.loads(receipt.read_text(encoding="utf-8"))
+          body["priceonly_readback_status"]=obj["status"]
+          body["priceonly_sha256"]=hashlib.sha256(second).hexdigest()
+          body["priceonly_observed_count"]=obj.get("price_below_100_observation_count")
+          body["priceonly_source_run_id"]=obj.get("source_run_id")
+          body["priceonly_source_artifact_id"]=obj.get("source_artifact_id")
+          body["priceonly_source_freshness_status"]=obj.get("source_freshness_status")
+          body["priceonly_trade_eligible"]=False
+          receipt.write_text(json.dumps(body,ensure_ascii=False,indent=2)+chr(10),encoding="utf-8")
+          print("SKY_MARGIN_PRICEONLY_INDEPENDENT_READBACK",obj["status"])
           PY
       - name: Upload independent readback receipt
         if: always()
@@ -556,6 +600,10 @@ jobs:
               "- Artifact ID："+str(r["artifact_id"]),
               "- 收據 SHA256："+r["sha256"],
               "- 真實全市場維持率資料／候選排名：`HOLD_PRICE_ONLY_REAL_SOURCE`",
+              "- 盤中／盤後最近既有 A1 價格研究讀回："+str(r.get("priceonly_readback_status","HOLD")),
+              "- 價格研究來源 Run："+str(r.get("priceonly_source_run_id") or "待確認"),
+              "- 價格研究觀察數："+str(r.get("priceonly_observed_count") if r.get("priceonly_observed_count") is not None else "待確認"),
+              "- 觀察價格非 A2 成交認證、不是真實融資維持率／可買推薦。",
               "- ChatGPT 原生自動直連：`HOLD_CHATGPT_NATIVE_ROUTING`",
               "- 交易：`NO_TRADE`；未取得認證行情、沒有可買進標的或張數。",
           ]
