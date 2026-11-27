@@ -407,20 +407,40 @@ class DeepFiveMinTests(unittest.TestCase):
                             and z["status"]=="CANDLE_TICKER_RESEARCH_READY_NOT_TRADE"
                             for z in x["samples"]))
 
-    def test_missing_five_minute_bar_blocks_features(self):
+    def test_missing_five_minute_bar_is_sparse_research_not_invalid_source(self):
         def missing_bar(symbol,timeframe="5"):
             q=candles(symbol,timeframe)
-            # Simulate an otherwise ordered sequence with a missing 10:15 bar.
+            # A legitimate no-trade 5-minute slot is not a provider defect.
             q["data"].pop(3)
             return q
         x=run(stage2(),ticker_fn=ticker,candle_fn=missing_bar,
               sleep_fn=lambda _:None,now=NOW)
         self.assertTrue(all(z["valid_today_five_min_bars"]==5
-                            and z["bar_sequence_valid"] is False
-                            and z["status"]=="INCOMPLETE_TICKER_OR_5M_EVIDENCE"
+                            and z["bar_sequence_valid"] is True
+                            and z["bar_coverage_contiguous"] is False
+                            and z["missing_five_minute_slots_observed"]==1
+                            and z["research_report_available"] is True
+                            and z["kbar_evidence_level"]=="OBSERVATION_ONLY_SPARSE_5M_BARS"
+                            and z["status"]=="OBSERVATION_ONLY_SPARSE_5M_BARS"
                             and z["feature_preview"] is None
                             and z["production_eligible"] is False
                             for z in x["samples"]))
+
+    def test_zero_five_min_bars_is_still_research_reportable(self):
+        def no_bars(symbol,timeframe="5"):
+            q=candles(symbol,timeframe)
+            q["data"]=[]
+            return q
+        report=run(stage2(),ticker_fn=ticker,candle_fn=no_bars,
+                   sleep_fn=lambda _:None,now=NOW)
+        self.assertTrue(all(z["kbar_evidence_level"]=="OBSERVATION_ONLY_NO_5M_BARS"
+                            and z["status"]=="OBSERVATION_ONLY_NO_5M_BARS"
+                            and z["research_report_available"] is True
+                            and z["five_minute_indicators_available"] is False
+                            and z["valid_today_five_min_bars"]==0
+                            and z["feature_preview"] is None
+                            and z["production_eligible"] is False
+                            for z in report["samples"]))
 
     def test_duplicate_and_out_of_order_bars_rejected(self):
         for anomaly in ("duplicate", "out_of_order"):

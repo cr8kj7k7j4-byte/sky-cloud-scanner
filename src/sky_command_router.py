@@ -3,6 +3,10 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, asdict
 
+# Shared K-bar evidence policy: src.sky_kbar_evidence_policy.classify.
+# Every Sky command is reportable with valid non-K-bar evidence even when
+# historical/intraday 5m bars are zero; this never licenses fabricated
+# indicators, A2 execution, PIT VWAP, trade sizing or orders.
 
 @dataclass(frozen=True)
 class CommandRoute:
@@ -208,6 +212,8 @@ _PATTERNS = [
             "research. Trading day and latest complete session require verified "
             "source evidence; outside live session read only historical artifact. "
             "Intraday entry still requires Fugle A1/A2, strategy, cost and P0-R. "
+            "The report never requires a minimum 5m K-bar count; no bars "
+            "means K-bar indicators are unavailable, not no research. "
             "This route does not dispatch GitHub or certify mobile E2E."
         ),
     ),
@@ -237,7 +243,9 @@ _PATTERNS = [
             "complete-session historical evidence, never a fabricated live price. "
             "Existing live Workflow requires independently validated calendar, paid "
             "Claim and Fugle evidence. Swing V1.0 executable rule remains BLOCKED; "
-            "V1.1 is Research. No dispatch, entry authorization or automatic orders."
+            "V1.1 is Research. A zero/sparse 5m source cannot veto other "
+            "valid dated research observations; unsupported K-bar indicators "
+            "stay unknown. No dispatch, entry authorization or automatic orders."
         ),
     ),
     (
@@ -320,8 +328,10 @@ def route_command(command: str) -> CommandRoute:
             "trading, a new entry requires authorized Fugle A1/A2 executed price/time; "
             "outside live trading, historical prices require independently verified "
             "session date, source, coverage, same-run SHA/Artifact/Digest and readback. "
-            "No stale quote becomes current; no assumed P0-R inputs or new-entry "
-            "authorization. Private broker holdings must never be published via "
+            "No stale quote becomes current; 5m bar count never blocks "
+            "a dated research-only report but missing K-bar indicators stay unknown; "
+            "no assumed P0-R inputs or new-entry authorization. "
+            "Private broker holdings must never be published via "
             "public issue comments. Missing evidence stays HOLD/NO_TRADE."
         )
     if re.fullmatch(r"Sky\s*持股檢查(?:\s+.*)?", normalized, re.I):

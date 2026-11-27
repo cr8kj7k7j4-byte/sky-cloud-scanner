@@ -14,6 +14,7 @@ from pathlib import Path
 
 from . import fugle
 from .sky_historical_5m_research import evaluate as evaluate_historical_5m, HOLD as HISTORICAL_HOLD
+from .sky_kbar_evidence_policy import classify as classify_kbar
 from .sky_single_stock_realtime import timestamp_tpe
 from .sky_mobile_table import evidence_scores, direction_label
 
@@ -60,6 +61,17 @@ def analyze(symbol, quote, candles, pages, *, observed_at=None):
         except (TypeError, ValueError):
             pass
     raw = candles.get("data")
+    # An empty valid response is a research observation, not a K-bar-count
+    # rejection. No bar-derived features or volume are fabricated.
+    if isinstance(raw, list) and not raw and quote.get("date") == date:
+        out.update(classify_kbar(source_valid=True, observed_bars=0))
+        out["five_minute_status"] = "OBSERVATION_ONLY_NO_5M_BARS"
+        out["returned_bar_count"] = 0
+        out["completed_bar_count"] = 0
+        out["excluded_incomplete_bar_count"] = 0
+        out["completed_bar_volume_raw_sum"] = None
+        out["last_completed_bar_start"] = None
+        out["five_minute_raw"] = []
     if isinstance(raw, list) and raw and len(raw) <= 100:
         parsed = []
         seen = set()
@@ -90,6 +102,11 @@ def analyze(symbol, quote, candles, pages, *, observed_at=None):
             parsed.append((dt, row))
         if valid and all(a[0] < b[0] for a, b in zip(parsed, parsed[1:])):
             completed = [(d, row) for d, row in parsed if d + timedelta(minutes=5) <= now]
+            missing_slots = sum(max(0, int((b[0] - a[0]).total_seconds() // 300) - 1)
+                                for a, b in zip(parsed, parsed[1:]))
+            out.update(classify_kbar(source_valid=True, observed_bars=len(completed),
+                                     missing_slots=missing_slots))
+            out["missing_five_minute_slots_observed"] = missing_slots
             out["five_minute_status"] = ("PASS_COMPLETED_BARS_OBSERVED" if completed
                                           else "HOLD_NO_COMPLETED_BARS")
             out["returned_bar_count"] = len(parsed)
@@ -277,6 +294,15 @@ def render_mobile_source_audit(data: dict) -> str:
         and data.get("volume_status") == "RECONCILED_SAME_SNAPSHOT_NOT_CROSS_SOURCE_CERTIFIED"
         and mean is not None and mean > 0
     )
+    # Research report availability is separate from multi-source arithmetic.
+    # Report already verified quote/trades/historical observations even with
+    # zero bars, while individual 5m-derived measures remain UNKNOWN.
+    other_research_available = (
+        research_data_ready
+        or data.get("research_report_available") is True
+        or historical.get("research_report_available") is True
+        or data.get("quote_status") == "PASS_ACTUAL_LAST_TRADE_REFERENCE"
+    )
     # Do not imply completed-only volume equals the current full-session quote.
     lines = [
         "🟡 研究資料觀察｜禁止依此報告新進場",
@@ -285,11 +311,13 @@ def render_mobile_source_audit(data: dict) -> str:
         f"最後實際成交時間：{value('last_trade_tpe')}",
         f"最後成交觀察價：{value('last_trade_price')} 元（非即時下單價格）",
         "",
-        f"研究數據：{'可供觀察' if research_data_ready else '資料不足，待確認'}；交易訊號：未認證。",
+        f"研究數據：{'可供觀察' if other_research_available else '資料不足，待確認'}；交易訊號：未認證.",
         "",
         "| 項目 | 本次結果 |",
         "| --- | --- |",
         f"| 當日五分鐘 K 棒 | {status} |",
+        f"| 共用 K 棒證據等級 | {data.get('kbar_evidence_level', 'HOLD_5M_SOURCE_UNVERIFIED')} |",
+        f"| K 棒缺漏不阻擋其他研究 | {'是' if other_research_available else '需其他有效來源'} |",
         f"| 歷史完整交易日 5m（僅研究） | {historical.get('status', 'HOLD')} |",
         f"| 歷史 K 棒研究可用性 | {'可產出研究報告（無 K 棒指標）' if historical.get('status') == 'OBSERVATION_ONLY_NO_5M_BARS' else ('可供研究觀察' if historical.get('research_report_available') else '資料待確認')} |",
         f"| 歷史 5m 資料日期 | {historical.get('source_date') or '待確認'} |",

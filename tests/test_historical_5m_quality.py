@@ -17,6 +17,20 @@ class QualityTest(unittest.TestCase):
         self.assertEqual(x["sessions_below_observed_max_bars"], 0)
         self.assertNotIn("weekday_sessions_below_55_bars", x)
 
+    def test_zero_and_sparse_bars_are_not_invalid_by_count(self):
+        zero = inspect_history([])
+        self.assertEqual(zero["status"], "EMPTY")
+        self.assertFalse(zero["full_period_complete"])
+        one = inspect_history([bar()])
+        self.assertEqual(one["status"], "DATA_OBSERVED")
+        self.assertEqual(one["row_count"], 1)
+        self.assertFalse(one["full_period_complete"])
+
+    def test_invalid_closing_1325_bar_is_structural_error_not_count_limit(self):
+        x=inspect_history([bar("2026-11-06T13:25:00+08:00")])
+        self.assertEqual(x["status"], "INVALID_DATA")
+        self.assertEqual(x["invalid_counts"]["closing_auction_nonexistent_1325_bar"], 1)
+
     def test_duplicates_and_bad_prices_fail(self):
         x=inspect_history([bar(),bar(close=20)])
         self.assertEqual(x["status"],"INVALID_DATA")

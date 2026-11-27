@@ -13,6 +13,7 @@ import requests
 
 from src.fugle import get_ticker, get_candles
 from src.feature_engine import build_features
+from src.sky_kbar_evidence_policy import classify as classify_kbar, NO_BARS as KBAR_NO_BARS, SPARSE as KBAR_SPARSE
 
 TPE = ZoneInfo("Asia/Taipei")
 
@@ -56,7 +57,7 @@ def research_bar_average_weighted_observation(bars, *, now):
                 continue
             if (stamp.date() != now.astimezone(TPE).date() or stamp.minute % 5
                     or stamp.second or stamp.microsecond
-                    or (prior is not None and stamp - prior != timedelta(minutes=5))):
+                    or (prior is not None and stamp <= prior)):
                 prior = stamp
                 continue
             prior = stamp
@@ -183,6 +184,7 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                 rejected_future_bars=0
                 excluded_incomplete_bars=0
                 invalid_bar_sequence=False
+                missing_five_min_slots=0
                 prior_stamp=None
                 if isinstance(bars,list):
                     for b in bars:
@@ -204,10 +206,11 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                             if prior_stamp is not None:
                                 if stamp<=prior_stamp:
                                     invalid_bar_sequence=True  # duplicate or out of order
-                                elif stamp-prior_stamp != timedelta(minutes=5):
-                                    # Missing 5m bars make multi-bar features
-                                    # non-contiguous; do not infer valid coverage.
-                                    invalid_bar_sequence=True
+                                elif stamp-prior_stamp > timedelta(minutes=5):
+                                    # Fugle legitimately omits no-trade intervals.
+                                    # This is a coverage observation, not corrupt data.
+                                    missing_five_min_slots += max(
+                                        0, int((stamp-prior_stamp).total_seconds() // 300) - 1)
                             prior_stamp=stamp
                             if stamp.date()!=now.date():
                                 invalid_bar_sequence=True
@@ -281,10 +284,19 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                 # Do not expose potentially contaminated model features from
                 # invalid bar order, future bars, or mismatched source dates.
                 preview_safe = (evidence_candidates is None and source_identity_matches and len(valid)>=2 and not invalid_bar_sequence
-                                and rejected_future_bars==0 and actual_tf=="5"
+                                and rejected_future_bars==0 and not missing_five_min_slots and actual_tf=="5"
                                 and tdate==day and cdate==day)
                 features=build_features(snapshot,valid).to_dict() if preview_safe else None
+                kbar_valid = (source_identity_matches and actual_tf=="5" and cdate==day
+                              and not invalid_bar_sequence and rejected_future_bars == 0)
+                kbar_policy = classify_kbar(
+                    source_valid=kbar_valid,
+                    observed_bars=len(valid),
+                    missing_slots=missing_five_min_slots)
+                result.update(kbar_policy)
                 result.update({
+                    "missing_five_minute_slots_observed": missing_five_min_slots,
+                    "bar_coverage_contiguous": missing_five_min_slots == 0,
                     "ticker_date":tdate,"candles_date":cdate,
                     "source_identity_matches":source_identity_matches,
                     "board_lot_shares":boardlot,
@@ -329,6 +341,7 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                 })
                 ready=(evidence_candidates is None and source_identity_matches and tdate==day and cdate==day
                        and actual_tf=="5" and len(valid)>=6
+                       and not missing_five_min_slots
                        and not invalid_bar_sequence and rejected_future_bars==0
                        and eligible and not is_limit and ticker.get("securityStatus")=="NORMAL"
                        and ticker.get("isDisposition") is False
@@ -336,9 +349,12 @@ def run(stage2, *, ticker_fn=get_ticker, candle_fn=get_candles, sleep_fn=time.sl
                        and ticker.get("isSpecificAbnormally") is False
                        and positive_finite_number(boardlot) is not None
                        and verified_price is not None and upper_limit is not None)
-                result["status"]=("RAW_5M_RESEARCH_SAMPLE_NO_STAGE2" if evidence_candidates is not None
-                                  else "CANDLE_TICKER_RESEARCH_READY_NOT_TRADE" if ready
-                                  else "INCOMPLETE_TICKER_OR_5M_EVIDENCE")
+                result["status"]=(
+                    KBAR_NO_BARS if kbar_valid and not valid
+                    else KBAR_SPARSE if kbar_valid and missing_five_min_slots
+                    else "RAW_5M_RESEARCH_SAMPLE_NO_STAGE2" if evidence_candidates is not None
+                    else "CANDLE_TICKER_RESEARCH_READY_NOT_TRADE" if ready
+                    else "INCOMPLETE_TICKER_OR_5M_EVIDENCE")
         except requests.HTTPError as exc:
             status=exc.response.status_code if exc.response is not None else None
             result["status"]="RATE_LIMITED" if status==429 else "HTTP_ERROR"

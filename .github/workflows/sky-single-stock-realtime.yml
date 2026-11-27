@@ -6,6 +6,11 @@ on:
       - 'src/sky_single_stock_realtime.py'
       - 'src/sky_single_stock_source_audit.py'
       - 'src/sky_historical_5m_research.py'
+      - 'src/sky_kbar_evidence_policy.py'
+      - 'src/sky_v14_ticker_candles_probe.py'
+      - 'tests/test_sky_kbar_evidence_policy.py'
+      - 'tests/test_sky_v14_ticker_candles_probe.py'
+      - 'tests/test_historical_5m_quality.py'
       - 'tests/test_sky_historical_5m_research.py'
       - 'tests/test_sky_single_stock_source_audit.py'
       - 'tests/test_sky_single_stock_realtime.py'
@@ -59,7 +64,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
       - name: Test realtime gating without remote API
-        run: python -m unittest tests.test_sky_single_stock_realtime tests.test_sky_single_stock_source_audit tests.test_sky_single_stock_artifact_readback tests.test_sky_historical_5m_research -v
+        run: python -m unittest tests.test_sky_single_stock_realtime tests.test_sky_single_stock_source_audit tests.test_sky_single_stock_artifact_readback tests.test_sky_historical_5m_research tests.test_sky_kbar_evidence_policy tests.test_sky_v14_ticker_candles_probe tests.test_historical_5m_quality -v
       - name: Validate requested symbol without calling Fugle
         if: github.event_name == 'workflow_dispatch' || github.event_name == 'issue_comment'
         id: request
