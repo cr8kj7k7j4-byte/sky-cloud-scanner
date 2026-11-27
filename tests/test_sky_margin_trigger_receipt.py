@@ -23,7 +23,9 @@ class MarginTriggerReceiptTests(unittest.TestCase):
     def test_exact_authorized_command_only_produces_hold(self):
         r = produce()
         self.assertFalse(r["market_scan_executed"])
-        self.assertFalse(r["margin_ratio_data_verified"])
+        self.assertTrue(r["price_only_mode"])
+        self.assertTrue(r["margin_ratio_screen_retired"])
+        self.assertTrue(r["capital_and_prior_volume_screen_retired"])
         self.assertIsNone(r["candidate_count"])
         self.assertFalse(r["new_entry_authorized"])
         self.assertEqual(r["trade_action"], "禁止交易")
