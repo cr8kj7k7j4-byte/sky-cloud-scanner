@@ -45,7 +45,7 @@ def _headers():
         raise RuntimeError("Missing FUGLE_API_KEY")
     return {"X-API-KEY": FUGLE_API_KEY, "User-Agent": "SkyCloudScanner/0.4"}
 
-def _get(path, params=None):
+def _get(path, params=None, *, session=None):
     url = f"{BASE}{path}"
     headers = _headers()
     from research.sky_fugle_atomic_ref_claim import guard_fugle_request
@@ -57,6 +57,8 @@ def _get(path, params=None):
         from research.sky_fugle_request_identity import canonical_fugle_request
         canonical_fugle_request("GET", url, parameters=params)
         _monthly_pace(path)
+        if session is not None:
+            return _fetch_json(url, params, headers, path, session=session)
         return _fetch_json(url, params, headers, path)
     if enforced:
         from research.sky_fugle_request_identity import canonical_fugle_request
@@ -78,8 +80,9 @@ def _get(path, params=None):
     return _fetch_json(url, params, headers, path)
 
 
-def _fetch_json(url, params, headers, path):
-    r = requests.get(url, params=params, headers=headers, timeout=20)
+def _fetch_json(url, params, headers, path, *, session=None):
+    transport = requests if session is None else session
+    r = transport.get(url, params=params, headers=headers, timeout=20)
     try:
         r.raise_for_status()
     except requests.HTTPError as e:
@@ -96,8 +99,11 @@ def get_tickers(market):
 def get_ticker(symbol):
     return _get(f"/intraday/ticker/{symbol}")
 
-def get_quote(symbol):
-    return _get(f"/intraday/quote/{symbol}")
+def get_quote(symbol, *, session=None):
+    path = f"/intraday/quote/{symbol}"
+    if session is not None:
+        return _get(path, session=session)
+    return _get(path)
 
 def get_candles(symbol, timeframe="5"):
     return _get(
