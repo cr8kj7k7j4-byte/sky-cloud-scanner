@@ -153,3 +153,41 @@ def test_policy_blocked_mis_fallback_keeps_paid_snapshot_observation(monkeypatch
     assert result["unverified_snapshot_observations"][0]["production_eligible"] is False
     assert any("MIS_FALLBACK_BLOCKED_BY_POLICY" in w for w in result["warnings"])
     assert (tmp_path / "latest_swing5d.json").exists()
+
+
+def test_swing_v1_observation_uses_bounded_a2_without_promoting_trade(monkeypatch, tmp_path):
+    """A1-only Swing must try limited A2 quotes, but never lift the market/strategy gate."""
+    from datetime import datetime
+    from src import swing_live_scanner as scan
+    monkeypatch.setattr(scan, "OUT", tmp_path)
+    universe = [{"symbol": "1234", "exchange": "TWSE", "market": "TSE"}]
+    observed = {"symbol": "1234", "name": "research", "exchange": "TWSE",
+                "quote_source": "Fugle bulk snapshot", "last": 40.0,
+                "volume": 2000, "trade_value": 80000000,
+                "quote_date": datetime.now(scan.TZ).date().isoformat()}
+    monkeypatch.setattr(scan, "load_official_universe",
+                        lambda: (universe, {"twse": 1, "tpex": 0}))
+    monkeypatch.setattr(scan, "fetch_fugle_snapshot_quotes",
+                        lambda *a, **k: ([observed], []))
+    monkeypatch.setattr(scan, "fetch_mis_quotes", lambda *a, **k: ([], []))
+    monkeypatch.setattr(scan, "validate_whole_market_rows",
+                        lambda *a, **k: {"accepted_rows": [],
+                                        "valid_whole_market_operational": False,
+                                        "quote_scope": "PARTIAL_EXECUTED_LIVE"})
+    monkeypatch.setattr(scan, "render_mobile_table", lambda _: "")
+    calls = []
+    def quote(symbol):
+        calls.append(symbol)
+        return {"date": datetime.now(scan.TZ).date().isoformat()}
+    monkeypatch.setattr(scan, "get_quote", quote)
+    monkeypatch.setattr(scan, "fugle_executed_trade",
+                        lambda *a, **k: (40.5, datetime.now(scan.TZ),
+                                        "FRESH_EXECUTED_TRADE"))
+    result = scan.run("swing", deep_n=1)
+    assert calls == ["1234"]
+    assert result["snapshot_individual_verified_count"] == 1
+    assert result["snapshot_individual_confirmation"][0]["data_status"] == "FRESH_EXECUTED_TRADE"
+    assert result["market_data_gate"] == "BLOCKED_EXTERNAL_DATA_NO_TRADE"
+    assert result["candidate_count"] == 0
+    assert result["snapshot_individual_confirmation"][0]["strategy_signal"] is False
+    assert result["snapshot_individual_confirmation"][0]["production_eligible"] is False
