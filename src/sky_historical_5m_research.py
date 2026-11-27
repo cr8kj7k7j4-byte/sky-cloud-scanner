@@ -12,6 +12,7 @@ from datetime import date, datetime, time, timedelta, timezone
 
 TPE = timezone(timedelta(hours=8))
 PASS = "PASS_COMPLETED_HISTORICAL_5M_RESEARCH_ONLY"
+NO_BARS = "OBSERVATION_ONLY_NO_5M_BARS"
 HOLD = "HOLD_HISTORICAL_5M_SOURCE"
 
 
@@ -28,6 +29,7 @@ def evaluate(symbol: str, source_date: str, payload: object, *, observed_at=None
         "observed_at_tpe": now.astimezone(TPE).isoformat(),
         "status": HOLD, "reason": "INSUFFICIENT_HISTORICAL_SOURCE",
         "completed_bar_count": 0, "volume_raw_unit": "lots",
+        "research_report_available": False, "five_minute_indicators_available": False,
         "volume_unit_cross_source_certified": False,
         "independent_vwap_certified": False, "executed_trade_time_certified": False,
         "production_eligible": False, "execution_authorized": False,
@@ -53,9 +55,34 @@ def evaluate(symbol: str, source_date: str, payload: object, *, observed_at=None
         result["reason"] = "HISTORICAL_IDENTITY_MISMATCH"
         return result
     raw = payload.get("data")
-    if not isinstance(raw, list) or not 1 <= len(raw) <= 54:
-        result["reason"] = "HISTORICAL_ROWS_MISSING_OR_UNBOUNDED"
+    if not isinstance(raw, list):
+        result["reason"] = "HISTORICAL_ROWS_MISSING_OR_INVALID"
         return result
+    # No minimum number of bars is required to issue a dated research report.
+    # [] is a valid no-observation case; it does NOT certify any indicators,
+    # executed trades, full-session volume, VWAP, or an actionable signal.
+    if not raw:
+        result.update({
+            "status": NO_BARS,
+            "reason": "NO_OBSERVED_5M_BARS_RESEARCH_CONTINUES",
+            "research_report_available": True,
+            "five_minute_indicators_available": False,
+            "observed_regular_slot_count": 0,
+            "missing_regular_slot_count": 53,
+            "closing_auction_bar_observed": False,
+            "session_coverage_certified": False,
+            "cross_source_reconciliation_certified": False,
+            "bars": [],
+            "raw_volume_lots_sum": None,
+            "last_completed_bar_start_tpe": None,
+            "closing_auction_bar_start_tpe": None,
+            "average_semantics": "NO_DATA_NO_VWAP",
+        })
+        return result
+    # Data validation still rejects corrupt/duplicated/out-of-session bars.
+    # No fixed count is a prerequisite for research; slots are used only to
+    # check timestamp semantics and disclose observed coverage.
+
     times = []
     volume_total = 0.0
     observations = []
@@ -109,6 +136,7 @@ def evaluate(symbol: str, source_date: str, payload: object, *, observed_at=None
     # No daily coverage or cross-source claim is inferred from sparse bars.
     result.update({
         "status": PASS, "reason": "HISTORICAL_SPARSE_BARS_VALIDATED_RESEARCH_ONLY",
+        "research_report_available": True, "five_minute_indicators_available": True,
         "completed_bar_count": len(times), "raw_volume_lots_sum": volume_total,
         "last_completed_bar_start_tpe": times[-1].isoformat(),
         "closing_auction_bar_start_tpe": auction.isoformat() if auction_present else None,
