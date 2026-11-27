@@ -14,6 +14,17 @@ class SwingSessionPolicyTests(unittest.TestCase):
     def at(self, hour, minute=0):
         return datetime(2026, 11, 27, hour, minute, tzinfo=TPE)
 
+    def test_research_access_is_shared_across_intraday_and_swing(self):
+        from src.sky_daytrade_session_policy import daytrade_session_policy
+        for hour in (4, 9, 14, 23):
+            for trading_day in (True, False, None):
+                now = self.at(hour)
+                swing = swing_session_policy(now, trading_day_verified=trading_day)
+                intraday = daytrade_session_policy(now, trading_day_verified=trading_day)
+                self.assertEqual(swing["research_access"], intraday["research_access"])
+                self.assertTrue(swing["command_accepted"])
+                self.assertFalse(swing["new_entry_authorized"])
+
     def test_premarket_does_not_launch_live_scan_or_authorize_entry(self):
         report = swing_session_policy(self.at(4, 46), trading_day_verified=True)
         self.assertEqual(report["session_mode"], "PREMARKET_RESEARCH")
