@@ -75,6 +75,17 @@ class Historical5mResearchTests(unittest.TestCase):
             else:
                 self.assertFalse(v["closing_auction_bar_observed"])
 
+    def test_single_traded_bar_is_valid_sparse_research_only(self):
+        p = source_payload()
+        p["data"] = [p["data"][-1]]
+        v = self.check(p)
+        self.assertEqual(v["status"], PASS)
+        self.assertEqual(v["completed_bar_count"], 1)
+        self.assertEqual(v["missing_regular_slot_count"], 53)
+        self.assertFalse(v["session_coverage_certified"])
+        self.assertFalse(v["independent_vwap_certified"])
+        self.assertFalse(v["execution_authorized"])
+
     def test_duplicate_invalid_timezone_and_out_of_session_reject(self):
         for change in ("duplicate", "timezone", "reordered",
                        "negvol", "boolvol", "nan", "future", "outside", "auction_window"):
