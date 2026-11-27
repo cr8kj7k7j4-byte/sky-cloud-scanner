@@ -181,15 +181,15 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/sky-chat-readback output/chat_bridge_readback
-          for ATTEMPT in 1 2 3 4 5; do
+          for DELAY in 1 4 5 5 5 0; do
             if gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "sky-chat-$GITHUB_RUN_ID-attempt-$GITHUB_RUN_ATTEMPT" --dir /tmp/sky-chat-readback; then
               break
             fi
-            if [ "$ATTEMPT" = 5 ]; then
+            if [ "$DELAY" = 0 ]; then
               echo "SAME_RUN_ARTIFACT_NOT_READABLE" >&2
               exit 1
             fi
-            sleep 5
+            sleep "$DELAY"
           done
           HEAD_SHA=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --jq '.head_sha')
           ARTIFACT_ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" | python -c 'import json,os,sys; a=json.load(sys.stdin)["artifacts"]; n="sky-chat-"+os.environ["GITHUB_RUN_ID"]+"-attempt-"+os.environ["GITHUB_RUN_ATTEMPT"]; print(next((x["id"] for x in a if x["name"]==n), ""))')
@@ -642,12 +642,12 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/sky-w0-readback output/w0_evidence_external
-          for N in 1 2 3 4 5; do
+          for DELAY in 1 4 5 5 5 0; do
             if gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" \
               --name "sky-w0-discovery-$GITHUB_RUN_ID-attempt-$GITHUB_RUN_ATTEMPT" \
               --dir /tmp/sky-w0-readback; then break; fi
-            if [ "$N" = 5 ]; then exit 1; fi
-            sleep 5
+            if [ "$DELAY" = 0 ]; then exit 1; fi
+            sleep "$DELAY"
           done
           ARTIFACT_ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" | python -c 'import json,os,sys; a=json.load(sys.stdin)["artifacts"]; name="sky-w0-discovery-"+os.environ["GITHUB_RUN_ID"]+"-attempt-"+os.environ["GITHUB_RUN_ATTEMPT"]; hits=[x["id"] for x in a if x["name"]==name]; assert len(hits)==1, "DISCOVERY_ARTIFACT_AMBIGUOUS"; print(hits[0])')
           test -n "$ARTIFACT_ID"
