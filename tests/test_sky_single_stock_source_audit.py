@@ -84,6 +84,43 @@ class SourceAuditTests(unittest.TestCase):
         self.assertTrue(result["research_report_available"])
         self.assertFalse(result["execution_authorized"])
 
+    def test_fugle_closing_auction_slots_and_completion_are_causal(self):
+        # Fugle historical stock 5m contract: no 13:25 candle, separate
+        # 13:30 closing auction. Never treat auction as a 13:35 interval.
+        q, bars, pages = fixture()
+        bars["data"] = [{
+            "date": "2026-11-27T13:25:00+08:00",
+            "open": 18.9, "high": 18.9, "low": 18.9,
+            "close": 18.9, "volume": 1, "average": 18.9,
+        }]
+        after = NOW.replace(hour=13, minute=31)
+        invalid = analyze("3717", q, bars, pages, observed_at=after)
+        self.assertEqual(invalid["five_minute_status"], "HOLD")
+        self.assertFalse(invalid["execution_authorized"])
+        bars["data"][0]["date"] = "2026-11-27T13:30:00+08:00"
+        early = analyze("3717", q, bars, pages,
+                        observed_at=after.replace(minute=30, second=30))
+        self.assertEqual(early["completed_bar_count"], 0)
+        self.assertFalse(early["five_minute_indicators_available"])
+        completed = analyze("3717", q, bars, pages, observed_at=after)
+        self.assertEqual(completed["completed_bar_count"], 1)
+        self.assertEqual(completed["missing_five_minute_slots_observed"], 0)
+        self.assertFalse(completed["independent_vwap_certified"])
+        self.assertFalse(completed["execution_authorized"])
+
+    def test_auction_gap_not_miscounted_as_missing_regular_5m_bar(self):
+        q, bars, pages = fixture()
+        bars["data"] = [{
+            "date": f"2026-11-27T13:{minute}:00+08:00",
+            "open": 18.9, "high": 18.9, "low": 18.9,
+            "close": 18.9, "volume": 1, "average": 18.9,
+        } for minute in (20, 30)]
+        result = analyze("3717", q, bars, pages,
+                         observed_at=NOW.replace(hour=13, minute=36))
+        self.assertEqual(result["completed_bar_count"], 2)
+        self.assertEqual(result["missing_five_minute_slots_observed"], 0)
+        self.assertFalse(result["production_eligible"])
+
     def test_mobile_report_from_same_result_never_promotes_vwap(self):
         q, bars, pages = fixture()
         result = analyze("3717", q, bars, pages, observed_at=NOW)
