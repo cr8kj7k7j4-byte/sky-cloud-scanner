@@ -51,9 +51,10 @@ def guard_fugle_request(url: str, params: dict | None = None) -> None:
     """Optional endpoint claim immediately before a real Fugle HTTP request.
 
     This guard is research-only and defaults to OFF for legacy callers. When
-    enabled, historical candles use a stable claim and live endpoints retain
-    rolling five-minute claims. A historical claim is NOT a cache or proof of
-    successful download; W0 must review failed/partial requests before retry.
+    enabled, historical candles and live endpoints both use rolling
+    five-minute claims for CONCURRENT duplicate safety, never a permanent
+    historical-query lock. A claim is NOT a cache nor evidence of successful
+    download; W0 reviews ambiguous/failed provider responses before retry.
     Unknown URLs or GitHub write errors fail closed when enabled.
     """
     mode = os.getenv("SKY_PAID_ATOMIC_ENFORCE")
