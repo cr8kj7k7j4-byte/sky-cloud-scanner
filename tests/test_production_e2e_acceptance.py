@@ -289,3 +289,28 @@ def test_margin_runtime_eight_cases_in_existing_acceptance():
     suite.run(result)
     assert result.testsRun == suite.countTestCases()
     assert result.wasSuccessful(), repr(result.failures + result.errors)
+
+
+def test_margin_owner_command_eight_cases_in_existing_acceptance():
+    """Exact-HEAD CI tests real owner-gated command receipt and safety readback."""
+    import unittest
+    from pathlib import Path
+    from tests import test_sky_margin_trigger_receipt
+    workflow = Path(".github/workflows/sky-chat-bridge.yml").read_text(encoding="utf-8")
+    margin_job = workflow.split("  margin_readonly_command:", 1)[1].split("  w0_run_discovery:", 1)[0]
+    assert "github.event.issue.number == 363" in margin_job
+    assert "github.event.comment.user.login == github.repository_owner" in margin_job
+    assert "github.event.comment.author_association == 'OWNER'" in margin_job
+    assert "github.event.comment.body == 'SKY維持率'" in margin_job
+    assert "sky_margin_trigger_receipt" in margin_job
+    assert "sky-margin-hold-readback-" in margin_job
+    assert "gh run download" in margin_job
+    assert "FUGLE_API_KEY" not in margin_job
+    assert "sky_paid_fugle_api_guard" not in margin_job
+    assert "margin_readonly_command" in workflow.split("concurrency:",1)[1]
+    suite = unittest.TestLoader().loadTestsFromModule(test_sky_margin_trigger_receipt)
+    assert suite.countTestCases() == 8, "MARGIN_TRIGGER_TEST_DISCOVERY_INCOMPLETE"
+    result = unittest.TestResult()
+    suite.run(result)
+    assert result.testsRun == suite.countTestCases()
+    assert result.wasSuccessful(), repr(result.failures + result.errors)
