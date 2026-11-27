@@ -53,36 +53,42 @@ def market_session_open(now: datetime | None = None) -> bool:
     return current.weekday() < 5 and 9 * 60 <= minutes < 13 * 60 + 30
 
 
+def dated_local_research_reports() -> dict:
+    """Read dated local reports without asserting live/source certification."""
+    reports = {}
+    for name, filename in (
+        ("intraday", "output/latest.json"),
+        ("swing_research", "output/swing_live/latest_swing.json"),
+        ("swing5d_research", "output/swing_live/latest_swing5d.json"),
+    ):
+        item = {"file": filename, "available": False,
+                "source_evidence_status": "UNVERIFIED_LOCAL_RESEARCH_COPY",
+                "trade_eligible": False}
+        try:
+            raw = json.loads(Path(filename).read_text(encoding="utf-8"))
+            if not isinstance(raw, dict):
+                raise ValueError("INVALID_RESEARCH_REPORT")
+            timestamp = (raw.get("generated_at") or raw.get("run_time")
+                         or raw.get("scan_time"))
+            if isinstance(timestamp, str) and timestamp.strip():
+                item.update({"available": True, "data_timestamp": timestamp,
+                             "analysis_mode": raw.get("analysis_mode"),
+                             "analysis_observation_count": raw.get("analysis_observation_count"),
+                             "market_data_gate": raw.get("market_data_gate")})
+            else:
+                item["reason"] = "RESEARCH_SOURCE_TIME_MISSING"
+        except (OSError, ValueError, TypeError):
+            item["reason"] = "RESULT_NOT_AVAILABLE_OR_INVALID"
+        reports[name] = item
+    return reports
+
+
 def market_mode() -> dict:
     if not market_session_open():
         # Off-hours is not a reason to suppress an existing research report.
         # These local bytes do NOT prove an immutable same-run Artifact,
         # last executed trade or a validated historical/Production signal.
-        reports = {}
-        for name, filename in (
-            ("intraday", "output/latest.json"),
-            ("swing_research", "output/swing_live/latest_swing.json"),
-            ("swing5d_research", "output/swing_live/latest_swing5d.json"),
-        ):
-            item = {"file": filename, "available": False,
-                    "source_evidence_status": "UNVERIFIED_LOCAL_RESEARCH_COPY",
-                    "trade_eligible": False}
-            try:
-                raw = json.loads(Path(filename).read_text(encoding="utf-8"))
-                if not isinstance(raw, dict):
-                    raise ValueError("INVALID_RESEARCH_REPORT")
-                timestamp = (raw.get("generated_at") or raw.get("run_time")
-                             or raw.get("scan_time"))
-                if isinstance(timestamp, str) and timestamp.strip():
-                    item.update({"available": True, "data_timestamp": timestamp,
-                                 "analysis_mode": raw.get("analysis_mode"),
-                                 "analysis_observation_count": raw.get("analysis_observation_count"),
-                                 "market_data_gate": raw.get("market_data_gate")})
-                else:
-                    item["reason"] = "RESEARCH_SOURCE_TIME_MISSING"
-            except (OSError, ValueError, TypeError):
-                item["reason"] = "RESULT_NOT_AVAILABLE_OR_INVALID"
-            reports[name] = item
+        reports = dated_local_research_reports()
         return {
             "decision": "OFFHOURS_RESEARCH_REPORT_ONLY_NO_TRADE",
             "market_session": "TWSE_TPEx_REGULAR_09_00_13_30",
@@ -103,14 +109,26 @@ def market_mode() -> dict:
     path = BASE / "calendar.json"
     if calendar["exit_code"] != 0 or not path.is_file():
         results["decision"] = "NO_TRADE_CALENDAR_UNAVAILABLE"
+        results["research_access"] = research_access_contract()
+        results["reports"] = dated_local_research_reports()
+        results["research_report_fallback"] = "DATED_LOCAL_OBSERVATION_ONLY_NO_TRADE"
+        results["production_eligible"] = False
         return results
     try:
         check = json.loads(path.read_text(encoding="utf-8"))
     except (ValueError, OSError):
         results["decision"] = "NO_TRADE_INVALID_CALENDAR"
+        results["research_access"] = research_access_contract()
+        results["reports"] = dated_local_research_reports()
+        results["research_report_fallback"] = "DATED_LOCAL_OBSERVATION_ONLY_NO_TRADE"
+        results["production_eligible"] = False
         return results
     if check.get("source_status") != "PASS" or check.get("should_scan") is not True:
         results["decision"] = "NO_TRADE_NOT_CONFIRMED_TRADING_DAY"
+        results["research_access"] = research_access_contract()
+        results["reports"] = dated_local_research_reports()
+        results["research_report_fallback"] = "DATED_LOCAL_OBSERVATION_ONLY_NO_TRADE"
+        results["production_eligible"] = False
         return results
     for key, command in (
         ("intraday", [sys.executable, "-m", "src.main"]),
