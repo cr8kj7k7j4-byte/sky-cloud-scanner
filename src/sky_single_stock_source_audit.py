@@ -262,6 +262,8 @@ def render_mobile_source_audit(data: dict) -> str:
     status = value("five_minute_status")
     historical = data.get("historical_5m_research")
     historical = historical if isinstance(historical, dict) else {}
+    prior = data.get("completed_session_reconciliation")
+    prior = prior if isinstance(prior, dict) else {}
     trade_status = value("trades_status")
     volume_status = value("volume_status")
     vwap_status = value("vwap_status")
@@ -336,6 +338,15 @@ def render_mobile_source_audit(data: dict) -> str:
         f"| 逐筆成交加權均價（研究級） | {mean_label} |",
         f"| 最後成交價相對研究均價 | {distance_label} |",
         f"| 最近已完成 5m 收盤變動 | {recent_bar_label} |",
+        f"| 上一完成交易日最後成交（同源研究） | {prior.get('last_trade_status', 'HOLD')} |",
+        f"| 上一完成交易日最後成交時間 | {prior.get('last_trade_tpe', '待確認')} |",
+        f"| 前一日逐筆成交筆數（排除14:30） | {prior.get('regular_trade_count', '待確認')} |",
+        f"| 14:30 特殊成交已排除筆數 | {prior.get('excluded_1430_special_trade_count', '待確認')} |",
+        f"| 歷史同源 Quote／Trades／5m 量對帳 | {prior.get('volume_status', 'HOLD')} |",
+        f"| 上一完成交易日同源成交量（張） | {prior.get('regular_trade_volume_lots', '待確認')} |",
+        f"| 逐筆成交加權均價（上一交易日研究） | {prior.get('trades_weighted_mean_research', '待確認')} |",
+        f"| 上一完成交易日均價算術 | {prior.get('weighted_mean_status', 'HOLD')} |",
+        f"| 完成交易日算術拒絕原因 | {prior.get('reason', '待確認')} |",
         f"| 正式 VWAP 認證 | {'PASS' if data.get('independent_vwap_certified') is True else 'HOLD'} |",
         f"| VWAP 資料原因 | {vwap_status} |",
         f"| TWSE 外部成交量對帳 | HOLD（本次未取得可比對的同截點官方數據） |",
