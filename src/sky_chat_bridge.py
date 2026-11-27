@@ -30,6 +30,81 @@ COLUMNS = ("股票代碼", "股票名稱", "即時價", "分類", "方向", "多
 RESEARCH_ACTIONS = frozenset({"觀察", "等待", "禁止交易"})
 
 
+
+def afterhours_observation_preview(observation, *, limit=10):
+    """Use dated existing A1 observations for closed-session research only.
+
+    Never promotes stale snapshots into A2 candidates, executes any network
+    request, or asserts that a provider date is a certified trading day.
+    """
+    from datetime import date, timedelta
+    from math import isfinite
+    from zoneinfo import ZoneInfo
+
+    empty = {"mode": "NOT_AFTER_HOURS", "provider_snapshot_date": None,
+             "candidate_count": 0, "candidates": [],
+             "executed_trade_verified": False, "production_eligible": False,
+             "automatic_order": False}
+    if not isinstance(observation, dict):
+        return empty
+    try:
+        checked = datetime.fromisoformat(observation["checked_at_tpe"])
+        if checked.utcoffset() is None:
+            return empty
+        checked = checked.astimezone(ZoneInfo("Asia/Taipei"))
+    except (KeyError, TypeError, ValueError):
+        return empty
+    if not (checked.weekday() >= 5 or checked.hour >= 14 or checked.hour < 9):
+        return empty
+
+    # A source date is mandatory; capture time is NEVER a trade timestamp.
+    valid = []
+    for item in observation.get("ranked_observations") or []:
+        if not isinstance(item, dict) or item.get("source") != "Fugle paid bulk snapshot":
+            continue
+        if item.get("snapshot_is_trial") is True or item.get("exchange") not in ("TWSE", "TPEx"):
+            continue
+        try:
+            provider_day = date.fromisoformat(item["snapshot_source_date"])
+            observed = float(item.get("last_price"))
+        except (KeyError, TypeError, ValueError, OverflowError):
+            continue
+        if not isfinite(observed) or not (0 < observed < 100):
+            continue
+        if not (checked.date() - timedelta(days=7) <= provider_day <= checked.date()):
+            continue
+        valid.append((provider_day, item, observed))
+    if not valid:
+        return {**empty, "mode": "AFTER_HOURS_RESEARCH",
+                "status": "HOLD_NO_DATED_SOURCE_OBSERVATIONS"}
+    newest = max(day for day, _, _ in valid)
+    candidates = []
+    for day, item, price in valid:
+        if day != newest or len(candidates) >= limit:
+            continue
+        candidates.append({
+            "symbol": str(item.get("symbol") or ""),
+            "name": str(item.get("name") or ""),
+            "exchange": item["exchange"],
+            "provider_snapshot_date": day.isoformat(),
+            "observed_price_not_live": round(price, 4),
+            "reported_volume_raw": item.get("volume"),
+            "volume_unit_verified": False,
+            "snapshot_capture_at": item.get("snapshot_observed_at"),
+            "executed_trade_verified": False,
+            "classification": "未分級（盤後研究）",
+            "action": "觀察",
+            "production_eligible": False,
+        })
+    candidates = [c for c in candidates if c["symbol"]]
+    return {"mode": "AFTER_HOURS_RESEARCH",
+            "status": "DATED_A1_OBSERVATION_ONLY",
+            "provider_snapshot_date": newest.isoformat(),
+            "candidate_count": len(candidates), "candidates": candidates,
+            "executed_trade_verified": False, "production_eligible": False,
+            "automatic_order": False}
+
+
 def bind_issue_comment_command(payload, event):
     """Bind only exact OWNER-authorized issue-comment aliases to this run request."""
     if not isinstance(payload, dict) or not isinstance(event, dict):
@@ -168,10 +243,15 @@ def make_status(request_id, report=None, error=None, observation=None, stage1=No
                      "REPORT_READY_RESEARCH_ONLY" if observed_count > 0 else
                      "DATA_BLOCKED_NO_OBSERVATIONS")
     five_minute_diagnostic = diagnose_five_minute_path(stage1, stage2, stage3)
+    afterhours = afterhours_observation_preview(observation)
     if report is None:
         mobile_notice = "研究快掃失敗；禁止交易"
     elif report_status != "REPORT_READY_RESEARCH_ONLY":
         mobile_notice = "研究報告資料不完整；禁止交易：" + report_status
+    elif afterhours["mode"] == "AFTER_HOURS_RESEARCH" and afterhours["candidate_count"]:
+        mobile_notice = ("盤後研究觀察名單可讀；來源日期 "
+                         + afterhours["provider_snapshot_date"]
+                         + "；非即時成交，A2 與策略未驗證，禁止交易")
     elif stage3.get("status") == "DISABLED_V5_4":
         mobile_notice = "研究報告可讀；正式快掃已停用即時五分K與獨立VWAP，禁止交易"
     elif five_minute_diagnostic["reason_code"] == "FIVE_MINUTE_OBSERVED_RESEARCH_ONLY":
@@ -193,6 +273,7 @@ def make_status(request_id, report=None, error=None, observation=None, stage1=No
         "fresh_executed_count": observation.get("fresh_executed_count", 0),
         "by_exchange": exchange_detail,
         "stage1_candidate_count": stage1.get("candidate_count", 0),
+        "afterhours_research": afterhours,
         "stage2_attempted_count": stage2.get("attempted_count", 0),
         "stage2_verified_executed_count": stage2.get("verified_executed_count", 0),
         "stage2_rate_limited_count": stage2.get("rate_limited_count", 0),
