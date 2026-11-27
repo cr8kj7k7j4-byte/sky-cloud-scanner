@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from . import fugle
+from .sky_mobile_table import evidence_scores, direction_label
 
 TPE = timezone(timedelta(hours=8))
 
@@ -39,7 +40,9 @@ def collect(symbol: str, now=None) -> dict:
         "symbol": symbol, "source": "Fugle MarketData API /intraday/quote",
         "requested_at_tpe": now.isoformat(), "action": "等待",
         "execution_authorized": False, "live_order_enabled": False,
-        "scores": None, "entry_trigger": None, "max_entry": None,
+        "scores": None, "score_status": "INSUFFICIENT_VERIFIED_OHLC",
+        "score_version": "SKY_OBSERVATIONAL_EVIDENCE_V1",
+        "entry_trigger": None, "max_entry": None,
         "stop": None, "targets": None, "net_rr": None,
         "field_missing_reasons": {
             "多方評分": "本行情收集器不執行正式多方模型，缺多週期與完整策略證據",
@@ -118,6 +121,39 @@ def collect(symbol: str, now=None) -> dict:
             else:
                 result["status"] = "REALTIME_QUOTE_VERIFIED"
                 result["executed_trade_verified"] = True
+        # Display-only observation scores are independent of broker account,
+        # daytrade eligibility and P0-R. They never authorize orders or entries.
+        # Require actual executed price/time, same-session fresh data and valid
+        # same-day Fugle OHLC; quote lastPrice/refresh time are not substitutes.
+        def positive(value):
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                return None
+            number = float(value)
+            return number if math.isfinite(number) and number > 0 else None
+
+        executed = positive(last_trade_price)
+        op = positive(quote.get("openPrice"))
+        hi = positive(quote.get("highPrice"))
+        lo = positive(quote.get("lowPrice"))
+        chg = quote.get("changePercent")
+        age = result.get("quote_age_seconds")
+        trade_fresh = (last_time is not None and isinstance(age, (int, float))
+                       and -30 <= age <= 120 and quote.get("date") == now.date().isoformat()
+                       and datetime.fromisoformat(last_time).date() == now.date())
+        if (trade_fresh and None not in (executed, op, hi, lo)
+                and lo <= executed <= hi and lo <= op <= hi
+                and isinstance(chg, (int, float)) and not isinstance(chg, bool)
+                and math.isfinite(float(chg))):
+            bull, bear = evidence_scores({
+                "last": executed, "open": op, "high": hi, "low": lo,
+                "change_pct": float(chg),
+            })
+            if bull is not None and bear is not None:
+                result["scores"] = {"bull": bull, "bear": bear}
+                result["score_direction"] = direction_label(bull, bear, {})
+                result["score_status"] = "RESEARCH_ONLY_VERIFIED_INTRADAY_QUOTE"
+                result["field_missing_reasons"].pop("多方評分", None)
+                result["field_missing_reasons"].pop("空方評分", None)
         return result
     except Exception as exc:
         result.update({"status": "QUOTE_FETCH_FAILED", "error_type": type(exc).__name__})
