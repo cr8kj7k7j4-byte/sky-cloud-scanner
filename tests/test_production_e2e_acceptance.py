@@ -276,3 +276,16 @@ def test_swing_complete_session_consumer_regressions_in_acceptance():
     suite.run(result)
     assert result.testsRun == suite.countTestCases()
     assert result.wasSuccessful(), repr(result.failures + result.errors)
+
+
+def test_margin_runtime_eight_cases_in_existing_acceptance():
+    """Existing Exact-HEAD Acceptance CI runs the new offline consumer suite."""
+    import unittest
+    from tests import test_sky_margin_runtime
+
+    suite = unittest.TestLoader().loadTestsFromModule(test_sky_margin_runtime)
+    assert suite.countTestCases() == 8, "MARGIN_RUNTIME_REGRESSIONS_NOT_DISCOVERED"
+    result = unittest.TestResult()
+    suite.run(result)
+    assert result.testsRun == suite.countTestCases()
+    assert result.wasSuccessful(), repr(result.failures + result.errors)
