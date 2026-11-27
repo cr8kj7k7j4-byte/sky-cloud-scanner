@@ -64,15 +64,12 @@ def guard_fugle_request(url: str, params: dict | None = None) -> None:
     from research.sky_fugle_request_identity import canonical_fugle_request
 
     scope = canonical_fugle_request("GET", url, parameters=params)
-    # Immutable historical query windows must not regain paid-request permission
-    # when the rolling five-minute slot expires. Keep live endpoints on their
-    # existing rolling slot, preserving valid fresh market-data collection.
-    # This is deliberately fail-closed: an unsuccessful historical request
-    # requires W0 to inspect its claim and evidence before any retry.
-    from urllib.parse import urlsplit
-    endpoint = urlsplit(url).path.removeprefix("/marketdata/v1.0/stock/").lstrip("/")
-    historical = endpoint.startswith("historical/candles/")
-    slot = 1 if historical else int(datetime.now(timezone.utc).timestamp()) // 300
+    # Do not permanently lock a history query to slot=1. The same canonical
+    # endpoint/window may be researched again in a later observation period.
+    # The atomic ref still prevents identical CONCURRENT requests in the same
+    # rolling slot. Monthly mode uses official rate pacing instead of this
+    # legacy atomic branch; neither mode uses a lifetime request-count cap.
+    slot = int(datetime.now(timezone.utc).timestamp()) // 300
     ref = claim_ref(scope, slot)
     repo = os.getenv("GITHUB_REPOSITORY", "")
     token = os.getenv("GH_TOKEN", "")
