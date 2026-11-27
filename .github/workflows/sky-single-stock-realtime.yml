@@ -79,15 +79,16 @@ jobs:
               if match is None:
                   raise SystemExit("INVALID_SINGLE_STOCK_COMMAND")
               symbol = match.group(1)
-              audit = body.startswith("Sky 5m驗證 ")
+              audit = body.startswith("Sky 5m驗證 ") or body.startswith("Sky 分析 ")
           else:
               symbol = os.environ.get("MANUAL_SYMBOL", "")
-              audit = os.environ.get("MANUAL_AUDIT", "").lower() == "true"
+              audit = os.environ.get("MANUAL_AUDIT", "").lower() == "true"\n              # Manual source_audit is preserved; owner Sky 分析 is always unified.
               if re.fullmatch(r"[0-9]{4,6}", symbol) is None:
                   raise SystemExit("INVALID_SYMBOL")
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
               out.write(f"symbol={symbol}\n")
               out.write(f"audit={str(audit).lower()}\n")
+              out.write(f"unified={str(body.startswith('Sky 分析 ') if os.environ['GITHUB_EVENT_NAME'] == 'issue_comment' else False).lower()}\n")
           print(f"VALIDATED_RESEARCH_ONLY_SYMBOL={symbol}")
           PY
       - name: Collect Fugle quote (reference permitted; execution marked separately)
@@ -102,7 +103,7 @@ jobs:
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
           SYMBOL: ${{ steps.request.outputs.symbol }}
-        run: python -m src.sky_single_stock_source_audit --symbol "$SYMBOL"
+        run: |\n          if [ "${{ steps.request.outputs.unified }}" = "true" ]; then\n            python -m src.sky_single_stock_source_audit --symbol "$SYMBOL" --unified\n          else\n            python -m src.sky_single_stock_source_audit --symbol "$SYMBOL"\n          fi
       - name: Upload quote evidence even when unavailable
         if: always()
         uses: actions/upload-artifact@v4
