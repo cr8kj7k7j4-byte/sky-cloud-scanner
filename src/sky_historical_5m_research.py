@@ -10,6 +10,8 @@ import math
 import re
 from datetime import date, datetime, time, timedelta, timezone
 
+from .sky_kbar_evidence_policy import classify as classify_kbar
+
 TPE = timezone(timedelta(hours=8))
 PASS = "PASS_COMPLETED_HISTORICAL_5M_RESEARCH_ONLY"
 NO_BARS = "OBSERVATION_ONLY_NO_5M_BARS"
@@ -62,6 +64,7 @@ def evaluate(symbol: str, source_date: str, payload: object, *, observed_at=None
     # [] is a valid no-observation case; it does NOT certify any indicators,
     # executed trades, full-session volume, VWAP, or an actionable signal.
     if not raw:
+        result.update(classify_kbar(source_valid=True, observed_bars=0, missing_slots=53))
         result.update({
             "status": NO_BARS,
             "reason": "NO_OBSERVED_5M_BARS_RESEARCH_CONTINUES",
@@ -134,6 +137,8 @@ def evaluate(symbol: str, source_date: str, payload: object, *, observed_at=None
     auction_present = auction in times
     # The 13:30 closing bar is separate and not proof of continuous trades.
     # No daily coverage or cross-source claim is inferred from sparse bars.
+    result.update(classify_kbar(
+        source_valid=True, observed_bars=len(times), missing_slots=missing_regular))
     result.update({
         "status": PASS, "reason": "HISTORICAL_SPARSE_BARS_VALIDATED_RESEARCH_ONLY",
         "research_report_available": True, "five_minute_indicators_available": True,
