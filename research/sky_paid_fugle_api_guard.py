@@ -114,10 +114,12 @@ def github_run_lookup(repo: str, token: str, run_id: str):
             raise RuntimeError("INVALID_RUN_ARTIFACT_RESPONSE")
         all_artifacts = result["artifacts"]
         if (type(result.get("total_count")) is not int
-                or result["total_count"] > len(all_artifacts)
+                or result["total_count"] < 0
                 or len(all_artifacts) > 100
                 or any(not isinstance(a, dict) for a in all_artifacts)):
             raise RuntimeError("TRUNCATED_OR_INVALID_RUN_ARTIFACT_RESPONSE")
+        if result["total_count"] > len(all_artifacts):
+            raise RuntimeError("RUN_ARTIFACT_INDEX_INCOMPLETE")
         return [a for a in all_artifacts if a.get("name") == name]
 
     return lookup
@@ -347,7 +349,7 @@ def main():
                       if args.monthly_rate_limited else github_lookup(repo, token))
             download = lambda artifact_id: download_claim_archive(repo, token, artifact_id)
             # Artifact indexing may lag the completed upload. Retry only the
-            # specific missing-own-claim state; never retry a mismatched nonce.
+            # missing-own-claim or incomplete index state, never a mismatched nonce.
             for attempt in range(4):
                 try:
                     name = verify_uploaded_reservation(
@@ -358,7 +360,8 @@ def main():
                     print("FUGLE_RESERVATION_ZIP_CONTENT_READBACK_VERIFIED:" + name)
                     return
                 except RuntimeError as exc:
-                    if str(exc) != "OWN_RESERVATION_NOT_VISIBLE" or attempt == 3:
+                    if str(exc) not in ("OWN_RESERVATION_NOT_VISIBLE",
+                                        "RUN_ARTIFACT_INDEX_INCOMPLETE") or attempt == 3:
                         raise
                     time.sleep(2)
                 except HTTPError as exc:
