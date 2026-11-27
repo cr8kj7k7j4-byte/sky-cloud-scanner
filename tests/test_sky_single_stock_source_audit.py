@@ -68,8 +68,8 @@ class SourceAuditTests(unittest.TestCase):
     def test_paid_requests_bounded_and_never_retry_after_failure(self):
         q, bars, ticks = fixture()
         pages = [dict(data=x["data"]) for x in ticks]
-        with patch("src.sky_single_stock_source_audit.fugle.get_quote", return_value=q) as quote, \\
-             patch("src.sky_single_stock_source_audit.fugle.get_candles", return_value=bars) as candles, \\
+        with patch("src.sky_single_stock_source_audit.fugle.get_quote", return_value=q) as quote, \
+             patch("src.sky_single_stock_source_audit.fugle.get_candles", return_value=bars) as candles, \
              patch("src.sky_single_stock_source_audit.fugle.get_trades", side_effect=pages) as trades:
             result = collect("3717")
         quote.assert_called_once()
