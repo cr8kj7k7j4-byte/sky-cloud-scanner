@@ -204,6 +204,49 @@ class SourceAuditTests(unittest.TestCase):
         bars["data"][0]["date"] = "2026-11-27T12:02:00+08:00"
         self.assertEqual(analyze("3717", q, bars, pages, observed_at=NOW)["five_minute_status"], "HOLD")
 
+    def test_official_pagination_continues_beyond_five_pages_until_terminal_empty(self):
+        # No Fugle HTTP: seven mock pages cover >2500 trades. Page-count
+        # never certifies A2, cross-source volume, PIT or independent VWAP.
+        q, bars, _ = fixture()
+        for trade_count in (2001, 2500, 2501, 3001):
+            batches = [
+                {"data": list(range(offset, min(offset + 500, trade_count)))}
+                for offset in range(0, trade_count, 500)
+            ] + [{"data": []}]
+            analyzed = {"trades_status": "HOLD", "vwap_status": "HOLD",
+                        "execution_authorized": False, "production_eligible": False}
+            with patch("src.sky_single_stock_source_audit.fugle.get_quote", return_value=q), \
+                 patch("src.sky_single_stock_source_audit.fugle.get_candles", return_value=bars), \
+                 patch("src.sky_single_stock_source_audit.fugle.get_trades", side_effect=batches) as trades, \
+                 patch("src.sky_single_stock_source_audit.analyze", return_value=analyzed) as analyze_mock:
+                got = collect("3717")
+            self.assertEqual(trades.call_count, len(batches))
+            self.assertEqual([x.kwargs["offset"] for x in trades.call_args_list],
+                             list(range(0, len(batches) * 500, 500)))
+            pages = analyze_mock.call_args.args[3]
+            self.assertEqual([x["offset"] for x in pages],
+                             list(range(0, len(batches) * 500, 500)))
+            self.assertEqual(pages[-1]["data"], [])
+            self.assertFalse(got["execution_authorized"])
+            self.assertFalse(got["production_eligible"])
+
+    def test_resource_budget_exhaustion_stays_hold_and_never_certifies_vwap(self):
+        q, bars, _ = fixture()
+        with patch("src.sky_single_stock_source_audit.fugle.get_quote", return_value=q), \
+             patch("src.sky_single_stock_source_audit.fugle.get_candles", return_value=bars), \
+             patch("src.sky_single_stock_source_audit.fugle.get_trades",
+                   side_effect=[{"data": [1] * 500}] * 6) as trades, \
+             patch("src.sky_single_stock_source_audit.analyze",
+                   return_value={"trades_status": "HOLD", "vwap_status": "HOLD",
+                                 "independent_vwap_certified": False,
+                                 "execution_authorized": False,
+                                 "production_eligible": False}):
+            result = collect("3717", max_pages=6)
+        self.assertEqual(trades.call_count, 6)
+        self.assertEqual(result["trades_status"], "HOLD_PAGE_CAP_NO_TERMINAL_EMPTY_PAGE")
+        self.assertEqual(result["vwap_status"], "HOLD")
+        self.assertFalse(result["independent_vwap_certified"])
+
     def test_max_pages_guard_rejects_unbounded_calls_before_network(self):
         with self.assertRaises(ValueError):
             collect("3717", max_pages=MAX_TRADES_PAGES + 1)
