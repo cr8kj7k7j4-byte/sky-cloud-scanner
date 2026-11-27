@@ -1,10 +1,16 @@
 """Offline, no provider calls: bounded 5m/trades evidence never grants trading."""
 import unittest
+import json
+import sys
+import tempfile
+from pathlib import Path
+from contextlib import redirect_stdout
+from io import StringIO
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 from src.sky_single_stock_source_audit import (analyze, collect, render_mobile_source_audit,
-    analyze_observation_score, render_unified_stock_research, MAX_TRADES_PAGES)
+    analyze_observation_score, render_unified_stock_research, main as source_audit_main, MAX_TRADES_PAGES)
 
 TPE = timezone(timedelta(hours=8))
 NOW = datetime(2026, 11, 27, 12, 7, tzinfo=TPE)
@@ -88,6 +94,32 @@ class SourceAuditTests(unittest.TestCase):
         report3 = render_mobile_source_audit(missing)
         self.assertIn("研究數據：資料不足，待確認", report3)
         self.assertIn("最後成交價相對研究均價 | 待確認", report3)
+
+    def test_unified_cli_json_artifact_is_strictly_parseable_with_newline(self):
+        # Real Run 45945886272 emitted literal \\n bytes after JSON; no CI
+        # may claim Artifact PASS without independent json.loads(read_text).
+        q, bars, pages = fixture()
+        q.update({"openPrice": 18.75, "highPrice": 19.05, "lowPrice": 18.65,
+                  "changePercent": 0.8})
+        result = analyze("3717", q, bars, pages, observed_at=NOW)
+        result["quote_raw"] = q
+        with tempfile.TemporaryDirectory() as directory:
+            args = ["sky_single_stock_source_audit", "--symbol", "3717",
+                    "--out-dir", directory, "--unified"]
+            with patch("sys.argv", args), patch(
+                "src.sky_single_stock_source_audit.collect", return_value=result
+            ), redirect_stdout(StringIO()):
+                source_audit_main()
+            content = (Path(directory) / "3717.json").read_text(encoding="utf-8")
+            decoded = json.loads(content)
+            self.assertEqual(decoded["schema"], "SKY_UNIFIED_SINGLE_STOCK_RESEARCH_V1")
+            self.assertEqual(decoded["symbol"], "3717")
+            self.assertFalse(decoded["execution_authorized"])
+            self.assertTrue(content.endswith("\\n"))
+            self.assertFalse(content.endswith(r"\\n"))
+            self.assertTrue((Path(directory) / "3717.md").is_file())
+            self.assertTrue((Path(directory) / "3717-5m-source.json").is_file())
+            self.assertTrue((Path(directory) / "3717-5m-source.md").is_file())
 
     def test_unified_owner_analysis_one_same_run_no_trade_promotion(self):
         q, bars, pages = fixture()
