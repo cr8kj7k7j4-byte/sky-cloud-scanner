@@ -132,7 +132,7 @@ jobs:
           else
             python -m src.sky_single_stock_source_audit --symbol "$SYMBOL"
           fi
-      - name: Collect 3717 one-day historical source only (once)
+      - name: Collect scoped historical 5m research evidence (repeatable)
         if: steps.request.outcome == 'success' && steps.request.outputs.history == 'true'
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
