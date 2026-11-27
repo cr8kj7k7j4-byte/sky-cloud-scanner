@@ -19,7 +19,11 @@ from .sky_single_stock_realtime import timestamp_tpe
 from .sky_mobile_table import evidence_scores, direction_label
 
 TPE = timezone(timedelta(hours=8))
-MAX_TRADES_PAGES = 5
+# Per-execution resource ceiling, NOT a Fugle page-count entitlement or a
+# permanent data-validity rule. Continue official offset=0,500,... until an
+# explicit empty page; if the safety budget is exhausted, keep source HOLD.
+# Raising this budget does not bypass Fugle rate limits/claim/timeout.
+MAX_TRADES_PAGES = 128
 PAGE_LIMIT = 500
 
 
@@ -183,7 +187,7 @@ def collect(symbol, *, max_pages=MAX_TRADES_PAGES):
     if not symbol.isascii() or not symbol.isdigit() or len(symbol) not in (4, 5, 6):
         raise ValueError("INVALID_SYMBOL")
     if type(max_pages) is not int or max_pages < 1 or max_pages > MAX_TRADES_PAGES:
-        raise ValueError("INVALID_BOUNDED_PAGE_COUNT")
+        raise ValueError("INVALID_COLLECTION_RESOURCE_BUDGET")
     now = datetime.now(TPE)
     result = {
         "schema": "SKY_5M_TRADES_BOUND_SOURCE_V1", "symbol": symbol,
@@ -196,6 +200,9 @@ def collect(symbol, *, max_pages=MAX_TRADES_PAGES):
         quote = fugle.get_quote(symbol)
         candles = fugle.get_candles(symbol, timeframe="5")
         pages = []
+        # Fugle's completion condition is a terminal empty data page, not
+        # the old arbitrary five-page cutoff. max_pages only limits this Run's
+        # resources; missing a terminal page must remain HOLD.
         for offset in range(0, max_pages * PAGE_LIMIT, PAGE_LIMIT):
             page = fugle.get_trades(symbol, offset=offset, limit=PAGE_LIMIT)
             data = page.get("data") if isinstance(page, dict) else None
