@@ -255,3 +255,34 @@ def test_calendar_uncertainty_does_not_certify_undated_report(monkeypatch, tmp_p
     assert result["reports"]["intraday"]["available"] is False
     assert result["reports"]["intraday"]["reason"] == "RESEARCH_SOURCE_TIME_MISSING"
     assert result["production_eligible"] is False
+
+def test_unified_status_preserves_research_provenance_without_candidate_prices():
+    """Same-run mobile summary must retain #816's off-hours safety labels."""
+    import ast
+    from pathlib import Path
+    workflow = Path(".github/workflows/sky-unified-commands.yml").read_text(encoding="utf-8")
+    start = workflow.index('("available", "data_timestamp",')
+    close = workflow.index(')', start)
+    whitelist = ast.literal_eval(workflow[start:close + 1])
+    required = {
+        "available", "data_timestamp", "source_evidence_status",
+        "trade_eligible", "analysis_mode", "analysis_observation_count",
+        "reason", "market_data_gate",
+    }
+    assert required.issubset(whitelist)
+    source = {
+        "available": True,
+        "data_timestamp": "2026-11-27T13:35:00+08:00",
+        "source_evidence_status": "UNVERIFIED_LOCAL_RESEARCH_COPY",
+        "trade_eligible": False,
+        "analysis_mode": "OBSERVATION_ONLY",
+        "analysis_observation_count": 3,
+        "market_data_gate": "BLOCKED_EXTERNAL_DATA_NO_TRADE",
+        "deep_candidates": [{"symbol": "3717", "price": 1234}],
+    }
+    safe = {key: source.get(key) for key in whitelist}
+    assert safe["source_evidence_status"] == "UNVERIFIED_LOCAL_RESEARCH_COPY"
+    assert safe["trade_eligible"] is False
+    assert safe["data_timestamp"] == "2026-11-27T13:35:00+08:00"
+    assert "deep_candidates" not in safe
+    assert "price" not in safe
