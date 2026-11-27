@@ -188,7 +188,7 @@ def test_v11_same_run_readback_is_parseable_and_fail_closed():
     assert "PASS_HOLD_RECEIPT_INTEGRITY_ONLY" in block
     assert "production_eligible\":False" in block
     assert "automatic_order\":False" in block
-    python = block.split("          python - <<'PY'\\n", 1)[1].split("\\n          PY", 1)[0]
+    python = block.split("          python - <<'PY'\n", 1)[1].split("\n          PY", 1)[0]
     ast.parse(dedent(python))
 
 
