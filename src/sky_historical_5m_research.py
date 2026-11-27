@@ -76,7 +76,7 @@ def evaluate(symbol: str, source_date: str, payload: object, *, observed_at=None
         op, hi, lo, close, vol, avg = (row.get(k) for k in
                                       ("open", "high", "low", "close", "volume", "average"))
         if (not all(_positive(p) for p in (op, hi, lo, close, avg))
-                or type(vol) not in (int, float) or not math.isfinite(vol) or vol < 0
+                or type(vol) not in (int, float) or not math.isfinite(vol) or vol <= 0
                 or not lo <= min(op, close) <= max(op, close) <= hi):
             result["reason"] = "INVALID_OHLC_VOLUME_OR_AVERAGE"
             return result
@@ -89,20 +89,33 @@ def evaluate(symbol: str, source_date: str, payload: object, *, observed_at=None
             or not all(a < b for a, b in zip(times, times[1:]))):
         result["reason"] = "DUPLICATE_OR_UNSORTED_BAR"
         return result
-    # For a full completed 09:00–13:30 equity session, each standard 5-minute
-    # bucket must be present. 13:30 is a separate closing-auction bar, NOT the
-    # beginning of the next regular 5-minute window.
-    expected = [datetime.combine(target, time(9), TPE) + timedelta(minutes=5 * i)
-                for i in range(55)]
-    if times != expected:
-        result["reason"] = "INCOMPLETE_SESSION_OR_CLOSING_AUCTION"
-        result["completed_bar_count"] = len(times)
+    # Provider-first: Fugle explicitly omits minutes without trades. The
+    # regular session has 09:00–13:20 5m starts (53 possible slots); 13:25
+    # is the closing call-auction interval and NEVER a normal bar.
+    # A separate 13:30 bar may appear only when the closing auction traded.
+    # Missing slots are an observable coverage gap, NOT invalid source data.
+    regular_slots = [datetime.combine(target, time(9), TPE)
+                     + timedelta(minutes=5 * i) for i in range(53)]
+    auction = datetime.combine(target, time(13, 30), TPE)
+    allowed = set(regular_slots + [auction])
+    if any(t not in allowed for t in times):
+        result["reason"] = "BAR_OUTSIDE_OFFICIAL_5M_SLOTS"
         return result
+    regular_observed = sum(t in set(regular_slots) for t in times)
+    missing_regular = len(regular_slots) - regular_observed
+    auction_present = auction in times
+    # The 13:30 closing bar is separate and not proof of continuous trades.
+    # No daily coverage or cross-source claim is inferred from sparse bars.
     result.update({
-        "status": PASS, "reason": "HISTORICAL_SESSION_BARS_VALIDATED",
+        "status": PASS, "reason": "HISTORICAL_SPARSE_BARS_VALIDATED_RESEARCH_ONLY",
         "completed_bar_count": len(times), "raw_volume_lots_sum": volume_total,
         "last_completed_bar_start_tpe": times[-1].isoformat(),
-        "closing_auction_bar_start_tpe": times[-1].isoformat(),
+        "closing_auction_bar_start_tpe": auction.isoformat() if auction_present else None,
+        "observed_regular_slot_count": regular_observed,
+        "missing_regular_slot_count": missing_regular,
+        "closing_auction_bar_observed": auction_present,
+        "session_coverage_certified": False,
+        "cross_source_reconciliation_certified": False,
         "bars": observations,
         # Strictly research-only: cumulative average is provider-reported
         # and must never become independent VWAP or an executed trade.
