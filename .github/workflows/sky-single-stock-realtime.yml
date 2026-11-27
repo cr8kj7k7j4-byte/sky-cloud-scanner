@@ -175,7 +175,7 @@ jobs:
           fi
           HISTORY_SHA="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$HISTORY_RUN_ID" --jq '.head_sha')"
           HISTORY_ARTIFACT_ID="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$HISTORY_RUN_ID/artifacts" \
-            --jq ".artifacts | map(select(.name == \\"fugle-single-stock-$HISTORY_RUN_ID\\" and .expired == false)) | if length == 1 then .[0].id else empty end")"
+            --jq ".artifacts | map(select(.name == \"fugle-single-stock-$HISTORY_RUN_ID\" and .expired == false)) | if length == 1 then .[0].id else empty end")"
           if [ -z "$HISTORY_ARTIFACT_ID" ]; then
             echo "HOLD_HISTORY_ARTIFACT_NOT_UNIQUE"
             exit 0
