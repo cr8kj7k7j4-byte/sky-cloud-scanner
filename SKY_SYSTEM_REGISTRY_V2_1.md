@@ -3,6 +3,21 @@
 > Canonical registry for production, research, rejected and evidence-only components.
 > Engineering maturity labels do not imply profitability or future returns.
 
+## W0 #363｜Fugle 方案 A 與歷史 5m 研究資料分層（2026-11-28）
+
+本節適用全部 Sky 當沖／波段模型、全市場／單股／持股研究指令、手機報告、Workflow、CI 及研究 Artifact；**只統一資料證據語義，不變更 Production 模型版本**。
+
+- **A1 全市場 Snapshot**：僅為 `OBSERVATION_ONLY` 初篩，保留 TWSE/TPEx 母體分母、資料日期、缺漏、覆蓋率。Snapshot `lastUpdated` 不能認證逐股成交時間。
+- **A2 候選逐股 Individual Quote**：在同交易日以 `lastTrade.price/time`（或已證明合格的 `closePrice/closeTime` 成對備援）驗證實際成交及新鮮度。全市場 A2 覆蓋不足，不阻止 A1 研究觀察，但不得宣稱即時可買。
+- **盤中 5m／Trades**：沿用 #775～#777 已存在的 opt-in、有界來源採證；完成棒須依 BAR_START/PIT 排除未完成棒。分頁有空頁終止且同來源 Quote/Trades/5m 數量一致，可標記研究級算術對帳；不可憑此宣稱原子 PIT、跨來源量單位或正式 VWAP 認證。
+- **盤後／休市歷史 5m**：沿用 #802 的 `/historical/candles` 研究分流。Fugle 可能省略無成交時間；常規 5 分 K 起始點為 09:00–13:20，13:25–13:30 集合競價不產生常規棒，13:30 收盤撮合另成一根。**不得固定要求 55 根，亦不得把稀疏歷史棒誤判成無法研究**。缺棒／無收盤棒需揭露實際涵蓋，不能自動認證完整性。
+- **成交量對帳**：整股分 K 的 `volume` 為張；日 K 的 `volume` 為股且包含不同交易別，**不可將分 K 加總直接與日 K 或交易所全日總量比較並宣稱相等**。交易所核對須先對齊交易別、截止時間與單位。
+- **VWAP**：分 K `average` 是自開盤累積均價，不得當成每棒獨立 VWAP；逐筆成交加權均價可用於 `RESEARCH_ONLY`，缺乏原子 PIT/跨來源證據時 `independent_vwap_certified=false`。
+- **共同指令／模型報告契約**：即使交易資格或研究策略規則 HOLD，仍可輸出帶日期、來源與缺漏的 `OBSERVATION_ONLY` 報告。只有完成行情、策略、成本後 RR、P0-R 才可給交易候選／張數。研究分數不等於勝率；不得藉報告接線提高 Production 版本、解除 `NO_TRADE` 或恢復自動下單。
+- **付費及驗收**：不得重跑已有有效來源的 API；必要新增取數限於已核權限／速率／Claim 的 W0 最小證據路徑。工程 PASS、同次 Run/Artifact 讀回、跨來源資料 PASS、策略研究 PASS 與 Production 核准分開驗收。
+
+官方資料契約：https://developer.fugle.tw/docs/data/http-api/historical/candles/ 與 https://developer.fugle.tw/docs/data/http-api/intraday/trades/；既有證據 #363 Run 45943803977 / 45944694345、PR #775～#777 / #802；固定根數缺陷由 #803 最小修復。
+
 ## Canonical architecture
 P0-DATA → P0-K → P0-M → P0-EVT → P0-F → P0-AG → P0-S → P0-C → P0-O → P0-R → P0-X → P0-A → PMS → P0-L → P0-D → P0-G
 
