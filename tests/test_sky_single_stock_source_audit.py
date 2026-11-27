@@ -3,7 +3,7 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
-from src.sky_single_stock_source_audit import analyze, collect, MAX_TRADES_PAGES
+from src.sky_single_stock_source_audit import analyze, collect, render_mobile_source_audit, MAX_TRADES_PAGES
 
 TPE = timezone(timedelta(hours=8))
 NOW = datetime(2026, 11, 27, 12, 7, tzinfo=TPE)
@@ -52,6 +52,22 @@ class SourceAuditTests(unittest.TestCase):
         self.assertEqual(result["vwap_status"], "RESEARCH_ONLY_NO_ATOMIC_PIT_PROOF")
         self.assertFalse(result["independent_vwap_certified"])
         self.assertFalse(result["execution_authorized"])
+
+    def test_mobile_report_from_same_result_never_promotes_vwap(self):
+        q, bars, pages = fixture()
+        result = analyze("3717", q, bars, pages, observed_at=NOW)
+        report = render_mobile_source_audit(result)
+        self.assertIn("Sky 5m驗證 3717", report)
+        self.assertIn("2026-11-27", report)
+        self.assertIn("已完成 K 棒", report)
+        self.assertIn("TWSE 外部成交量對帳 | HOLD", report)
+        self.assertIn("正式 VWAP 認證 | HOLD", report)
+        self.assertIn("禁止依此報告新進場", report)
+        self.assertNotIn("| 正式 VWAP 認證 | PASS", report)
+        failed = render_mobile_source_audit({"symbol": "3717", "collection_error_type": "PermissionError"})
+        self.assertIn("PermissionError", failed)
+        self.assertIn("待確認", failed)
+        self.assertNotIn("PASS", failed)
 
     def test_missing_terminal_and_bad_bars_do_not_certify(self):
         q, bars, pages = fixture()

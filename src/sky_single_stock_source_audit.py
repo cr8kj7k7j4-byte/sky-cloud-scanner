@@ -197,6 +197,56 @@ def collect(symbol, *, max_pages=MAX_TRADES_PAGES):
         return result
 
 
+
+def render_mobile_source_audit(data: dict) -> str:
+    """Same-run mobile readback. Research arithmetic is NOT verified trading VWAP."""
+    def value(key, default="待確認"):
+        item = data.get(key)
+        return str(item) if item is not None else default
+
+    status = value("five_minute_status")
+    trade_status = value("trades_status")
+    volume_status = value("volume_status")
+    vwap_status = value("vwap_status")
+    count = data.get("returned_bar_count")
+    completed = data.get("completed_bar_count")
+    excluded = data.get("excluded_incomplete_bar_count")
+    # Do not imply completed-only volume equals the current full-session quote.
+    lines = [
+        "🟡 研究資料觀察｜禁止依此報告新進場",
+        f"# Sky 5m驗證 {value('symbol')}",
+        f"資料觀察時間：{value('observed_at_tpe')}（Asia/Taipei）",
+        f"最後實際成交時間：{value('last_trade_tpe')}",
+        f"最後成交觀察價：{value('last_trade_price')} 元（非即時下單價格）",
+        "",
+        "| 項目 | 本次結果 |",
+        "| --- | --- |",
+        f"| 五分鐘 K 棒 | {status} |",
+        f"| 當次 K 棒總數 | {count if count is not None else '待確認'} |",
+        f"| 已完成 K 棒 | {completed if completed is not None else '待確認'} |",
+        f"| 排除未完成 K 棒 | {excluded if excluded is not None else '待確認'} |",
+        f"| 已完成 K 棒成交量（原始單位） | {value('completed_bar_volume_raw_sum')} |",
+        f"| 最後完成棒起始時間 | {value('last_completed_bar_start')} |",
+        f"| 逐筆成交分頁 | {trade_status} |",
+        f"| 分頁數／結束空頁 | {value('trades_page_count')}／{value('trades_terminal_empty_page')} |",
+        f"| 逐筆成交總量（原始單位） | {value('trades_sum_raw_size')} |",
+        f"| Quote 成交總量（原始單位） | {value('quote_volume_raw')} |",
+        f"| 同源成交量對帳 | {volume_status} |",
+        f"| 逐筆成交加權均價（研究級） | {value('trades_weighted_mean_research')} 元 |",
+        f"| 正式 VWAP 認證 | {'PASS' if data.get('independent_vwap_certified') is True else 'HOLD'} |",
+        f"| VWAP 資料原因 | {vwap_status} |",
+        f"| TWSE 外部成交量對帳 | HOLD（本次未取得可比對的同截點官方數據） |",
+        f"| 現在動作 | 觀察 |",
+        "",
+        "研究級同一 Fugle 來源的 K 棒、逐筆成交、Quote 算術核對，不等於 TWSE 獨立校準或原子 PIT 證據。",
+        "未完成 K 棒不得進入交易訊號；獨立 VWAP、成本後 RR 與正式風控尚未通過。",
+        "自動下單：停用；Production：未核准。",
+    ]
+    if data.get("collection_error_type"):
+        lines.append("採集失敗類型：" + value("collection_error_type"))
+    return "\n".join(lines) + "\n"
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--symbol", required=True)
@@ -208,6 +258,8 @@ def main():
     (path / (args.symbol + "-5m-source.json")).write_text(
         json.dumps(result, ensure_ascii=False, indent=2, allow_nan=False) + "\n",
         encoding="utf-8")
+    (path / (args.symbol + "-5m-source.md")).write_text(
+        render_mobile_source_audit(result), encoding="utf-8")
     print(json.dumps({key: result.get(key) for key in
                       ("symbol", "five_minute_status", "trades_status",
                        "volume_status", "vwap_status", "collection_error_type")},
