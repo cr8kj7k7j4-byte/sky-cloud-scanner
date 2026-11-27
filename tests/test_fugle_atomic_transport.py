@@ -88,7 +88,13 @@ class PaidWorkflowWiringTests(unittest.TestCase):
         for path in self.WORKFLOWS:
             with self.subTest(path=path):
                 content = Path(path).read_text(encoding="utf-8")
-                self.assertIn("SKY_PAID_ATOMIC_ENFORCE: \"1\"", content)
+                if path.endswith("/swing-live-scan.yml"):
+                    self.assertIn('SKY_FUGLE_MONTHLY_RATE_CONTROL: "1"', content)
+                    self.assertIn("--monthly-rate-limited", content)
+                    self.assertIn("sky-fugle-paid-global-research-v1-live-wholemarket", content)
+                    self.assertIn("steps.verify_claim.outcome == 'success'", content)
+                else:
+                    self.assertIn("SKY_PAID_ATOMIC_ENFORCE: \"1\"", content)
                 self.assertIn("GH_TOKEN: ${{ github.token }}", content)
                 self.assertIn("contents: write", content)
                 if path.endswith("fugle-paid-api-acceptance.yml"):

@@ -12,6 +12,34 @@ _ATOMIC_CACHE = {}
 _ATOMIC_CACHE_LOCK = threading.RLock()
 _ATOMIC_CACHE_TTL_SECONDS = 300
 
+# Monthly plans are billed by subscription, not per successful HTTP call.
+# Maintain a conservative per-process pacing lane; the existing GitHub
+# concurrency group serializes participating paid workflows across runs.
+_MONTHLY_RATE_LOCK = threading.RLock()
+_MONTHLY_LAST_REQUEST = {}
+_MONTHLY_MIN_INTERVAL_SECONDS = {
+    "intraday": 0.12,    # <= 500/min, below Fugle developer 600/min
+    "snapshot": 0.12,    # <= 500/min, below Fugle developer 600/min
+    "historical": 1.10,  # <= 55/min, below Fugle developer 60/min
+    "technical": 1.10,
+    "ownership": 1.10,
+    "corporate-actions": 2.10,
+}
+
+def _monthly_pace(path):
+    family = path.lstrip("/").split("/", 1)[0]
+    if family not in _MONTHLY_MIN_INTERVAL_SECONDS:
+        raise RuntimeError("UNSUPPORTED_MONTHLY_FUGLE_ENDPOINT")
+    with _MONTHLY_RATE_LOCK:
+        last = _MONTHLY_LAST_REQUEST.get(family)
+        now = time.monotonic()
+        interval = _MONTHLY_MIN_INTERVAL_SECONDS[family]
+        if last is not None and now - last < interval:
+            time.sleep(interval - (now - last))
+        # Count attempts, including provider HTTP errors; never retry 429 here.
+        _MONTHLY_LAST_REQUEST[family] = time.monotonic()
+
+
 def _headers():
     if not FUGLE_API_KEY:
         raise RuntimeError("Missing FUGLE_API_KEY")
@@ -22,6 +50,14 @@ def _get(path, params=None):
     headers = _headers()
     from research.sky_fugle_atomic_ref_claim import guard_fugle_request
     enforced = os.getenv("SKY_PAID_ATOMIC_ENFORCE") == "1"
+    monthly = os.getenv("SKY_FUGLE_MONTHLY_RATE_CONTROL") == "1"
+    if monthly:
+        if enforced:
+            raise RuntimeError("CONFLICTING_FUGLE_BILLING_GUARDS")
+        from research.sky_fugle_request_identity import canonical_fugle_request
+        canonical_fugle_request("GET", url, parameters=params)
+        _monthly_pace(path)
+        return _fetch_json(url, params, headers, path)
     if enforced:
         from research.sky_fugle_request_identity import canonical_fugle_request
         identity = canonical_fugle_request("GET", url, parameters=params)

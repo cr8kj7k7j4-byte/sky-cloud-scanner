@@ -5,7 +5,7 @@ from tempfile import TemporaryDirectory
 
 from research.sky_paid_fugle_api_guard import (
     artifact_name, check_reservation, prepare, slots, workflow_request_scope,
-    verify_uploaded_reservation,
+    verify_uploaded_reservation, prepare_monthly, monthly_artifact_name,
 )
 
 
@@ -286,6 +286,56 @@ class FugleGuardTests(unittest.TestCase):
             self.assertTrue((Path(td) / "claim.json").exists())
 
 
+class MonthlyBillingRateGuardTests(unittest.TestCase):
+    """Monthly subscription must not enforce a cross-command 300s cooldown."""
+
+    def test_distinct_runs_same_second_have_separate_receipts(self):
+        now = datetime(2026, 11, 27, 3, 55, tzinfo=timezone.utc)
+        with TemporaryDirectory() as td:
+            a = prepare_monthly("sky:live:wholemarket", now, "111", "1", Path(td))
+            b = prepare_monthly("sky:live:wholemarket", now, "222", "1", Path(td))
+        self.assertTrue(a[0] and b[0])
+        self.assertNotEqual(a[1], b[1])
+        self.assertEqual(a[2]["billing_control"], "MONTHLY_RATE_LIMIT_ONLY")
+        self.assertEqual(b[2]["reason"], "CLEAR")
+
+    def test_distinct_retry_attempts_have_distinct_receipt_ids(self):
+        now = datetime(2026, 11, 27, 3, 55, tzinfo=timezone.utc)
+        first = monthly_artifact_name("sky:live:wholemarket", "111", "1")
+        second = monthly_artifact_name("sky:live:wholemarket", "111", "2")
+        self.assertNotEqual(first, second)
+        with TemporaryDirectory() as td:
+            _, name, receipt = prepare_monthly(
+                "sky:live:wholemarket", now, "111", "2", Path(td))
+        self.assertEqual(name, second)
+        self.assertEqual(receipt["run_attempt"], "2")
+
+    def test_monthly_receipt_requires_exact_same_run_zip(self):
+        now = datetime(2026, 11, 27, 3, 55, tzinfo=timezone.utc)
+        with TemporaryDirectory() as td:
+            _, name, local = prepare_monthly(
+                "sky:live:wholemarket", now, "111", "2", Path(td))
+            own = {"id": 91, "workflow_run": {"id": 111}, "expired": False}
+            lookup = lambda candidate: [own] if candidate == name else []
+            self.assertEqual(verify_uploaded_reservation(
+                "sky:live:wholemarket", "111", now, local, lookup,
+                lambda aid: dict(local), monthly=True, attempt="2"), name)
+            with self.assertRaisesRegex(RuntimeError, "MONTHLY_RATE_CONTROL_RECEIPT_REQUIRED"):
+                verify_uploaded_reservation(
+                    "sky:live:wholemarket", "111", now, local, lookup,
+                    lambda aid: dict(local), monthly=True, attempt="1")
+            with self.assertRaisesRegex(RuntimeError, "ARTIFACT_CLAIM_CONTENT_MISMATCH_claim_nonce"):
+                verify_uploaded_reservation(
+                    "sky:live:wholemarket", "111", now, local, lookup,
+                    lambda aid: dict(local, claim_nonce="0"*32),
+                    monthly=True, attempt="2")
+
+    def test_invalid_monthly_attempt_is_rejected(self):
+        for run_id, attempt in (("", "1"), ("a", "1"), ("123", "0"), ("123", "x")):
+            with self.assertRaises(ValueError):
+                monthly_artifact_name("scope", run_id, attempt)
+
+
 class PaidWorkflowWiringRegressionTests(unittest.TestCase):
     """Offline guard against removing paid preflight from the four live entrypoints."""
 
@@ -317,6 +367,17 @@ class PaidWorkflowWiringRegressionTests(unittest.TestCase):
                 self.assertIn("steps.guard.outputs.allowed == 'true'", content)
                 self.assertIn("path: output/fugle_api_guard/claim.json", content)
                 self.assertLess(content.index("id: guard"), content.index("id: verify_claim"))
+
+    def test_monthly_core_workflows_retain_claim_readback_and_concurrency(self):
+        for path in (".github/workflows/scan.yml",
+                     ".github/workflows/sky-chat-bridge.yml",
+                     ".github/workflows/swing-live-scan.yml"):
+            content = Path(path).read_text(encoding="utf-8")
+            self.assertIn("--monthly-rate-limited", content)
+            self.assertIn("SKY_FUGLE_MONTHLY_RATE_CONTROL", content)
+            self.assertNotIn("SKY_PAID_ATOMIC_ENFORCE:", content)
+            self.assertIn("cancel-in-progress: false", content)
+            self.assertIn("--verify", content)
 
     def test_scan_formal_cron_is_retired_but_manual_path_remains(self):
         # W0 #363 user decision on 2026-11-26: no formal timed scans.

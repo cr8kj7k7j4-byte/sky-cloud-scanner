@@ -119,7 +119,7 @@ jobs:
         if: steps.calendar.outputs.should_scan == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:live:wholemarket'
+        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:live:wholemarket' --monthly-rate-limited
       - name: Publish shared reservation
         id: claim
         if: steps.calendar.outputs.should_scan == 'true' && steps.guard.outputs.allowed == 'true'
@@ -134,12 +134,12 @@ jobs:
         if: steps.calendar.outputs.should_scan == 'true' && steps.guard.outputs.allowed == 'true' && steps.claim.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:live:wholemarket' --verify
+        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:live:wholemarket' --monthly-rate-limited --verify
       - name: Run scanner
         if: steps.calendar.outputs.should_scan == 'true' && steps.guard.outputs.allowed == 'true' && steps.verify_claim.outcome == 'success'
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
-          SKY_PAID_ATOMIC_ENFORCE: '1'
+          SKY_FUGLE_MONTHLY_RATE_CONTROL: '1'
           GH_TOKEN: ${{ github.token }}
           MAX_PRICE: "100"
           TOP_N: "100"
@@ -211,7 +211,7 @@ jobs:
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
           SKY_FUGLE_ONLY_MARKETDATA: "1"
-          SKY_PAID_ATOMIC_ENFORCE: '1'
+          SKY_FUGLE_MONTHLY_RATE_CONTROL: '1'
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
@@ -390,7 +390,7 @@ jobs:
         id: guard
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:live:wholemarket'
+        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:live:wholemarket' --monthly-rate-limited
       - name: Publish existing paid reservation
         id: claim
         if: steps.guard.outputs.allowed == 'true'
@@ -405,13 +405,13 @@ jobs:
         if: steps.guard.outputs.allowed == 'true' && steps.claim.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:live:wholemarket' --verify
+        run: python -m research.sky_paid_fugle_api_guard --scope 'sky:live:wholemarket' --monthly-rate-limited --verify
       - name: Observe all listed TWSE and TPEx shares (postmarket, no live trade signals)
         if: steps.guard.outputs.allowed == 'true' && steps.verify_claim.outcome == 'success'
         env:
           FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
           GH_TOKEN: ${{ github.token }}
-          SKY_PAID_ATOMIC_ENFORCE: '1'
+          SKY_FUGLE_MONTHLY_RATE_CONTROL: '1'
           SKY_FUGLE_ONLY_MARKETDATA: '1'
         run: |
           python -m research.sky_postmarket_observation

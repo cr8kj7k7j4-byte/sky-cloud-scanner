@@ -63,7 +63,9 @@ class TestPostmarketObservation(unittest.TestCase):
         self.assertIn("inputs.mode != 'postmarket_observation'", intraday_if)
         self.assertIn("inputs.mode == 'postmarket_observation'", postmarket_if)
         self.assertIn("Reserve existing cross-workflow Fugle claim", wf)
-        self.assertIn("SKY_PAID_ATOMIC_ENFORCE: '1'", wf)
+        self.assertIn("SKY_FUGLE_MONTHLY_RATE_CONTROL: '1'", wf)
+        self.assertIn("--monthly-rate-limited", wf)
+        self.assertIn("steps.verify_claim.outcome == 'success'", wf)
         self.assertIn("python -m research.sky_postmarket_observation", wf)
 
     def test_explicit_postmarket_push_does_not_activate_intraday_scan(self):

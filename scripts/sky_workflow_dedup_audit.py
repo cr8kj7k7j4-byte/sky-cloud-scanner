@@ -51,7 +51,12 @@ def workflow_info(path: Path) -> dict:
         "cron_utc": schedules,
         "has_workflow_dispatch": bool(re.search(r"(?m)^  workflow_dispatch:", content)),
         "paid_endpoint_reference": paid,
-        "atomic_enforce_reference": "SKY_PAID_ATOMIC_ENFORCE" in content,
+        "atomic_enforce_reference": (
+            "SKY_PAID_ATOMIC_ENFORCE" in content or
+            ("SKY_FUGLE_MONTHLY_RATE_CONTROL" in content and
+             "--monthly-rate-limited" in content and
+             "sky-fugle-paid-global-research-v1-live-wholemarket" in content)
+        ),
         "concurrency_group": (re.search(r"(?m)^  group:\s*(.+)", content) or [None, None])[1],
         "runs_main_scanner": bool(re.search(r"python\s+-m\s+src\.main(?:\s|$)", content)),
     }
@@ -96,8 +101,15 @@ def reuse_first_fallback_contract(repo_root: Path) -> dict:
                 "Reserve shared paid Fugle slot before any paid observations",
                 "Independently verify paid reservation",
                 "steps.verify_claim.outcome == 'success'",
-                "SKY_PAID_ATOMIC_ENFORCE: '1'",
             )
+        ) and (
+                "SKY_PAID_ATOMIC_ENFORCE: '1'" in texts["canonical_scan"]
+                or (
+                    "SKY_FUGLE_MONTHLY_RATE_CONTROL: '1'" in texts["canonical_scan"]
+                    and "--monthly-rate-limited" in texts["canonical_scan"]
+                    and "cancel-in-progress: false" in texts["canonical_scan"]
+                    and "python -m research.sky_paid_fugle_api_guard" in texts["canonical_scan"]
+                )
         ),
         "two_track_plan_a_and_source_inventory": all(
             step in texts["canonical_scan"] for step in (
