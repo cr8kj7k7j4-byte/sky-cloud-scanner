@@ -96,6 +96,47 @@ class SingleStockRealtimeTests(unittest.TestCase):
             result = collect("6140", NOW)
         self.assertIsNone(result["scores"])
 
+    def test_scored_price_cap_observation_cli_succeeds_without_trade_authorization(self):
+        import tempfile
+        import sys
+        from pathlib import Path
+        from src.sky_single_stock_realtime import main
+
+        scored = {
+            "symbol": "2330", "status": "PRICE_CAP_EXCEEDED",
+            "score_status": "RESEARCH_ONLY_VERIFIED_INTRADAY_QUOTE",
+            "scores": {"bull": 72, "bear": 28},
+            "execution_authorized": False, "live_order_enabled": False,
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            output = str(Path(tmp) / "2330.json")
+            with patch("src.sky_single_stock_realtime.collect", return_value=scored), patch.object(
+                sys, "argv", ["single_stock", "--symbol", "2330", "--output", output]
+            ):
+                main()
+            self.assertTrue(Path(output).exists())
+
+    def test_unscored_invalid_quote_cli_still_fails(self):
+        import tempfile
+        import sys
+        from pathlib import Path
+        from src.sky_single_stock_realtime import main
+
+        blocked = {
+            "symbol": "2330", "status": "STALE_QUOTE",
+            "score_status": "INSUFFICIENT_VERIFIED_OHLC",
+            "scores": None, "execution_authorized": False,
+            "live_order_enabled": False,
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            output = str(Path(tmp) / "2330.json")
+            with patch("src.sky_single_stock_realtime.collect", return_value=blocked), patch.object(
+                sys, "argv", ["single_stock", "--symbol", "2330", "--output", output]
+            ):
+                with self.assertRaises(SystemExit) as error:
+                    main()
+            self.assertEqual(error.exception.code, 2)
+
     def test_timestamp_conversion(self):
         self.assertEqual(timestamp_tpe(epoch_us(NOW)), NOW.isoformat())
 
