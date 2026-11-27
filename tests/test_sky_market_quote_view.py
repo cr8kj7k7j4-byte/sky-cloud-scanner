@@ -11,7 +11,7 @@ UNIVERSE = [{"symbol":"2330","exchange":"TWSE","name":"A"},
 
 def quote(code):
     return {"date":"2026-11-06","lastPrice":90.0,
-            "lastTrade":{"time":int(NOW.timestamp()*1_000_000)}}
+            "lastTrade":{"price":90.0,"time":int(NOW.timestamp()*1_000_000)}}
 
 class QuoteViewerTests(unittest.TestCase):
     def test_validates_input(self):
@@ -38,7 +38,8 @@ class QuoteViewerTests(unittest.TestCase):
         def no_execution_clock(_):
             return {"symbol": "2330", "date": "2026-11-06", "lastPrice": 89.5,
                     "lastUpdated": int(NOW.timestamp() * 1_000_000),
-                    "closeTime": int(NOW.timestamp() * 1_000_000)}
+                    "closeTime": int(NOW.timestamp() * 1_000_000),
+                    "lastTrade": {"price": 89.5}}
         result = collect(["2330"], now=NOW, universe=UNIVERSE,
                          fetch=no_execution_clock)
         item = result["quotes"][0]
