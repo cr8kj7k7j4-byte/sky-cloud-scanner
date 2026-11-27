@@ -88,6 +88,23 @@ class CanonicalFugleRequestTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "INVALID_PARAMETER_VALUE_TYPE"):
                     key("GET", "/historical/candles/2330", parameters={"limit": value})
 
+    def test_official_trades_pagination_is_whitelisted_but_other_host_and_post_fail(self):
+        # W0 #363: real 3717 source-audit Run 45943531934 failed in the
+        # canonical transport before a Fugle trades HTTP request.
+        url = "/intraday/trades/3717"
+        full = "https://api.fugle.tw/marketdata/v1.0/stock/intraday/trades/3717"
+        first = key("GET", url, parameters={"offset": 0, "limit": 500})
+        self.assertEqual(first, key("GET", full + "?limit=500&offset=0"))
+        self.assertNotEqual(first, key("GET", url, parameters={"offset": 500, "limit": 500}))
+        self.assertNotEqual(first, key("GET", "/intraday/trades/2330", parameters={"offset": 0, "limit": 500}))
+        for unsafe in ("https://example.org/intraday/trades/3717", "/intraday/trades/3717?token=secret",
+                       "/intraday/trades/3717?limit=100&limit=500", "/intraday/trades/3717/hidden"):
+            with self.subTest(unsafe=unsafe):
+                with self.assertRaises(ValueError):
+                    key("GET", unsafe)
+        with self.assertRaises(ValueError):
+            key("POST", url)
+
     def test_unsupported_or_untrusted_fail_closed(self):
         for url in (
             "http://api.fugle.tw/intraday/quote/2330",
